@@ -1,0 +1,114 @@
+.board-frame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  isolation: isolate;
+}
+
+.board-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  border-radius: 18px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-token text {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.board-target {
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-target .board-target-mark,
+.board-hex-target polygon {
+  transition: stroke .16s ease, fill .16s ease, stroke-width .16s ease, opacity .16s ease;
+}
+
+.board-target .board-target-mark,
+.board-road-target .board-target-mark,
+.board-vertex-target path {
+  pointer-events: none;
+}
+
+.board-target:hover .board-target-mark,
+.board-target:focus-visible .board-target-mark {
+  stroke: #f1ac75;
+  stroke-width: 4px;
+}
+
+.board-vertex-target:hover .board-target-mark,
+.board-vertex-target:focus-visible .board-target-mark {
+  fill: #ffe8a9;
+}
+
+.board-road-target:hover .board-target-mark,
+.board-road-target:focus-visible .board-target-mark {
+  stroke: #ffe8a9;
+  stroke-width: 10px;
+  stroke-dasharray: none;
+}
+
+.board-hex-target:hover polygon,
+.board-hex-target:focus-visible polygon {
+  stroke: #ffedb8;
+  stroke-width: 4px;
+  fill: #fff5d71c;
+  stroke-dasharray: none;
+}
+
+.board-piece,
+.board-road,
+.board-robber,
+.board-decoration {
+  pointer-events: none;
+}
+
+.board-placement-hint {
+  position: absolute;
+  bottom: 17px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 30px);
+  padding: 9px 14px;
+  border: 1px solid #e8dfbf40;
+  border-radius: 100px;
+  color: #fff2d5;
+  background: #214e54ee;
+  box-shadow: 0 3px 10px #113d4130;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .025em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.board-placement-hint > span {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #ecd49c;
+  box-shadow: 0 0 0 3px #ecd49c20;
+}
+
+@media (max-width: 560px) {
+  .board-svg { border-radius: 12px; }
+  .board-placement-hint { bottom: 9px; font-size: 10px; padding: 7px 10px; gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-target .board-target-mark,
+  .board-hex-target polygon { transition: none; }
+}

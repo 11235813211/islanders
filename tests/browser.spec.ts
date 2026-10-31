@@ -1,0 +1,112 @@
+import { expect, test, type Page } from '@playwright/test';
+import type { GameView, ServerMessage } from '../shared/types';
+import { RESOURCES } from '../shared/types';
+function observe(page: Page) {
+  let view: GameView | undefined;
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('websocket', socket => socket.on('framereceived', frame => {
+    try { const message = JSON.parse(frame.payload.toString()) as ServerMessage; if (message.type === 'state') view = message.state; } catch { /* ping/pong */ }
+  }));
+  return { state: () => view, errors };
+}
+
+test('solo lobby, large board, seat switching, mobile and tablet layouts', async ({ page }) => {
+  const game = observe(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
+  await expect(page.locator('.board-svg')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Create solo test room' }).click();
+  await expect(page.getByRole('heading', { name: 'Game settings' })).toBeVisible();
+  await expect(page.locator('.board-svg')).toHaveCount(0);
+  await expect(page.locator('.lobby-player')).toHaveCount(3);
+  await page.getByLabel('Automatic dice roll').selectOption('0');
+  await expect.poll(() => game.state()?.settings.autoRollSeconds).toBe(0);
+  await page.screenshot({ path: 'test-results/lobby-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Start game', exact: true }).click();
+  for (let turn = 0; turn < 6; turn++) {
+    await page.getByRole('button', { name: /^Build settlement at/ }).first().click();
+    await page.getByRole('button', { name: /^Build road at/ }).first().click();
+  }
+  await expect(page.getByRole('button', { name: 'Roll dice' })).toBeEnabled();
+  await expect.poll(() => page.locator('.board-svg').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(600);
+  await page.screenshot({ path: 'test-results/game-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Roll dice' }).click();
+  await expect.poll(() => game.state()?.phase).not.toBe('roll');
+  if (game.state()?.phase === 'robber') {
+    await page.getByRole('button', { name: /^Move robber to/ }).first().click();
+    await expect.poll(() => game.state()?.phase).not.toBe('robber');
+    if (game.state()?.phase === 'steal') await page.getByRole('button', { name: /^Steal from/ }).first().click();
+  }
+  await expect(page.getByRole('button', { name: 'End turn' })).toBeEnabled();
+  const host = game.state()!.selfId;
+  const other = game.state()!.players.find(p => p.id !== host)!;
+  await page.getByLabel('Play as', { exact: true }).selectOption(other.id);
+  await expect.poll(() => game.state()?.selfId).toBe(other.id);
+  await expect(page.getByRole('button', { name: 'End turn' })).toHaveCount(0);
+  await page.getByLabel('Play as', { exact: true }).selectOption(host);
+  await expect(page.getByRole('button', { name: 'End turn' })).toBeEnabled();
+  const labels = { wood: 'Lumber', brick: 'Brick', sheep: 'Wool', wheat: 'Grain', ore: 'Ore' };
+  const give = RESOURCES.find(resource => game.state()!.hand[resource] > 0)!;
+  const want = RESOURCES.find(resource => resource !== give)!;
+  await page.getByRole('button', { name: 'Propose a trade' }).click();
+  await page.getByRole('button', { name: `Offer one more ${labels[give]}` }).click();
+  await page.getByRole('button', { name: `Request one more ${labels[want]}` }).click();
+  await page.getByRole('button', { name: 'Send offer' }).click();
+  await expect.poll(() => game.state()?.tradeOffer).toBeTruthy();
+  await page.getByRole('button', { name: 'activity', exact: true }).click();
+  await page.getByLabel('Play as', { exact: true }).selectOption(other.id);
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: /wants to trade/ })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }).click();
+  await expect.poll(() => game.state()?.tradeOffer?.declinedBy.includes(other.id)).toBe(true);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByLabel('Play as', { exact: true }).selectOption(host);
+  await page.getByRole('button', { name: 'trade', exact: true }).click();
+  await page.getByRole('button', { name: 'Withdraw offer' }).click();
+  await expect.poll(() => game.state()?.tradeOffer).toBeNull();
+  await page.getByRole('button', { name: 'dice', exact: true }).click();
+  await expect(page.getByText('1 roll', { exact: true })).toBeVisible();
+  for (const [width, height, label] of [[390, 844, 'phone'], [820, 1180, 'tablet']] as const) {
+    await page.setViewportSize({ width, height });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/game-${label}.png`, fullPage: true });
+  }
+  expect(game.errors).toEqual([]);
+});
+
+test('username sign-in resumes the same room on another device and signs out', async ({ browser }) => {
+  const first = await browser.newContext();
+  const second = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const host = await first.newPage();
+  const phone = await second.newPage();
+  const a = observe(host), b = observe(phone);
+  const username = `ui_${Date.now().toString(36)}`;
+  const password = 'Browser-test-password-492!';
+  try {
+    await host.goto('/');
+    await host.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await host.getByRole('button', { name: 'Create account', exact: true }).click();
+    await host.getByLabel('Username', { exact: true }).fill(username);
+    await host.getByLabel('Password', { exact: true }).fill(password);
+    await host.locator('form').getByRole('button', { name: 'Create account' }).click();
+    await expect(host.getByRole('dialog')).toHaveCount(0);
+    await host.getByRole('button', { name: 'Create solo test room' }).click();
+    await expect.poll(() => a.state()?.players.length).toBe(3);
+    const roomId = a.state()!.roomId;
+    await phone.goto('/');
+    await phone.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await phone.getByLabel('Username', { exact: true }).fill(username);
+    await phone.getByLabel('Password', { exact: true }).fill(password);
+    await phone.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(phone.getByRole('dialog')).toHaveCount(0);
+    await phone.getByRole('button', { name: new RegExp(roomId) }).click();
+    await expect.poll(() => b.state()?.selfId).toBe(a.state()?.selfId);
+    await expect(phone.locator('.lobby-player')).toHaveCount(3);
+    await phone.getByRole('button', { name: 'Sign out' }).click();
+    await expect(phone.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
+    await expect(host.locator('.connection-pill')).toHaveText('Connected');
+    expect(a.errors.concat(b.errors)).toEqual([]);
+  } finally { await first.close(); await second.close(); }
+});
