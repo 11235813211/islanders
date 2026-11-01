@@ -16,9 +16,9 @@ export function savedSession(roomId: string): Session | null {
   } catch { return null; }
 }
 
-export async function enterRoom(name: string, roomId?: string, account?: AccountSession | null, playtest = false): Promise<Session> {
+export async function enterRoom(name: string, roomId?: string, account?: AccountSession | null, playtest = false, spectate = false): Promise<Session> {
   const data = await apiRequest<Session>(`/api/rooms${roomId ? `/${encodeURIComponent(roomId)}/join` : ''}`, {
-    method: 'POST', body: JSON.stringify({ name, playtest }),
+    method: 'POST', body: JSON.stringify({ name, playtest, spectate }),
   }, account);
   try { localStorage.setItem(`islanders:${data.roomId}`, JSON.stringify(data)); } catch { /* The live seat still works without local storage. */ }
   return data;

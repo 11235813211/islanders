@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { addPlayer, applyAction, createGame, GameError, getView, normalizeGame } from '../shared/engine';
+import { addPlayer, addSpectator, advanceTime, applyAction, createGame, GameError, getView, normalizeGame } from '../shared/engine';
 import type { GameState, ServerMessage, Session } from '../shared/types';
 import { AccountStore, type AccountIdentity } from './accounts';
 import { AUTH_TIMEOUT_MS, hashToken, originAllowed, parseAuthorization, parseCredentials, parseMessage, parseName, ProtocolError, randomToken, readBody, record, ROOM_LIFETIME_MS, ROOM_PATTERN, roomCode, secureRandom } from './protocol';
@@ -21,7 +21,7 @@ interface SavedSession { playerId: string; tokenHash: string; processedIds: stri
 interface RoomRecord { schema: 1; game: GameState; sessions: SavedSession[]; lastActivity: number }
 interface Attachment { playerId: string | null; tokenHash?: string; controlledId?: string; connectedAt: number; windowStart: number; messageCount: number }
 
-const MAX_SOCKETS = 20;
+const MAX_SOCKETS = 40;
 const MAX_PLAYER_SOCKETS = 4;
 const MAX_MESSAGES_PER_MINUTE = 90;
 const securityHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
@@ -127,7 +127,7 @@ export default {
         const body = await readBody(request);
         const identity = await accountFor(request, env);
         const name = identity?.username ?? parseName(body);
-        response = await stub.fetch(new Request('https://room.internal/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, identity }) }));
+        response = await stub.fetch(new Request('https://room.internal/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, identity, spectate: record(body) && body.spectate === true }) }));
       } else {
         const internal = new URL(request.url);
         internal.pathname = '/socket'; internal.search = '';
@@ -146,7 +146,7 @@ export class GameRoom extends DurableObject<Env> {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       this.record = await ctx.storage.get<RoomRecord>('room');
-      if (this.record) this.record.game = normalizeGame(this.record.game);
+      if (this.record) this.record.game = normalizeGame(this.record.game, Date.now(), secureRandom);
     });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
@@ -182,7 +182,13 @@ export class GameRoom extends DurableObject<Env> {
     const deadlines = this.sockets().filter(socket => !this.attachment(socket)?.playerId).map(socket => this.attachment(socket).connectedAt + AUTH_TIMEOUT_MS);
     if (this.record) {
       deadlines.push(this.record.lastActivity + ROOM_LIFETIME_MS);
-      if (this.record.game.phase === 'roll' && this.record.game.rollDeadline !== null) deadlines.push(this.record.game.rollDeadline);
+      const game = this.record.game;
+      if (game.proposal) deadlines.push(game.proposal.expiresAt);
+      if (game.pausedAt === null) {
+        if (game.phase === 'roll' && game.rollDeadline !== null) deadlines.push(game.rollDeadline);
+        if (game.turnDeadline !== null && !game.turnExpired) deadlines.push(game.turnDeadline);
+        if (game.tradeOffer) deadlines.push(game.tradeOffer.expiresAt);
+      }
       for (const socket of this.sockets()) {
         const saved = this.savedFor(this.attachment(socket));
         if (saved?.account) deadlines.push(saved.account.expiresAt);
@@ -241,13 +247,17 @@ export class GameRoom extends DurableObject<Env> {
         }
         if (path === '/join' && request.method === 'POST') {
           const room = this.requireRoom();
-          const body = await readBody(request) as { name: string; identity?: AccountIdentity | null };
+          const body = await readBody(request) as { name: string; identity?: AccountIdentity | null; spectate?: boolean };
           const name = parseName(body);
           const identity = body.identity;
-          const existing = identity && room.game.players.find(player => player.id === identity.playerId);
-          if (!existing && room.game.testMode) throw new ProtocolError('This is a solo test room. Create a multiplayer room to invite other players.', 409);
+          const existing = identity && [...room.game.players, ...room.game.spectators].find(player => player.id === identity.playerId);
+          if (!existing && room.game.testMode && !body.spectate) throw new ProtocolError('This is a solo test room. Join as a spectator or create a multiplayer room.', 409);
           const playerId = existing?.id ?? identity?.playerId ?? crypto.randomUUID();
-          const game = existing ? room.game : addPlayer(room.game, { id: playerId, name });
+          let game = existing ? room.game : body.spectate ? addSpectator(room.game, { id: playerId, name }) : addPlayer(room.game, { id: playerId, name });
+          if (existing && !body.spectate && game.phase === 'lobby' && !game.testMode && game.spectators.some(p => p.id === playerId)) {
+            game = addPlayer(game, { id: playerId, name });
+            game.spectators = game.spectators.filter(p => p.id !== playerId);
+          }
           const session = await this.issueSession({ ...room, game }, playerId, identity);
           this.broadcast();
           return json(session, existing ? 200 : 201);
@@ -300,12 +310,12 @@ export class GameRoom extends DurableObject<Env> {
         actionId = message.id;
         if (saved.processedIds.includes(message.id)) { this.snapshot(socket, message.id); return; }
         await checkLimit(this.env.CONNECTION_LIMITER, `action:${room.game.roomId}:${attachment.playerId}`);
-        if (message.version !== room.game.version) {
+        if (message.version !== room.game.version && !['chat', 'vote'].includes(message.action.type)) {
           this.send(socket, { type: 'error', id: message.id, message: 'The game changed. Your board has been refreshed; please try that move again.' });
           this.snapshot(socket); return;
         }
         const actor = ['configure', 'start'].includes(message.action.type) ? attachment.playerId : this.actor(attachment);
-        const game = applyAction(room.game, actor, message.action, secureRandom);
+        const game = applyAction(room.game, actor, message.action, secureRandom, Date.now(), { online: room.game.testMode ? room.game.players.map(p => p.id) : this.online() });
         const sessions = room.sessions.map(session => session.tokenHash === saved.tokenHash ? { ...session, processedIds: [...session.processedIds, message.id].slice(-64) } : session);
         await this.commit({ ...room, game, sessions, lastActivity: Date.now() }); this.broadcast(message.id, attachment.playerId);
       } catch (error) {
@@ -337,10 +347,9 @@ export class GameRoom extends DurableObject<Env> {
         for (const socket of this.sockets()) socket.close(4404, 'Room expired after seven days without a move.');
         await this.ctx.storage.deleteAll(); this.record = undefined; return;
       }
-      if (this.record?.game.phase === 'roll' && this.record.game.rollDeadline !== null && this.record.game.rollDeadline <= now) {
-        const playerId = this.record.game.players[this.record.game.turnIndex]!.id;
-        const game = applyAction(this.record.game, playerId, { type: 'roll' }, secureRandom, now);
-        await this.commit({ ...this.record, game, lastActivity: now }); this.broadcast();
+      if (this.record) {
+        const game = advanceTime(this.record.game, now, secureRandom);
+        if (game !== this.record.game) { await this.commit({ ...this.record, game, lastActivity: now }); this.broadcast(); }
       }
       await this.scheduleAlarm();
     });

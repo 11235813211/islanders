@@ -1,3 +1,4 @@
+import { validSettings } from '../shared/settings';
 import { RESOURCES, type ClientMessage, type GameAction, type Resource, type ResourceBag } from '../shared/types';
 
 export const ROOM_PATTERN = /^(?:[A-Z]{3,12}\d{2}|[A-HJ-NP-Z2-9]{8})$/;
@@ -52,12 +53,30 @@ export function parseName(body: unknown): string {
 export function validateAction(value: unknown): GameAction {
   if (!record(value) || typeof value.type !== 'string') throw new ProtocolError('Invalid game action.');
   switch (value.type) {
-    case 'start': case 'roll': case 'end-turn': return { type: value.type };
+    case 'start': case 'roll': case 'end-turn': case 'buy-development': case 'finish-free-roads': return { type: value.type };
     case 'configure':
-      if (record(value.settings) && [0, 5, 10, 15, 30].includes(value.settings.autoRollSeconds as number) && typeof value.settings.trackDice === 'boolean') {
-        return { type: 'configure', settings: { autoRollSeconds: value.settings.autoRollSeconds as number, trackDice: value.settings.trackDice } };
-      }
+      if (validSettings(value.settings)) return { type: 'configure', settings: value.settings };
       break;
+    case 'chat':
+      if (typeof value.text === 'string' && value.text.length <= 280) return { type: 'chat', text: value.text };
+      break;
+    case 'propose':
+      if (value.kind === 'undo' || value.kind === 'pause' || value.kind === 'resume') return { type: 'propose', kind: value.kind };
+      break;
+    case 'vote':
+      if (identifier(value.proposalId) && typeof value.accept === 'boolean') return { type: 'vote', proposalId: value.proposalId, accept: value.accept };
+      break;
+    case 'play-knight': case 'play-road-building':
+      if (identifier(value.cardId)) return { type: value.type, cardId: value.cardId };
+      break;
+    case 'play-monopoly':
+      if (identifier(value.cardId) && RESOURCES.includes(value.resource as Resource)) return { type: value.type, cardId: value.cardId, resource: value.resource as Resource };
+      break;
+    case 'play-plenty': {
+      const resources = resourceBag(value.resources);
+      if (identifier(value.cardId) && resources) return { type: value.type, cardId: value.cardId, resources };
+      break;
+    }
     case 'offer-trade': {
       const give = resourceBag(value.give);
       const want = resourceBag(value.want);

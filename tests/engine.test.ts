@@ -163,7 +163,7 @@ describe('room and setup rules', () => {
     const state = lobby();
     expect(() => applyAction(state, 'p1', { type: 'start' })).toThrow(/host/);
     expect(() => applyAction(lobby(1), 'p0', { type: 'start' })).toThrow(/friend/);
-    expect(() => addPlayer(lobby(4), { id: 'p4', name: 'Fifth' })).toThrow(/four/);
+    expect(() => addPlayer(lobby(4), { id: 'p4', name: 'Fifth' })).toThrow(/four players/);
     expect(() => addPlayer(state, { id: 'p0', name: 'Again' })).toThrow(/already/);
     expect(() => addPlayer(state, { id: 'new', name: ' ' })).toThrow(/name/);
     expect(() => addPlayer(state, { id: '__proto__', name: 'Invalid' })).toThrow(/identity/);
@@ -366,7 +366,7 @@ describe('building and bank trades', () => {
     const next = applyAction(state, 'p0', { type: 'trade', give: 'wood', receive: 'ore' });
     expect(next.players[0].resources).toEqual({ ...emptyBag(), ore: 1 });
     expect(() => applyAction(state, 'p0', { type: 'trade', give: 'wood', receive: 'wood' })).toThrow(/different/);
-    expect(() => applyAction(next, 'p0', { type: 'trade', give: 'ore', receive: 'wood' })).toThrow(/four/);
+    expect(() => applyAction(next, 'p0', { type: 'trade', give: 'ore', receive: 'wood' })).toThrow(/4 resources/);
     grant(state, 'p1', { ore: 19 });
     expect(() => applyAction(state, 'p0', { type: 'trade', give: 'wood', receive: 'ore' })).toThrow(/bank/);
     assertConserved(next);
@@ -411,7 +411,7 @@ describe('trust boundary and immutability', () => {
     expect(view.hand).toEqual(state.players[0].resources);
     view.hand.wood = 500; view.board.hexes[0].number = 100;
     expect(state).toEqual(original);
-    expect(() => getView(state, 'intruder')).toThrow(/not a player/);
+    expect(() => getView(state, 'intruder')).toThrow(/not a member/);
     expect(() => applyAction(state, 'intruder', { type: 'roll' })).toThrow(/not a player/);
   });
 
@@ -542,13 +542,13 @@ describe('trust boundary and immutability', () => {
 describe('room settings and automatic roll scheduling', () => {
   it('lets only the host configure supported settings before a game starts', () => {
     const state = lobby();
-    expect(state.settings).toEqual({ autoRollSeconds: 10, trackDice: true });
+    expect(state.settings).toMatchObject({ autoRollSeconds: 10, trackDice: true });
     const action = { type: 'configure', settings: { autoRollSeconds: 5, trackDice: false } } as const;
     expect(() => applyAction(state, 'p1', action)).toThrow(/host/);
     const next = applyAction(state, 'p0', action);
-    expect(next.settings).toEqual(action.settings);
+    expect(next.settings).toMatchObject(action.settings);
     expect(next.version).toBe(state.version + 1);
-    expect(state.settings).toEqual({ autoRollSeconds: 10, trackDice: true });
+    expect(state.settings).toMatchObject({ autoRollSeconds: 10, trackDice: true });
     expect(() => applyAction(setup(), 'p0', action)).toThrow(/not available/);
   });
 
@@ -558,7 +558,7 @@ describe('room settings and automatic roll scheduling', () => {
     { autoRollSeconds: '10', trackDice: true },
     { autoRollSeconds: 10, trackDice: 1 },
     { autoRollSeconds: 10 },
-    { autoRollSeconds: 10, trackDice: true, friendlyRobber: true },
+    { autoRollSeconds: 10, trackDice: true, friendlyRobber: 'yes' },
   ])('rejects malformed settings without changing state: %j', settings => {
     const state = lobby(); const original = structuredClone(state);
     expect(() => applyAction(state, 'p0', { type: 'configure', settings } as GameAction)).toThrow(GameError);
@@ -587,7 +587,7 @@ describe('room settings and automatic roll scheduling', () => {
 
   it('keeps auto-roll disabled independently from dice tracking', () => {
     const state = setup();
-    state.settings = { autoRollSeconds: 0, trackDice: false };
+    state.settings = { ...state.settings, autoRollSeconds: 0, trackDice: false };
     const rolled = rollTotal(state, 2);
     expect(rolled.diceCounts[2]).toBe(1);
     expect(getView(rolled, 'p0').diceCounts).toEqual({});
@@ -604,7 +604,7 @@ describe('room settings and automatic roll scheduling', () => {
     for (const key of ['settings', 'rollDeadline', 'diceCounts', 'tradeOffer', 'testMode']) delete legacyRecord[key];
     const original = structuredClone(legacy);
     const normalized = normalizeGame(legacy, 20_000);
-    expect(normalized.settings).toEqual({ autoRollSeconds: 10, trackDice: true });
+    expect(normalized.settings).toMatchObject({ autoRollSeconds: 10, trackDice: true });
     expect(normalized.rollDeadline).toBe(30_000);
     expect(normalized.tradeOffer).toBeNull();
     expect(normalized.testMode).toBe(false);
@@ -640,7 +640,7 @@ describe('player trade offers', () => {
   it('shows an offer to all seats and atomically exchanges resources outside the recipient’s turn', () => {
     const state = tradingGame();
     const offered = applyAction(state, 'p0', { type: 'offer-trade', give, want });
-    expect(offered.tradeOffer).toEqual({ id: `trade-${state.version + 1}`, fromId: 'p0', give, want, declinedBy: [] });
+    expect(offered.tradeOffer).toMatchObject({ id: `trade-${state.version + 1}`, fromId: 'p0', give, want, declinedBy: [] });
     expect(getView(offered, 'p1').tradeOffer).toEqual(offered.tradeOffer);
     expect(offered.players.map(player => player.resources)).toEqual(state.players.map(player => player.resources));
     const accepted = applyAction(offered, 'p1', { type: 'accept-trade', offerId: offered.tradeOffer!.id });

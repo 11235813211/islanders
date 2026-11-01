@@ -1,5 +1,6 @@
 import { useId, type KeyboardEvent } from 'react';
 import type { GameView, Terrain } from '../../shared/types';
+import { ResourceIcon } from './ResourceHand';
 import './Board.css';
 
 export interface BoardProps {
@@ -9,9 +10,13 @@ export interface BoardProps {
   onEdge: (id: string) => void;
   onHex: (id: string) => void;
   disabled?: boolean;
+  camera?: { x: number; y: number; zoom: number };
+  selected?: { kind: 'road' | 'settlement' | 'city'; id: string } | null;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
-const COLORS = ['#ed805d', '#6db9bf', '#d9b55e', '#a696c8'];
+const COLORS = ['#f15934', '#1686da', '#f5bb20', '#9554d4'];
 const TERRAIN: Record<Terrain, { name: string; color: string }> = {
   wood: { name: 'Forest · lumber', color: '#6d9270' },
   brick: { name: 'Hills · brick', color: '#c47e5d' },
@@ -132,10 +137,10 @@ function BuildingPiece({ color, city }: { color: string; city: boolean }) {
   return <g className="board-piece">
     <ellipse cy="7" rx={city ? 15 : 12} ry="5" fill="#253f38" opacity=".3" />
     {city ? <>
-      <path d="M-13 5V-9L-5-16 3-10V-4L9-9 16-3V8L7 12-3 8-6 10Z" fill={color} stroke="#334642" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M-13-9-5-3 3-10M-5-3V10M3-4 9 1 16-3M9 1V11" fill="none" stroke="#334642" strokeWidth="1.3" opacity=".55" />
-      <path d="m-11-9 6-5 5 4M5-4l4-3 4 4" fill="none" stroke="#fff8df" strokeWidth="1.6" opacity=".7" />
-      <path d="M-9 1V-3M0 1V5M12 3V6" stroke="#334642" strokeWidth="2.3" />
+      <path d="M-15 7V-15L-8-23 0-16V-2L8-8 18-2V9L9 13-2 9-7 12Z" fill={color} stroke="#334642" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M-15-15-7-10 0-16M-7-10V12M0-2 9 3 18-2M9 3V13" fill="none" stroke="#334642" strokeWidth="1.3" opacity=".55" />
+      <path d="m-13-15 5-6 6 5M2-2l6-4 7 4" fill="none" stroke="#fff8df" strokeWidth="1.6" opacity=".7" />
+      <path d="M-11-2V-7M-3-3V2M12 5V8" stroke="#334642" strokeWidth="2.3" />
     </> : <>
       <path d="M-11-2-3-12 9-9 13 1 13 8 1 12-11 6Z" fill={color} stroke="#334642" strokeWidth="1.8" strokeLinejoin="round" />
       <path d="m-11-2 12 4 12-1M1 2v10M-3-12 1 2" fill="none" stroke="#334642" strokeWidth="1.3" opacity=".55" />
@@ -154,22 +159,24 @@ function Robber() {
   </g>;
 }
 
-export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = false }: BoardProps) {
+export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = false, camera = { x: 0, y: 0, zoom: 1 }, selected, onConfirm, onCancel }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
   const color = (playerId: string) => COLORS[view.players.find(player => player.id === playerId)?.color ?? 0] ?? COLORS[0];
   const settlementMode = view.phase === 'setup-settlement' || mode === 'settlement';
-  const roadMode = view.phase === 'setup-road' || mode === 'road';
+  const roadMode = view.phase === 'setup-road' || view.phase === 'free-roads' || mode === 'road';
+  const direct = mode === null && view.phase === 'build';
   const robberMode = view.phase === 'robber' || mode === 'robber';
-  const vertexTargets = new Set(disabled ? [] : mode === 'city' ? view.legal.cities : settlementMode ? view.legal.settlements : []);
-  const edgeTargets = new Set(disabled || !roadMode ? [] : view.legal.roads);
+  const vertexTargets = new Set(disabled ? [] : direct ? [...view.legal.cities, ...view.legal.settlements] : mode === 'city' ? view.legal.cities : settlementMode ? view.legal.settlements : []);
+  const edgeTargets = new Set(disabled || (!roadMode && !direct) ? [] : view.legal.roads);
   const hexTargets = new Set(disabled || !robberMode ? [] : view.legal.robberHexes);
+  const selectedPoint = selected?.kind === 'road' ? (() => { const edge = view.board.edges.find(e => e.id === selected.id)!; const a = vertices.get(edge.a)!, b = vertices.get(edge.b)!; return { x: (a.x + b.x)/2, y: (a.y+b.y)/2 }; })() : selected ? vertices.get(selected.id) : null;
   const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size > 0;
   return <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
-    <svg className="board-svg" viewBox="-335 -300 670 600" role="group" aria-label="Island game board. Highlighted locations are legal moves.">
-      <title>A little island. Endless possibilities.</title>
+    <svg className="board-svg" viewBox={`${camera.x - 335/camera.zoom} ${camera.y - 300/camera.zoom} ${670/camera.zoom} ${600/camera.zoom}`} role="group" aria-label="Island game board. Highlighted locations are legal moves.">
+      <title>Islanders board with nine trading harbors</title>
       <defs>
-        <radialGradient id={`${uid}-sea`} cx="50%" cy="44%" r="68%"><stop offset="0" stopColor="#468482" /><stop offset=".65" stopColor="#326b70" /><stop offset="1" stopColor="#275761" /></radialGradient>
+        <radialGradient id={`${uid}-sea`} cx="50%" cy="44%" r="68%"><stop offset="0" stopColor="#24b7cf" /><stop offset=".65" stopColor="#149bc1" /><stop offset="1" stopColor="#087fa9" /></radialGradient>
         <linearGradient id={`${uid}-token`} x1="0" y1="0" x2=".4" y2="1"><stop stopColor="#fff9e7" /><stop offset="1" stopColor="#eddfbd" /></linearGradient>
         <filter id={`${uid}-shadow`} x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#193e47" floodOpacity=".3" /></filter>
         <clipPath id={`${uid}-tile`}><polygon points={hexPoints(57.2)} /></clipPath>
@@ -194,7 +201,7 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
           return <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
             <title>{TERRAIN[hex.terrain].name}{hex.number ? ` · ${hex.number}` : ''}{view.robber === hex.id ? ' · robber blocks production' : ''}</title>
             <polygon points={hexPoints(59)} fill="#e8d9b3" stroke="#cfbe96" strokeWidth="1.5" />
-            <g clipPath={`url(#${uid}-tile)`}>
+            <g clipPath={`url(#${uid}-tile)`} className="terrain-art">
               <polygon points={hexPoints(58)} fill={TERRAIN[hex.terrain].color} />
               <TerrainArt terrain={hex.terrain} />
               <polygon points={hexPoints(56.5)} fill="none" stroke="#fff5d8" strokeOpacity=".18" strokeWidth="1.2" />
@@ -209,6 +216,14 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
             {view.robber === hex.id && <Robber />}
           </g>;
         })}
+        {view.board.harbors.map(port => <g key={port.id} className="board-harbor" aria-label={`${port.resource === 'any' ? 'Any resource 3:1' : port.resource + ' 2:1'} harbor`}>
+          <title>{port.resource === 'any' ? 'Trade any three matching resources for one' : `Trade two ${port.resource} for one resource`}. Build on either connected coastal corner.</title>
+          {port.vertices.map(id => { const v = vertices.get(id)!; return <g key={id}><line x1={v.x} y1={v.y} x2={port.x} y2={port.y} stroke="#825329" strokeWidth="5" /><line x1={v.x} y1={v.y} x2={port.x} y2={port.y} stroke="#ffd278" strokeWidth="3" strokeDasharray="4 2" /></g>; })}
+          <g transform={`translate(${port.x} ${port.y})`}><path d="M-19 9H19L12 18H-10Z" fill="#c57b30" stroke="#714519" strokeWidth="1.5" /><path d="M-15-24H14L18 9H-18Z" fill="#fff9dc" stroke="#bd9d60" strokeWidth="1.5" />
+            {port.resource === 'any' ? <text textAnchor="middle" y="-8" fill="#304c56" fontSize="16" fontWeight="800">?</text> : <foreignObject x="-10" y="-23" width="20" height="20"><ResourceIcon resource={port.resource} size={20} /></foreignObject>}
+            <text textAnchor="middle" y="6" fill="#253f49" fontSize="13" fontWeight="800">{port.resource === 'any' ? '3:1' : '2:1'}</text>
+          </g>
+        </g>)}
         {view.board.edges.filter(edge => view.roads[edge.id]).map(edge => {
           const a = vertices.get(edge.a)!;
           const b = vertices.get(edge.b)!;
@@ -230,6 +245,7 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
           const dx = (b.x - a.x) * .2;
           const dy = (b.y - a.y) * .2;
           return <g key={edge.id} className="board-target board-road-target" role="button" tabIndex={0} aria-label={`Build road at ${edge.id}`} onClick={() => onEdge(edge.id)} onKeyDown={event => keyboardActivate(event, () => onEdge(edge.id))}>
+            <circle cx={(a.x + b.x) / 2} cy={(a.y + b.y) / 2} r="12" fill="transparent" className="board-hit-area" />
             <line className="board-hit-area" x1={a.x + dx} y1={a.y + dy} x2={b.x - dx} y2={b.y - dy} stroke="transparent" strokeWidth="22" strokeLinecap="round" />
             <line className="board-target-mark" x1={a.x + dx} y1={a.y + dy} x2={b.x - dx} y2={b.y - dy} stroke="#fff9df" strokeWidth="7" strokeDasharray="2 5" strokeLinecap="round" />
           </g>;
@@ -242,11 +258,20 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
             <BuildingPiece color={color(building.playerId)} city={building.kind === 'city'} />
           </g>;
         })}
-        {view.board.vertices.filter(vertex => vertexTargets.has(vertex.id)).map(vertex => <g key={vertex.id} className="board-target board-vertex-target" role="button" tabIndex={0} aria-label={`${mode === 'city' ? 'Upgrade to city' : 'Build settlement'} at ${vertex.id}`} onClick={() => onVertex(vertex.id)} onKeyDown={event => keyboardActivate(event, () => onVertex(vertex.id))} transform={`translate(${vertex.x} ${vertex.y})`}>
+        {view.board.vertices.filter(vertex => vertexTargets.has(vertex.id)).map(vertex => <g key={vertex.id} className="board-target board-vertex-target" role="button" tabIndex={0} aria-label={`${view.legal.cities.includes(vertex.id) ? 'Upgrade to city' : 'Build settlement'} at ${vertex.id}`} onClick={() => onVertex(vertex.id)} onKeyDown={event => keyboardActivate(event, () => onVertex(vertex.id))} transform={`translate(${vertex.x} ${vertex.y})`}>
           <circle r="17" fill="transparent" className="board-hit-area" />
           <circle className="board-target-mark" r={mode === 'city' ? 15 : 8} fill={mode === 'city' ? 'transparent' : '#fff8df'} stroke="#fff8df" strokeWidth={mode === 'city' ? 2.4 : 1.6} strokeDasharray={mode === 'city' ? '3 3' : undefined} />
           {mode !== 'city' && <path d="M-3 0H3M0-3V3" fill="none" stroke="#607b69" strokeWidth="1.6" strokeLinecap="round" />}
         </g>)}
+        {selected && selectedPoint && <g className="map-confirm" transform={`translate(${selectedPoint.x} ${selectedPoint.y - 42})`}>
+          <path d="M-33 18H33V-22H-33ZM-6 18 0 26 6 18" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+          <g role="button" tabIndex={0} aria-label={`Confirm ${selected.kind}`} onClick={event => { event.stopPropagation(); onConfirm?.(); }} onKeyDown={event => keyboardActivate(event, () => onConfirm?.())}>
+            <rect x="-30" y="-20" width="40" height="36" fill="transparent" />
+            {selected.kind === 'road' ? <path d="m-22 6 22-18" stroke="#ed5b30" strokeWidth="7" strokeLinecap="round" /> : <g transform="translate(-10 0) scale(.8)"><BuildingPiece color="#ed5b30" city={selected.kind === 'city'} /></g>}
+            <path d="m-3 8 4 4 8-10" fill="none" stroke="#198144" strokeWidth="3" />
+          </g>
+          <g role="button" tabIndex={0} aria-label="Cancel placement" onClick={event => { event.stopPropagation(); onCancel?.(); }} onKeyDown={event => keyboardActivate(event, () => onCancel?.())}><rect x="13" y="-20" width="18" height="36" fill="transparent" /><path d="m18-7 8 8m0-8-8 8" stroke="#526b75" strokeWidth="2" /></g>
+        </g>}
         <g className="board-decoration" transform="translate(-282 224)" aria-hidden="true">
           <circle r="20" fill="none" stroke="#c4d8c7" strokeWidth=".8" opacity=".35" />
           <path d="M0-27 5-6 0 0-5-6ZM0 27 5 6 0 0-5 6ZM-27 0-6-5 0 0-6 5ZM27 0 6-5 0 0 6 5Z" fill="#b7cfc1" opacity=".6" />
@@ -264,6 +289,6 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
         </g>
       </g>
     </svg>
-    {hasTargets && <div className="board-placement-hint" role="status"><span />{hexTargets.size ? 'Choose a tile for the robber' : edgeTargets.size ? 'Choose a highlighted road' : mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner'}</div>}
+    {hasTargets && !direct && !selected && <div className="board-placement-hint" role="status"><span />{hexTargets.size ? 'Choose a tile for the robber' : edgeTargets.size ? 'Choose a highlighted road' : mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner'}</div>}
   </div>;
 }
