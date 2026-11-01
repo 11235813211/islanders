@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { useEffect, useRef, type ReactNode, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeftRight, ArrowRight, Check, Minus, Plus, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowRight, Check, Landmark, Minus, Plus, Users, X } from 'lucide-react';
 import { RESOURCES, type GameAction, type GameView, type Resource, type ResourceBag } from '../../shared/types';
 import { RESOURCE_LABELS, ResourceIcon } from './ResourceHand';
 import { emptyBag, resourceCount } from '../../shared/engine';
@@ -30,17 +30,30 @@ export function TradeNotice({ view, busy, now, send }: { view: GameView; busy: b
     {mine ? <button className="icon-button" aria-label="Withdraw offer" disabled={busy || view.pausedAt !== null} onClick={() => send({ type: 'cancel-trade', offerId: offer.id })}><X size={20} /></button> : <div className="offer-actions"><button className="accept-trade" aria-label="Accept trade" title={affordable ? 'Accept trade' : 'Not enough cards'} disabled={busy || !affordable || view.pausedAt !== null} onClick={() => send({ type: 'accept-trade', offerId: offer.id })}><Check size={19} /><span>Accept</span></button><button className="icon-button" aria-label="Decline trade" disabled={busy || view.pausedAt !== null} onClick={() => send({ type: 'decline-trade', offerId: offer.id })}><X size={20} /></button></div>}
   </div>;
 }
-export default function TradeComposer({ view, resource, busy, send, close }: { view: GameView; resource: Resource; busy: boolean; send: (a: GameAction) => void; close: () => void }) {
-  const [give, setGive] = useState<ResourceBag>(() => ({ ...emptyBag(), [resource]: view.hand[resource] ? 1 : 0 }));
-  const [want, setWant] = useState<ResourceBag>(() => ({ ...emptyBag(), [resource]: view.hand[resource] ? 0 : 1 }));
-  const [bank, setBank] = useState(false);
-  const [bankGive, setBankGive] = useState(resource);
-  const [bankGet, setBankGet] = useState<Resource>(resource === 'wood' ? 'brick' : 'wood');
-  const active = view.phase === 'build' && view.activePlayerId === view.selfId && view.pausedAt === null;
-  const valid = resourceCount(give) > 0 && resourceCount(want) > 0 && RESOURCES.every(r => give[r] <= view.hand[r] && !(give[r] && want[r]));
-  const ratio = view.tradeRates[bankGive];
-  return <GameDialog title="Trade resources" close={close}><div className="segmented"><button className={!bank ? 'selected' : ''} onClick={() => setBank(false)}>Players</button><button className={bank ? 'selected' : ''} onClick={() => setBank(true)}>Bank & harbors</button></div>
-    {bank ? <><div className="maritime-rate"><ResourceIcon resource={bankGive} size={35} /><strong>{ratio}:1</strong><ArrowRight size={24} /><ResourceIcon resource={bankGet} size={35} /></div><div className="maritime-fields"><label>Give<select value={bankGive} onChange={e => setBankGive(e.target.value as Resource)}>{RESOURCES.map(r => <option value={r} key={r}>{RESOURCE_LABELS[r]} ({view.hand[r]}) · {view.tradeRates[r]}:1</option>)}</select></label><label>Receive<select value={bankGet} onChange={e => setBankGet(e.target.value as Resource)}>{RESOURCES.map(r => <option value={r} key={r} disabled={!view.bank[r]}>{RESOURCE_LABELS[r]}</option>)}</select></label></div><button className="button primary full" disabled={busy || !active || bankGive === bankGet || view.hand[bankGive] < ratio || !view.bank[bankGet]} onClick={() => { send({ type: 'trade', give: bankGive, receive: bankGet }); close(); }}>Exchange {ratio} for 1</button></> : <><h3>You give</h3><ResourcePicker value={give} setValue={setGive} limit={view.hand} opposite={want} prefix="Offer" /><h3>You want</h3><ResourcePicker value={want} setValue={setWant} opposite={give} prefix="Request" /><button className="button primary full" disabled={busy || !active || !valid} onClick={() => { send({ type: 'offer-trade', give, want }); close(); }}><ArrowLeftRight size={19} />Send offer</button></>}
-    {!active && <p className="form-note">Offer a trade after rolling on your turn.</p>}
-  </GameDialog>;
+export interface TradeDraft { give: ResourceBag; want: ResourceBag; bank: boolean }
+export function addTradeResource(draft: TradeDraft | null, resource: Resource, view: GameView): TradeDraft {
+  const next = draft ?? { give: emptyBag(), want: emptyBag(), bank: false };
+  return { ...next,
+    give: next.bank ? { ...emptyBag(), [resource]: view.tradeRates[resource] } : { ...next.give, [resource]: Math.min(view.hand[resource], next.give[resource]+1) },
+    want: { ...next.want, [resource]: 0 },
+  };
+}
+export default function TradeComposer({ view, draft, setDraft, busy, send, close }: { view: GameView; draft: TradeDraft; setDraft: (draft: TradeDraft) => void; busy: boolean; send: (a: GameAction) => void; close: () => void }) {
+  const {give,want,bank}=draft;
+  const active=view.phase==='build' && view.activePlayerId===view.selfId && view.pausedAt===null;
+  const giveResource=RESOURCES.find(r=>give[r]>0), getResource=RESOURCES.find(r=>want[r]>0);
+  const valid=resourceCount(give)>0 && resourceCount(want)>0 && RESOURCES.every(r=>give[r]<=view.hand[r] && !(give[r] && want[r]));
+  const bankValid=valid && !!giveResource && !!getResource && give[giveResource]===view.tradeRates[giveResource] && view.bank[getResource];
+  function choosePartner(bank: boolean) {
+    setDraft({bank,
+      give: bank ? {...emptyBag(),...(giveResource ? {[giveResource]:view.tradeRates[giveResource]} : {})} : give,
+      want: bank ? {...emptyBag(),...(getResource ? {[getResource]:1} : {})} : want,
+    });
+  }
+  return <section className="trade-composer" role="dialog" aria-label="Trade resources" onKeyDown={event=>{if(event.key==='Escape') close();}}>
+    <header><strong>Trade</strong><div className="trade-partners"><button aria-pressed={!bank} onClick={()=>choosePartner(false)}><Users size={17} />Players</button><button aria-pressed={bank} onClick={()=>choosePartner(true)}><Landmark size={17} />Bank</button></div><button className="icon-button" aria-label="Close trade" onClick={close}><X size={18} /></button></header>
+    <div className="trade-palette" aria-label="Choose resources to receive">{RESOURCES.map(r=><button className={`trade-card cards-${r}`} key={r} aria-label={`Request one more ${RESOURCE_LABELS[r]}`} title={`Receive ${RESOURCE_LABELS[r]}`} disabled={busy || (bank && !view.bank[r]) || want[r]>=19} onClick={()=>setDraft({...draft,want:bank?{...emptyBag(),[r]:1}:{...want,[r]:want[r]+1},give:{...give,[r]:0}})}><ResourceIcon resource={r} size={28} /><span>{RESOURCE_LABELS[r]}</span></button>)}</div>
+    {(['want','give'] as const).map(row=><div className={`trade-selection ${row}`} key={row} aria-label={row==='want'?'You receive':'You give'}><span className="trade-direction">{row==='want'?<ArrowDown size={25}/>:<ArrowUp size={25}/>}<small>{row==='want'?'Receive':'Give'}</small></span><div className="trade-selected-cards">{RESOURCES.filter(r=>draft[row][r]>0).map(r=><button key={r} className={`trade-card cards-${r}`} aria-label={`Remove one ${RESOURCE_LABELS[r]} from ${row==='want'?'receive':'give'}`} onClick={()=>setDraft({...draft,[row]:{...draft[row],[r]:bank?0:draft[row][r]-1}})}><ResourceIcon resource={r} size={26}/><strong>{draft[row][r]}</strong></button>)}{!resourceCount(draft[row]) && <span className="trade-hint">{row==='want'?'Choose cards above':'Click cards in your hand'}</span>}</div></div>)}
+    <footer><span>{!active?'Trade after rolling on your turn':bank ? giveResource ? `${view.tradeRates[giveResource]}:1 · bank / harbor`:'Select a card to give' : 'Offer to all players'}</span><button className="button primary" disabled={busy || !active || !(bank?bankValid:valid)} onClick={()=>{send(bank?{type:'trade',give:giveResource!,receive:getResource!}:{type:'offer-trade',give,want});close();}}><Check size={18}/>{bank?'Exchange':'Send offer'}</button></footer>
+  </section>;
 }

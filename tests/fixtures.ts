@@ -20,3 +20,10 @@ export function grant(game: GameState, id: string, bag: Partial<ResourceBag>) {
   for (const r of RESOURCES) { const amount = bag[r] ?? 0; p.resources[r] += amount; game.bank[r] -= amount; }
 }
 export function conserved(game: GameState) { return RESOURCES.every(r => game.bank[r] >= 0 && game.players.every(p => p.resources[r] >= 0) && game.bank[r] + game.players.reduce((n, p) => n + p.resources[r], 0) === 19); }
+
+export function richGame() {
+  const g = settled(4); g.testMode = true; g.phase = 'build'; g.rollDeadline = null; g.turnDeadline = Date.now()+120_000;
+  grant(g, 'p0', { wood: 5, brick: 5, sheep: 5, wheat: 5, ore: 5 });
+  g.players[0].development = [{ id: 'knight-ui', kind: 'knight', boughtTurn: 0 }, { id: 'monopoly-ui', kind: 'monopoly', boughtTurn: 0 }];
+  return g;
+}

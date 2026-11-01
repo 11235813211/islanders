@@ -127,7 +127,7 @@ export default {
         const body = await readBody(request);
         const identity = await accountFor(request, env);
         const name = identity?.username ?? parseName(body);
-        response = await stub.fetch(new Request('https://room.internal/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, identity, spectate: record(body) && body.spectate === true }) }));
+        response = await stub.fetch(new Request('https://room.internal/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, identity, spectate: record(body) && body.spectate === true, autoSpectate: record(body) && body.autoSpectate === true }) }));
       } else {
         const internal = new URL(request.url);
         internal.pathname = '/socket'; internal.search = '';
@@ -186,7 +186,7 @@ export class GameRoom extends DurableObject<Env> {
       if (game.proposal) deadlines.push(game.proposal.expiresAt);
       if (game.pausedAt === null) {
         if (game.phase === 'roll' && game.rollDeadline !== null) deadlines.push(game.rollDeadline);
-        if (game.turnDeadline !== null && !game.turnExpired) deadlines.push(game.turnDeadline);
+        if (game.turnDeadline !== null) deadlines.push(game.turnDeadline);
         if (game.tradeOffer) deadlines.push(game.tradeOffer.expiresAt);
       }
       for (const socket of this.sockets()) {
@@ -247,10 +247,11 @@ export class GameRoom extends DurableObject<Env> {
         }
         if (path === '/join' && request.method === 'POST') {
           const room = this.requireRoom();
-          const body = await readBody(request) as { name: string; identity?: AccountIdentity | null; spectate?: boolean };
+          const body = await readBody(request) as { name: string; identity?: AccountIdentity | null; spectate?: boolean; autoSpectate?: boolean };
           const name = parseName(body);
           const identity = body.identity;
           const existing = identity && [...room.game.players, ...room.game.spectators].find(player => player.id === identity.playerId);
+          if (body.autoSpectate && (room.game.testMode || room.game.phase !== 'lobby' || room.game.players.length >= 4)) body.spectate = true;
           if (!existing && room.game.testMode && !body.spectate) throw new ProtocolError('This is a solo test room. Join as a spectator or create a multiplayer room.', 409);
           const playerId = existing?.id ?? identity?.playerId ?? crypto.randomUUID();
           let game = existing ? room.game : body.spectate ? addSpectator(room.game, { id: playerId, name }) : addPlayer(room.game, { id: playerId, name });
@@ -287,7 +288,7 @@ export class GameRoom extends DurableObject<Env> {
         attachment.messageCount++; socket.serializeAttachment(attachment);
         if (attachment.messageCount > MAX_MESSAGES_PER_MINUTE) { socket.close(4429, 'Too many messages.'); return; }
         const message = parseMessage(raw);
-        const room = this.requireRoom();
+        let room = this.requireRoom();
         if (!attachment.playerId) {
           if (message.type !== 'auth' || Date.now() - attachment.connectedAt > AUTH_TIMEOUT_MS) { socket.close(4401, 'Authenticate before sending actions.'); return; }
           const tokenHash = await hashToken(message.token);
@@ -310,6 +311,8 @@ export class GameRoom extends DurableObject<Env> {
         actionId = message.id;
         if (saved.processedIds.includes(message.id)) { this.snapshot(socket, message.id); return; }
         await checkLimit(this.env.CONNECTION_LIMITER, `action:${room.game.roomId}:${attachment.playerId}`);
+        const timed = advanceTime(room.game, Date.now(), secureRandom);
+        if (timed !== room.game) { await this.commit({ ...room, game: timed, lastActivity: Date.now() }); this.broadcast(); room = this.requireRoom(); }
         if (message.version !== room.game.version && !['chat', 'vote'].includes(message.action.type)) {
           this.send(socket, { type: 'error', id: message.id, message: 'The game changed. Your board has been refreshed; please try that move again.' });
           this.snapshot(socket); return;

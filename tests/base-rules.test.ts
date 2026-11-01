@@ -126,10 +126,10 @@ describe('development cards and awards', () => {
   });
 });
 describe('clocks, consent, spectators and chat', () => {
-  it('expires a turn once, rolls if necessary, and never automatically builds or passes', () => {
+  it('expires a turn once, lets the bot finish, and gives the next player a full clock', () => {
     let g = settled(); g.settings.autoRollSeconds = 0; g.rollDeadline = null; g.turnDeadline = now + 1000;
-    g = advanceTime(g, now + 1001, () => 0); expect(g.phase).toBe('build'); expect(g.turnExpired).toBe(true);
-    expect(advanceTime(g, now + 10_000)).toBe(g); expect(g.turn).toBe(1);
+    g = advanceTime(g, now + 1001, () => 0); expect(g.phase).toBe('roll'); expect(g.turnExpired).toBe(false); expect(g.turnIndex).toBe(1); expect(g.turnDeadline).toBe(now + 1001 + 120_000);
+    expect(advanceTime(g, now + 10_000)).toBe(g); expect(g.turn).toBe(2);
   });
   it('pauses only on approval, blocks game moves, and restores all clock time on resume', () => {
     const original = settled(); let g = voteAll(original, 'pause', now + 1000);
@@ -149,12 +149,12 @@ describe('clocks, consent, spectators and chat', () => {
     let g = act(original, 'p0', { type: 'build-road', edgeId: edge }, now + 1000);
     expect(g.undo?.snapshot).not.toHaveProperty('undo'); expect(getView(g, 'p1')).not.toHaveProperty('undo');
     g = voteAll(g, 'undo', now + 11_000); expect(g.roads).toEqual(original.roads); expect(g.players).toEqual(original.players);
-    expect(g.turnDeadline).toBe(original.turnDeadline! + 10_000); expect(g.undo).toBeNull();
+    expect(g.turnDeadline).toBe(original.turnDeadline! + 10_000); expect(g.undo).toEqual(original.undo);
     const rolled = act(settled(), 'p0', { type: 'roll' }); expect(rolled.undo).toBeNull();
   });
   it('rejects and expires proposals, and expires trades even if no browser is connected', () => {
     let g = act(settled(), 'p0', { type: 'propose', kind: 'pause' });
-    g = act(g, 'p1', { type: 'vote', proposalId: g.proposal!.id, accept: false }); expect(g.pausedAt).toBeNull(); expect(g.proposal).toBeNull();
+    g = act(g, 'p1', { type: 'vote', proposalId: g.proposal!.id, accept: false }); expect(g.pausedAt).toBeNull(); expect(g.proposal?.rejected).toEqual(['p1']);
     g.phase = 'build'; grant(g, 'p0', { wood: 1 });
     g = act(g, 'p0', { type: 'offer-trade', give: { ...emptyBag(), wood: 1 }, want: { ...emptyBag(), ore: 1 } });
     expect(() => act(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffer!.id }, now + 30_001)).toThrow(/no longer/);

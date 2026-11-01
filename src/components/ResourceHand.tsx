@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { BrickWall, Leaf, Mountain, TreePine, Wheat } from 'lucide-react';
 import { RESOURCES, type Resource, type ResourceBag } from '../../shared/types';
 import './Cards.css';
 
@@ -7,11 +6,14 @@ export const RESOURCE_LABELS: Record<Resource, string> = {
   wood: 'Lumber', brick: 'Brick', sheep: 'Wool', wheat: 'Grain', ore: 'Ore',
 };
 
-const ICONS = { wood: TreePine, brick: BrickWall, sheep: Leaf, wheat: Wheat, ore: Mountain };
-
 export function ResourceIcon({ resource, size = 22 }: { resource: Resource; size?: number }) {
-  const Icon = ICONS[resource];
-  return <Icon size={size} strokeWidth={1.8} aria-hidden="true" />;
+  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="resource-icon" strokeLinejoin="round" strokeLinecap="round">
+    {resource === 'wood' && <><path d="M10 15h4v8h-4Z" fill="#9e5325" stroke="#58371e" /><path d="m12 1 7 9h-3l6 9H2l6-9H5Z" fill="#25a935" stroke="#155a27" strokeWidth="1.4" /><path d="m12 3-5 6h3l-5 8h7Z" fill="#65d03b" /></>}
+    {resource === 'brick' && <><rect x="1" y="4" width="22" height="16" rx="2" fill="#ed7449" stroke="#943f2e" strokeWidth="1.5" /><path d="M2 12h20M12 5v7M7 12v7m10-7v7" stroke="#ffdfaa" strokeWidth="2" /></>}
+    {resource === 'sheep' && <><path d="M6 16v5m9-5v5" stroke="#464b46" strokeWidth="2.8" /><path d="M3 13C-1 8 4 4 8 6 8 1 15 2 16 6c6-2 8 6 4 8 0 6-7 6-9 3-4 3-9 0-8-4Z" fill="#fffef1" stroke="#677d50" strokeWidth="1.5" /><ellipse cx="19" cy="13" rx="3" ry="4" fill="#46534b" /><circle cx="20" cy="12" r=".7" fill="white" /></>}
+    {resource === 'wheat' && <><path d="M12 23V5m0 14L5 12m7 2 7-7" stroke="#9c6813" strokeWidth="1.5" /><g fill="#ffc532" stroke="#b17b0b"><ellipse cx="12" cy="4" rx="2.5" ry="3.5" />{[8,13,18].map(y=><g key={y}><ellipse cx="8.5" cy={y} rx="2.3" ry="4" transform={`rotate(-40 8.5 ${y})`} /><ellipse cx="15.5" cy={y} rx="2.3" ry="4" transform={`rotate(40 15.5 ${y})`} /></g>)}</g></>}
+    {resource === 'ore' && <><path d="m2 19 5-13 5 5 5-9 6 17Z" fill="#698a9f" stroke="#35556a" strokeWidth="1.4" /><path d="m4 14 3-8 4 5-3-1Zm9-5 4-7 3 8-3-2Z" fill="#d3e9f0" /><path d="m2 19 8-5 5 6 8-1-5 4H6Z" fill="#98bccd" stroke="#35556a" strokeWidth="1.2" /></>}
+  </svg>;
 }
 
 export function ResourceArt({ resource }: { resource: Resource }) {

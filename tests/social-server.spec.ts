@@ -50,7 +50,9 @@ test('pause excludes disconnected seats, blocks moves, and undo votes restore a 
     expect(host.state.proposal!.required).toHaveLength(3); // Undo still requires every player.
     await expect.poll(() => friend.state.proposal?.kind).toBe('undo');
     await friend.action({ type: 'vote', proposalId: friend.state.proposal!.id, accept: false });
-    await expect.poll(() => host.state.proposal).toBeNull();
+    await expect.poll(() => host.state.proposal?.rejected).toEqual([f.playerId]);
+    await host.action({ type: 'propose', kind: 'undo' });
+    expect(host.state.proposal?.accepted).toEqual([h.playerId]);
     expect(host.state.phase).toBe('setup-road');
   } finally { host.dispose(); friend.dispose(); }
 });

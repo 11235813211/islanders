@@ -21,8 +21,8 @@ export interface GameSettings {
   turnSeconds: number; friendlyRobber: boolean; discardLimit: number;
 }
 export interface TradeOffer { id: string; fromId: string; give: ResourceBag; want: ResourceBag; declinedBy: string[]; createdAt: number; expiresAt: number }
-export interface Proposal { id: string; kind: 'undo' | 'pause' | 'resume'; fromId: string; required: string[]; accepted: string[]; expiresAt: number; description: string }
-export interface UndoRecord { actorId: string; description: string; at: number; snapshot: Omit<GameState, 'undo' | 'proposal'> }
+export interface Proposal { id: string; kind: 'undo' | 'pause' | 'resume'; fromId: string; required: string[]; accepted: string[]; rejected: string[]; expiresAt: number; description: string }
+export interface UndoRecord { actorId: string; description: string; at: number; snapshot: Omit<GameState, 'undo' | 'undoHistory' | 'proposal' | 'board' | 'roomId' | 'hostId' | 'version' | 'chat' | 'log' | 'spectators' | 'settings' | 'setupOrder' | 'developmentDeck' | 'testMode'> }
 export interface GameState {
   roomId: string; version: number; board: Board; players: Player[]; spectators: Spectator[]; hostId: string;
   phase: Phase; buildings: Record<string, Building>; roads: Record<string, string>; robber: string;
@@ -34,9 +34,9 @@ export interface GameState {
   developmentDeck: DevelopmentCard[]; developmentPlayed: boolean; freeRoads: number;
   resumePhase: 'roll' | 'build' | null; longestRoadId: string | null; largestArmyId: string | null;
   turnDeadline: number | null; turnExpired: boolean; pausedAt: number | null;
-  proposal: Proposal | null; undo: UndoRecord | null; chat: ChatMessage[];
+  proposal: Proposal | null; undo: UndoRecord | null; undoHistory: UndoRecord[]; chat: ChatMessage[];
 }
-export interface PublicPlayer { id: string; name: string; color: number; resourceCount: number; points: number; roadsLeft: number; settlementsLeft: number; citiesLeft: number; developmentCount: number; knights: number; longestRoad: number }
+export interface PublicPlayer { id: string; name: string; color: number; resourceCount: number; points: number; publicPoints: number; roadsLeft: number; settlementsLeft: number; citiesLeft: number; developmentCount: number; knights: number; longestRoad: number }
 export interface LegalMoves { settlements: string[]; roads: string[]; cities: string[]; robberHexes: string[]; stealTargets: string[] }
 export interface GameView {
   roomId: string; version: number; board: Board; players: PublicPlayer[]; spectators: Spectator[]; hostId: string;

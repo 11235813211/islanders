@@ -284,9 +284,8 @@ describe('seven and robber', () => {
     let next = rollTotal(state, 7);
     expect(() => applyAction(next, 'p0', { type: 'move-robber', hexId: next.robber })).toThrow(/different/);
     next = applyAction(next, 'p0', { type: 'move-robber', hexId: destination.id });
-    expect(next.phase).toBe('steal'); expect(getView(next, 'p0').legal.stealTargets).toEqual(['p1']);
-    expect(() => applyAction(next, 'p0', { type: 'steal', playerId: 'p2' })).toThrow(/bordering/);
-    next = applyAction(next, 'p0', { type: 'steal', playerId: 'p1' }, () => 0);
+    expect(next.phase).toBe('build'); // A single eligible victim is automatic.
+    expect(() => applyAction(next, 'p0', { type: 'steal', playerId: 'p2' })).toThrow(/not available/);
     expect(next.players[0].resources.ore).toBe(1); expect(next.players[1].resources.ore).toBe(1);
     expect(next.phase).toBe('build'); expect(next.log.at(-1)!.text).not.toContain('ore');
     assertConserved(next);

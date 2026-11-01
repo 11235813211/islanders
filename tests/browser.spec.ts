@@ -102,13 +102,13 @@ test('username sign-in resumes the same room on another device and signs out', a
     await host.getByRole('button', { name: 'Create solo test room' }).click();
     await expect.poll(() => a.state()?.players.length).toBe(3);
     const roomId = a.state()!.roomId;
-    await phone.goto('/');
+    await phone.goto(`/#room=${roomId}`);
+    await expect.poll(() => b.state()?.role).toBe('spectator');
     await phone.getByRole('button', { name: 'Sign in', exact: true }).click();
     await phone.getByLabel('Username', { exact: true }).fill(username);
     await phone.getByLabel('Password', { exact: true }).fill(password);
     await phone.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(phone.getByRole('dialog')).toHaveCount(0);
-    await phone.getByRole('button', { name: new RegExp(roomId) }).click();
     await expect.poll(() => b.state()?.selfId).toBe(a.state()?.selfId);
     await expect(phone.locator('.lobby-player')).toHaveCount(3);
     await phone.getByRole('button', { name: 'Sign out' }).click();
@@ -128,9 +128,6 @@ test('a phone can join by private code as a spectator and chat without receiving
     await expect.poll(()=>a.state()?.players.length).toBe(3);
     await host.getByRole('button',{name:'Start game',exact:true}).click();
     await watcher.goto(`/#room=${a.state()!.roomId}`);
-    await watcher.getByLabel('Player name').fill('Phone watcher');
-    await watcher.getByLabel('Join as a spectator').check();
-    await watcher.getByRole('button',{name:'Watch',exact:true}).click();
     await expect.poll(()=>b.state()?.role).toBe('spectator');
     await expect(watcher.getByText('Watching · hands stay private')).toBeVisible();
     await expect(watcher.getByRole('button',{name:/^Build road at/})).toHaveCount(0);
@@ -141,4 +138,17 @@ test('a phone can join by private code as a spectator and chat without receiving
     await expect.poll(()=>a.state()?.chat.at(-1)?.text).toBe('Hello from my phone');
     expect(a.errors.concat(b.errors)).toEqual([]);
   } finally { await hostContext.close(); await watcherContext.close(); }
+});
+
+test('invite links enter a lobby directly once, and explicit spectator links preserve player seats',async({browser})=>{
+  const a=await browser.newContext(),b=await browser.newContext(),c=await browser.newContext();
+  try{
+    const host=await a.newPage(),friend=await b.newPage(),watcher=await c.newPage();const h=observe(host),f=observe(friend),w=observe(watcher);
+    await host.goto('/');await host.getByRole('button',{name:'Create room',exact:true}).click();await expect.poll(()=>h.state()?.players.length).toBe(1);
+    let joins=0;friend.on('request',request=>{if(request.url().endsWith('/join')) joins++;});
+    await friend.goto(`/#room=${h.state()!.roomId}`);await expect.poll(()=>f.state()?.role).toBe('player');await expect(friend.locator('.lobby-player')).toHaveCount(2);expect(joins).toBe(1);
+    await friend.reload();await expect(friend.locator('.lobby-player')).toHaveCount(2);expect(joins).toBe(1);
+    await watcher.goto(`/#room=${h.state()!.roomId}&spectate=1`);await expect.poll(()=>w.state()?.role).toBe('spectator');await expect(watcher.locator('.lobby-player')).toHaveCount(2);
+    expect(h.errors.concat(f.errors,w.errors)).toEqual([]);
+  }finally{await a.close();await b.close();await c.close();}
 });

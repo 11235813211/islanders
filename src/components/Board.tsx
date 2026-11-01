@@ -13,17 +13,16 @@ export interface BoardProps {
   camera?: { x: number; y: number; zoom: number };
   selected?: { kind: 'road' | 'settlement' | 'city'; id: string } | null;
   onConfirm?: () => void;
-  onCancel?: () => void;
 }
 
-const COLORS = ['#f15934', '#1686da', '#f5bb20', '#9554d4'];
+import { PLAYER_COLORS as COLORS } from '../lib/palette';
 const TERRAIN: Record<Terrain, { name: string; color: string }> = {
-  wood: { name: 'Forest · lumber', color: '#6d9270' },
-  brick: { name: 'Hills · brick', color: '#c47e5d' },
-  sheep: { name: 'Pasture · wool', color: '#afc68a' },
-  wheat: { name: 'Fields · grain', color: '#e0c16c' },
-  ore: { name: 'Mountains · ore', color: '#8a9da0' },
-  desert: { name: 'Desert', color: '#dec99b' },
+  wood: { name: 'Forest · lumber', color: '#459845' },
+  brick: { name: 'Hills · brick', color: '#d87943' },
+  sheep: { name: 'Pasture · wool', color: '#9acb49' },
+  wheat: { name: 'Fields · grain', color: '#edbf3c' },
+  ore: { name: 'Mountains · ore', color: '#6c9eae' },
+  desert: { name: 'Desert', color: '#e8c67e' },
 };
 
 function hexPoints(radius: number) {
@@ -44,8 +43,8 @@ function Tree({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
   return <g transform={`translate(${x} ${y}) scale(${scale})`}>
     <ellipse cx="1" cy="9" rx="10" ry="3" fill="#253f38" opacity=".17" />
     <path d="M0 1V11" stroke="#5e6750" strokeWidth="3" />
-    <path d="M0-24 12 0H7L14 8H-14L-7 0H-12Z" fill="#315e4b" />
-    <path d="M0-24V8H-14L-7 0H-12Z" fill="#44775a" />
+    <path d="M0-24 12 0H7L14 8H-14L-7 0H-12Z" fill="#135a32" />
+    <path d="M0-24V8H-14L-7 0H-12Z" fill="#237e3b" />
     <path d="M-2-17-8-4H-4" fill="none" stroke="#83a374" strokeWidth="1.2" opacity=".55" />
   </g>;
 }
@@ -73,8 +72,8 @@ function Wheat({ x, y, rotate = 0 }: { x: number; y: number; rotate?: number }) 
 
 function TerrainArt({ terrain }: { terrain: Terrain }) {
   if (terrain === 'wood') return <g>
-    <path d="M-65 5Q-36-12-4 5T65-2V65H-65Z" fill="#81a17a" />
-    <path d="M-65 43Q-30 12 0 26T65 18V65H-65Z" fill="#5f8866" />
+    <path d="M-65 5Q-36-12-4 5T65-2V65H-65Z" fill="#69b554" />
+    <path d="M-65 43Q-30 12 0 26T65 18V65H-65Z" fill="#31854b" />
     <path d="M-52-27Q-11-11 4-38M18 32Q24 15 48 7" fill="none" stroke="#b0bd8b" opacity=".5" strokeWidth="1.5" />
     <Tree x={-28} y={-12} scale={.9} /><Tree x={-6} y={-27} scale={1.02} />
     <Tree x={22} y={-18} scale={.94} /><Tree x={34} y={9} scale={.72} />
@@ -82,9 +81,9 @@ function TerrainArt({ terrain }: { terrain: Terrain }) {
     <Tree x={-6} y={47} scale={.63} />
   </g>;
   if (terrain === 'brick') return <g>
-    <path d="M-70 8-37-31-5-16 16-39 68 14V70H-70Z" fill="#d6976b" />
-    <path d="M-70 8-37-31-28 1-5-16 10 19 16-39 36-8 68 14V70H-70Z" fill="#b96f53" />
-    <path d="M-67 36-30 12 1 27 33 9 64 33V65H-67Z" fill="#e0a47d" />
+    <path d="M-70 8-37-31-5-16 16-39 68 14V70H-70Z" fill="#eb9b55" />
+    <path d="M-70 8-37-31-28 1-5-16 10 19 16-39 36-8 68 14V70H-70Z" fill="#bf6536" />
+    <path d="M-67 36-30 12 1 27 33 9 64 33V65H-67Z" fill="#f1ae6c" />
     <path d="m-45-3 13-7 17 8m25-17 15-9 15 17m-78 38 15-8 14 5m32 8 18-5" stroke="#9e614b" strokeWidth="1.6" fill="none" opacity=".7" />
     <path d="m-29 34 10-5 9 5v9l-10 4-9-5Z" fill="#b56c50" />
     <path d="m-29 34 10 4 9-4m-10 4v9" fill="none" stroke="#e6ab83" strokeWidth="1.4" />
@@ -93,9 +92,9 @@ function TerrainArt({ terrain }: { terrain: Terrain }) {
     <path d="M-38 12h5m46 33h8m4-65h4" stroke="#efc198" strokeWidth="1.5" strokeLinecap="round" />
   </g>;
   if (terrain === 'sheep') return <g>
-    <path d="M-70-5Q-28-41 2-14T70-10V65H-70Z" fill="#bcd398" />
-    <path d="M-70 24Q-24-12 14 11T70 7V65H-70Z" fill="#91b478" />
-    <path d="M-70 51Q-17 10 21 35T70 32V65H-70Z" fill="#aac58a" />
+    <path d="M-70-5Q-28-41 2-14T70-10V65H-70Z" fill="#badb65" />
+    <path d="M-70 24Q-24-12 14 11T70 7V65H-70Z" fill="#77b342" />
+    <path d="M-70 51Q-17 10 21 35T70 32V65H-70Z" fill="#95c84b" />
     <path d="M-50 4Q-34-10-17-7M10 38q22-8 41-3" fill="none" stroke="#d9e0a9" strokeWidth="1.3" />
     <Sheep x={-22} y={-23} scale={.88} /><Sheep x={26} y={-11} scale={.82} />
     <Sheep x={-23} y={27} scale={.9} /><Sheep x={15} y={36} scale={.73} />
@@ -103,9 +102,9 @@ function TerrainArt({ terrain }: { terrain: Terrain }) {
     <g fill="#f8ecc1"><circle cx="-35" cy="13" r="1.4" /><circle cx="31" cy="26" r="1.4" /><circle cx="-6" cy="-36" r="1.3" /></g>
   </g>;
   if (terrain === 'wheat') return <g>
-    <path d="M-70-1Q-32-32 9-15T70-20V65H-70Z" fill="#edd083" />
-    <path d="M-70 24Q-18-8 13 14T70 15V65H-70Z" fill="#d6af57" />
-    <path d="M-70 38Q-17 8 12 30T70 29M-70 45Q-17 15 12 37T70 36M-70 52Q-17 22 12 44T70 43" fill="none" stroke="#f1d48b" strokeWidth="2.6" />
+    <path d="M-70-1Q-32-32 9-15T70-20V65H-70Z" fill="#f5cf61" />
+    <path d="M-70 24Q-18-8 13 14T70 15V65H-70Z" fill="#d6a026" />
+    <path d="M-70 38Q-17 8 12 30T70 29M-70 45Q-17 15 12 37T70 36M-70 52Q-17 22 12 44T70 43" fill="none" stroke="#ffe28b" strokeWidth="2.6" />
     <path d="M-50-18q21-10 41-3m17-10q18 1 33 10" fill="none" stroke="#ba994f" opacity=".65" strokeWidth="1.3" />
     <Wheat x={-29} y={-13} rotate={-12} /><Wheat x={-15} y={-24} rotate={5} />
     <Wheat x={22} y={-15} rotate={10} /><Wheat x={32} y={9} rotate={-8} />
@@ -159,7 +158,7 @@ function Robber() {
   </g>;
 }
 
-export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = false, camera = { x: 0, y: 0, zoom: 1 }, selected, onConfirm, onCancel }: BoardProps) {
+export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = false, camera = { x: 0, y: 0, zoom: 1 }, selected, onConfirm }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
   const color = (playerId: string) => COLORS[view.players.find(player => player.id === playerId)?.color ?? 0] ?? COLORS[0];
@@ -220,7 +219,7 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
           <title>{port.resource === 'any' ? 'Trade any three matching resources for one' : `Trade two ${port.resource} for one resource`}. Build on either connected coastal corner.</title>
           {port.vertices.map(id => { const v = vertices.get(id)!; return <g key={id}><line x1={v.x} y1={v.y} x2={port.x} y2={port.y} stroke="#825329" strokeWidth="5" /><line x1={v.x} y1={v.y} x2={port.x} y2={port.y} stroke="#ffd278" strokeWidth="3" strokeDasharray="4 2" /></g>; })}
           <g transform={`translate(${port.x} ${port.y})`}><path d="M-19 9H19L12 18H-10Z" fill="#c57b30" stroke="#714519" strokeWidth="1.5" /><path d="M-15-24H14L18 9H-18Z" fill="#fff9dc" stroke="#bd9d60" strokeWidth="1.5" />
-            {port.resource === 'any' ? <text textAnchor="middle" y="-8" fill="#304c56" fontSize="16" fontWeight="800">?</text> : <foreignObject x="-10" y="-23" width="20" height="20"><ResourceIcon resource={port.resource} size={20} /></foreignObject>}
+            {port.resource === 'any' ? <text textAnchor="middle" y="-8" fill="#304c56" fontSize="16" fontWeight="800">?</text> : <g transform="translate(-10 -23)"><ResourceIcon resource={port.resource} size={20} /></g>}
             <text textAnchor="middle" y="6" fill="#253f49" fontSize="13" fontWeight="800">{port.resource === 'any' ? '3:1' : '2:1'}</text>
           </g>
         </g>)}
@@ -264,13 +263,12 @@ export default function Board({ view, mode, onVertex, onEdge, onHex, disabled = 
           {mode !== 'city' && <path d="M-3 0H3M0-3V3" fill="none" stroke="#607b69" strokeWidth="1.6" strokeLinecap="round" />}
         </g>)}
         {selected && selectedPoint && <g className="map-confirm" transform={`translate(${selectedPoint.x} ${selectedPoint.y - 42})`}>
-          <path d="M-33 18H33V-22H-33ZM-6 18 0 26 6 18" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+          <path d="M-24 18H24V-22H-24ZM-6 18 0 26 6 18" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
           <g role="button" tabIndex={0} aria-label={`Confirm ${selected.kind}`} onClick={event => { event.stopPropagation(); onConfirm?.(); }} onKeyDown={event => keyboardActivate(event, () => onConfirm?.())}>
-            <rect x="-30" y="-20" width="40" height="36" fill="transparent" />
-            {selected.kind === 'road' ? <path d="m-22 6 22-18" stroke="#ed5b30" strokeWidth="7" strokeLinecap="round" /> : <g transform="translate(-10 0) scale(.8)"><BuildingPiece color="#ed5b30" city={selected.kind === 'city'} /></g>}
+            <rect x="-23" y="-20" width="46" height="36" fill="transparent" />
+            {selected.kind === 'road' ? <path d="m-14 6 22-18" stroke={color(view.selfId)} strokeWidth="7" strokeLinecap="round" /> : <g transform="translate(0 0) scale(.8)"><BuildingPiece color={color(view.selfId)} city={selected.kind === 'city'} /></g>}
             <path d="m-3 8 4 4 8-10" fill="none" stroke="#198144" strokeWidth="3" />
           </g>
-          <g role="button" tabIndex={0} aria-label="Cancel placement" onClick={event => { event.stopPropagation(); onCancel?.(); }} onKeyDown={event => keyboardActivate(event, () => onCancel?.())}><rect x="13" y="-20" width="18" height="36" fill="transparent" /><path d="m18-7 8 8m0-8-8 8" stroke="#526b75" strokeWidth="2" /></g>
         </g>}
         <g className="board-decoration" transform="translate(-282 224)" aria-hidden="true">
           <circle r="20" fill="none" stroke="#c4d8c7" strokeWidth=".8" opacity=".35" />

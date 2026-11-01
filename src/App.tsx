@@ -6,7 +6,7 @@ import type { GameAction, Session } from '../shared/types';
 import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
 import { useAccount } from './hooks/useAccount';
 
-const COLORS = ['#ed5831', '#167fce', '#dfaa0b', '#8f49c6'];
+import { PLAYER_COLORS as COLORS } from './lib/palette';
 declare const __LAN_ORIGIN__: string;
 
 function Modal({ title, children, close }: { title: string; children: ReactNode; close: () => void }) {
@@ -22,6 +22,8 @@ function App() {
   const view = room.view;
   const [name, setName] = useState('');
   const [code, setCode] = useState(roomFromLocation);
+  const [inviteCode, setInviteCode] = useState(roomFromLocation);
+  const attemptedInvite = useRef(''), entryRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -36,29 +38,41 @@ function App() {
   const hasGame = Boolean(view && view.phase !== 'lobby');
 
   useEffect(() => {
-    const change = () => { const next = roomFromLocation(); setCode(next); setSession(savedSession(next)); };
+    const change = () => { const next = roomFromLocation(); entryRequest.current++; attemptedInvite.current=''; setInviteCode(next); setCode(next); setSession(savedSession(next)); };
     window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change);
   }, []);
   useEffect(() => { if (!copied) return; const timer = setTimeout(() => setCopied(false), 2500); return () => clearTimeout(timer); }, [copied]);
-  async function enter(kind: 'create' | 'join' | 'test', roomCode = code) {
+  useEffect(() => {
+    const key = `${inviteCode}:${account.account?.username ?? 'guest'}`;
+    if (!inviteCode || session || attemptedInvite.current === key) return;
+    attemptedInvite.current = key; void enter('join', inviteCode, true);
+  }, [inviteCode, session, account.account?.username]);
+  async function enter(kind: 'create' | 'join' | 'test', roomCode = code, directInvite = false) {
+    const request = ++entryRequest.current;
     setLoading(true); setError(null);
     try {
       const target = roomCode.trim().toUpperCase();
       const displayName = account.account?.username ?? (name.trim() || 'Player');
       const cached = kind === 'join' && !account.account ? savedSession(target) : null;
-      const next = cached ?? await enterRoom(displayName, kind === 'join' ? target : undefined, account.account, kind === 'test', kind === 'join' && spectate);
+      const next = cached ?? await enterRoom(displayName, kind === 'join' ? target : undefined, account.account, kind === 'test', kind === 'join' && (directInvite ? new URLSearchParams(location.hash.slice(1)).get('spectate') === '1' : spectate), directInvite);
+      if (entryRequest.current !== request) return;
       history.replaceState(null, '', `${location.pathname}${location.search}#room=${next.roomId}`);
       setSession(next); void account.refresh();
-    } catch (err) { setError(err instanceof Error && err.name !== 'TypeError' ? err.message : 'Cannot reach the server. Check your connection and try again.'); }
-    finally { setLoading(false); }
+    } catch (err) { if (entryRequest.current !== request) return; setError(err instanceof Error && err.name !== 'TypeError' ? err.message : 'Cannot reach the server. Check your connection and try again.'); }
+    finally { if (entryRequest.current === request) setLoading(false); }
   }
   function home() {
-    setSession(null); setError(null); setCode('');
+    entryRequest.current++; attemptedInvite.current=''; setInviteCode(''); setLoading(false); setSession(null); setError(null); setCode('');
     history.replaceState(null, '', `${location.pathname}${location.search}`); void account.refresh();
   }
   async function signIn(event: FormEvent) {
     event.preventDefault(); setLoading(true); setAuthError('');
-    try { await account.authenticate(authMode, username, password); setPassword(''); setAuthOpen(false); }
+    try { const signedIn = await account.authenticate(authMode, username, password); setPassword(''); setAuthOpen(false);
+      if (session) {
+        try { setSession(await enterRoom(signedIn.username, session.roomId, signedIn, false, false, true)); }
+        catch (err) { setError(err instanceof Error ? err.message : 'Could not reconnect your account to this room.'); }
+      }
+    }
     catch (err) { setAuthError(err instanceof Error ? err.message : 'Sign-in failed.'); }
     finally { setLoading(false); }
   }
@@ -82,7 +96,7 @@ function App() {
   function send(action: GameAction) { setError(null); room.send(action); }
   return <div className={`app ${hasGame ? 'app-game' : ''} `}>
     <header className="site-header"><button className="brand" onClick={home} aria-label="Islanders home"><Sailboat size={32} /><span>islanders<span className="brand-period">.</span></span></button><nav>{session && <button className="text-button" aria-label="Home" onClick={home}><ArrowLeft size={18} /><span>Home</span></button>}{account.account ? <><span className="account-name"><UserRound size={18} />{account.account.username}</span><button className="text-button" aria-label="Sign out" onClick={() => void signOut()} disabled={loading}><LogOut size={18} /><span>Sign out</span></button></> : <button className="button secondary" onClick={() => setAuthOpen(true)}><LogIn size={18} />Sign in</button>}</nav></header>
-    {!session ? <main className="home-layout">
+    {!session && inviteCode ? <main className="connecting-screen">{loading && <LoaderCircle className="spin" size={40}/>}<h1>{loading ? `Joining ${inviteCode}…` : `Join ${inviteCode}`}</h1>{error && <p role="status">{error}</p>}{!loading && <button className="button primary" onClick={()=>void enter('join',inviteCode,true)}>Try again</button>}<button className="button secondary" onClick={home}>Return home</button></main> : !session ? <main className="home-layout">
       <section className="home-heading"><span className="section-kicker"><Swords size={18} /> MULTIPLAYER STRATEGY</span><h1>Play Islanders</h1><p>Create a room, join friends, or test a game yourself.</p></section>
       <section className="panel home-play-panel"><div className="section-heading"><h2><Sailboat />Set up a game</h2><span className="subtle-badge">2–4 players</span></div>{!account.account ? <label className="field-label">Player name<input placeholder="Your name" maxLength={24} value={name} onChange={e => setName(e.target.value)} /></label> : <p>Playing as <strong>{account.account.username}</strong></p>}
         <button className="button primary create-button" disabled={loading} onClick={() => void enter('create')}>{loading ? <LoaderCircle className="spin" /> : <Plus />}Create room<ArrowRight className="push-right" /></button><div className="divider-label">or join a room</div>
@@ -99,7 +113,7 @@ function App() {
         <label className="setting-row"><span><Clock3 /><span><strong>Automatic dice roll</strong><small>Countdown at the start of each turn</small></span></span><select aria-label="Automatic dice roll" value={view.settings.autoRollSeconds} disabled={busy || session.playerId !== view.hostId} onChange={e => send({ type: 'configure', settings: { ...view.settings, autoRollSeconds: Number(e.target.value) } })}>{[0, 5, 10, 15, 30].map(n => <option key={n} value={n}>{n ? `${n} seconds` : 'Off'}</option>)}</select></label>
         <label className="setting-row"><span><BarChart3 /><span><strong>Dice results tracker</strong><small>Count how often each number is rolled</small></span></span><input className="switch-input" aria-label="Dice results tracker" type="checkbox" checked={view.settings.trackDice} disabled={busy || session.playerId !== view.hostId} onChange={e => send({ type: 'configure', settings: { ...view.settings, trackDice: e.target.checked } })} /></label>
         <label className="setting-row"><span><Settings2 size={21} /><span><strong>Number layout</strong><small>Classic order is available for the base game.</small></span></span><select aria-label="Number layout" value={view.settings.numberLayout} disabled={busy || session.playerId !== view.hostId} onChange={e => send({ type: 'configure', settings: { ...view.settings, numberLayout: e.target.value as 'ordered' | 'random' } })}><option value="random">Random</option><option value="ordered">Classic · 5–2–6…</option></select></label>
-        <label className="setting-row"><span><Clock3 size={21} /><span><strong>Turn time limit</strong><small>Seconds per turn; expiry waits for the player.</small></span></span><input className="setting-number" aria-label="Turn time limit" type="number" min={15} max={900} defaultValue={view.settings.turnSeconds} key={view.settings.turnSeconds} disabled={busy || session.playerId !== view.hostId} onBlur={e => { const value = Number(e.target.value); if (value !== view.settings.turnSeconds && value >= 15 && value <= 900 && Number.isInteger(value)) send({ type: 'configure', settings: { ...view.settings, turnSeconds: value } }); }} /></label>
+        <label className="setting-row"><span><Clock3 size={21} /><span><strong>Turn time limit</strong><small>A bot finishes the turn when time runs out.</small></span></span><input className="setting-number" aria-label="Turn time limit" type="number" min={15} max={900} defaultValue={view.settings.turnSeconds} key={view.settings.turnSeconds} disabled={busy || session.playerId !== view.hostId} onBlur={e => { const value = Number(e.target.value); if (value !== view.settings.turnSeconds && value >= 15 && value <= 900 && Number.isInteger(value)) send({ type: 'configure', settings: { ...view.settings, turnSeconds: value } }); }} /></label>
         <label className="setting-row"><span><Shield size={21} /><span><strong>Friendly robber</strong><small>Protect players with 2 visible points or fewer.</small></span></span><input type="checkbox" checked={view.settings.friendlyRobber} disabled={busy || session.playerId !== view.hostId} onChange={e => send({ type: 'configure', settings: { ...view.settings, friendlyRobber: e.target.checked } })} /></label>
         <label className="setting-row"><span><Shield size={21} /><span><strong>Discard limit</strong><small>Discard half when holding more than this.</small></span></span><select aria-label="Discard limit" value={view.settings.discardLimit} disabled={busy || session.playerId !== view.hostId} onChange={e => send({ type: 'configure', settings: { ...view.settings, discardLimit: Number(e.target.value) } })}>{[7,8,9,10,12].map(n => <option value={n} key={n}>{n} cards</option>)}</select></label>
         <div className="setup-start"><p>{view.players.length < 2 ? 'Invite one more player, or create a solo test room.' : session.playerId === view.hostId ? 'Start to place your settlements.' : 'Waiting for the host to start.'}</p><button className="button primary" disabled={busy || session.playerId !== view.hostId || view.players.length < 2} onClick={() => send({ type: 'start' })}><Swords size={21} />Start game<ArrowRight size={21} /></button></div>
@@ -107,7 +121,7 @@ function App() {
     </main> : <GameTable room={room} invite={() => setShareOpen(true)} />}
     {(error ?? room.error) && <div className="toast" role="alert"><span>{error ?? room.error}</span><button className="icon-button" aria-label="Dismiss message" onClick={() => { setError(null); room.clearError(); }}><X /></button></div>}
     {authOpen && <Modal title={authMode === 'login' ? 'Sign in to Islanders' : 'Create your account'} close={() => { setAuthOpen(false); setPassword(''); }}><div className="segmented"><button className={authMode === 'login' ? 'selected' : ''} onClick={() => setAuthMode('login')}>Sign in</button><button className={authMode === 'register' ? 'selected' : ''} onClick={() => setAuthMode('register')}>Create account</button></div><p className="muted">Use the same account on any device to return to your games.</p>{!window.isSecureContext && <p className="inline-alert">Use the HTTPS playtest link to sign in. Guest play still works here.</p>}<form className="stack-form" onSubmit={signIn}><label>Username<input autoComplete="username" minLength={3} maxLength={24} pattern="[A-Za-z0-9_]+" value={username} onChange={e => setUsername(e.target.value)} required /></label><label>Password<input type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} minLength={12} maxLength={128} placeholder="At least 12 characters" value={password} onChange={e => setPassword(e.target.value)} required /></label>{authError && <p role="alert" className="inline-alert">{authError}</p>}<button className="button primary full" disabled={loading || !window.isSecureContext}>{loading && <LoaderCircle className="spin" />}{authMode === 'login' ? 'Sign in' : 'Create account'}</button></form>{authMode === 'register' && <p className="form-note">Save your password. Password recovery is not available yet.</p>}</Modal>}
-    {shareOpen && view && <Modal title={`Invite to ${view.roomId}`} close={() => setShareOpen(false)}><p>Share this private room link. Friends can join as players or choose “Join as a spectator.”</p><label className="field-label">Invite link<input readOnly value={inviteUrl()} onFocus={e => e.target.select()} /></label><button className="button primary full" onClick={copyInvite}>{copied ? <Check /> : <Copy />}{copied ? 'Copied' : 'Copy invite link'}</button>{view.testMode && <p className="form-note">This is a solo room. Use the host account on another device to resume it.</p>}{location.protocol !== 'https:' && <p className="form-note">This address works on the same Wi-Fi. Use the HTTPS playtest link for other networks and cross-device sign-in.</p>}</Modal>}
+    {shareOpen && view && <Modal title={`Invite to ${view.roomId}`} close={() => setShareOpen(false)}><p>This private link enters the room directly. When the game has started or is full, new arrivals join as spectators.</p><label className="field-label">Invite link<input readOnly value={inviteUrl()} onFocus={e => e.target.select()} /></label><label className="field-label">Spectator link<input readOnly value={`${inviteUrl()}&spectate=1`} onFocus={e => e.target.select()} /></label><button className="button primary full" onClick={copyInvite}>{copied ? <Check /> : <Copy />}{copied ? 'Copied' : 'Copy invite link'}</button>{view.testMode && <p className="form-note">This is a solo room. Use the host account on another device to resume it.</p>}{location.protocol !== 'https:' && <p className="form-note">This address works on the same Wi-Fi. Use the HTTPS playtest link for other networks and cross-device sign-in.</p>}</Modal>}
   </div>;
 }
 function Connection({ status }: { status: string }) { return <span className={`connection-pill ${status !== 'online' ? 'disconnected' : ''}`}><Wifi size={16} />{status === 'online' ? 'Connected' : status === 'offline' ? 'Offline' : 'Connecting…'}</span>; }

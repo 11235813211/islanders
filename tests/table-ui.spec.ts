@@ -1,12 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settled, grant } from './fixtures';
+import { richGame, grant } from './fixtures';
 import { mountGame } from './ui-harness';
-function richGame() {
-  const g = settled(4); g.testMode = true; g.phase = 'build'; g.rollDeadline = null; g.turnDeadline = Date.now()+120_000;
-  grant(g, 'p0', { wood: 5, brick: 5, sheep: 5, wheat: 5, ore: 5 });
-  g.players[0].development = [{ id: 'knight-ui', kind: 'knight', boughtTurn: 0 }, { id: 'monopoly-ui', kind: 'monopoly', boughtTurn: 0 }];
-  return g;
-}
 async function fits(page: Page) {
   const boxes = await page.evaluate(() => ['.board-viewport','.player-panel','.table-hand','.table-actions'].map(selector => {
     const r = document.querySelector(selector)!.getBoundingClientRect(); return { selector, x:r.x, y:r.y, right:r.right, bottom:r.bottom, width:r.width, height:r.height, viewportHeight:innerHeight, viewportWidth:innerWidth };

@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext } from '@playwright/test';
+import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 import WebSocket from 'ws';
 import type { GameAction, GameView, ServerMessage, Session } from '../shared/types';
 
@@ -70,9 +70,14 @@ export class PlayerConnection {
 }
 
 export async function join(request: APIRequestContext, name: string, roomId?: string): Promise<Session> {
-  const response = await request.post(`${server}/api/rooms${roomId ? `/${roomId}/join` : ''}`, { headers: { Origin: origin }, data: { name } });
-  expect(response.status()).toBe(201);
-  return response.json() as Promise<Session>;
+  let response: APIResponse;
+  // Suites share the real local IP limit. Retry only explicit rate rejections, never successful mutations.
+  await expect.poll(async () => {
+    response = await request.post(`${server}/api/rooms${roomId ? `/${roomId}/join` : ''}`, { headers: { Origin: origin }, data: { name } });
+    return response.status();
+  }, { timeout: 65_000, intervals: [1000, 2000, 5000] }).not.toBe(429);
+  expect(response!.status()).toBe(201);
+  return response!.json() as Promise<Session>;
 }
 
 export function verifyPrivateView(state: GameView, playerId: string) {

@@ -1,6 +1,7 @@
 import { assignNumbers, generateHarbors, generateBoard } from './board';
 import { RESOURCES, type GameAction, type GameState, type GameView, type LegalMoves, type Player, type Resource, type ResourceBag } from './types';
 
+import { chooseBotAction } from './bot';
 import { developmentDeck, longestRoad, tradeRates, updateAwards, victoryPoints } from './rules';
 import { DEFAULT_SETTINGS, validSettings } from './settings';
 export { DEFAULT_SETTINGS } from './settings';
@@ -39,7 +40,7 @@ export function createGame(roomId: string, random: () => number = Math.random, o
     settings: { ...DEFAULT_SETTINGS }, rollDeadline: null, diceCounts: emptyDiceCounts(),
     tradeOffer: null, testMode: options.testMode === true,
     developmentDeck: developmentDeck(random), developmentPlayed: false, freeRoads: 0, resumePhase: null,
-    longestRoadId: null, largestArmyId: null, turnDeadline: null, turnExpired: false, pausedAt: null, proposal: null, undo: null, chat: [],
+    longestRoadId: null, largestArmyId: null, turnDeadline: null, turnExpired: false, pausedAt: null, proposal: null, undo: null, undoHistory: [], chat: [],
   };
 }
 
@@ -62,7 +63,8 @@ export function normalizeGame(state: GameState, now = Date.now(), random: () => 
   next.developmentDeck ??= developmentDeck(random);
   next.developmentPlayed ??= false; next.freeRoads ??= 0; next.resumePhase ??= null;
   next.longestRoadId ??= null; next.largestArmyId ??= null; next.turnExpired ??= false;
-  next.pausedAt ??= null; next.proposal ??= null; next.undo ??= null;
+  next.pausedAt ??= null; next.proposal ??= null; next.undo ??= null; next.undoHistory ??= [];
+  if (next.proposal) next.proposal.rejected ??= [];
   next.turnDeadline ??= ['lobby', 'finished'].includes(next.phase) ? null : now + next.settings.turnSeconds * 1000;
   updateAwards(next);
   next.testMode = next.testMode === true;
@@ -166,7 +168,7 @@ export function getView(state: GameState, selfId: string): GameView {
     players: state.players.map(candidate => {
       const pieces = pieceCounts(state, candidate.id);
       return { id: candidate.id, name: candidate.name, color: candidate.color,
-        resourceCount: resourceCount(candidate.resources), points: victoryPoints(state, candidate.id, candidate.id === selfId || state.phase === 'finished'),
+        resourceCount: resourceCount(candidate.resources), publicPoints: victoryPoints(state, candidate.id, false), points: victoryPoints(state, candidate.id, candidate.id === selfId || state.phase === 'finished'),
         developmentCount: candidate.development.length, knights: candidate.knights, longestRoad: longestRoad(state, candidate.id),
         roadsLeft: 15 - pieces.roads, settlementsLeft: 5 - pieces.settlements, citiesLeft: 4 - pieces.cities };
     }),
@@ -292,7 +294,8 @@ function resolveProposal(state: GameState, now: number): GameState {
   }
   if (proposal.kind === 'undo') {
     const undo = state.undo!;
-    const restored: GameState = { ...structuredClone(undo.snapshot), version: state.version, chat: state.chat, spectators: state.spectators, log: state.log, undo: null, proposal: null };
+    const history = [...state.undoHistory];
+    const restored: GameState = { ...state, ...structuredClone(undo.snapshot), version: state.version, chat: state.chat, spectators: state.spectators, log: state.log, undo: history.pop() ?? null, undoHistory: history, proposal: null };
     shiftClocks(restored, now - undo.at);
     addLog(restored, `The players undid: ${undo.description}`);
     return restored;
@@ -314,19 +317,19 @@ function socialAction(state: GameState, playerId: string, action: GameAction, no
     requireRule(next.players.some(p => p.id === playerId), 'Spectators cannot vote or change the game.');
     requireRule(!['lobby', 'finished'].includes(next.phase), 'Start a game before proposing a change.');
     if (action.type === 'propose') {
-      requireRule(!next.proposal || next.proposal.expiresAt <= now, 'A proposal is already open.');
+      requireRule(!next.proposal || next.proposal.expiresAt <= now || next.proposal.rejected.length > 0, 'A proposal is already open.');
       if (action.kind === 'undo') requireRule(next.undo && next.undo.actorId === playerId && next.pausedAt === null, 'You can request undo of your latest build, trade, or turn change.');
       if (action.kind === 'pause') requireRule(next.pausedAt === null, 'The game is already paused.');
       if (action.kind === 'resume') requireRule(next.pausedAt !== null, 'The game is not paused.');
       const required = next.players.filter(p => action.kind === 'undo' || !online || online.includes(p.id) || p.id === playerId).map(p => p.id);
-      next.proposal = { id: `proposal-${next.version + 1}`, kind: action.kind, fromId: playerId, required, accepted: [playerId], expiresAt: now + 45_000, description: action.kind === 'undo' ? next.undo!.description : action.kind === 'pause' ? 'Pause the game and its clocks' : 'Resume the game' };
+      next.proposal = { id: `proposal-${next.version + 1}`, kind: action.kind, fromId: playerId, required, accepted: [playerId], rejected: [], expiresAt: now + 45_000, description: action.kind === 'undo' ? next.undo!.description : action.kind === 'pause' ? 'Pause the game and its clocks' : 'Resume the game' };
       next = resolveProposal(next, now);
     } else if (action.type === 'vote') {
       const proposal = next.proposal;
-      requireRule(proposal && proposal.id === action.proposalId && proposal.expiresAt > now, 'That proposal has expired.');
+      requireRule(proposal && proposal.id === action.proposalId && proposal.expiresAt > now && !proposal.rejected.length, 'That proposal has expired.');
       requireRule(proposal.required.includes(playerId) && !proposal.accepted.includes(playerId), 'Your vote has already been recorded or is not needed.');
       if (action.accept) { proposal.accepted.push(playerId); next = resolveProposal(next, now); }
-      else { addLog(next, `${member.name} declined the ${proposal.kind} proposal.`); next.proposal = null; }
+      else { addLog(next, `${member.name} declined the ${proposal.kind} proposal.`); proposal.rejected.push(playerId); proposal.expiresAt = now + 5000; }
     }
   }
   next.version++; return next;
@@ -339,15 +342,41 @@ export function advanceTime(state: GameState, now: number, random: () => number 
   if (next.proposal && next.proposal.expiresAt <= now) { next.proposal = null; changed = true; }
   if (next.pausedAt === null) {
     if (next.tradeOffer && next.tradeOffer.expiresAt <= now) { next.tradeOffer = null; changed = true; }
-    if (next.turnDeadline !== null && next.turnDeadline <= now && !next.turnExpired) {
-      next.turnExpired = true; changed = true; addLog(next, 'Time is up. Waiting for the player; no automatic moves are made.');
-    }
-    if (next.phase === 'roll' && ((next.rollDeadline !== null && next.rollDeadline <= now) || next.turnExpired)) {
+    if (next.turnDeadline !== null && next.turnDeadline <= now && !['lobby', 'finished'].includes(next.phase)) return finishTimedTurn(next, now, random);
+    if (next.phase === 'roll' && next.rollDeadline !== null && next.rollDeadline <= now) {
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll' }, random, now);
     }
   }
   if (changed) next.version++;
   return changed ? next : state;
+}
+
+/** Finish exactly one expired turn (or setup placement), including every forced choice. */
+function finishTimedTurn(state: GameState, now: number, random: () => number): GameState {
+  let next=structuredClone(state), builds=0;
+  const turn=state.turn, setupIndex=state.setupIndex;
+  addLog(next, `${next.players.find(p=>p.id===getActivePlayerId(next))!.name} ran out of time. The bot is finishing the turn.`);
+  for (let step=0;step<40;step++) {
+    if (next.phase==='finished' || next.turn!==turn || next.setupIndex!==setupIndex) break;
+    const id=next.phase==='discard' ? Object.keys(next.pendingDiscards).find(id=>next.pendingDiscards[id]>0)! : getActivePlayerId(next)!;
+    const action=chooseBotAction(getView(next,id), builds);
+    next=applyAction(next,id,action,random,now);
+    if (['build-road','build-settlement','build-city','buy-development'].includes(action.type)) builds++;
+  }
+  if (next.phase === 'build' && next.turn === turn) next = applyAction(next, getActivePlayerId(next)!, { type: 'end-turn' }, random, now);
+  next.undo=null; next.undoHistory=[]; next.proposal=null;
+  return next;
+}
+
+function stealResource(state: GameState, actorId: string, victimId: string, random: () => number): void {
+  const player=state.players.find(p=>p.id===actorId)!, victim=state.players.find(p=>p.id===victimId)!;
+  let index=Math.floor(random()*resourceCount(victim.resources));
+  for (const resource of RESOURCES) {
+    if (index<victim.resources[resource]) { victim.resources[resource]--; player.resources[resource]++; break; }
+    index-=victim.resources[resource];
+  }
+  state.phase=state.resumePhase ?? 'build'; state.resumePhase=null;
+  addLog(state, `${player.name} took one resource from ${victim.name}.`);
 }
 
 /** Every accepted command returns a new state; rejected commands leave input intact. */
@@ -445,22 +474,17 @@ export function applyAction(state: GameState, playerId: string, action: GameActi
       needPhase('robber');
       requireRule(legal.robberHexes.includes(action.hexId), 'Move the robber to a different hex.');
       next.robber = action.hexId;
-      next.phase = stealTargets(next, playerId).length ? 'steal' : next.resumePhase ?? 'build';
-      if (next.phase !== 'steal') next.resumePhase = null;
+      const victims=stealTargets(next,playerId);
+      next.phase= victims.length ? 'steal' : next.resumePhase ?? 'build';
+      if (!victims.length) next.resumePhase=null;
       addLog(next, `${player.name} moved the robber.`);
+      if (victims.length===1) stealResource(next,playerId,victims[0],random);
       break;
     }
     case 'steal': {
       needPhase('steal');
       requireRule(legal.stealTargets.includes(action.playerId), 'Choose an opponent with resources bordering the robber.');
-      const victim = next.players.find(candidate => candidate.id === action.playerId)!;
-      let index = Math.floor(random() * resourceCount(victim.resources));
-      for (const resource of RESOURCES) {
-        if (index < victim.resources[resource]) { victim.resources[resource]--; player.resources[resource]++; break; }
-        index -= victim.resources[resource];
-      }
-      next.phase = next.resumePhase ?? 'build'; next.resumePhase = null;
-      addLog(next, `${player.name} took one resource from ${victim.name}.`);
+      stealResource(next,playerId,action.playerId,random);
       break;
     }
     case 'build-road': {
@@ -586,6 +610,9 @@ export function applyAction(state: GameState, playerId: string, action: GameActi
       break;
     }
   }
+  if (next.phase === 'robber' && !legalMoves(next,getActivePlayerId(next)!).robberHexes.length) {
+    next.phase=next.resumePhase ?? 'build'; next.resumePhase=null; addLog(next,'No legal robber destination is available.');
+  }
   updateAwards(next);
   const activeId = getActivePlayerId(next);
   if (next.turn > 0 && activeId && victoryPoints(next, activeId) >= 10) {
@@ -608,9 +635,10 @@ export function applyAction(state: GameState, playerId: string, action: GameActi
   if (!passive.includes(action.type)) {
     next.proposal = null;
     if (reversible.includes(action.type) && next.phase !== 'finished') {
-      const { undo: _undo, proposal: _proposal, ...snapshot } = structuredClone(state);
+      const { undo: _undo, undoHistory: _history, proposal: _proposal, board: _board, roomId: _room, hostId: _host, version: _version, chat: _chat, log: _log, spectators: _spectators, settings: _settings, setupOrder: _setup, developmentDeck: _deck, testMode: _test, ...snapshot } = structuredClone(state);
+      next.undoHistory = [...state.undoHistory, ...(state.undo ? [state.undo] : [])];
       next.undo = { actorId: playerId, at: now, description: next.log.at(-1)?.text ?? action.type, snapshot };
-    } else next.undo = null;
+    } else { next.undo = null; next.undoHistory=[]; }
   }
   next.version++;
   return next;
