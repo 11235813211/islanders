@@ -49,10 +49,6 @@
   stroke: #fffbe6;
   stroke-width: 1.6px;
 }
-.board-pulse-ring {
-  fill: none;
-  stroke-width: 2.6px;
-}
 
 /* Hover (or picking it, while the confirm card is up) swaps the breathing circle for a still, full-size one in your seat color.
    The breathing one keeps running underneath, so it stays in step with the rest. */
@@ -62,11 +58,6 @@
   fill: var(--target-color);
   stroke: #123d54;
   stroke-width: 1.6px;
-}
-.board-pulse-hover.board-pulse-ring {
-  fill: none;
-  stroke: var(--target-color);
-  stroke-width: 3.5px;
 }
 .board-vertex-target:hover .board-pulse-hover,
 .board-vertex-target:focus-visible .board-pulse-hover,

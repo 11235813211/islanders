@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { Resource, Terrain } from '../../shared/types';
+import type { PieceStyle, Resource, Terrain } from '../../shared/types';
 
 /**
  * Everything drawn on the board and cards. Each art version (src/art/vN)
@@ -25,7 +25,8 @@ export interface ArtPack {
     corners: { x: number; y: number }[];
   }) => ReactElement;
   Road: (props: { from: { x: number; y: number }; to: { x: number; y: number }; color: string }) => ReactElement;
-  BuildingPiece: (props: { color: string; city: boolean }) => ReactElement;
+  /** A settlement or city. Versions before v5 draw one style and ignore `style`. */
+  BuildingPiece: (props: { color: string; city: boolean; style?: PieceStyle }) => ReactElement;
   Robber: () => ReactElement;
   /** Compass, boat, and gulls drawn over the sea. */
   SeaDecorations: () => ReactElement;

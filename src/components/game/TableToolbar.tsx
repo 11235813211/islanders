@@ -17,6 +17,14 @@ import type { GameAction, GameView } from '../../../shared/types';
 import type { Connection } from '../../hooks/useRoom';
 import { setSoundEnabled, soundEnabled } from '../../lib/sound';
 
+/** Why the undo button is or isn't available. */
+function undoTitle(view: GameView): string {
+  const undo = view.undoAvailable;
+  if (!undo) return "Nothing to undo. Builds, trades and ending a turn can be undone; dice and card draws can't.";
+  if (undo.actorId !== view.selfId) return 'Only the player who made the last move can ask to undo it.';
+  return `Ask to undo: ${undo.description}`;
+}
+
 /** Top strip: room code, connection, solo-test seat switcher, and table tools. */
 export default function TableToolbar({
   view,
@@ -117,10 +125,7 @@ export default function TableToolbar({
             <button
               className="icon-button"
               aria-label="Propose undo"
-              title={
-                view.undoAvailable?.description ??
-                'Undo is available after a build or trade; random reveals cannot be undone.'
-              }
+              title={undoTitle(view)}
               disabled={busy || paused || openProposal || view.undoAvailable?.actorId !== view.selfId}
               onClick={() => send({ type: 'propose', kind: 'undo' })}
             >

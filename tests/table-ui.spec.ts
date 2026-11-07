@@ -149,7 +149,7 @@ test('two-finger pinch zooms the board on a phone in portrait and landscape, eve
   expect(game.errors).toEqual([]);
 });
 
-test('map building needs confirmation, city art upgrades, and undo restores the move by consent', async ({ page }) => {
+test('map building needs confirmation, city art upgrades, and a solo room undoes at once', async ({ page }) => {
   const game = await mountGame(page, richGame());
   await page.getByLabel('Follow current turn').uncheck();
   const before = Object.keys(game.state().roads).length;
@@ -160,13 +160,10 @@ test('map building needs confirmation, city art upgrades, and undo restores the 
   expect(Object.keys(game.state().roads)).toHaveLength(before);
   await page.getByRole('button', { name: 'Confirm road', exact: true }).click();
   await expect.poll(() => Object.keys(game.state().roads).length).toBe(before + 1);
+  // One person holds every seat in a solo room, so the undo needs no votes.
+  // (Votes between real people are covered in social-server.spec.ts.)
   await page.getByRole('button', { name: 'Propose undo' }).click();
-  for (const id of ['p1', 'p2', 'p3']) {
-    await page.getByLabel('Play as', { exact: true }).selectOption(id);
-    await page.getByRole('button', { name: 'Approve proposal' }).click();
-  }
   await expect.poll(() => Object.keys(game.state().roads).length).toBe(before);
-  await page.getByLabel('Play as', { exact: true }).selectOption('p0');
   await page
     .getByRole('button', { name: /^Upgrade to city at/ })
     .first()

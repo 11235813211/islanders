@@ -1,5 +1,5 @@
 import { GUEST_NAMES } from './guest-names';
-import type { BotLevel, GameSettings, Phase } from './types';
+import { type BotLevel, type GameSettings, type Phase, PIECE_STYLES } from './types';
 
 export const DEFAULT_SETTINGS: GameSettings = {
   autoRollSeconds: 10,
@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   friendlyRobber: false,
   discardLimit: 7,
   victoryPoints: 10,
+  pieceStyle: 'classic',
 };
 export const VICTORY_POINT_RANGE = { min: 3, max: 20 } as const;
 
@@ -43,7 +44,8 @@ export function validSettings(
     (s.turnSeconds === undefined || integerIn(s.turnSeconds, 15, 900)) &&
     (s.friendlyRobber === undefined || typeof s.friendlyRobber === 'boolean') &&
     (s.discardLimit === undefined || integerIn(s.discardLimit, 3, 20)) &&
-    (s.victoryPoints === undefined || integerIn(s.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max))
+    (s.victoryPoints === undefined || integerIn(s.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max)) &&
+    (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never))
   );
 }
 

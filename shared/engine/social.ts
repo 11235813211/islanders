@@ -92,10 +92,15 @@ export function socialAction(
         );
       if (action.kind === 'pause') requireRule(next.pausedAt === null, 'The game is already paused.');
       if (action.kind === 'resume') requireRule(next.pausedAt !== null, 'The game is not paused.');
-      // Bots never vote. Pause and resume only need people who are connected.
-      const required = next.players
-        .filter(p => !p.bot && (action.kind === 'undo' || !online || online.includes(p.id) || p.id === playerId))
-        .map(p => p.id);
+      // Bots never vote. In a solo test room one person holds every seat, so an undo needs no
+      // votes (pause and resume still collect them there, to try out voting). Pause and resume
+      // only need people who are connected.
+      const required =
+        next.testMode && action.kind === 'undo'
+          ? [playerId]
+          : next.players
+              .filter(p => !p.bot && (action.kind === 'undo' || !online || online.includes(p.id) || p.id === playerId))
+              .map(p => p.id);
       next.proposal = {
         id: `proposal-${next.version + 1}`,
         kind: action.kind,

@@ -1,4 +1,4 @@
-import { BarChart3, Dices, Hash, Minus, Plus, Shield, Timer, Trophy } from 'lucide-react';
+import { BarChart3, Dices, Hash, House, Minus, Plus, Shield, Timer, Trophy } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
 import type { GameSettings } from '../../../shared/types';
@@ -46,6 +46,19 @@ export const CATEGORIES: Category[] = [
           options: [
             { value: 'ordered', label: 'Standard' },
             { value: 'random', label: 'Random' },
+          ],
+        },
+      },
+      {
+        key: 'pieceStyle',
+        label: 'Piece style',
+        hint: 'How settlements and cities look. The rules are the same.',
+        icon: <House size={20} />,
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'classic', label: 'Classic' },
+            { value: 'chalet', label: 'Mountain chalet' },
           ],
         },
       },

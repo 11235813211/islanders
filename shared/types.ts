@@ -117,6 +117,9 @@ export interface ChatMessage {
   at: number;
   spectator: boolean;
 }
+export const PIECE_STYLES = ['classic', 'chalet'] as const;
+/** How settlements and cities are drawn. Purely visual; the rules are the same. */
+export type PieceStyle = (typeof PIECE_STYLES)[number];
 export interface GameSettings {
   autoRollSeconds: number;
   trackDice: boolean;
@@ -125,6 +128,7 @@ export interface GameSettings {
   friendlyRobber: boolean;
   discardLimit: number;
   victoryPoints: number;
+  pieceStyle: PieceStyle;
 }
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {

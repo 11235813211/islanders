@@ -45,12 +45,12 @@ export async function mountGame(page: Page, initial: GameState) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Create solo test room' }).click();
   await page.locator('.board-svg').waitFor();
+  // Let hand cards finish arriving (an empty hand, as in setup, has nothing to wait for).
   await page
     .locator('.cards-physical')
-    .first()
-    .evaluate(async element => {
-      await Promise.all(element.getAnimations().map(animation => animation.finished));
-    });
+    .evaluateAll(async elements =>
+      Promise.all(elements.flatMap(element => element.getAnimations().map(animation => animation.finished))),
+    );
   return { state: () => game, errors };
 }
 /** A seat color's CSS value as the browser reports it, e.g. accent('blue') → 'rgb(31, 79, 214)'. */

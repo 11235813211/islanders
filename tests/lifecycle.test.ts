@@ -114,6 +114,18 @@ describe('bot scheduling', () => {
     expect(botDueAt(g)).toBeNull();
   });
 
+  it('undoes at once in a solo test room, where one person holds every seat', () => {
+    let g = settled(3);
+    g.testMode = true;
+    g.phase = 'build';
+    grant(g, 'p0', { wood: 1, brick: 1 });
+    g = act(g, 'p0', { type: 'build-road', edgeId: getView(g, 'p0').legal.roads[0]! });
+    const roads = Object.keys(g.roads).length;
+    g = applyAction(g, 'p0', { type: 'propose', kind: 'undo' }, seeded(), now);
+    expect(g.proposal).toBeNull();
+    expect(Object.keys(g.roads)).toHaveLength(roads - 1);
+  });
+
   it('has a bot answer an offer sent to it, and leaves people alone', () => {
     const g = settled(3);
     g.phase = 'build';

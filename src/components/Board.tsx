@@ -42,21 +42,19 @@ const PULSE = {
 } as const;
 const stillMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A legal corner: a breathing circle (a ring around a settlement that can become a city). */
-function CornerMark({ ring }: { ring: boolean }) {
-  const r = ring ? 16 : 10;
-  const kind = ring ? ' board-pulse-ring' : '';
+/** An open corner for a new settlement: a breathing circle, swapped for a still one on hover or once picked. */
+function CornerMark() {
   return (
     <>
-      <circle className={`board-target-mark board-pulse${kind}`} r={r}>
+      <circle className="board-target-mark board-pulse" r="10">
         {!stillMotion() && (
           <>
-            <animate attributeName="r" values={`${r * 0.62};${r * 1.08};${r * 0.62}`} {...PULSE} />
+            <animate attributeName="r" values="6.2;10.8;6.2" {...PULSE} />
             <animate attributeName="opacity" values="0.75;1;0.75" {...PULSE} />
           </>
         )}
       </circle>
-      <circle className={`board-pulse-hover${kind}`} r={r * 1.08} />
+      <circle className="board-pulse-hover" r="10.8" />
     </>
   );
 }
@@ -254,7 +252,11 @@ export default function Board({
                   <title>
                     {playerName(building.playerId)}&apos;s {building.kind}
                   </title>
-                  <BuildingPiece color={color(building.playerId)} city={building.kind === 'city'} />
+                  <BuildingPiece
+                    color={color(building.playerId)}
+                    city={building.kind === 'city'}
+                    style={view.settings.pieceStyle}
+                  />
                 </g>
               );
             })}
@@ -272,7 +274,8 @@ export default function Board({
                 transform={`translate(${vertex.x} ${vertex.y})`}
               >
                 <circle r="17" fill="transparent" className="board-hit-area" />
-                <CornerMark ring={view.legal.cities.includes(vertex.id)} />
+                {/* Settlements that can become cities stay clickable but unmarked: the piece itself is the target. */}
+                {!view.legal.cities.includes(vertex.id) && <CornerMark />}
               </g>
             ))}
           {selected && selectedPoint && (
@@ -294,7 +297,11 @@ export default function Board({
                   <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color(view.selfId)} />
                 ) : (
                   <g transform="translate(-11 -1) scale(.75)">
-                    <BuildingPiece color={color(view.selfId)} city={selected.kind === 'city'} />
+                    <BuildingPiece
+                      color={color(view.selfId)}
+                      city={selected.kind === 'city'}
+                      style={view.settings.pieceStyle}
+                    />
                   </g>
                 )}
                 <circle cx="17" cy="-2" r="10" fill="#198144" />

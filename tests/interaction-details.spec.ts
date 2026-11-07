@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { getView } from '../shared/engine';
-import { grant, richGame } from './fixtures';
+import { applyAction, getView } from '../shared/engine';
+import { grant, makeLobby, richGame, seeded, TEST_NOW } from './fixtures';
 import { mountGame, seatRgb } from './ui-harness';
 
 test('map confirmation cancels outside, toolbar roads and cities build immediately', async ({ page }) => {
@@ -189,12 +189,13 @@ test('releasing outside the board or canceling touch never leaves a stale drag',
   expect(game.errors).toEqual([]);
 });
 
-test('corner targets breathe in step, even after hover or reappearing, and hover shows the seat color', async ({
+test('corners breathe in step, hover and picking show the seat color, and city upgrades stay unmarked', async ({
   page,
 }) => {
-  const game = await mountGame(page, richGame());
-  await page.getByLabel('Follow current turn').uncheck();
-  // Each circle's current size as a share of its full size: equal shares mean the same phase.
+  const setup = applyAction(makeLobby(2), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+  setup.testMode = true;
+  const game = await mountGame(page, setup);
+  // Each circle's current size as a share of its full size: equal shares mean the same point in the rhythm.
   const phases = () =>
     page
       .locator('.board-pulse')
@@ -203,29 +204,37 @@ test('corner targets breathe in step, even after hover or reappearing, and hover
           ((c as SVGCircleElement).r.animVal.value / (c as SVGCircleElement).r.baseVal.value).toFixed(2),
         ),
       );
-  // This board only offers city upgrades, which show as rings: hover colors the ring.
-  const target = page.getByRole('button', { name: /^Upgrade to city at/ }).first();
-  await target.hover();
-  await expect(target.locator('.board-pulse-hover')).toBeVisible();
-  await expect(target.locator('.board-pulse')).toBeHidden();
-  await expect(target.locator('.board-pulse-hover')).toHaveCSS('stroke', seatRgb('red', 'fill'));
+  const corner = page.getByRole('button', { name: /^Build settlement at/ }).first();
+  await corner.hover();
+  await expect(corner.locator('.board-pulse-hover')).toHaveCSS('fill', seatRgb('red', 'fill'));
+  await expect(corner.locator('.board-pulse')).toBeHidden();
   await page.mouse.move(5, 5);
   await page.waitForTimeout(700);
   expect(new Set(await phases()).size).toBe(1);
-  // Road mode hides the corners; leaving it brings them back, mid-rhythm, still in step.
-  await page.getByRole('button', { name: 'Build road', exact: true }).click();
-  await expect(page.locator('.board-vertex-target')).toHaveCount(0);
+  // A picked corner stays still and colored while the confirm card is up.
+  await corner.click();
+  await page.mouse.move(5, 5);
+  await expect(corner.locator('.board-pulse-hover')).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm settlement', exact: true }).click();
+  await page
+    .getByRole('button', { name: /^Build road at/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Confirm road', exact: true }).click();
+  // The next seat's corners appear later, mid-rhythm, and still move together.
+  await expect.poll(() => game.state().setupIndex).toBe(1);
+  await expect(page.getByRole('button', { name: /^Build settlement at/ }).first()).toBeVisible();
   await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Build road', exact: true }).click();
-  await expect(page.locator('.board-vertex-target').first()).toBeVisible();
   expect((await phases()).length).toBeGreaterThan(1);
   expect(new Set(await phases()).size).toBe(1);
-  // A picked corner stays still, full size, and in the seat color while the confirm card is up.
-  const picked = page.getByRole('button', { name: /^Upgrade to city at/ }).first();
-  await picked.click();
-  await page.mouse.move(5, 5);
-  await expect(page.getByRole('button', { name: 'Confirm city', exact: true })).toBeVisible();
-  await expect(picked.locator('.board-pulse-hover')).toBeVisible();
-  await expect(picked.locator('.board-pulse')).toBeHidden();
   expect(game.errors).toEqual([]);
+});
+
+test('settlements that can become cities are clickable without a marker', async ({ page }) => {
+  await mountGame(page, richGame());
+  await page.getByLabel('Follow current turn').uncheck();
+  const upgrade = page.getByRole('button', { name: /^Upgrade to city at/ }).first();
+  await expect(upgrade.locator('.board-target-mark')).toHaveCount(0);
+  await upgrade.click();
+  await expect(page.getByRole('button', { name: 'Confirm city', exact: true })).toBeVisible();
 });

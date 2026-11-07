@@ -1,19 +1,21 @@
 import { test } from '@playwright/test';
 import { getActivePlayerId } from '../shared/engine';
-import type { PlayerColor } from '../shared/types';
+import type { PieceStyle, PlayerColor } from '../shared/types';
 import { richGame } from './fixtures';
 import { mountGame } from './ui-harness';
 
 // Screenshot review for art and seat colors: writes test-results/visual-*.png.
 // Every seat gets a city, settlements, and roads spread across different tiles.
-const SEAT_SETS: PlayerColor[][] = [
-  ['white', 'black', 'green', 'brown'],
-  ['orange', 'red', 'blue', 'purple'],
+// The second set uses the chalet piece style, so both styles get a board screenshot.
+const SEAT_SETS: [PlayerColor[], PieceStyle][] = [
+  [['white', 'black', 'green', 'brown'], 'classic'],
+  [['orange', 'red', 'blue', 'purple'], 'chalet'],
 ];
 
-for (const colors of SEAT_SETS) {
-  test(`board pieces stay visible for ${colors.join(', ')}`, async ({ page }) => {
+for (const [colors, pieceStyle] of SEAT_SETS) {
+  test(`board pieces stay visible for ${colors.join(', ')} (${pieceStyle})`, async ({ page }) => {
     const game = richGame();
+    game.settings.pieceStyle = pieceStyle;
     game.players.forEach((p, i) => {
       p.color = colors[i]!;
     });

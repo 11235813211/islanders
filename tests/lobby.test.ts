@@ -54,6 +54,21 @@ describe('lobby setup', () => {
     expect(() => applyAction(started, 'p0', { type: 'switch-role' }, seeded(), now)).toThrow(GameError);
   });
 
+  it('accepts a known piece style and rejects others', () => {
+    const base = { autoRollSeconds: 10, trackDice: true };
+    expect(validSettings({ ...base, pieceStyle: 'chalet' })).toBe(true);
+    expect(validSettings({ ...base, pieceStyle: 'castle' })).toBe(false);
+    let game = makeLobby(2);
+    game = applyAction(
+      game,
+      'p0',
+      { type: 'configure', settings: { ...game.settings, pieceStyle: 'chalet' } },
+      seeded(),
+      now,
+    );
+    expect(getView(game, 'p1').settings.pieceStyle).toBe('chalet');
+  });
+
   it('migrates rooms saved with numeric colors', () => {
     const legacy = makeLobby(3);
     delete (legacy as Partial<typeof legacy>).schemaVersion;
