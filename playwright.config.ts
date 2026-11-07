@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   fullyParallel: false,
-  workers: 1,
+  // Tests use separate rooms on one local server; CI runs two at a time to finish sooner.
+  workers: process.env.CI ? 2 : 1,
   timeout: 60_000,
   expect: { timeout: 10_000 },
   retries: process.env.CI ? 1 : 0,

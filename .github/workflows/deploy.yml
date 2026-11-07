@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: production
   cancel-in-progress: false
@@ -10,17 +11,22 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
+      # Verify already ran every test on this commit; deploying only requires that it passed.
+      - name: Require a passing Verify run for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow check.yml --commit "$GITHUB_SHA" \
+            --status success --json databaseId --jq 'length')
+          if [ "$passed" = "0" ]; then
+            echo "::error::Verify has not passed for ${GITHUB_SHA::7}. Wait for it to finish (or re-run it), then deploy."
+            exit 1
+          fi
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:e2e
+      - uses: ./.github/actions/setup
+      - run: npm run build
       - run: npx wrangler deploy --var DEV_MODE:false
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
