@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, ArrowUp, Check, Landmark, Minus, Plus, Repeat2, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, Check, Landmark, Repeat2, Users, X } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playerVars } from '../../shared/colors';
@@ -65,48 +65,6 @@ export function Bundle({ bag }: { bag: ResourceBag }) {
     </span>
   );
 }
-export function ResourcePicker({
-  value,
-  setValue,
-  limit,
-  opposite,
-  prefix,
-}: {
-  value: ResourceBag;
-  setValue: (v: ResourceBag) => void;
-  limit?: ResourceBag;
-  opposite?: ResourceBag;
-  prefix: string;
-}) {
-  return (
-    <div className="resource-picker">
-      {RESOURCES.map(r => (
-        <div key={r} className="picker-cell" style={cardStyle(r)}>
-          <ResourceIcon resource={r} size={26} />
-          <span>{RESOURCE_LABELS[r]}</span>
-          <div className="stepper">
-            <button
-              aria-label={`${prefix} one fewer ${RESOURCE_LABELS[r]}`}
-              disabled={!value[r]}
-              onClick={() => setValue({ ...value, [r]: value[r] - 1 })}
-            >
-              <Minus size={15} />
-            </button>
-            <output>{value[r]}</output>
-            <button
-              aria-label={`${prefix} one more ${RESOURCE_LABELS[r]}`}
-              disabled={!!opposite?.[r] || value[r] >= (limit?.[r] ?? 19)}
-              onClick={() => setValue({ ...value, [r]: value[r] + 1 })}
-            >
-              <Plus size={15} />
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** An open offer, as seen by its author or by a player it was sent to. */
 export function TradeNotice({
   view,

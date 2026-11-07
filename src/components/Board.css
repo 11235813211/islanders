@@ -56,8 +56,15 @@
   visibility: hidden;
   pointer-events: none;
   fill: var(--target-color);
-  stroke: #123d54;
+  fill-opacity: 0.55;
+  stroke: var(--target-color);
   stroke-width: 1.6px;
+}
+/* A white seat's ring would vanish on pale tiles: a fuller center and a hairline rim. */
+.board-light-seat .board-pulse-hover {
+  fill-opacity: 0.85;
+  stroke: #123d54;
+  stroke-width: 0.5px;
 }
 .board-vertex-target:hover .board-pulse-hover,
 .board-vertex-target:focus-visible .board-pulse-hover,

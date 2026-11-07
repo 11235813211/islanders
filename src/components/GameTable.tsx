@@ -1,17 +1,19 @@
 import { ArrowRight, Clock3, Dices, Eye, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
+import { emptyBag } from '../../shared/engine';
 import { isBotGame } from '../../shared/settings';
-import type { DevelopmentType, GameView } from '../../shared/types';
+import type { DevelopmentType, GameView, Resource } from '../../shared/types';
 import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import BoardViewport from './BoardViewport';
 import BuildBar, { type BuildKind } from './game/BuildBar';
+import { addDiscard, DiscardPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
 import EndGame from './game/EndGame';
 import LeaveDialog from './game/LeaveDialog';
-import { DiscardPanel, PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
+import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
@@ -79,6 +81,7 @@ export default function GameTable({
   const [selected, setSelected] = useState<{ kind: BuildKind; id: string } | null>(null);
   const [trade, setTrade] = useState<TradeDraft | null>(null);
   const [devKind, setDevKind] = useState<DevelopmentType | null>(null);
+  const [discard, setDiscard] = useState(emptyBag);
   const [endHidden, setEndHidden] = useState(false);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -124,6 +127,7 @@ export default function GameTable({
     setModeState(null);
     setSelected(null);
     setDevKind(null);
+    setDiscard(emptyBag());
     setTrade(previous => (previous?.counterOf && view.phase === 'build' ? previous : null));
   }, [view.selfId, view.phase]);
   // A counter draft closes with its offer.
@@ -182,6 +186,39 @@ export default function GameTable({
   function pick(kind: BuildKind, id: string) {
     if (mode) place({ kind, id });
     else setSelected({ kind, id });
+  }
+
+  const discarding = view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0 && !paused;
+  const inCorner = (kind: DevelopmentType | null) => kind === 'year-of-plenty' || kind === 'monopoly';
+  /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
+  function tapCard(resource: Resource) {
+    if (discarding) return setDiscard(bag => addDiscard(bag, resource, view));
+    setDevKind(kind => (inCorner(kind) ? null : kind));
+    setTrade(previous => addTradeResource(previous, resource, view));
+  }
+  /** A development stack: corner panels replace an open trade; the rest open a confirm popup. */
+  function openCard(kind: DevelopmentType) {
+    if (inCorner(kind)) setTrade(null);
+    setDevKind(kind);
+  }
+  /** The board's corner holds one panel: a discard first, then a card being played, then a trade. */
+  function cornerPanel(): ReactNode {
+    const close = () => setDevKind(null);
+    if (discarding)
+      return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
+    if (devKind === 'year-of-plenty') return <PlentyPanel view={view} busy={busy} send={send} close={close} />;
+    if (devKind === 'monopoly') return <MonopolyPanel view={view} busy={busy} send={send} close={close} />;
+    if (!trade) return null;
+    return (
+      <TradeComposer
+        view={view}
+        draft={trade}
+        setDraft={setTrade}
+        busy={busy}
+        send={send}
+        close={() => setTrade(null)}
+      />
+    );
   }
 
   let turnAction: ReactNode = null;
@@ -254,23 +291,9 @@ export default function GameTable({
         onConfirm={() => selected && place(selected)}
         onVertex={id => pick(view.legal.cities.includes(id) ? 'city' : 'settlement', id)}
         onEdge={id => pick('road', id)}
-        corner={
-          trade && (
-            <TradeComposer
-              view={view}
-              draft={trade}
-              setDraft={setTrade}
-              busy={busy}
-              send={send}
-              close={() => setTrade(null)}
-            />
-          )
-        }
+        corner={cornerPanel()}
         onHex={hexId => send({ type: 'move-robber', hexId })}
       >
-        {view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0 && !paused && (
-          <DiscardPanel key={view.selfId} view={view} busy={busy} send={send} />
-        )}
         <ProposalNotice view={view} busy={busy} send={send} />
         {!trade?.counterOf && (
           <TradeNotice view={view} busy={busy} now={now} send={send} counter={offer => setTrade(counterDraft(offer))} />
@@ -308,14 +331,8 @@ export default function GameTable({
             Watching · hands stay private
           </p>
         ) : (
-          <ResourceHand
-            hand={view.hand}
-            playerName={self?.name}
-            compact
-            onSelect={resource => setTrade(previous => addTradeResource(previous, resource, view))}
-            disabled={busy || paused}
-          >
-            {view.development.length > 0 && <DevelopmentHand view={view} open={setDevKind} />}
+          <ResourceHand hand={view.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
+            {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
           </ResourceHand>
         )}
       </section>
@@ -326,7 +343,7 @@ export default function GameTable({
         {turnAction}
       </div>
       <TablePanel view={view} busy={busy} send={send} panel={panel} setPanel={setPanel} />
-      {devKind && (
+      {(devKind === 'knight' || devKind === 'road-building' || devKind === 'victory-point') && (
         <DevelopmentDialog view={view} kind={devKind} busy={busy} send={send} close={() => setDevKind(null)} />
       )}
       {leaving && (

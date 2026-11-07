@@ -25,6 +25,8 @@ export interface ArtPack {
     corners: { x: number; y: number }[];
   }) => ReactElement;
   Road: (props: { from: { x: number; y: number }; to: { x: number; y: number }; color: string }) => ReactElement;
+  /** Share of an edge left bare at each end of a road; road targets match it. Before v6: 0.19. */
+  roadInset?: number;
   /** A settlement or city. Versions before v5 draw one style and ignore `style`. */
   BuildingPiece: (props: { color: string; city: boolean; style?: PieceStyle }) => ReactElement;
   Robber: () => ReactElement;

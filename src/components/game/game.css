@@ -189,3 +189,7 @@
   padding: 2px 9px 2px 4px;
   font-size: 12px;
 }
+/* Trade offers sit in the board's top-right corner, out of the way of the middle of the island. */
+.board-notices > .trade-notice {
+  align-self: flex-end;
+}

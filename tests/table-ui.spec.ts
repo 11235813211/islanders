@@ -202,6 +202,8 @@ test('resource click creates a compact timed offer, other seats accept, chat wor
     board = (await page.locator('.board-viewport').boundingBox())!;
   expect(banner.y).toBeGreaterThanOrEqual(board.y);
   expect(banner.x + banner.width).toBeLessThanOrEqual(board.x + board.width + 1);
+  // Offers sit in the top-right corner of the board.
+  expect(board.x + board.width - (banner.x + banner.width)).toBeLessThan(24);
   const wood = game.state().players[1].resources.wood;
   await page.getByRole('button', { name: 'Accept trade', exact: true }).click();
   await expect.poll(() => game.state().tradeOffer).toBeNull();
@@ -249,8 +251,9 @@ test('discard choices leave pause controls accessible, and holding a build butto
   initial.phase = 'discard';
   initial.pendingDiscards = { p0: 14 };
   await mountGame(page, initial);
-  await expect(page.getByRole('region', { name: 'Discard resources' })).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // The discard panel sits in the board corner and blocks nothing else.
+  await expect(page.getByRole('dialog', { name: 'Discard resources' })).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Propose pause', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Game proposal' })).toBeVisible();
   const recipe = page.locator('.recipe-control').first();
@@ -259,4 +262,32 @@ test('discard choices leave pause controls accessible, and holding a build butto
   await page.clock.runFor(450);
   await expect(recipe.getByRole('tooltip')).toBeVisible();
   await recipe.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 1 });
+});
+
+test('discarding picks cards by tapping the hand and puts them back by tapping the panel', async ({ page }) => {
+  const initial = richGame();
+  initial.phase = 'discard';
+  initial.pendingDiscards = { p0: 3 };
+  const game = await mountGame(page, initial);
+  const panel = page.getByRole('dialog', { name: 'Discard resources' });
+  const discard = panel.getByRole('button', { name: 'Discard 3' });
+  await expect(panel.locator('..')).toHaveClass(/board-corner/);
+  await expect(page.locator('.stepper')).toHaveCount(0);
+  for (const card of ['Trade Lumber', 'Trade Lumber', 'Trade Ore', 'Trade Ore'])
+    await page.getByRole('button', { name: new RegExp(`^${card}`) }).click();
+  // Only three are owed, so the fourth tap is ignored.
+  await expect(panel).toContainText('3 / 3 chosen');
+  await panel.getByRole('button', { name: 'Put back one Lumber' }).click();
+  await expect(panel).toContainText('2 / 3 chosen');
+  await expect(discard).toBeDisabled();
+  await page.getByRole('button', { name: /^Trade Grain/ }).click();
+  await discard.click();
+  await expect.poll(() => game.state().pendingDiscards.p0 ?? 0).toBe(0);
+  const p0 = game.state().players[0]!.resources;
+  expect([p0.wood, p0.ore, p0.wheat]).toEqual([
+    initial.players[0]!.resources.wood - 1,
+    initial.players[0]!.resources.ore - 1,
+    initial.players[0]!.resources.wheat - 1,
+  ]);
+  expect(game.errors).toEqual([]);
 });

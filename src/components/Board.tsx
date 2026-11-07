@@ -7,6 +7,7 @@ import {
   Harbor,
   HexTile,
   NumberToken,
+  ROAD_INSET,
   Road,
   Robber,
   SeaBackdrop,
@@ -82,6 +83,7 @@ export default function Board({
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
   const playerName = (id: string) => view.players.find(player => player.id === id)?.name;
   const color = (playerId: string) => playerColor(view.players.find(player => player.id === playerId)?.color).fill;
+  const selfColor = view.players.find(player => player.id === view.selfId)?.color;
   const settlementMode = view.phase === 'setup-settlement' || mode === 'settlement';
   const roadMode = view.phase === 'setup-road' || view.phase === 'free-roads' || mode === 'road';
   const direct = mode === null && view.phase === 'build';
@@ -116,7 +118,7 @@ export default function Board({
   return (
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
       <svg
-        className="board-svg"
+        className={`board-svg${selfColor === 'white' ? ' board-light-seat' : ''}`}
         style={{ '--target-color': color(view.selfId) } as CSSProperties}
         viewBox={cameraViewBox(camera)}
         role="group"
@@ -196,8 +198,8 @@ export default function Board({
             .filter(edge => edgeTargets.has(edge.id))
             .map(edge => {
               const [a, b] = edgeEnds(edge.id);
-              const dx = (b.x - a.x) * 0.2;
-              const dy = (b.y - a.y) * 0.2;
+              const dx = (b.x - a.x) * ROAD_INSET;
+              const dy = (b.y - a.y) * ROAD_INSET;
               return (
                 <g
                   key={edge.id}

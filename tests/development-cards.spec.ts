@@ -47,7 +47,10 @@ test('Monopoly asks for a resource, then other cards explain why they wait', asy
   const game = await mountGame(page, devGame());
   await page.getByLabel('Follow current turn').uncheck();
   await page.getByRole('button', { name: 'Monopoly (1), ready to play' }).click();
-  await page.getByRole('dialog', { name: 'Monopoly' }).getByRole('button', { name: 'Ore' }).click();
+  const monopoly = page.getByRole('dialog', { name: 'Monopoly' });
+  await expect(monopoly.locator('..')).toHaveClass(/board-corner/);
+  await monopoly.getByRole('button', { name: 'Ore' }).click();
+  await monopoly.getByRole('button', { name: 'Take all Ore' }).click();
   await expect.poll(() => game.state().players[0]!.development.some(c => c.id === 'mo')).toBe(false);
   await page.getByRole('button', { name: 'Knight (2)', exact: true }).click();
   const knight = page.getByRole('dialog', { name: 'Knight' });
@@ -66,6 +69,7 @@ test('Year of Plenty takes two picked resources; Road Building and Knight confir
   expect(game.state().phase).toBe('build');
   await page.getByRole('button', { name: 'Year of Plenty (1), ready to play' }).click();
   const plenty = page.getByRole('dialog', { name: 'Year of Plenty' });
+  await expect(plenty.locator('..')).toHaveClass(/board-corner/);
   await plenty.getByRole('button', { name: 'Take one more Ore' }).click();
   await plenty.getByRole('button', { name: 'Take one more Ore' }).click();
   await expect(plenty.getByRole('button', { name: 'Take one more Grain' })).toBeDisabled();

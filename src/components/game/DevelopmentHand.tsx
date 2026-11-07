@@ -41,6 +41,24 @@ export const heldKinds = (view: GameView) =>
 export const canPlayKind = (view: GameView, kind: DevelopmentType) =>
   view.development.some(card => card.kind === kind && view.playableDevelopment.includes(card.id));
 
+/** Why no card of this kind can be played now, or null when one can. */
+export function blockedReason(view: GameView, kind: DevelopmentType): string | null {
+  if (canPlayKind(view, kind)) return null;
+  const cards = view.development.filter(card => card.kind === kind);
+  if (view.pausedAt !== null) return 'The game is paused.';
+  if (view.activePlayerId !== view.selfId || !['roll', 'build'].includes(view.phase))
+    return 'You can play this on your turn.';
+  if (cards.every(card => card.boughtTurn === view.turn)) return 'You bought this card this turn. Play it next turn.';
+  return 'You already played a development card this turn.';
+}
+
+/** The card of this kind to play: a playable one if there is one. */
+export const cardToPlay = (view: GameView, kind: DevelopmentType) =>
+  (
+    view.development.find(c => c.kind === kind && view.playableDevelopment.includes(c.id)) ??
+    view.development.find(c => c.kind === kind)
+  )?.id ?? '';
+
 /** Development cards in the hand row, one stack per kind. Playable stacks glow; a tap opens that card. */
 export default function DevelopmentHand({ view, open }: { view: GameView; open: (kind: DevelopmentType) => void }) {
   const kinds = heldKinds(view);

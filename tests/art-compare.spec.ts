@@ -5,12 +5,15 @@ import { PLAYER_COLORS } from '../shared/colors';
 import type { PieceStyle, Terrain } from '../shared/types';
 import type { ArtPack } from '../src/art/types';
 import { art as v5 } from '../src/art/v5';
+import { art as v6 } from '../src/art/v6';
 
 // Side-by-side piece art for choosing between versions: writes test-results/art-compare.png.
 // Add or remove packs here to compare others. Run: npx playwright test tests/art-compare.spec.ts
 const PACKS: [string, ArtPack, PieceStyle][] = [
   ['v5 classic', v5, 'classic'],
+  ['v6 classic', v6, 'classic'],
   ['v5 mountain chalet', v5, 'chalet'],
+  ['v6 mountain chalet', v6, 'chalet'],
 ];
 const TERRAINS: Terrain[] = ['wood', 'wheat', 'sheep', 'ore', 'brick', 'desert', 'wood', 'wheat'];
 const CELL = 120;
@@ -79,7 +82,7 @@ test('render piece art for comparison', async ({ page }) => {
     ([label, pack, style], i) =>
       `<h2>${label}</h2>${renderToStaticMarkup(row(pack, style, `cmp${i}`))}${renderToStaticMarkup(closeUp(pack, style))}`,
   ).join('');
-  await page.setViewportSize({ width: 8 * CELL * 2 + 40, height: 1200 });
+  await page.setViewportSize({ width: 8 * CELL * 2 + 40, height: 2400 });
   await page.setContent(
     `<style>body{margin:16px;background:#139fc2;font:600 18px sans-serif;color:#fff}h2{margin:8px 0}svg{display:block}</style>${rows}`,
   );

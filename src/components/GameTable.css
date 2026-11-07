@@ -738,45 +738,6 @@
   font-size: 14px;
   margin: 18px 0 8px;
 }
-.resource-picker {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 7px;
-}
-.picker-cell {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 5px;
-  padding: 10px 4px;
-  background: var(--card-light);
-  color: var(--card-dark);
-  border: 1px solid var(--card);
-  border-radius: 6px;
-  font-size: 12px;
-}
-.stepper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-}
-.stepper button {
-  width: 27px;
-  height: 32px;
-  padding: 3px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #4d6f6533;
-  background: #fff8;
-  border-radius: 4px;
-}
-.stepper output {
-  font-size: 16px;
-  min-width: 13px;
-  text-align: center;
-  font-weight: 800;
-}
 .game-dialog .button.full {
   margin-top: 22px;
 }
@@ -823,22 +784,6 @@
   border-radius: 8px;
   background: #f3eefc;
   color: #4f3a82;
-}
-.monopoly-options {
-  display: flex;
-  justify-content: space-around;
-  gap: 7px;
-}
-.monopoly-options button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 6px;
-  background: #e4f1e8;
-  border: 1px solid #a1bcb8;
-  border-radius: 6px;
-  font-size: 12px;
 }
 @media (max-width: 1100px) {
   .game-table {
@@ -1097,24 +1042,6 @@
   .spectator-count {
     font-size: 11px;
   }
-  .resource-picker {
-    gap: 4px;
-  }
-  .picker-cell {
-    padding: 8px 2px;
-    font-size: 10px;
-  }
-  .stepper {
-    gap: 1px;
-  }
-  .stepper button {
-    width: 23px;
-    height: 32px;
-  }
-  .stepper output {
-    font-size: 14px;
-    min-width: 12px;
-  }
   .game-dialog .modal-body {
     padding: 18px 10px;
   }
@@ -1359,24 +1286,6 @@
     left: auto;
     right: 0;
   }
-}
-.discard-overlay {
-  width: min(480px, 100%);
-  padding: 12px;
-  background: #fffdf3f5;
-  border: 1px solid #9ebec5;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px #225a6a33;
-}
-.discard-overlay h3 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-.discard-overlay .button {
-  margin-top: 10px;
-  min-height: 34px;
-  padding: 6px 10px;
-  font-size: 13px;
 }
 /* Color is encoded in the SVG itself, consistently across desktop and mobile. */ .terrain-art {
   filter: none;

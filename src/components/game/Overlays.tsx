@@ -1,33 +1,13 @@
 import { Check, Pause, UserRound, X } from 'lucide-react';
-import { type CSSProperties, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { playerVars } from '../../../shared/colors';
-import { emptyBag, resourceCount } from '../../../shared/engine';
 import type { GameAction, GameView } from '../../../shared/types';
-import { ResourcePicker } from '../TradePanel';
 import { CardCount } from './icons';
 
 interface OverlayProps {
   view: GameView;
   busy: boolean;
   send: (a: GameAction) => void;
-}
-
-export function DiscardPanel({ view, busy, send }: OverlayProps) {
-  const [bag, setBag] = useState(emptyBag);
-  const needed = view.pendingDiscards[view.selfId];
-  return (
-    <section className="discard-overlay" aria-label="Discard resources">
-      <h3>Discard {needed} resources</h3>
-      <ResourcePicker value={bag} setValue={setBag} limit={view.hand} prefix="Discard" />
-      <button
-        className="button primary full"
-        disabled={busy || resourceCount(bag) !== needed}
-        onClick={() => send({ type: 'discard', resources: bag })}
-      >
-        Return {resourceCount(bag)} / {needed}
-      </button>
-    </section>
-  );
 }
 
 export function ProposalNotice({ view, busy, send }: OverlayProps) {
