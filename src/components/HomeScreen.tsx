@@ -1,6 +1,7 @@
 import { ArrowRight, Check, Eye, FlaskConical, LoaderCircle, Plus, Sailboat, Shield, Swords } from 'lucide-react';
 import type { AccountRoomStatus } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
+import { parseJoinInput } from '../hooks/useRoom';
 
 function roomStatusLabel(room: AccountRoomStatus): string {
   if (room.phase === 'lobby') return 'In the lobby';
@@ -78,14 +79,17 @@ export default function HomeScreen({
           }}
         >
           <input
-            aria-label="Room code"
+            aria-label="Room code or invite link"
             value={code}
             autoCapitalize="characters"
             autoComplete="off"
-            onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-            placeholder="HARBOR42"
+            onChange={e => {
+              const input = parseJoinInput(e.target.value);
+              setCode(input.code);
+              if (input.spectate !== null) setSpectate(input.spectate);
+            }}
+            placeholder="Code or invite link"
             minLength={5}
-            maxLength={14}
             required
           />
           <button className="button secondary" disabled={loading || !code.trim()}>

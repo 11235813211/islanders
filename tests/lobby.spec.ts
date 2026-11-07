@@ -21,3 +21,19 @@ test('a guest without a name gets one from the list, picks a color, and sets the
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/lobby-phone.png', fullPage: true });
 });
+
+test('the copy button beside the room code copies just the code, which the join box accepts', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create room' }).click();
+  const code = (await page.locator('.room-code-box strong').textContent())!;
+  await page.getByRole('button', { name: 'Copy room code' }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+  // A full invite link pasted into the join box becomes the code, not "HTTPSPLAY…".
+  await page.getByRole('button', { name: 'Leave room' }).click();
+  await page.getByLabel('Room code or invite link').fill(`https://play.islandersgame.workers.dev/#room=${code}`);
+  await expect(page.getByLabel('Room code or invite link')).toHaveValue(code);
+});

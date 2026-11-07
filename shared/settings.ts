@@ -1,5 +1,5 @@
 import { GUEST_NAMES } from './guest-names';
-import type { GameSettings } from './types';
+import type { BotLevel, GameSettings, Phase } from './types';
 
 export const DEFAULT_SETTINGS: GameSettings = {
   autoRollSeconds: 10,
@@ -11,6 +11,22 @@ export const DEFAULT_SETTINGS: GameSettings = {
   victoryPoints: 10,
 };
 export const VICTORY_POINT_RANGE = { min: 3, max: 20 } as const;
+
+/** A room closes once no human player has been connected for this long. */
+export const EMPTY_ROOM_MS = 5 * 60 * 1000;
+/** A game against bots waits this long instead, so it can be finished later. */
+export const SAVED_BOT_GAME_HOURS = 24;
+
+/** One person playing bots in a real (not solo test) game: nobody else is waiting on them. */
+export function isBotGame(game: { phase: Phase; testMode: boolean; players: { bot?: BotLevel | null }[] }): boolean {
+  if (game.testMode || game.phase === 'lobby' || game.phase === 'finished') return false;
+  return game.players.filter(p => !p.bot).length === 1;
+}
+
+/** How long a room with no player connected stays open. */
+export function emptyRoomMs(game: Parameters<typeof isBotGame>[0]): number {
+  return isBotGame(game) ? SAVED_BOT_GAME_HOURS * 60 * 60 * 1000 : EMPTY_ROOM_MS;
+}
 
 export function validSettings(
   value: unknown,

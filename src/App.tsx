@@ -1,5 +1,6 @@
 import { ArrowLeft, LoaderCircle, LogIn, LogOut, Sailboat, UserRound, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { isBotGame } from '../shared/settings';
 import type { AccountSession, GameAction, Session } from '../shared/types';
 import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
 import GameTable from './components/GameTable';
@@ -26,8 +27,8 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'sign-in' | 'account' | 'share' | null>(null);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [spectate, setSpectate] = useState(false);
+  const [leavingGame, setLeavingGame] = useState(false);
   const busy = loading || room.pending || (Boolean(session) && room.connection !== 'online');
   const hasGame = Boolean(view && view.phase !== 'lobby');
   // Solo test rooms are a developer tool: local dev, or accounts listed in PLAYTEST_USERS.
@@ -45,11 +46,6 @@ function App() {
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2500);
-    return () => clearTimeout(timer);
-  }, [copied]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: follow an invite link once per account.
   useEffect(() => {
     const key = `${inviteCode}:${account.account?.username ?? 'guest'}`;
@@ -104,6 +100,7 @@ function App() {
     }
   }
   function home() {
+    setLeavingGame(false);
     entryRequest.current++;
     attemptedInvite.current = '';
     setInviteCode('');
@@ -148,13 +145,10 @@ function App() {
     url.hash = `room=${view?.roomId ?? ''}${kind === 'spectator' ? '&spectate=1' : ''}`;
     return url.href;
   }
-  async function copyInvite() {
-    try {
-      await navigator.clipboard.writeText(inviteUrl());
-      setCopied(true);
-    } catch {
-      setDialog('share');
-    }
+  /** Home from the header. Leaving a game against bots first asks whether to save it or end it. */
+  function goHome() {
+    if (view && hasGame && view.role === 'player' && isBotGame(view)) setLeavingGame(true);
+    else home();
   }
   function send(action: GameAction) {
     setError(null);
@@ -171,7 +165,7 @@ function App() {
       </button>
       <nav>
         {session && (
-          <button className="text-button" aria-label="Home" onClick={home}>
+          <button className="text-button" aria-label="Home" onClick={goHome}>
             <ArrowLeft size={18} />
             <span>Home</span>
           </button>
@@ -252,13 +246,21 @@ function App() {
         connection={room.connection}
         online={room.online}
         busy={busy}
-        copied={copied}
         send={send}
         invite={() => setDialog('share')}
-        copyInvite={() => void copyInvite()}
       />
     );
-  else screen = <GameTable room={room} invite={() => setDialog('share')} home={home} />;
+  else
+    screen = (
+      <GameTable
+        room={room}
+        invite={() => setDialog('share')}
+        home={home}
+        leaving={leavingGame}
+        setLeaving={setLeavingGame}
+        signedIn={Boolean(account.account)}
+      />
+    );
 
   const message = error ?? room.error;
   return (

@@ -11,6 +11,23 @@ export function roomFromLocation() {
   return new URLSearchParams(window.location.hash.slice(1)).get('room')?.toUpperCase() ?? '';
 }
 
+/**
+ * What someone typed or pasted into the join box: a bare code, or a whole invite link
+ * (on iPhone, links open in Safari rather than the home-screen app, so people paste them).
+ */
+export function parseJoinInput(text: string): { code: string; spectate: boolean | null } {
+  const hash = text.includes('#') ? new URLSearchParams(text.slice(text.indexOf('#') + 1)) : null;
+  const linked = hash?.get('room');
+  if (linked) return { code: linked.toUpperCase().replace(/[^A-Z0-9]/g, ''), spectate: hash!.get('spectate') === '1' };
+  return {
+    code: text
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 14),
+    spectate: null,
+  };
+}
+
 export function savedSession(roomId: string): Session | null {
   try {
     const value = JSON.parse(localStorage.getItem(`islanders:${roomId}`) ?? 'null') as Session | null;

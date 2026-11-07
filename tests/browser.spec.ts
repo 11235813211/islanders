@@ -165,9 +165,7 @@ test('username sign-in resumes the same room on another device and signs out', a
   }
 });
 
-test('a phone can join by private code as a spectator and chat without receiving player controls', async ({
-  browser,
-}) => {
+test('a phone can join by pasting a spectator link and chat without receiving player controls', async ({ browser }) => {
   const hostContext = await browser.newContext(),
     watcherContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const host = await hostContext.newPage(),
@@ -179,7 +177,14 @@ test('a phone can join by private code as a spectator and chat without receiving
     await host.getByRole('button', { name: 'Create solo test room' }).click();
     await expect.poll(() => a.state()?.players.length).toBe(3);
     await host.getByRole('button', { name: 'Start game', exact: true }).click();
-    await watcher.goto(`/#room=${a.state()!.roomId}`);
+    // Pasting a whole spectator link (as iPhone home-screen users do) fills the code and the spectator choice.
+    await watcher.goto('/');
+    await watcher
+      .getByLabel('Room code or invite link')
+      .fill(`https://play.example.dev/#room=${a.state()!.roomId.toLowerCase()}&spectate=1`);
+    await expect(watcher.getByLabel('Room code or invite link')).toHaveValue(a.state()!.roomId);
+    await expect(watcher.getByLabel('Join as a spectator')).toBeChecked();
+    await watcher.getByRole('button', { name: 'Watch', exact: true }).click();
     await expect.poll(() => b.state()?.role).toBe('spectator');
     await expect(watcher.getByText('Watching · hands stay private')).toBeVisible();
     await expect(watcher.getByRole('button', { name: /^Build road at/ })).toHaveCount(0);

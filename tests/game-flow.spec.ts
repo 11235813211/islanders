@@ -83,3 +83,30 @@ test('the host adds a bot, changes its level, and removes it in the lobby', asyn
   await page.getByRole('button', { name: `Remove ${name}` }).click();
   await expect(page.locator('.lobby-player')).toHaveCount(1);
 });
+
+/** One person against three bots, in a real (not solo test) room. */
+function botGame() {
+  const game = richGame();
+  game.testMode = false;
+  for (const p of game.players.slice(1)) p.bot = 'beginner';
+  return game;
+}
+
+test('leaving a game against bots offers to save it for later', async ({ page }) => {
+  const game = await mountGame(page, botGame());
+  await page.locator('.site-header').getByRole('button', { name: 'Home', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Leave this game?' });
+  await expect(dialog).toContainText(`come back with code ${game.state().roomId} within 24 hours`);
+  await dialog.getByRole('button', { name: 'Save for later' }).click();
+  await expect(page.getByRole('button', { name: 'Create room', exact: true })).toBeVisible();
+  expect(game.state().players[0]!.bot).toBeFalsy();
+  expect(game.errors).toEqual([]);
+});
+
+test('ending a game against bots gives up the seat', async ({ page }) => {
+  const game = await mountGame(page, botGame());
+  await page.getByRole('button', { name: 'Leave game' }).click();
+  await page.getByRole('dialog', { name: 'Leave this game?' }).getByRole('button', { name: 'End game' }).click();
+  await expect.poll(() => game.state().phase).toBe('finished');
+  expect(game.errors).toEqual([]);
+});

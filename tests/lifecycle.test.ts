@@ -13,6 +13,7 @@ import {
   UNDO_GRACE_MS,
 } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
+import { EMPTY_ROOM_MS, emptyRoomMs, isBotGame, SAVED_BOT_GAME_HOURS } from '../shared/settings';
 import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
 const act = (g: ReturnType<typeof makeLobby>, id: string, action: Parameters<typeof applyAction>[2]) =>
@@ -128,6 +129,22 @@ describe('bot scheduling', () => {
     const answered = !offered.tradeOffer || offered.tradeOffer.declinedBy.includes('p1');
     expect(answered).toBe(true);
     expect(pendingBotActor(offered)).toBeNull();
+  });
+});
+
+describe('how long empty rooms stay open', () => {
+  it('keeps a game against bots for a day, and everything else for five minutes', () => {
+    const solo = settled(3);
+    solo.players[1]!.bot = 'beginner';
+    solo.players[2]!.bot = 'beginner';
+    expect(isBotGame(solo)).toBe(true);
+    expect(emptyRoomMs(solo)).toBe(SAVED_BOT_GAME_HOURS * 60 * 60 * 1000);
+    // Two people, a lobby, a finished game, or a solo test room are not saved games.
+    expect(isBotGame(settled(3))).toBe(false);
+    expect(isBotGame({ ...solo, phase: 'lobby' })).toBe(false);
+    expect(isBotGame({ ...solo, phase: 'finished' })).toBe(false);
+    expect(isBotGame({ ...solo, testMode: true })).toBe(false);
+    expect(emptyRoomMs(settled(3))).toBe(EMPTY_ROOM_MS);
   });
 });
 

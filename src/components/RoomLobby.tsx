@@ -13,7 +13,7 @@ import {
   Users,
   Wifi,
 } from 'lucide-react';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { BOTS } from '../../shared/bots';
 import { PLAYER_COLORS, playerVars } from '../../shared/colors';
 import {
@@ -36,29 +36,32 @@ export interface RoomLobbyProps {
   connection: Connection;
   online: string[];
   busy: boolean;
-  copied: boolean;
   send: (action: GameAction) => void;
   invite: () => void;
-  copyInvite: () => void;
 }
 
-export default function RoomLobby({
-  view,
-  playerId,
-  connection,
-  online,
-  busy,
-  copied,
-  send,
-  invite,
-  copyInvite,
-}: RoomLobbyProps) {
+export default function RoomLobby({ view, playerId, connection, online, busy, send, invite }: RoomLobbyProps) {
   const host = playerId === view.hostId;
   const self = view.players.find(p => p.id === view.selfId);
   const takenBy = new Map(view.players.map(p => [p.color, p]));
   const change = (next: Partial<GameSettings>) => send({ type: 'configure', settings: { ...view.settings, ...next } });
   const mode = GAME_MODES[0]!;
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  /** The button sits beside the code, so it copies just the code. Links come from Invite friends. */
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(view.roomId);
+      setCopied(true);
+    } catch {
+      invite();
+    }
+  }
   return (
     <main className="room-setup">
       <div className="page-heading">
@@ -166,7 +169,7 @@ export default function RoomLobby({
         <div className="room-code-box">
           <span>Room code</span>
           <strong>{view.roomId}</strong>
-          <button className="icon-button" onClick={copyInvite} aria-label="Copy invite link">
+          <button className="icon-button" onClick={() => void copyCode()} aria-label="Copy room code">
             {copied ? <Check /> : <Copy />}
           </button>
         </div>

@@ -13,13 +13,12 @@ import {
   idleResume,
   normalizeGame,
 } from '../shared/engine';
-import { guestName } from '../shared/settings';
+import { emptyRoomMs, guestName } from '../shared/settings';
 import type { AccountRoomStatus, GameAction, GameState, ServerMessage, Session } from '../shared/types';
 import type { AccountIdentity } from './accounts';
 import { accountStub, checkLimit, type Env, failure, json, logError } from './env';
 import {
   AUTH_TIMEOUT_MS,
-  EMPTY_ROOM_MS,
   hashToken,
   ProtocolError,
   parseMessage,
@@ -190,9 +189,9 @@ export class GameRoom extends DurableObject<Env> {
     if (deadlines.length) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, Math.min(...deadlines)));
     else await this.ctx.storage.deleteAlarm();
   }
-  /** When an empty room closes. A room nobody has connected to yet counts from its last join or move. */
+  /** When an empty room closes (later for a game against bots). A room nobody has connected to yet counts from its last join or move. */
   private closesAt(room: RoomRecord): number {
-    return (room.emptySince ?? room.lastActivity) + EMPTY_ROOM_MS;
+    return (room.emptySince ?? room.lastActivity) + emptyRoomMs(room.game);
   }
   private expired(room: RoomRecord, now = Date.now()): boolean {
     return now >= this.closesAt(room) && !this.onlinePlayers(room.game).length;

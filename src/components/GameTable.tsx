@@ -1,6 +1,7 @@
-import { ArrowRight, Clock3, Dices, Eye, LogOut, Trophy, Undo2 } from 'lucide-react';
+import { ArrowRight, Clock3, Dices, Eye, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
+import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView } from '../../shared/types';
 import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
@@ -9,12 +10,13 @@ import BuildBar, { type BuildKind } from './game/BuildBar';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
 import EndGame from './game/EndGame';
+import LeaveDialog from './game/LeaveDialog';
 import { DiscardPanel, PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import ResourceHand from './ResourceHand';
-import TradeComposer, { addTradeResource, counterDraft, GameDialog, type TradeDraft, TradeNotice } from './TradePanel';
+import TradeComposer, { addTradeResource, counterDraft, type TradeDraft, TradeNotice } from './TradePanel';
 import './GameTable.css';
 import './game/game.css';
 import './game/phone.css';
@@ -59,10 +61,17 @@ export default function GameTable({
   room,
   invite,
   home,
+  leaving,
+  setLeaving,
+  signedIn,
 }: {
   room: ReturnType<typeof useRoom>;
   invite: () => void;
   home: () => void;
+  /** The leave dialog is open. Held by App so the site header's Home button can open it too. */
+  leaving: boolean;
+  setLeaving: (open: boolean) => void;
+  signedIn: boolean;
 }) {
   const view = room.view!;
   const send = room.send;
@@ -70,7 +79,6 @@ export default function GameTable({
   const [selected, setSelected] = useState<{ kind: BuildKind; id: string } | null>(null);
   const [trade, setTrade] = useState<TradeDraft | null>(null);
   const [devKind, setDevKind] = useState<DevelopmentType | null>(null);
-  const [leaving, setLeaving] = useState(false);
   const [endHidden, setEndHidden] = useState(false);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -235,7 +243,7 @@ export default function GameTable({
         toggleChat={() => setPanel(panel ? null : 'chat')}
         invite={invite}
         leave={() => setLeaving(true)}
-        home={home}
+        home={() => (!spectator && isBotGame(view) ? setLeaving(true) : home())}
       />
       <PlayerPanel view={view} online={room.online} />
       <BoardViewport
@@ -322,31 +330,17 @@ export default function GameTable({
         <DevelopmentDialog view={view} kind={devKind} busy={busy} send={send} close={() => setDevKind(null)} />
       )}
       {leaving && (
-        <GameDialog title="Leave this game?" close={() => setLeaving(false)}>
-          <p>
-            {spectator
-              ? 'You will stop watching this room.'
-              : finished
-                ? 'You will leave the room. The others can start a new game without you.'
-                : 'A bot will take over your seat so the game can continue. You can’t rejoin this seat.'}
-          </p>
-          <div className="dialog-actions">
-            <button className="button secondary" onClick={() => setLeaving(false)}>
-              Stay
-            </button>
-            <button
-              className="button primary"
-              disabled={busy}
-              onClick={() => {
-                setLeaving(false);
-                send({ type: 'leave' });
-              }}
-            >
-              <LogOut size={18} />
-              Leave game
-            </button>
-          </div>
-        </GameDialog>
+        <LeaveDialog
+          view={view}
+          busy={busy}
+          signedIn={signedIn}
+          close={() => setLeaving(false)}
+          saveForLater={home}
+          leave={() => {
+            setLeaving(false);
+            send({ type: 'leave' });
+          }}
+        />
       )}
     </main>
   );
