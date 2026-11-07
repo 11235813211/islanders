@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently -k -n server,web -c cyan,yellow \"npm:dev:server\" \"npm:dev:web\"",
     "dev:web": "vite --host 0.0.0.0",
-    "dev:server": "wrangler dev --ip 127.0.0.1 --port 8787 --var DEV_MODE:true",
+    "dev:server": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && wrangler dev --ip 127.0.0.1 --port 8787 --var DEV_MODE:true",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

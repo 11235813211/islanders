@@ -42,65 +42,48 @@
   pointer-events: none;
 }
 
-/* Open corners breathe in and out so every legal spot reads as a choice at a glance. */
+/* Open corners breathe in and out (the timing lives in Board.tsx) so every legal spot reads as a choice. */
 .board-pulse {
   fill: #fff3b8;
   fill-opacity: 0.55;
   stroke: #fffbe6;
   stroke-width: 1.6px;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: board-pulse 1.1s ease-in-out infinite alternate;
 }
 .board-pulse-ring {
   fill: none;
   stroke-width: 2.6px;
 }
-@keyframes board-pulse {
-  from {
-    transform: scale(0.62);
-    opacity: 0.75;
-  }
-  to {
-    transform: scale(1.08);
-    opacity: 1;
-  }
-}
-/* Road spots pulse in step with the corners. */
-.board-road-target .board-target-mark {
-  animation: board-road-pulse 1.1s ease-in-out infinite alternate;
-}
-@keyframes board-road-pulse {
-  from {
-    opacity: 0.45;
-  }
-  to {
-    opacity: 1;
-  }
-}
 
-.board-target:hover .board-target-mark,
-.board-target:focus-visible .board-target-mark {
-  stroke: #f1ac75;
-  stroke-width: 4px;
+/* Hover (or picking it, while the confirm card is up) swaps the breathing circle for a still, full-size one in your seat color.
+   The breathing one keeps running underneath, so it stays in step with the rest. */
+.board-pulse-hover {
+  visibility: hidden;
+  pointer-events: none;
+  fill: var(--target-color);
+  stroke: #123d54;
+  stroke-width: 1.6px;
 }
-
-.board-vertex-target:hover .board-target-mark,
-.board-vertex-target:focus-visible .board-target-mark {
-  fill: #ffe08a;
-  fill-opacity: 0.85;
-  stroke: #f1ac75;
-  animation-play-state: paused;
-}
-.board-vertex-target:hover .board-pulse-ring,
-.board-vertex-target:focus-visible .board-pulse-ring {
+.board-pulse-hover.board-pulse-ring {
   fill: none;
+  stroke: var(--target-color);
+  stroke-width: 3.5px;
+}
+.board-vertex-target:hover .board-pulse-hover,
+.board-vertex-target:focus-visible .board-pulse-hover,
+.board-target-selected .board-pulse-hover {
+  visibility: visible;
+}
+.board-vertex-target:hover .board-pulse,
+.board-vertex-target:focus-visible .board-pulse,
+.board-target-selected .board-pulse {
+  visibility: hidden;
 }
 
 .board-road-target:hover .board-target-mark,
-.board-road-target:focus-visible .board-target-mark {
-  stroke: #ffe8a9;
-  stroke-width: 10px;
+.board-road-target:focus-visible .board-target-mark,
+.board-road-target.board-target-selected .board-target-mark {
+  stroke: var(--target-color);
+  stroke-width: 9px;
   stroke-dasharray: none;
 }
 
@@ -166,6 +149,5 @@
   .board-target .board-target-mark,
   .board-hex-target polygon {
     transition: none;
-    animation: none;
   }
 }

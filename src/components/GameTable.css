@@ -275,9 +275,6 @@
 .board-placement-hint > span {
   background: #e6a823;
 }
-.board-has-targets .board-target-mark {
-  opacity: 0.8;
-}
 .board-road-target:hover .board-target-mark {
   opacity: 1;
 }

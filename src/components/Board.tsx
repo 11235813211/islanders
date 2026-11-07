@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useId } from 'react';
+import { type CSSProperties, type KeyboardEvent, useId } from 'react';
 import { playerColor } from '../../shared/colors';
 import type { GameView } from '../../shared/types';
 import {
@@ -27,6 +27,38 @@ export interface BoardProps {
   camera?: { x: number; y: number; zoom: number };
   selected?: { kind: 'road' | 'settlement' | 'city'; id: string } | null;
   onConfirm?: () => void;
+}
+
+/**
+ * One rhythm for every target. SMIL animations run on the SVG's own clock, so a target added
+ * later joins in step, and nothing ever pauses them (hover shows a separate still circle).
+ */
+const PULSE = {
+  dur: '2.2s',
+  keyTimes: '0;0.5;1',
+  calcMode: 'spline',
+  keySplines: '0.42 0 0.58 1;0.42 0 0.58 1',
+  repeatCount: 'indefinite',
+} as const;
+const stillMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** A legal corner: a breathing circle (a ring around a settlement that can become a city). */
+function CornerMark({ ring }: { ring: boolean }) {
+  const r = ring ? 16 : 10;
+  const kind = ring ? ' board-pulse-ring' : '';
+  return (
+    <>
+      <circle className={`board-target-mark board-pulse${kind}`} r={r}>
+        {!stillMotion() && (
+          <>
+            <animate attributeName="r" values={`${r * 0.62};${r * 1.08};${r * 0.62}`} {...PULSE} />
+            <animate attributeName="opacity" values="0.75;1;0.75" {...PULSE} />
+          </>
+        )}
+      </circle>
+      <circle className={`board-pulse-hover${kind}`} r={r * 1.08} />
+    </>
+  );
 }
 
 function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void) {
@@ -87,6 +119,7 @@ export default function Board({
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
       <svg
         className="board-svg"
+        style={{ '--target-color': color(view.selfId) } as CSSProperties}
         viewBox={cameraViewBox(camera)}
         role="group"
         aria-label="Island game board. Highlighted locations are legal moves."
@@ -170,7 +203,7 @@ export default function Board({
               return (
                 <g
                   key={edge.id}
-                  className="board-target board-road-target"
+                  className={`board-target board-road-target${selected?.id === edge.id ? ' board-target-selected' : ''}`}
                   role="button"
                   tabIndex={0}
                   aria-label={`Build road at ${edge.id}`}
@@ -204,7 +237,11 @@ export default function Board({
                     strokeWidth="7"
                     strokeDasharray="2 5"
                     strokeLinecap="round"
-                  />
+                  >
+                    {!stillMotion() && selected?.id !== edge.id && (
+                      <animate attributeName="opacity" values="0.45;1;0.45" {...PULSE} />
+                    )}
+                  </line>
                 </g>
               );
             })}
@@ -226,7 +263,7 @@ export default function Board({
             .map(vertex => (
               <g
                 key={vertex.id}
-                className="board-target board-vertex-target"
+                className={`board-target board-vertex-target${selected?.id === vertex.id ? ' board-target-selected' : ''}`}
                 role="button"
                 tabIndex={0}
                 aria-label={`${view.legal.cities.includes(vertex.id) ? 'Upgrade to city' : 'Build settlement'} at ${vertex.id}`}
@@ -235,16 +272,12 @@ export default function Board({
                 transform={`translate(${vertex.x} ${vertex.y})`}
               >
                 <circle r="17" fill="transparent" className="board-hit-area" />
-                {view.legal.cities.includes(vertex.id) ? (
-                  <circle className="board-target-mark board-pulse board-pulse-ring" r="16" />
-                ) : (
-                  <circle className="board-target-mark board-pulse" r="10" />
-                )}
+                <CornerMark ring={view.legal.cities.includes(vertex.id)} />
               </g>
             ))}
           {selected && selectedPoint && (
             <g className="map-confirm" transform={`translate(${selectedPoint.x} ${selectedPoint.y - 42})`}>
-              <path d="M-24 18H24V-22H-24ZM-6 18 0 26 6 18" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+              <path d="M-32 18H32V-22H-32ZM-6 18 0 26 6 18" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
               <g
                 role="button"
                 tabIndex={0}
@@ -255,15 +288,17 @@ export default function Board({
                 }}
                 onKeyDown={event => keyboardActivate(event, () => onConfirm?.())}
               >
-                <rect x="-23" y="-20" width="46" height="36" fill="transparent" />
+                <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
+                {/* The board's own piece art, outlined in a dark tone of the seat color, so even white shows on the cream card. */}
                 {selected.kind === 'road' ? (
-                  <path d="m-14 6 22-18" stroke={color(view.selfId)} strokeWidth="7" strokeLinecap="round" />
+                  <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color(view.selfId)} />
                 ) : (
-                  <g transform="scale(.8)">
+                  <g transform="translate(-11 -1) scale(.75)">
                     <BuildingPiece color={color(view.selfId)} city={selected.kind === 'city'} />
                   </g>
                 )}
-                <path d="m-3 8 4 4 8-10" fill="none" stroke="#198144" strokeWidth="3" />
+                <circle cx="17" cy="-2" r="10" fill="#198144" />
+                <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
               </g>
             </g>
           )}

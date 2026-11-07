@@ -188,3 +188,44 @@ test('releasing outside the board or canceling touch never leaves a stale drag',
   await expect(page.getByRole('button', { name: 'Confirm road', exact: true })).toBeVisible();
   expect(game.errors).toEqual([]);
 });
+
+test('corner targets breathe in step, even after hover or reappearing, and hover shows the seat color', async ({
+  page,
+}) => {
+  const game = await mountGame(page, richGame());
+  await page.getByLabel('Follow current turn').uncheck();
+  // Each circle's current size as a share of its full size: equal shares mean the same phase.
+  const phases = () =>
+    page
+      .locator('.board-pulse')
+      .evaluateAll(circles =>
+        circles.map(c =>
+          ((c as SVGCircleElement).r.animVal.value / (c as SVGCircleElement).r.baseVal.value).toFixed(2),
+        ),
+      );
+  // This board only offers city upgrades, which show as rings: hover colors the ring.
+  const target = page.getByRole('button', { name: /^Upgrade to city at/ }).first();
+  await target.hover();
+  await expect(target.locator('.board-pulse-hover')).toBeVisible();
+  await expect(target.locator('.board-pulse')).toBeHidden();
+  await expect(target.locator('.board-pulse-hover')).toHaveCSS('stroke', seatRgb('red', 'fill'));
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(700);
+  expect(new Set(await phases()).size).toBe(1);
+  // Road mode hides the corners; leaving it brings them back, mid-rhythm, still in step.
+  await page.getByRole('button', { name: 'Build road', exact: true }).click();
+  await expect(page.locator('.board-vertex-target')).toHaveCount(0);
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Build road', exact: true }).click();
+  await expect(page.locator('.board-vertex-target').first()).toBeVisible();
+  expect((await phases()).length).toBeGreaterThan(1);
+  expect(new Set(await phases()).size).toBe(1);
+  // A picked corner stays still, full size, and in the seat color while the confirm card is up.
+  const picked = page.getByRole('button', { name: /^Upgrade to city at/ }).first();
+  await picked.click();
+  await page.mouse.move(5, 5);
+  await expect(page.getByRole('button', { name: 'Confirm city', exact: true })).toBeVisible();
+  await expect(picked.locator('.board-pulse-hover')).toBeVisible();
+  await expect(picked.locator('.board-pulse')).toBeHidden();
+  expect(game.errors).toEqual([]);
+});

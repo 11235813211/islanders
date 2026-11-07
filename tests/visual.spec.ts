@@ -39,6 +39,17 @@ for (const colors of SEAT_SETS) {
     // Close-up for piece detail (outlines, shading, pulsing targets).
     for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
     await page.locator('.board-svg').screenshot({ path: `test-results/visual-zoom-${colors.join('-')}.png` });
+    // The confirm card for the first seat's color (white in the first set): road, then city.
+    await page.getByRole('button', { name: 'Reset board view' }).click();
+    for (const target of [/^Build road at/, /^Upgrade to city at/]) {
+      await page.getByRole('button', { name: target }).first().click();
+      const card = (await page.locator('.map-confirm').boundingBox())!;
+      await page.screenshot({
+        path: `test-results/visual-confirm-${target.source.includes('road') ? 'road' : 'city'}-${colors[0]}.png`,
+        clip: { x: card.x - 60, y: card.y - 20, width: card.width + 120, height: card.height + 90 },
+      });
+      await page.mouse.click(5, 5);
+    }
   });
 }
 
