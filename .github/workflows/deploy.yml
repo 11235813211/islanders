@@ -1,5 +1,11 @@
 name: Deploy Islanders
 on:
+  # Every push to main deploys once Verify passes on it.
+  workflow_run:
+    workflows: [Verify game]
+    types: [completed]
+    branches: [main]
+  # Deploy by hand (for example a re-deploy); still requires a passing Verify on the commit.
   workflow_dispatch:
 permissions:
   contents: read
@@ -9,22 +15,31 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
+    # Automatic runs only follow a successful Verify of a push (not a pull request).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 10
+    env:
+      # The commit Verify checked (automatic) or the branch head (manual).
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      # Verify already ran every test on this commit; deploying only requires that it passed.
       - name: Require a passing Verify run for this commit
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow check.yml --commit "$GITHUB_SHA" \
+          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow check.yml --commit "$SHA" \
             --status success --json databaseId --jq 'length')
           if [ "$passed" = "0" ]; then
-            echo "::error::Verify has not passed for ${GITHUB_SHA::7}. Wait for it to finish (or re-run it), then deploy."
+            echo "::error::Verify has not passed for ${SHA::7}. Wait for it to finish (or re-run it), then deploy."
             exit 1
           fi
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
       - uses: ./.github/actions/setup
       - run: npm run build
       - run: npx wrangler deploy --var DEV_MODE:false
