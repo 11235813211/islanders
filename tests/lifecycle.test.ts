@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceTime,
   applyAction,
+  BOT_THINK_MS,
   botDueAt,
   GameError,
+  getActivePlayerId,
   getView,
   idlePause,
   idleResume,
   pendingBotActor,
+  UNDO_GRACE_MS,
 } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
 import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
@@ -94,6 +97,20 @@ describe('bot scheduling', () => {
     const moved = advanceTime(g, due, seeded());
     expect(Object.keys(moved.buildings)).toHaveLength(2);
     expect(pendingBotActor(idlePause(g, now))).toBeNull();
+  });
+
+  it('gives a person a moment to undo ending their turn before the next bot starts', () => {
+    let g = settled(2);
+    g.phase = 'build';
+    g.players[1]!.bot = 'beginner';
+    g = act(g, 'p0', { type: 'end-turn' });
+    expect(getView(g, 'p0').undoAvailable).toMatchObject({ actorId: 'p0', endsTurn: true });
+    expect(botDueAt(g)).toBe(g.updatedAt + BOT_THINK_MS + UNDO_GRACE_MS);
+    expect(advanceTime(g, g.updatedAt + BOT_THINK_MS, seeded())).toBe(g);
+    g = applyAction(g, 'p0', { type: 'propose', kind: 'undo' }, seeded(), now);
+    expect(getActivePlayerId(g)).toBe('p0');
+    expect(g.phase).toBe('build');
+    expect(botDueAt(g)).toBeNull();
   });
 
   it('has a bot answer an offer sent to it, and leaves people alone', () => {

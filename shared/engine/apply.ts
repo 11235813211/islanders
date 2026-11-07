@@ -4,7 +4,7 @@ import type { GameAction, GameState } from '../types';
 import { type ActionContext, addLog, getActivePlayerId, type Handlers, requireRule } from './core';
 import { developmentHandlers } from './development';
 import { legalMoves } from './legal';
-import { lobbyHandlers } from './lobby';
+import { lobbyHandlers, switchRole } from './lobby';
 import { socialAction } from './social';
 import { pruneTradeOffer, tradeHandlers } from './trade';
 import { turnHandlers } from './turn';
@@ -64,6 +64,8 @@ export function applyAction(
   const social = socialAction(state, playerId, action, now, context.online);
   if (social) return social;
 
+  // Spectators are not players, so the two actions they can take skip the player checks below.
+  if (action.type === 'switch-role') return switchRole(state, playerId);
   if (action.type === 'leave' && state.spectators.some(s => s.id === playerId)) {
     const next = structuredClone(state);
     next.spectators = next.spectators.filter(s => s.id !== playerId);

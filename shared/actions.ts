@@ -29,6 +29,7 @@ const SPEC = {
   'buy-development': {},
   'finish-free-roads': {},
   leave: {},
+  'switch-role': {},
   'play-again': {},
   configure: { settings: 'settings' },
   'choose-color': { color: 'color' },

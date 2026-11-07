@@ -14,7 +14,7 @@
   justify-content: center;
   gap: 0;
   padding: 8px 6px 0;
-  max-width: 480px;
+  max-width: 720px;
   width: 100%;
   height: 100%;
 }
@@ -104,15 +104,39 @@
   z-index: 20;
   box-shadow: 0 1px 3px #24455533;
 }
-.cards-empty-slot {
-  height: 100%;
+.cards-none {
+  margin: 0;
+  color: #5f7d84;
+  font-size: 13px;
+  font-weight: 600;
+}
+/* Development cards share the resource stack layout, in their own purple. */
+.cards-dev {
+  --card: #9983c5;
+  --card-light: #f3eefc;
+  --card-dark: #4f3a82;
+}
+.cards-dev-first {
+  margin-left: 8px;
+}
+.cards-dev-art {
   display: grid;
   place-items: center;
-  border: 1px dashed #94b5bc;
-  border-radius: 5px;
-  background: #ffffff60;
+  flex: 1;
+  min-height: 0;
   color: var(--card-dark);
-  opacity: 0.75;
+}
+.cards-dev-art > svg {
+  width: 70%;
+  max-width: 34px;
+  height: auto;
+}
+/* A stack you can play right now gets a gold edge. */
+.cards-dev-ready .cards-physical {
+  border-color: #c58a00;
+  box-shadow:
+    0 0 0 2px #ffcf49,
+    0 2px 3px #07374645;
 }
 .cards-spent {
   animation: card-spend 0.42s ease forwards;

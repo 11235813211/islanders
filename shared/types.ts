@@ -286,7 +286,8 @@ export interface GameView {
   pausedAt: number | null;
   pauseReason: 'vote' | 'idle' | null;
   proposal: Proposal | null;
-  undoAvailable: { actorId: string; description: string } | null;
+  /** The latest move its actor may ask to undo. `endsTurn` when that move was ending their turn. */
+  undoAvailable: { actorId: string; description: string; endsTurn: boolean } | null;
   chat: ChatMessage[];
 }
 export type GameAction =
@@ -294,6 +295,7 @@ export type GameAction =
   | { type: 'configure'; settings: Partial<GameSettings> & Pick<GameSettings, 'autoRollSeconds' | 'trackDice'> }
   | { type: 'choose-color'; color: PlayerColor }
   | { type: 'leave' }
+  | { type: 'switch-role' }
   | { type: 'remove-player'; playerId: string }
   | { type: 'transfer-host'; playerId: string }
   | { type: 'add-bot'; level: BotLevel }

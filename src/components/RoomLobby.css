@@ -209,7 +209,15 @@
   color: var(--muted);
   font-size: 12px;
 }
-.leave-room {
+.lobby-exits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   margin-top: 14px;
+}
+.leave-room {
   color: #8a3b22;
+}
+.test-banner > .button {
+  margin-left: auto;
 }

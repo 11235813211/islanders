@@ -117,6 +117,28 @@ export function addSpectator(state: GameState, input: { id: string; name: string
   return next;
 }
 
+/** Lobby only: a player gives up their seat to watch, or a spectator takes an open seat. */
+export function switchRole(state: GameState, id: string): GameState {
+  requireRule(state.phase === 'lobby', 'Seats are fixed once the game starts.');
+  requireRule(!state.testMode, 'Solo test rooms have fixed seats.');
+  const seat = state.players.find(p => p.id === id);
+  if (!seat) {
+    const watcher = state.spectators.find(p => p.id === id);
+    requireRule(watcher, 'You are not a member of this room.');
+    return addPlayer({ ...state, spectators: state.spectators.filter(p => p.id !== id) }, watcher);
+  }
+  requireRule(humanPlayers(state).length > 1, 'Someone has to keep a seat. Invite another player first.');
+  requireRule(state.spectators.length < 16, 'This room already has sixteen spectators.');
+  const next = structuredClone(state);
+  next.players = next.players.filter(p => p.id !== id);
+  delete next.stats[id];
+  next.spectators.push({ id, name: seat.name });
+  addLog(next, `${seat.name} is now watching.`);
+  reassignHost(next);
+  next.version++;
+  return next;
+}
+
 const requireHost = (next: GameState, playerId: string, what: string) =>
   requireRule(next.hostId === playerId, `Only the host can ${what}.`);
 

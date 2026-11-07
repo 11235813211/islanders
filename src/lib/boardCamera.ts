@@ -14,6 +14,11 @@ export interface Viewport {
   height: number;
 }
 export const initialCamera: Camera = { x: 0, y: 0, zoom: 1 };
+
+/** The board SVG's viewBox for a camera (the board is drawn in a 670×600 space centered at 0,0). */
+export function cameraViewBox(camera: Camera): string {
+  return `${camera.x - 335 / camera.zoom} ${camera.y - 300 / camera.zoom} ${670 / camera.zoom} ${600 / camera.zoom}`;
+}
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 export function cameraGesture(camera: Camera, from: Point, to: Point, factor: number, rect: Viewport): Camera {
   const zoom = clamp(camera.zoom * factor, 0.8, 4);

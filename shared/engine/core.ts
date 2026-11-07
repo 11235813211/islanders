@@ -55,6 +55,12 @@ export function getActivePlayerId(state: GameState): string | null {
   return state.players[state.turnIndex]?.id ?? null;
 }
 
+/** True when the latest undoable move was its actor ending their turn. */
+export function undoEndsTurn(state: GameState): boolean {
+  const snapshot = state.undo?.snapshot;
+  return !!snapshot && snapshot.phase === 'build' && snapshot.turn !== state.turn;
+}
+
 export const isHuman = (player: Player): boolean => !player.bot;
 export const humanPlayers = (state: GameState): Player[] => state.players.filter(isHuman);
 

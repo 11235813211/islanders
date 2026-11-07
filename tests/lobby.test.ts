@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseOptionalName, validateAction } from '../server/protocol';
 import { ORDERED_NUMBERS, spiralHexes } from '../shared/board';
-import { addPlayer, applyAction, createGame, GameError, normalizeGame } from '../shared/engine';
+import { addPlayer, addSpectator, applyAction, createGame, GameError, getView, normalizeGame } from '../shared/engine';
 import { GUEST_NAMES } from '../shared/guest-names';
 import { guestName, validSettings } from '../shared/settings';
 import { grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
@@ -35,6 +35,23 @@ describe('lobby setup', () => {
     expect(() => applyAction(settled(), 'p0', { type: 'choose-color', color: 'black' }, seeded(), now)).toThrow(
       GameError,
     );
+  });
+
+  it('lets a player watch instead and a spectator take an open seat, only in the lobby', () => {
+    let game = addSpectator(makeLobby(2), { id: 'w', name: 'Watcher' });
+    game = applyAction(game, 'p0', { type: 'switch-role' }, seeded(), now);
+    expect(game.players.map(p => p.id)).toEqual(['p1']);
+    expect(game.spectators.map(p => p.id)).toEqual(['w', 'p0']);
+    expect(game.hostId).toBe('p1');
+    expect(getView(game, 'p0').role).toBe('spectator');
+    // The last person in a seat cannot leave it empty.
+    expect(() => applyAction(game, 'p1', { type: 'switch-role' }, seeded(), now)).toThrow(GameError);
+    game = applyAction(game, 'w', { type: 'switch-role' }, seeded(), now);
+    expect(game.players.map(p => p.id)).toEqual(['p1', 'w']);
+    expect(game.spectators.map(p => p.id)).toEqual(['p0']);
+    const started = addSpectator(settled(2), { id: 'w', name: 'Watcher' });
+    expect(() => applyAction(started, 'w', { type: 'switch-role' }, seeded(), now)).toThrow(GameError);
+    expect(() => applyAction(started, 'p0', { type: 'switch-role' }, seeded(), now)).toThrow(GameError);
   });
 
   it('migrates rooms saved with numeric colors', () => {

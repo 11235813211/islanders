@@ -19,12 +19,11 @@ import type { AccountIdentity } from './accounts';
 import { accountStub, checkLimit, type Env, failure, json, logError } from './env';
 import {
   AUTH_TIMEOUT_MS,
+  EMPTY_ROOM_MS,
   hashToken,
-  IDLE_ROOM_LIFETIME_MS,
   ProtocolError,
   parseMessage,
   parseOptionalName,
-  ROOM_LIFETIME_MS,
   ROOM_PATTERN,
   randomToken,
   readBody,
@@ -48,7 +47,7 @@ interface RoomRecord {
   game: GameState;
   sessions: SavedSession[];
   lastActivity: number;
-  /** When the last person disconnected; the game pauses after IDLE_GRACE_MS. */
+  /** When the last human player disconnected. The game pauses after IDLE_GRACE_MS and the room closes after EMPTY_ROOM_MS. */
   emptySince?: number;
 }
 interface Attachment {
@@ -69,6 +68,7 @@ const IDLE_GRACE_MS = 60_000;
 const LEFT_ROOM = 4000;
 /** Lobby actions act for the connected person, not the solo-test seat they're viewing. */
 const SELF_ACTIONS = new Set<GameAction['type']>([
+  'switch-role',
   'configure',
   'start',
   'choose-color',
@@ -79,10 +79,6 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'set-bot-level',
   'play-again',
 ]);
-
-function lifetime(game: GameState): number {
-  return ['lobby', 'finished'].includes(game.phase) ? IDLE_ROOM_LIFETIME_MS : ROOM_LIFETIME_MS;
-}
 
 /** One serialized, durable source of truth per invite code. No client owns game state. */
 export class GameRoom extends DurableObject<Env> {
@@ -174,8 +170,10 @@ export class GameRoom extends DurableObject<Env> {
       .map(socket => this.attachment(socket).connectedAt + AUTH_TIMEOUT_MS);
     if (this.record) {
       const game = this.record.game;
-      deadlines.push(this.record.lastActivity + lifetime(game));
-      if (this.record.emptySince !== undefined) deadlines.push(this.record.emptySince + IDLE_GRACE_MS);
+      if (!this.onlinePlayers(game).length) deadlines.push(this.closesAt(this.record));
+      // Only a future pause deadline: once it passes, the alarm below has paused the game (or there was nothing to pause).
+      const pauseAt = (this.record.emptySince ?? Number.NEGATIVE_INFINITY) + IDLE_GRACE_MS;
+      if (pauseAt > Date.now()) deadlines.push(pauseAt);
       if (game.proposal) deadlines.push(game.proposal.expiresAt);
       if (game.pausedAt === null) {
         if (game.phase === 'roll' && game.rollDeadline !== null) deadlines.push(game.rollDeadline);
@@ -192,8 +190,12 @@ export class GameRoom extends DurableObject<Env> {
     if (deadlines.length) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, Math.min(...deadlines)));
     else await this.ctx.storage.deleteAlarm();
   }
+  /** When an empty room closes. A room nobody has connected to yet counts from its last join or move. */
+  private closesAt(room: RoomRecord): number {
+    return (room.emptySince ?? room.lastActivity) + EMPTY_ROOM_MS;
+  }
   private expired(room: RoomRecord, now = Date.now()): boolean {
-    return now - room.lastActivity >= lifetime(room.game) && !this.online().length;
+    return now >= this.closesAt(room) && !this.onlinePlayers(room.game).length;
   }
   private requireRoom(): RoomRecord {
     if (!this.record || this.expired(this.record))
@@ -271,7 +273,12 @@ export class GameRoom extends DurableObject<Env> {
   /** Summary for "My rooms", or null if the room is gone or this player is no longer in it. */
   async status(playerId: string): Promise<AccountRoomStatus | null> {
     return this.serial(async () => {
-      if (!this.record || this.expired(this.record)) return null;
+      if (!this.record) return null;
+      // Rooms saved under older, longer lifetimes close here as soon as someone's room list checks them.
+      if (this.expired(this.record)) {
+        await this.destroy('This room closed because no players were connected.');
+        return null;
+      }
       const game = this.record.game;
       const seat = game.players.find(p => p.id === playerId);
       if ((!seat || seat.bot) && !game.spectators.some(s => s.id === playerId)) return null;
@@ -555,7 +562,7 @@ export class GameRoom extends DurableObject<Env> {
         if (saved?.account && saved.account.expiresAt <= now) socket.close(4401, 'Sign-in expired.');
       }
       if (this.record && this.expired(this.record, now)) {
-        await this.destroy('This room closed after a long time without a move.');
+        await this.destroy('This room closed because no players were connected.');
         return;
       }
       if (this.record) {
@@ -565,7 +572,7 @@ export class GameRoom extends DurableObject<Env> {
           now - record.emptySince >= IDLE_GRACE_MS &&
           !this.onlinePlayers(record.game).length
         ) {
-          record = { ...record, game: idlePause(record.game, now), emptySince: undefined };
+          record = { ...record, game: idlePause(record.game, now) };
         }
         try {
           const game = advanceTime(record.game, now, secureRandom);

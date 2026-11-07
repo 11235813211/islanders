@@ -167,8 +167,8 @@ test('resource click creates a compact timed offer, other seats accept, chat wor
   await expect(page.getByLabel('Chat message')).toHaveCount(0);
   await page.getByRole('button', { name: 'Expand chat panel' }).click();
   await page.getByLabel('Play as', { exact: true }).selectOption('p0');
-  await page.getByRole('button', { name: 'Your development cards (2)' }).click();
-  await page.getByRole('button', { name: /Knight.*Play this card/ }).click();
+  await page.getByRole('button', { name: 'Knight (1), ready to play' }).click();
+  await page.getByRole('dialog', { name: 'Knight' }).getByRole('button', { name: 'Play Knight' }).click();
   await expect.poll(() => game.state().phase).toBe('robber');
   expect(game.state().players[0].knights).toBe(1);
   expect(game.errors).toEqual([]);

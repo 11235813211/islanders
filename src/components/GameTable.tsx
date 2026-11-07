@@ -1,12 +1,13 @@
-import { ArrowRight, Clock3, Dices, Eye, LogOut, Trophy } from 'lucide-react';
+import { ArrowRight, Clock3, Dices, Eye, LogOut, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
-import type { GameView } from '../../shared/types';
+import type { DevelopmentType, GameView } from '../../shared/types';
 import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import BoardViewport from './BoardViewport';
 import BuildBar, { type BuildKind } from './game/BuildBar';
 import DevelopmentDialog from './game/DevelopmentDialog';
+import DevelopmentHand from './game/DevelopmentHand';
 import EndGame from './game/EndGame';
 import { DiscardPanel, PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
@@ -68,7 +69,7 @@ export default function GameTable({
   const [mode, setModeState] = useState<BuildKind | null>(null);
   const [selected, setSelected] = useState<{ kind: BuildKind; id: string } | null>(null);
   const [trade, setTrade] = useState<TradeDraft | null>(null);
-  const [devOpen, setDevOpen] = useState(false);
+  const [devKind, setDevKind] = useState<DevelopmentType | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [endHidden, setEndHidden] = useState(false);
   const [follow, setFollow] = useState(true);
@@ -114,7 +115,7 @@ export default function GameTable({
   useEffect(() => {
     setModeState(null);
     setSelected(null);
-    setDevOpen(false);
+    setDevKind(null);
     setTrade(previous => (previous?.counterOf && view.phase === 'build' ? previous : null));
   }, [view.selfId, view.phase]);
   // A counter draft closes with its offer.
@@ -198,6 +199,19 @@ export default function GameTable({
         onClick={() => send({ type: 'finish-free-roads' })}
       >
         Finish roads
+      </button>
+    );
+  // Right after ending your turn, the same spot offers to take it back (others vote, as for any undo).
+  const canUndoEnd = !spectator && view.undoAvailable?.endsTurn && view.undoAvailable.actorId === view.selfId;
+  if (!ownTurn && canUndoEnd)
+    turnAction = (
+      <button
+        className="button secondary turn-action"
+        disabled={busy || paused || (!!view.proposal && !view.proposal.rejected.length)}
+        onClick={() => send({ type: 'propose', kind: 'undo' })}
+      >
+        <Undo2 size={18} />
+        <span>Undo end turn</span>
       </button>
     );
   if (finished && endHidden)
@@ -286,26 +300,15 @@ export default function GameTable({
             Watching · hands stay private
           </p>
         ) : (
-          <>
-            <ResourceHand
-              hand={view.hand}
-              playerName={self?.name}
-              compact
-              onSelect={resource => setTrade(previous => addTradeResource(previous, resource, view))}
-              disabled={busy || paused}
-            />
-            {view.development.length > 0 && (
-              <button
-                className="development-pile"
-                aria-label={`Your development cards (${view.development.length})`}
-                onClick={() => setDevOpen(true)}
-              >
-                <span>✦</span>
-                <strong>{view.development.length}</strong>
-                <small>Dev Card</small>
-              </button>
-            )}
-          </>
+          <ResourceHand
+            hand={view.hand}
+            playerName={self?.name}
+            compact
+            onSelect={resource => setTrade(previous => addTradeResource(previous, resource, view))}
+            disabled={busy || paused}
+          >
+            {view.development.length > 0 && <DevelopmentHand view={view} open={setDevKind} />}
+          </ResourceHand>
         )}
       </section>
       <div className="table-actions">
@@ -315,7 +318,9 @@ export default function GameTable({
         {turnAction}
       </div>
       <TablePanel view={view} busy={busy} send={send} panel={panel} setPanel={setPanel} />
-      {devOpen && <DevelopmentDialog view={view} busy={busy} send={send} close={() => setDevOpen(false)} />}
+      {devKind && (
+        <DevelopmentDialog view={view} kind={devKind} busy={busy} send={send} close={() => setDevKind(null)} />
+      )}
       {leaving && (
         <GameDialog title="Leave this game?" close={() => setLeaving(false)}>
           <p>

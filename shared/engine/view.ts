@@ -1,6 +1,15 @@
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { type GameState, type GameView, RESOURCES, type Resource } from '../types';
-import { emptyBag, emptyStats, getActivePlayerId, PIECE_LIMITS, pieceCounts, requireRule, resourceCount } from './core';
+import {
+  emptyBag,
+  emptyStats,
+  getActivePlayerId,
+  PIECE_LIMITS,
+  pieceCounts,
+  requireRule,
+  resourceCount,
+  undoEndsTurn,
+} from './core';
 import { legalMoves } from './legal';
 
 /** Explicit projection: internal state and opponents' hands never reach clients. */
@@ -78,7 +87,13 @@ export function getView(state: GameState, selfId: string): GameView {
     pausedAt: state.pausedAt,
     pauseReason: state.pauseReason,
     proposal: state.proposal,
-    undoAvailable: state.undo ? { actorId: state.undo.actorId, description: state.undo.description } : null,
+    undoAvailable: state.undo
+      ? {
+          actorId: state.undo.actorId,
+          description: state.undo.description,
+          endsTurn: undoEndsTurn(state),
+        }
+      : null,
     chat: state.chat,
     settings: state.settings,
     rollDeadline: state.rollDeadline,

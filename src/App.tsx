@@ -1,9 +1,10 @@
-import { ArrowLeft, Check, Copy, LoaderCircle, LogIn, LogOut, Sailboat, UserRound, X } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, LogIn, LogOut, Sailboat, UserRound, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { AccountSession, GameAction, Session } from '../shared/types';
-import { AccountDialog, Modal, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
+import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
+import InviteDialog, { type InviteKind } from './components/InviteDialog';
 import RoomLobby from './components/RoomLobby';
 import { useAccount } from './hooks/useAccount';
 import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
@@ -136,14 +137,15 @@ function App() {
       setLoading(false);
     }
   }
-  function inviteUrl() {
+  /** A link to this room. Spectator links watch even when a seat is open. */
+  function inviteUrl(kind: InviteKind = 'player') {
     const url = new URL(location.href);
     if (['localhost', '127.0.0.1'].includes(url.hostname) && typeof __LAN_ORIGIN__ !== 'undefined' && __LAN_ORIGIN__) {
       const lan = new URL(__LAN_ORIGIN__);
       url.host = lan.host;
       url.protocol = lan.protocol;
     }
-    url.hash = `room=${view?.roomId ?? ''}`;
+    url.hash = `room=${view?.roomId ?? ''}${kind === 'spectator' ? '&spectate=1' : ''}`;
     return url.href;
   }
   async function copyInvite() {
@@ -301,34 +303,7 @@ function App() {
         />
       )}
       {recoveryCode && <RecoveryCodeDialog code={recoveryCode} close={() => setRecoveryCode(null)} />}
-      {dialog === 'share' && view && (
-        <Modal title={`Invite to ${view.roomId}`} close={() => setDialog(null)}>
-          <p>
-            This link opens the room directly. Once the game starts or the room is full, new arrivals join as
-            spectators.
-          </p>
-          <label className="field-label">
-            Invite link
-            <input readOnly value={inviteUrl()} onFocus={e => e.target.select()} />
-          </label>
-          <label className="field-label">
-            Spectator link
-            <input readOnly value={`${inviteUrl()}&spectate=1`} onFocus={e => e.target.select()} />
-          </label>
-          <button className="button primary full" onClick={() => void copyInvite()}>
-            {copied ? <Check /> : <Copy />}
-            {copied ? 'Copied' : 'Copy invite link'}
-          </button>
-          {view.testMode && (
-            <p className="form-note">This is a solo room. Use the host account on another device to resume it.</p>
-          )}
-          {location.protocol !== 'https:' && (
-            <p className="form-note">
-              This address works on the same Wi-Fi. Use the HTTPS link for other networks and sign-in.
-            </p>
-          )}
-        </Modal>
-      )}
+      {dialog === 'share' && view && <InviteDialog view={view} url={inviteUrl} close={() => setDialog(null)} />}
     </div>
   );
 }

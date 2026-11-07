@@ -6,9 +6,8 @@ export const ROOM_PATTERN = /^(?:[A-Z]{3,12}\d{2}|[A-HJ-NP-Z2-9]{8})$/;
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
 export const MAX_BODY_BYTES = 2048;
 export const MAX_MESSAGE_BYTES = 4096;
-/** Rooms close after this long without a move: games in progress get a week, lobbies and finished games a day. */
-export const ROOM_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
-export const IDLE_ROOM_LIFETIME_MS = 24 * 60 * 60 * 1000;
+/** A room closes once no human player has been connected for this long, in any phase. */
+export const EMPTY_ROOM_MS = 5 * 60 * 1000;
 export const AUTH_TIMEOUT_MS = 10_000;
 
 export class ProtocolError extends Error {

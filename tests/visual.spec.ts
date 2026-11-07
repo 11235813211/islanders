@@ -36,6 +36,9 @@ for (const colors of SEAT_SETS) {
     await page.locator('.board-svg').screenshot({ path: `test-results/visual-board-${colors.join('-')}.png` });
     await page.locator('.player-panel').screenshot({ path: `test-results/visual-scoreboard-${colors.join('-')}.png` });
     await page.locator('.table-hand').screenshot({ path: `test-results/visual-hand-${colors.join('-')}.png` });
+    // Close-up for piece detail (outlines, shading, pulsing targets).
+    for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+    await page.locator('.board-svg').screenshot({ path: `test-results/visual-zoom-${colors.join('-')}.png` });
   });
 }
 

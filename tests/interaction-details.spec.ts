@@ -32,7 +32,9 @@ test('map confirmation cancels outside, toolbar roads and cities build immediate
   expect(game.errors).toEqual([]);
 });
 
-test('private totals, empty dev piles, player-colored build pieces and colored recipes', async ({ page }) => {
+test('private totals, no dev stacks without cards, player-colored build pieces and colored recipes', async ({
+  page,
+}) => {
   const initial = richGame();
   initial.players[0].development = [{ id: 'vp', kind: 'victory-point', boughtTurn: 0 }];
   await mountGame(page, initial);
@@ -54,7 +56,7 @@ test('private totals, empty dev piles, player-colored build pieces and colored r
   expect(new Set(fills.flat()).size).toBeGreaterThan(10);
   await page.getByLabel('Play as', { exact: true }).selectOption('p1');
   await expect(page.getByRole('row', { name: 'Player 0', exact: true }).locator('.points')).toHaveText('2');
-  await expect(page.locator('.development-pile')).toHaveCount(0);
+  await expect(page.locator('.cards-dev')).toHaveCount(0);
   await expect(build.locator('svg')).toHaveCSS('color', seatRgb('blue'));
 });
 

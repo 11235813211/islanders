@@ -3,6 +3,7 @@
 All board and card illustrations live here, one folder per version. Components
 import from `src/art` and never draw art themselves.
 - `v1/` is the original art. `v2/` adds piece halos and card colors matched to the tiles.
+  `v3/` drops the halos for pieces shaded in their own color.
 - `index.ts` picks the active version. That one import line is the only thing to change.
 - `types.ts` is the contract every version implements (`satisfies ArtPack`), so an old
   version still type-checks and can be switched back on at any time.

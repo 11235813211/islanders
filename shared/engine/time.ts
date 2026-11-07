@@ -1,11 +1,13 @@
 import { chooseBotAction } from '../bots';
 import { DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
 import { applyAction } from './apply';
-import { addLog, GameError, getActivePlayerId } from './core';
+import { addLog, GameError, getActivePlayerId, undoEndsTurn } from './core';
 import { getView } from './view';
 
 /** How long a bot "thinks" before each move, so people can follow along. */
 export const BOT_THINK_MS = 900;
+/** Extra wait before a bot starts its turn after a person ends theirs, so that person can undo. */
+export const UNDO_GRACE_MS = 2500;
 /** Safety valve: a bot that has done this much in one turn ends it. */
 const MAX_BOT_STEPS_PER_TURN = 30;
 
@@ -29,9 +31,13 @@ export function pendingBotActor(state: GameState): string | null {
   return active && isBot(state, active) ? active : null;
 }
 
+/** True right after a person ended their turn, while they can still undo it. */
+const endTurnUndoable = (state: GameState) => undoEndsTurn(state) && !isBot(state, state.undo!.actorId);
+
 /** When the next bot move is due, or null. */
 export function botDueAt(state: GameState): number | null {
-  return pendingBotActor(state) ? state.updatedAt + BOT_THINK_MS : null;
+  if (!pendingBotActor(state)) return null;
+  return state.updatedAt + BOT_THINK_MS + (endTurnUndoable(state) ? UNDO_GRACE_MS : 0);
 }
 
 function botStepsThisTurn(state: GameState, id: string): number {

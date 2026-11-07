@@ -13,6 +13,7 @@ import {
   SeaDecorations,
   TERRAIN,
 } from '../art';
+import { cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import './Board.css';
 
@@ -86,7 +87,7 @@ export default function Board({
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
       <svg
         className="board-svg"
-        viewBox={`${camera.x - 335 / camera.zoom} ${camera.y - 300 / camera.zoom} ${670 / camera.zoom} ${600 / camera.zoom}`}
+        viewBox={cameraViewBox(camera)}
         role="group"
         aria-label="Island game board. Highlighted locations are legal moves."
       >
@@ -234,16 +235,10 @@ export default function Board({
                 transform={`translate(${vertex.x} ${vertex.y})`}
               >
                 <circle r="17" fill="transparent" className="board-hit-area" />
-                <circle
-                  className="board-target-mark"
-                  r={mode === 'city' ? 15 : 8}
-                  fill={mode === 'city' ? 'transparent' : '#fff8df'}
-                  stroke="#fff8df"
-                  strokeWidth={mode === 'city' ? 2.4 : 1.6}
-                  strokeDasharray={mode === 'city' ? '3 3' : undefined}
-                />
-                {mode !== 'city' && (
-                  <path d="M-3 0H3M0-3V3" fill="none" stroke="#607b69" strokeWidth="1.6" strokeLinecap="round" />
+                {view.legal.cities.includes(vertex.id) ? (
+                  <circle className="board-target-mark board-pulse board-pulse-ring" r="16" />
+                ) : (
+                  <circle className="board-target-mark board-pulse" r="10" />
                 )}
               </g>
             ))}

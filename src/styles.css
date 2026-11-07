@@ -570,6 +570,57 @@ a {
 .modal h2 {
   font-size: 24px;
 }
+.invite-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4fafb;
+}
+.invite-spectator {
+  background: #f6f3fb;
+}
+.invite-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: #1d6a83;
+}
+.invite-spectator .invite-icon {
+  color: #5b4691;
+}
+.invite-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.invite-text small {
+  color: #50707a;
+}
+.invite-text input {
+  margin-top: 4px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: #50707a;
+  text-overflow: ellipsis;
+}
+.invite-copy {
+  flex: 0 0 auto;
+}
 .segmented {
   display: flex;
   background: #e5f1f4;

@@ -15,9 +15,9 @@ export function CityIcon({ size = 24 }: { size?: number }) {
   );
 }
 
-export function KnightIcon() {
+export function KnightIcon({ size = 21 }: { size?: number }) {
   return (
-    <svg width="20" height="22" viewBox="0 0 24 24" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
       <path d="M7 21h14l-2-4 1-7-5-6-4-2-1 5-5 6 4 3 4-4-2 5Z" fill="currentColor" />
       <circle cx="14" cy="8" r="1.2" fill="#fff" />
     </svg>

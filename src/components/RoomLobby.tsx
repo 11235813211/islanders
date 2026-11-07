@@ -9,6 +9,7 @@ import {
   Map as MapIcon,
   Plus,
   Swords,
+  UserPlus,
   Users,
   Wifi,
 } from 'lucide-react';
@@ -76,7 +77,13 @@ export default function RoomLobby({
       {view.role === 'spectator' && (
         <div className="test-banner">
           <Eye size={20} />
-          You are spectating. Player hands stay private.
+          <span>You are spectating. Player hands stay private.</span>
+          {!view.testMode && view.players.length < 4 && (
+            <button className="button secondary" disabled={busy} onClick={() => send({ type: 'switch-role' })}>
+              <UserPlus size={18} />
+              Take a seat
+            </button>
+          )}
         </div>
       )}
       {view.testMode && (
@@ -163,10 +170,18 @@ export default function RoomLobby({
             {copied ? <Check /> : <Copy />}
           </button>
         </div>
-        <button className="text-button leave-room" disabled={busy} onClick={() => send({ type: 'leave' })}>
-          <LogOut size={17} />
-          Leave room
-        </button>
+        <div className="lobby-exits">
+          {self && !view.testMode && view.players.some(p => !p.bot && p.id !== self.id) && (
+            <button className="text-button" disabled={busy} onClick={() => send({ type: 'switch-role' })}>
+              <Eye size={17} />
+              Watch instead
+            </button>
+          )}
+          <button className="text-button leave-room" disabled={busy} onClick={() => send({ type: 'leave' })}>
+            <LogOut size={17} />
+            Leave room
+          </button>
+        </div>
       </section>
 
       <section className="setup-settings panel">

@@ -195,7 +195,7 @@ test('a phone can join by private code as a spectator and chat without receiving
   }
 });
 
-test('invite links enter a lobby directly once, and explicit spectator links preserve player seats', async ({
+test('invite links enter a lobby directly once, spectator links watch, and people can switch between seat and spectator', async ({
   browser,
 }) => {
   const a = await browser.newContext(),
@@ -222,9 +222,26 @@ test('invite links enter a lobby directly once, and explicit spectator links pre
     await friend.reload();
     await expect(friend.locator('.lobby-player')).toHaveCount(2);
     expect(joins).toBe(1);
-    await watcher.goto(`/#room=${h.state()!.roomId}&spectate=1`);
+    // The invite dialog labels both links and copies each one separately.
+    await host.getByRole('button', { name: 'Invite friends' }).click();
+    const invite = host.getByRole('dialog', { name: `Invite to ${h.state()!.roomId}` });
+    const playerUrl = await invite.getByLabel('Player link URL').inputValue();
+    const spectatorUrl = await invite.getByLabel('Spectator link URL').inputValue();
+    expect(playerUrl).toMatch(new RegExp(`#room=${h.state()!.roomId}$`));
+    expect(spectatorUrl).toBe(`${playerUrl}&spectate=1`);
+    await expect(invite.getByRole('button', { name: 'Copy player link' })).toBeVisible();
+    await expect(invite.getByRole('button', { name: 'Copy spectator link' })).toBeVisible();
+    await invite.getByRole('button', { name: 'Close dialog' }).click();
+    await watcher.goto(new URL(spectatorUrl).hash ? `/${new URL(spectatorUrl).hash}` : spectatorUrl);
     await expect.poll(() => w.state()?.role).toBe('spectator');
     await expect(watcher.locator('.lobby-player')).toHaveCount(2);
+    // Spectators can take an open seat, and players can step back to watch.
+    await watcher.getByRole('button', { name: 'Take a seat' }).click();
+    await expect.poll(() => w.state()?.role).toBe('player');
+    await expect(host.locator('.lobby-player')).toHaveCount(3);
+    await friend.getByRole('button', { name: 'Watch instead' }).click();
+    await expect.poll(() => f.state()?.role).toBe('spectator');
+    await expect(host.locator('.lobby-player')).toHaveCount(2);
     expect(h.errors.concat(f.errors, w.errors)).toEqual([]);
   } finally {
     await a.close();
