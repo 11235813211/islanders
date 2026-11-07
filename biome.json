@@ -1,0 +1,68 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!!**/dist", "!!**/.wrangler", "!!**/test-results"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "arrowParentheses": "asNeeded"
+    }
+  },
+  "css": {
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off"
+      },
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noControlCharactersInRegex": "off"
+      },
+      "correctness": {
+        "noInvalidGridAreas": "off",
+        "useExhaustiveDependencies": "warn"
+      },
+      "a11y": {
+        "useButtonType": "off",
+        "noAriaHiddenOnFocusable": "off",
+        "noSvgWithoutTitle": "off",
+        "useSemanticElements": "warn",
+        "useAriaPropsSupportedByRole": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noStaticElementInteractions": "warn"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

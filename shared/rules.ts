@@ -1,17 +1,27 @@
 import { shuffled } from './board';
-import { RESOURCES, type DevelopmentCard, type DevelopmentType, type GameState, type Resource } from './types';
+import { type DevelopmentCard, type DevelopmentType, type GameState, RESOURCES, type Resource } from './types';
 
 export function developmentDeck(random: () => number): DevelopmentCard[] {
   const kinds: DevelopmentType[] = [
-    ...Array<DevelopmentType>(14).fill('knight'), ...Array<DevelopmentType>(5).fill('victory-point'),
-    ...Array<DevelopmentType>(2).fill('road-building'), ...Array<DevelopmentType>(2).fill('year-of-plenty'), ...Array<DevelopmentType>(2).fill('monopoly'),
+    ...Array<DevelopmentType>(14).fill('knight'),
+    ...Array<DevelopmentType>(5).fill('victory-point'),
+    ...Array<DevelopmentType>(2).fill('road-building'),
+    ...Array<DevelopmentType>(2).fill('year-of-plenty'),
+    ...Array<DevelopmentType>(2).fill('monopoly'),
   ];
   return shuffled(kinds, random).map((kind, i) => ({ id: `dev-${i}`, kind, boughtTurn: -1 }));
 }
 
 export function tradeRates(state: GameState, playerId: string): Record<Resource, number> {
-  const owned = state.board.harbors.filter(port => port.vertices.some(id => state.buildings[id]?.playerId === playerId));
-  return Object.fromEntries(RESOURCES.map(resource => [resource, owned.some(p => p.resource === resource) ? 2 : owned.some(p => p.resource === 'any') ? 3 : 4])) as Record<Resource, number>;
+  const owned = state.board.harbors.filter(port =>
+    port.vertices.some(id => state.buildings[id]?.playerId === playerId),
+  );
+  return Object.fromEntries(
+    RESOURCES.map(resource => [
+      resource,
+      owned.some(p => p.resource === resource) ? 2 : owned.some(p => p.resource === 'any') ? 3 : 4,
+    ]),
+  ) as Record<Resource, number>;
 }
 
 /** Longest edge trail. Edges may not repeat; branches and opponent buildings break continuity. */
@@ -45,7 +55,11 @@ export function updateAwards(state: GameState): void {
 }
 
 export function victoryPoints(state: GameState, playerId: string, hidden = true): number {
-  const structures = Object.values(state.buildings).filter(b => b.playerId === playerId).reduce((sum, b) => sum + (b.kind === 'city' ? 2 : 1), 0);
-  const cards = hidden ? state.players.find(p => p.id === playerId)?.development.filter(c => c.kind === 'victory-point').length ?? 0 : 0;
+  const structures = Object.values(state.buildings)
+    .filter(b => b.playerId === playerId)
+    .reduce((sum, b) => sum + (b.kind === 'city' ? 2 : 1), 0);
+  const cards = hidden
+    ? (state.players.find(p => p.id === playerId)?.development.filter(c => c.kind === 'victory-point').length ?? 0)
+    : 0;
   return structures + cards + (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
 }

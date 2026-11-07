@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
@@ -11,13 +11,40 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: process.env.PLAYTEST_URL || 'http://127.0.0.1:5173',
-    channel: process.platform === 'darwin' ? 'chrome' : undefined,
-    viewport: { width: 1440, height: 1000 },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  webServer: process.env.PLAYTEST_URL ? undefined : [
-    { command: 'npm run dev:server', url: 'http://127.0.0.1:8787/api/health', reuseExistingServer: !process.env.CI, timeout: 60_000 },
-    { command: 'npm run dev:web', url: 'http://127.0.0.1:5173', reuseExistingServer: !process.env.CI, timeout: 30_000 },
+  projects: [
+    {
+      name: 'desktop',
+      testIgnore: '**/phone.spec.ts',
+      use: { channel: process.platform === 'darwin' ? 'chrome' : undefined, viewport: { width: 1440, height: 1000 } },
+    },
+    // iPhone emulation (touch, phone viewport). WebKit on Linux/CI; Playwright's WebKit
+    // no longer runs on older macOS, so a Mac falls back to Chromium with the same device settings.
+    {
+      name: 'iphone',
+      testMatch: '**/phone.spec.ts',
+      use: {
+        ...devices['iPhone 13'],
+        ...(process.platform === 'darwin' ? { browserName: 'chromium' as const, channel: 'chrome' } : {}),
+      },
+    },
   ],
+  webServer: process.env.PLAYTEST_URL
+    ? undefined
+    : [
+        {
+          command: 'npm run dev:server',
+          url: 'http://127.0.0.1:8787/api/health',
+          reuseExistingServer: !process.env.CI,
+          timeout: 60_000,
+        },
+        {
+          command: 'npm run dev:web',
+          url: 'http://127.0.0.1:5173',
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
+        },
+      ],
 });

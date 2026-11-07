@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
+import { type APIRequestContext, type APIResponse, expect } from '@playwright/test';
 import WebSocket from 'ws';
 import type { GameAction, GameView, ServerMessage, Session } from '../shared/types';
 
@@ -18,12 +18,16 @@ export class PlayerConnection {
       if (data.toString() === 'pong') this.pongs++;
       else this.messages.push(JSON.parse(data.toString()) as ServerMessage);
     });
-    this.socket.on('close', code => { this.closeCode = code; });
-    this.socket.on('error', error => { this.error = error; });
+    this.socket.on('close', code => {
+      this.closeCode = code;
+    });
+    this.socket.on('error', error => {
+      this.error = error;
+    });
   }
 
   async open() {
-    await expect.poll(() => this.error ? 'error' : this.socket.readyState, { timeout: 10_000 }).toBe(WebSocket.OPEN);
+    await expect.poll(() => (this.error ? 'error' : this.socket.readyState), { timeout: 10_000 }).toBe(WebSocket.OPEN);
   }
 
   async authenticate(session: Session) {
@@ -34,21 +38,28 @@ export class PlayerConnection {
 
   get state(): GameView {
     const message = [...this.messages].reverse().find(item => item.type === 'state');
-    if (!message || message.type !== 'state') throw new Error('No state received.');
+    if (message?.type !== 'state') throw new Error('No state received.');
     return message.state;
   }
 
   async waitMessage(predicate: (message: ServerMessage) => boolean, after = 0): Promise<ServerMessage> {
     let found: ServerMessage | undefined;
-    await expect.poll(() => {
-      found = this.messages.slice(after).find(predicate);
-      return !!found;
-    }, { timeout: 10_000 }).toBe(true);
+    await expect
+      .poll(
+        () => {
+          found = this.messages.slice(after).find(predicate);
+          return !!found;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
     return found!;
   }
 
   async waitState(version?: number): Promise<GameView> {
-    const message = await this.waitMessage(item => item.type === 'state' && (version === undefined || item.state.version >= version));
+    const message = await this.waitMessage(
+      item => item.type === 'state' && (version === undefined || item.state.version >= version),
+    );
     if (message.type !== 'state') throw new Error('Expected a state message.');
     return message.state;
   }
@@ -66,16 +77,44 @@ export class PlayerConnection {
     return message.state;
   }
 
-  dispose() { this.socket.close(); }
+  dispose() {
+    this.socket.close();
+  }
+}
+
+/** POST /api/rooms, waiting out the shared per-IP room-creation limit (12 a minute) that the whole suite shares. */
+export async function postRoom(
+  request: APIRequestContext,
+  options: { headers?: Record<string, string>; data?: unknown },
+): Promise<APIResponse> {
+  let response: APIResponse;
+  await expect
+    .poll(
+      async () => {
+        response = await request.post(`${server}/api/rooms`, options);
+        return response.status();
+      },
+      { timeout: 65_000, intervals: [1000, 2000, 5000] },
+    )
+    .not.toBe(429);
+  return response!;
 }
 
 export async function join(request: APIRequestContext, name: string, roomId?: string): Promise<Session> {
   let response: APIResponse;
   // Suites share the real local IP limit. Retry only explicit rate rejections, never successful mutations.
-  await expect.poll(async () => {
-    response = await request.post(`${server}/api/rooms${roomId ? `/${roomId}/join` : ''}`, { headers: { Origin: origin }, data: { name } });
-    return response.status();
-  }, { timeout: 65_000, intervals: [1000, 2000, 5000] }).not.toBe(429);
+  await expect
+    .poll(
+      async () => {
+        response = await request.post(`${server}/api/rooms${roomId ? `/${roomId}/join` : ''}`, {
+          headers: { Origin: origin },
+          data: { name },
+        });
+        return response.status();
+      },
+      { timeout: 65_000, intervals: [1000, 2000, 5000] },
+    )
+    .not.toBe(429);
   expect(response!.status()).toBe(201);
   return response!.json() as Promise<Session>;
 }
@@ -88,6 +127,7 @@ export function verifyPrivateView(state: GameView, playerId: string) {
   expect('token' in state).toBe(false);
   // Exact stock counts would reveal an opponent's entire hand by subtraction in two-player rooms.
   expect(Object.values(state.bank).every(available => typeof available === 'boolean')).toBe(true);
-  expect(state.players.find(player => player.id === playerId)?.resourceCount).toBe(Object.values(state.hand).reduce((total, count) => total + count, 0));
+  expect(state.players.find(player => player.id === playerId)?.resourceCount).toBe(
+    Object.values(state.hand).reduce((total, count) => total + count, 0),
+  );
 }
-

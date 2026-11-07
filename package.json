@@ -15,11 +15,14 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "build": "npm run typecheck && vite build",
-    "check": "npm run test && npm run build",
+    "check": "npm run lint && npm run test && npm run build",
     "preview": "vite preview --host 127.0.0.1",
     "deploy:server": "npm run build && wrangler deploy",
     "deploy": "npm run check && wrangler deploy",
-    "share": "node scripts/share.mjs"
+    "share": "node scripts/share.mjs",
+    "art:new": "node scripts/new-art-version.mjs",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
@@ -29,6 +32,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.2",
     "@cloudflare/workers-types": "^5.20261031.1",
     "@playwright/test": "^1.64.1",
     "@types/node": "^24.19.2",

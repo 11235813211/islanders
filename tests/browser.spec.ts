@@ -1,14 +1,22 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+import { ORDERED_NUMBERS, spiralHexes } from '../shared/board';
 import type { GameView, ServerMessage } from '../shared/types';
 import { RESOURCES } from '../shared/types';
-import { ORDERED_NUMBERS, spiralHexes } from '../shared/board';
+
 function observe(page: Page) {
   let view: GameView | undefined;
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  page.on('websocket', socket => socket.on('framereceived', frame => {
-    try { const message = JSON.parse(frame.payload.toString()) as ServerMessage; if (message.type === 'state') view = message.state; } catch { /* ping/pong */ }
-  }));
+  page.on('websocket', socket =>
+    socket.on('framereceived', frame => {
+      try {
+        const message = JSON.parse(frame.payload.toString()) as ServerMessage;
+        if (message.type === 'state') view = message.state;
+      } catch {
+        /* ping/pong */
+      }
+    }),
+  );
   return { state: () => view, errors };
 }
 
@@ -26,27 +34,46 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await expect.poll(() => game.state()?.settings.autoRollSeconds).toBe(0);
   await page.getByLabel('Number layout', { exact: true }).selectOption('ordered');
   await expect.poll(() => game.state()?.settings.numberLayout).toBe('ordered');
-  expect(spiralHexes(game.state()!.board).filter(h => h.terrain !== 'desert').map(h => h.number)).toEqual(ORDERED_NUMBERS);
+  expect(
+    spiralHexes(game.state()!.board)
+      .filter(h => h.terrain !== 'desert')
+      .map(h => h.number),
+  ).toEqual(ORDERED_NUMBERS);
   await page.getByLabel('Turn time limit', { exact: true }).fill('90');
   await page.getByLabel('Turn time limit', { exact: true }).press('Tab');
   await expect.poll(() => game.state()?.settings.turnSeconds).toBe(90);
   await page.screenshot({ path: 'test-results/lobby-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Start game', exact: true }).click();
   for (let turn = 0; turn < 6; turn++) {
-    await page.getByRole('button', { name: /^Build settlement at/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Build settlement at/ })
+      .first()
+      .click();
     await page.getByRole('button', { name: 'Confirm settlement', exact: true }).click();
-    await page.getByRole('button', { name: /^Build road at/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Build road at/ })
+      .first()
+      .click();
     await page.getByRole('button', { name: 'Confirm road', exact: true }).click();
   }
   await expect(page.getByRole('button', { name: 'Roll dice' })).toBeEnabled();
-  await expect.poll(() => page.locator('.board-svg').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(600);
+  await expect
+    .poll(() => page.locator('.board-svg').evaluate(el => el.getBoundingClientRect().height))
+    .toBeGreaterThan(600);
   await page.screenshot({ path: 'test-results/game-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Roll dice' }).click();
   await expect.poll(() => game.state()?.phase).not.toBe('roll');
   if (game.state()?.phase === 'robber') {
-    await page.getByRole('button', { name: /^Move robber to/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Move robber to/ })
+      .first()
+      .click();
     await expect.poll(() => game.state()?.phase).not.toBe('robber');
-    if (game.state()?.phase === 'steal') await page.getByRole('button', { name: /^Steal from/ }).first().click();
+    if (game.state()?.phase === 'steal')
+      await page
+        .getByRole('button', { name: /^Steal from/ })
+        .first()
+        .click();
   }
   await expect(page.getByRole('button', { name: 'End turn' })).toBeEnabled();
   const host = game.state()!.selfId;
@@ -75,9 +102,21 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await expect.poll(() => game.state()?.tradeOffer).toBeNull();
   await page.getByRole('button', { name: 'dice', exact: true }).click();
   await expect(page.getByText('1 roll', { exact: true })).toBeVisible();
-  for (const [width, height, label] of [[390, 844, 'phone'], [844, 390, 'phone-landscape'], [1024, 640, 'small-laptop'], [820, 1180, 'tablet']] as const) {
+  for (const [width, height, label] of [
+    [390, 844, 'phone'],
+    [844, 390, 'phone-landscape'],
+    [1024, 640, 'small-laptop'],
+    [820, 1180, 'tablet'],
+  ] as const) {
     await page.setViewportSize({ width, height });
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight,
+        ),
+      )
+      .toBe(true);
     await page.screenshot({ path: `test-results/game-${label}.png`, fullPage: true });
   }
   expect(game.errors).toEqual([]);
@@ -88,7 +127,8 @@ test('username sign-in resumes the same room on another device and signs out', a
   const second = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const host = await first.newPage();
   const phone = await second.newPage();
-  const a = observe(host), b = observe(phone);
+  const a = observe(host),
+    b = observe(phone);
   const username = `ui_${Date.now().toString(36)}`;
   const password = 'Browser-test-password-492!';
   try {
@@ -98,6 +138,10 @@ test('username sign-in resumes the same room on another device and signs out', a
     await host.getByLabel('Username', { exact: true }).fill(username);
     await host.getByLabel('Password', { exact: true }).fill(password);
     await host.locator('form').getByRole('button', { name: 'Create account' }).click();
+    // New accounts see their one-time recovery code.
+    await expect(host.getByRole('dialog', { name: 'Save your recovery code' })).toBeVisible();
+    await expect(host.locator('.recovery-code code')).toHaveText(/^[A-Z2-9]{5}(-[A-Z2-9]{5}){3}$/);
+    await host.getByRole('button', { name: 'I saved it' }).click();
     await expect(host.getByRole('dialog')).toHaveCount(0);
     await host.getByRole('button', { name: 'Create solo test room' }).click();
     await expect.poll(() => a.state()?.players.length).toBe(3);
@@ -115,40 +159,76 @@ test('username sign-in resumes the same room on another device and signs out', a
     await expect(phone.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
     await expect(host.locator('.connection-pill')).toHaveText('Connected');
     expect(a.errors.concat(b.errors)).toEqual([]);
-  } finally { await first.close(); await second.close(); }
+  } finally {
+    await first.close();
+    await second.close();
+  }
 });
 
-
-test('a phone can join by private code as a spectator and chat without receiving player controls', async ({ browser }) => {
-  const hostContext = await browser.newContext(), watcherContext = await browser.newContext({viewport:{width:390,height:844}});
-  const host = await hostContext.newPage(), watcher = await watcherContext.newPage();
-  const a = observe(host), b = observe(watcher);
+test('a phone can join by private code as a spectator and chat without receiving player controls', async ({
+  browser,
+}) => {
+  const hostContext = await browser.newContext(),
+    watcherContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const host = await hostContext.newPage(),
+    watcher = await watcherContext.newPage();
+  const a = observe(host),
+    b = observe(watcher);
   try {
-    await host.goto('/'); await host.getByRole('button',{name:'Create solo test room'}).click();
-    await expect.poll(()=>a.state()?.players.length).toBe(3);
-    await host.getByRole('button',{name:'Start game',exact:true}).click();
+    await host.goto('/');
+    await host.getByRole('button', { name: 'Create solo test room' }).click();
+    await expect.poll(() => a.state()?.players.length).toBe(3);
+    await host.getByRole('button', { name: 'Start game', exact: true }).click();
     await watcher.goto(`/#room=${a.state()!.roomId}`);
-    await expect.poll(()=>b.state()?.role).toBe('spectator');
+    await expect.poll(() => b.state()?.role).toBe('spectator');
     await expect(watcher.getByText('Watching · hands stay private')).toBeVisible();
-    await expect(watcher.getByRole('button',{name:/^Build road at/})).toHaveCount(0);
-    await expect(watcher.getByRole('button',{name:'Propose pause',exact:true})).toHaveCount(0);
-    await watcher.getByRole('button',{name:'Open chat'}).click();
+    await expect(watcher.getByRole('button', { name: /^Build road at/ })).toHaveCount(0);
+    await expect(watcher.getByRole('button', { name: 'Propose pause', exact: true })).toHaveCount(0);
+    await watcher.getByRole('button', { name: 'Open chat' }).click();
     await watcher.getByLabel('Chat message').fill('Hello from my phone');
-    await watcher.getByRole('button',{name:'Send message'}).click();
-    await expect.poll(()=>a.state()?.chat.at(-1)?.text).toBe('Hello from my phone');
+    await watcher.getByRole('button', { name: 'Send message' }).click();
+    await expect.poll(() => a.state()?.chat.at(-1)?.text).toBe('Hello from my phone');
     expect(a.errors.concat(b.errors)).toEqual([]);
-  } finally { await hostContext.close(); await watcherContext.close(); }
+  } finally {
+    await hostContext.close();
+    await watcherContext.close();
+  }
 });
 
-test('invite links enter a lobby directly once, and explicit spectator links preserve player seats',async({browser})=>{
-  const a=await browser.newContext(),b=await browser.newContext(),c=await browser.newContext();
-  try{
-    const host=await a.newPage(),friend=await b.newPage(),watcher=await c.newPage();const h=observe(host),f=observe(friend),w=observe(watcher);
-    await host.goto('/');await host.getByRole('button',{name:'Create room',exact:true}).click();await expect.poll(()=>h.state()?.players.length).toBe(1);
-    let joins=0;friend.on('request',request=>{if(request.url().endsWith('/join')) joins++;});
-    await friend.goto(`/#room=${h.state()!.roomId}`);await expect.poll(()=>f.state()?.role).toBe('player');await expect(friend.locator('.lobby-player')).toHaveCount(2);expect(joins).toBe(1);
-    await friend.reload();await expect(friend.locator('.lobby-player')).toHaveCount(2);expect(joins).toBe(1);
-    await watcher.goto(`/#room=${h.state()!.roomId}&spectate=1`);await expect.poll(()=>w.state()?.role).toBe('spectator');await expect(watcher.locator('.lobby-player')).toHaveCount(2);
-    expect(h.errors.concat(f.errors,w.errors)).toEqual([]);
-  }finally{await a.close();await b.close();await c.close();}
+test('invite links enter a lobby directly once, and explicit spectator links preserve player seats', async ({
+  browser,
+}) => {
+  const a = await browser.newContext(),
+    b = await browser.newContext(),
+    c = await browser.newContext();
+  try {
+    const host = await a.newPage(),
+      friend = await b.newPage(),
+      watcher = await c.newPage();
+    const h = observe(host),
+      f = observe(friend),
+      w = observe(watcher);
+    await host.goto('/');
+    await host.getByRole('button', { name: 'Create room', exact: true }).click();
+    await expect.poll(() => h.state()?.players.length).toBe(1);
+    let joins = 0;
+    friend.on('request', request => {
+      if (request.url().endsWith('/join')) joins++;
+    });
+    await friend.goto(`/#room=${h.state()!.roomId}`);
+    await expect.poll(() => f.state()?.role).toBe('player');
+    await expect(friend.locator('.lobby-player')).toHaveCount(2);
+    expect(joins).toBe(1);
+    await friend.reload();
+    await expect(friend.locator('.lobby-player')).toHaveCount(2);
+    expect(joins).toBe(1);
+    await watcher.goto(`/#room=${h.state()!.roomId}&spectate=1`);
+    await expect.poll(() => w.state()?.role).toBe('spectator');
+    await expect(watcher.locator('.lobby-player')).toHaveCount(2);
+    expect(h.errors.concat(f.errors, w.errors)).toEqual([]);
+  } finally {
+    await a.close();
+    await b.close();
+    await c.close();
+  }
 });

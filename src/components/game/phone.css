@@ -1,0 +1,77 @@
+/*
+ * Phone and small-screen overrides for the game table. Loaded last.
+ * Check changes with: npx playwright test tests/visual.spec.ts -g "phone tour"
+ */
+
+/* iOS zooms into any focused field under 16px; keep form text at 16px on touch screens. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  .chat-form input {
+    font-size: 16px;
+  }
+}
+
+/* The toolbar's Home button only shows when the site header is hidden (below). */
+.phone-home {
+  display: none;
+}
+
+/* During a game on a phone, the board needs the room more than the site header does. */
+@media (max-width: 720px), (max-height: 520px) {
+  .app-game .site-header {
+    display: none;
+  }
+  .phone-home {
+    display: inline-flex;
+  }
+  .app-game {
+    padding-top: env(safe-area-inset-top);
+  }
+  .game-table {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+}
+
+/* Stacked hand cards: the count badge sits over the name, so the compact hand shows art only. */
+.cards-hand-compact .cards-card-label {
+  display: none;
+}
+.cards-hand-compact .cards-art {
+  height: 82%;
+}
+
+@media (max-width: 420px) {
+  .table-toolbar {
+    gap: 4px;
+  }
+  .table-tools {
+    gap: 0;
+  }
+  .table-tools .icon-button {
+    width: 36px;
+    height: 36px;
+  }
+  .end-game > footer {
+    justify-content: stretch;
+  }
+  .end-game > footer .button {
+    flex: 1;
+  }
+  .end-standings {
+    font-size: 13px;
+  }
+}
+
+/* Narrow phones in a solo test room: give the seat picker the room code's space. */
+@media (max-width: 420px) {
+  .table-toolbar:has(.solo-compact) .table-code {
+    display: none;
+  }
+  .solo-compact select {
+    min-width: 96px;
+  }
+}

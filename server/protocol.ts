@@ -1,15 +1,23 @@
-import { validSettings } from '../shared/settings';
-import { RESOURCES, type ClientMessage, type GameAction, type Resource, type ResourceBag } from '../shared/types';
+import { isIdentifier, parseAction } from '../shared/actions';
+import { GameError } from '../shared/engine';
+import type { ClientMessage, GameAction } from '../shared/types';
 
 export const ROOM_PATTERN = /^(?:[A-Z]{3,12}\d{2}|[A-HJ-NP-Z2-9]{8})$/;
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
 export const MAX_BODY_BYTES = 2048;
 export const MAX_MESSAGE_BYTES = 4096;
+/** Rooms close after this long without a move: games in progress get a week, lobbies and finished games a day. */
 export const ROOM_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+export const IDLE_ROOM_LIFETIME_MS = 24 * 60 * 60 * 1000;
 export const AUTH_TIMEOUT_MS = 10_000;
 
 export class ProtocolError extends Error {
-  constructor(message: string, public status = 400) { super(message); }
+  constructor(
+    message: string,
+    public status = 400,
+  ) {
+    super(message);
+  }
 }
 
 export function record(value: unknown): value is Record<string, unknown> {
@@ -17,10 +25,13 @@ export function record(value: unknown): value is Record<string, unknown> {
 }
 
 export function parseCredentials(body: unknown): { username: string; password: string } {
-  if (!record(body) || typeof body.username !== 'string' || typeof body.password !== 'string') throw new ProtocolError('Enter a username and password.');
+  if (!record(body) || typeof body.username !== 'string' || typeof body.password !== 'string')
+    throw new ProtocolError('Enter a username and password.');
   const username = body.username.trim().toLowerCase();
-  if (!USERNAME_PATTERN.test(username)) throw new ProtocolError('Use a username of 3–24 letters, numbers, or underscores.');
-  if (body.password.length < 12 || body.password.length > 128) throw new ProtocolError('Use a password of 12–128 characters.');
+  if (!USERNAME_PATTERN.test(username))
+    throw new ProtocolError('Use a username of 3–24 letters, numbers, or underscores.');
+  if (body.password.length < 12 || body.password.length > 128)
+    throw new ProtocolError('Use a password of 12–128 characters.');
   return { username, password: body.password };
 }
 
@@ -29,16 +40,6 @@ export function parseAuthorization(header: string | null): { username: string; t
   const match = /^Bearer ([a-z0-9_]{3,24}):([a-f0-9]{64})$/.exec(header);
   if (!match) throw new ProtocolError('Sign in again to continue.', 401);
   return { username: match[1]!, token: match[2]! };
-}
-
-function resourceBag(value: unknown): ResourceBag | null {
-  if (!record(value) || Object.keys(value).length !== RESOURCES.length) return null;
-  if (RESOURCES.some(key => !Number.isInteger(value[key]) || (value[key] as number) < 0 || (value[key] as number) > 19)) return null;
-  return Object.fromEntries(RESOURCES.map(key => [key, value[key]])) as ResourceBag;
-}
-
-function identifier(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 100 && /^[\w:.,-]+$/.test(value);
 }
 
 export function parseName(body: unknown): string {
@@ -50,66 +51,35 @@ export function parseName(body: unknown): string {
   return name;
 }
 
+/** A blank or missing name means "pick a guest name for me" (see shared/guest-names.ts). */
+export function parseOptionalName(body: unknown): string | null {
+  if (record(body) && (body.name == null || (typeof body.name === 'string' && !body.name.trim()))) return null;
+  return parseName(body);
+}
+
+/** Parse a client's action with the shared table (shared/actions.ts), dropping unknown fields. */
 export function validateAction(value: unknown): GameAction {
-  if (!record(value) || typeof value.type !== 'string') throw new ProtocolError('Invalid game action.');
-  switch (value.type) {
-    case 'start': case 'roll': case 'end-turn': case 'buy-development': case 'finish-free-roads': return { type: value.type };
-    case 'configure':
-      if (validSettings(value.settings)) return { type: 'configure', settings: value.settings };
-      break;
-    case 'chat':
-      if (typeof value.text === 'string' && value.text.length <= 280) return { type: 'chat', text: value.text };
-      break;
-    case 'propose':
-      if (value.kind === 'undo' || value.kind === 'pause' || value.kind === 'resume') return { type: 'propose', kind: value.kind };
-      break;
-    case 'vote':
-      if (identifier(value.proposalId) && typeof value.accept === 'boolean') return { type: 'vote', proposalId: value.proposalId, accept: value.accept };
-      break;
-    case 'play-knight': case 'play-road-building':
-      if (identifier(value.cardId)) return { type: value.type, cardId: value.cardId };
-      break;
-    case 'play-monopoly':
-      if (identifier(value.cardId) && RESOURCES.includes(value.resource as Resource)) return { type: value.type, cardId: value.cardId, resource: value.resource as Resource };
-      break;
-    case 'play-plenty': {
-      const resources = resourceBag(value.resources);
-      if (identifier(value.cardId) && resources) return { type: value.type, cardId: value.cardId, resources };
-      break;
-    }
-    case 'offer-trade': {
-      const give = resourceBag(value.give);
-      const want = resourceBag(value.want);
-      if (give && want) return { type: 'offer-trade', give, want };
-      break;
-    }
-    case 'accept-trade': case 'decline-trade': case 'cancel-trade':
-      if (identifier(value.offerId)) return { type: value.type, offerId: value.offerId };
-      break;
-    case 'place-settlement': case 'build-settlement': case 'build-city':
-      if (identifier(value.vertexId)) return { type: value.type, vertexId: value.vertexId };
-      break;
-    case 'place-road': case 'build-road':
-      if (identifier(value.edgeId)) return { type: value.type, edgeId: value.edgeId };
-      break;
-    case 'move-robber':
-      if (identifier(value.hexId)) return { type: value.type, hexId: value.hexId };
-      break;
-    case 'steal':
-      if (identifier(value.playerId)) return { type: value.type, playerId: value.playerId };
-      break;
-    case 'trade':
-      if (RESOURCES.includes(value.give as never) && RESOURCES.includes(value.receive as never)) {
-        return { type: value.type, give: value.give as Resource, receive: value.receive as Resource };
-      }
-      break;
-    case 'discard': {
-      const resources = resourceBag(value.resources);
-      if (resources) return { type: 'discard', resources };
-      break;
-    }
+  try {
+    return parseAction(value, { strict: false });
+  } catch (error) {
+    if (error instanceof GameError) throw new ProtocolError(error.message);
+    throw error;
   }
-  throw new ProtocolError('Invalid game action.');
+}
+
+/** Body of a password reset: username, recovery code, and the new password. */
+export function parseRecovery(body: unknown): { username: string; code: string; password: string } {
+  if (!record(body) || typeof body.code !== 'string' || body.code.length > 64)
+    throw new ProtocolError('Enter your recovery code.');
+  const { username, password } = parseCredentials(body);
+  return { username, code: body.code, password };
+}
+
+/** Body that only carries the current password (for account changes). */
+export function parsePassword(body: unknown): string {
+  if (!record(body) || typeof body.password !== 'string' || body.password.length > 128)
+    throw new ProtocolError('Enter your password.');
+  return body.password;
 }
 
 export function parseMessage(raw: string | ArrayBuffer): ClientMessage {
@@ -117,21 +87,42 @@ export function parseMessage(raw: string | ArrayBuffer): ClientMessage {
     throw new ProtocolError('Message is too large or is not text.');
   }
   let value: unknown;
-  try { value = JSON.parse(raw); } catch { throw new ProtocolError('Invalid JSON.'); }
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    throw new ProtocolError('Invalid JSON.');
+  }
   if (!record(value)) throw new ProtocolError('Invalid message.');
   if (value.type === 'auth' && typeof value.token === 'string' && /^[a-f0-9]{64}$/.test(value.token)) {
     return { type: 'auth', token: value.token };
   }
-  if (value.type === 'view-as' && identifier(value.playerId)) return { type: 'view-as', playerId: value.playerId };
-  if (value.type === 'action' && identifier(value.id) && Number.isSafeInteger(value.version) && (value.version as number) >= 0) {
+  if (value.type === 'view-as' && isIdentifier(value.playerId)) return { type: 'view-as', playerId: value.playerId };
+  if (
+    value.type === 'action' &&
+    isIdentifier(value.id) &&
+    Number.isSafeInteger(value.version) &&
+    (value.version as number) >= 0
+  ) {
     return { type: 'action', id: value.id, version: value.version as number, action: validateAction(value.action) };
   }
   throw new ProtocolError('Invalid message.');
 }
 
-export function originAllowed(origin: string | null, configuredOrigins: string, requestOrigin?: string, development = false): boolean {
+export function originAllowed(
+  origin: string | null,
+  configuredOrigins: string,
+  requestOrigin?: string,
+  development = false,
+): boolean {
   if (!origin || origin === 'null') return false;
-  if (configuredOrigins.split(',').map(item => item.trim()).filter(Boolean).includes(origin)) return true;
+  if (
+    configuredOrigins
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+      .includes(origin)
+  )
+    return true;
   if (requestOrigin && origin === requestOrigin) return true;
   if (!development) return false;
   try {
@@ -139,8 +130,14 @@ export function originAllowed(origin: string | null, configuredOrigins: string, 
     if (url.origin !== origin || url.protocol !== 'http:' || url.port !== '5173') return false;
     const parts = url.hostname.split('.').map(Number);
     if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-    return parts[0] === 10 || (parts[0] === 192 && parts[1] === 168) || (parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31);
-  } catch { return false; }
+    return (
+      parts[0] === 10 ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function readBody(request: Request): Promise<unknown> {
@@ -158,15 +155,26 @@ export async function readBody(request: Request): Promise<unknown> {
       const chunk = await reader.read();
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > MAX_BODY_BYTES) { await reader.cancel(); throw new ProtocolError('Request is too large.', 413); }
+      if (size > MAX_BODY_BYTES) {
+        await reader.cancel();
+        throw new ProtocolError('Request is too large.', 413);
+      }
       chunks.push(chunk.value);
     }
-  } finally { reader.releaseLock(); }
+  } finally {
+    reader.releaseLock();
+  }
   const bytes = new Uint8Array(size);
   let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-  try { return JSON.parse(new TextDecoder().decode(bytes)); }
-  catch { throw new ProtocolError('Invalid JSON.'); }
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new ProtocolError('Invalid JSON.');
+  }
 }
 
 export function secureRandom(): number {
@@ -183,13 +191,126 @@ export async function hashToken(token: string): Promise<string> {
 }
 
 export function roomCode(): string {
-  const words = ['ANCHOR', 'BADGER', 'BAMBOO', 'BEACON', 'BEAVER', 'BIRCH', 'BISON', 'BREEZE', 'BRIDGE', 'BRONZE', 'CANYON', 'CEDAR', 'CHERRY', 'CIPHER', 'CLOVER', 'COBALT', 'COMET', 'COPPER', 'CORAL', 'CRANE', 'CRICKET', 'CROWN', 'CRYSTAL', 'DAGGER', 'DOLPHIN', 'DRAGON', 'DRIFT', 'EAGLE', 'EMBER', 'FALCON', 'FERN', 'FJORD', 'FLINT', 'FOREST', 'FOX', 'FROST', 'GARNET', 'GLACIER', 'GROVE', 'HARBOR', 'HAWK', 'HERON', 'HICKORY', 'HORIZON', 'HUSKY', 'ISLAND', 'IVORY', 'JASPER', 'JUNIPER', 'KESTREL', 'KITE', 'LAGOON', 'LANTERN', 'LAUREL', 'LEOPARD', 'LINDEN', 'LOTUS', 'LYNX', 'MAPLE', 'MARBLE', 'MARLIN', 'MEADOW', 'MERLIN', 'MOOSE', 'MOSS', 'NOVA', 'OAK', 'OCEAN', 'ONYX', 'ORBIT', 'ORCHID', 'OSPREY', 'OTTER', 'PANDA', 'PEBBLE', 'PELICAN', 'PINE', 'PLUM', 'POPLAR', 'PUFFIN', 'QUARTZ', 'RAVEN', 'REEF', 'RIDGE', 'RIVER', 'ROBIN', 'ROWAN', 'RUBY', 'SAFFRON', 'SAILOR', 'SALMON', 'SEQUOIA', 'SHARK', 'SIERRA', 'SPARROW', 'SPRUCE', 'SUMMIT', 'THISTLE', 'TIGER', 'TIMBER', 'TOPAZ', 'TUNDRA', 'TURTLE', 'VALLEY', 'WALRUS', 'WILLOW', 'WOLF', 'WREN', 'YARROW', 'ZEPHYR'];
+  const words = [
+    'ANCHOR',
+    'BADGER',
+    'BAMBOO',
+    'BEACON',
+    'BEAVER',
+    'BIRCH',
+    'BISON',
+    'BREEZE',
+    'BRIDGE',
+    'BRONZE',
+    'CANYON',
+    'CEDAR',
+    'CHERRY',
+    'CIPHER',
+    'CLOVER',
+    'COBALT',
+    'COMET',
+    'COPPER',
+    'CORAL',
+    'CRANE',
+    'CRICKET',
+    'CROWN',
+    'CRYSTAL',
+    'DAGGER',
+    'DOLPHIN',
+    'DRAGON',
+    'DRIFT',
+    'EAGLE',
+    'EMBER',
+    'FALCON',
+    'FERN',
+    'FJORD',
+    'FLINT',
+    'FOREST',
+    'FOX',
+    'FROST',
+    'GARNET',
+    'GLACIER',
+    'GROVE',
+    'HARBOR',
+    'HAWK',
+    'HERON',
+    'HICKORY',
+    'HORIZON',
+    'HUSKY',
+    'ISLAND',
+    'IVORY',
+    'JASPER',
+    'JUNIPER',
+    'KESTREL',
+    'KITE',
+    'LAGOON',
+    'LANTERN',
+    'LAUREL',
+    'LEOPARD',
+    'LINDEN',
+    'LOTUS',
+    'LYNX',
+    'MAPLE',
+    'MARBLE',
+    'MARLIN',
+    'MEADOW',
+    'MERLIN',
+    'MOOSE',
+    'MOSS',
+    'NOVA',
+    'OAK',
+    'OCEAN',
+    'ONYX',
+    'ORBIT',
+    'ORCHID',
+    'OSPREY',
+    'OTTER',
+    'PANDA',
+    'PEBBLE',
+    'PELICAN',
+    'PINE',
+    'PLUM',
+    'POPLAR',
+    'PUFFIN',
+    'QUARTZ',
+    'RAVEN',
+    'REEF',
+    'RIDGE',
+    'RIVER',
+    'ROBIN',
+    'ROWAN',
+    'RUBY',
+    'SAFFRON',
+    'SAILOR',
+    'SALMON',
+    'SEQUOIA',
+    'SHARK',
+    'SIERRA',
+    'SPARROW',
+    'SPRUCE',
+    'SUMMIT',
+    'THISTLE',
+    'TIGER',
+    'TIMBER',
+    'TOPAZ',
+    'TUNDRA',
+    'TURTLE',
+    'VALLEY',
+    'WALRUS',
+    'WILLOW',
+    'WOLF',
+    'WREN',
+    'YARROW',
+    'ZEPHYR',
+  ];
   return `${words[randomIndex(words.length)]}${randomIndex(100).toString().padStart(2, '0')}`;
 }
 
 function randomIndex(length: number): number {
   const maximum = Math.floor(0x1_0000_0000 / length) * length;
   let value: number;
-  do { value = crypto.getRandomValues(new Uint32Array(1))[0]!; } while (value >= maximum);
+  do {
+    value = crypto.getRandomValues(new Uint32Array(1))[0]!;
+  } while (value >= maximum);
   return value % length;
 }

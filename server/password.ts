@@ -1,5 +1,5 @@
-import { scrypt, timingSafeEqual } from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { scrypt, timingSafeEqual } from 'node:crypto';
 
 // OWASP's memory/CPU balanced scrypt configuration: N=2^14, r=8, p=5.
 // The account actor serializes password work to keep memory usage bounded.

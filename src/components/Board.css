@@ -16,7 +16,7 @@
 }
 
 .board-token text {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 21px;
   font-weight: 700;
   letter-spacing: -1px;
@@ -30,7 +30,11 @@
 
 .board-target .board-target-mark,
 .board-hex-target polygon {
-  transition: stroke .16s ease, fill .16s ease, stroke-width .16s ease, opacity .16s ease;
+  transition:
+    stroke 0.16s ease,
+    fill 0.16s ease,
+    stroke-width 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .board-target .board-target-mark,
@@ -89,7 +93,7 @@
   box-shadow: 0 3px 10px #113d4130;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: .025em;
+  letter-spacing: 0.025em;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -104,11 +108,20 @@
 }
 
 @media (max-width: 560px) {
-  .board-svg { border-radius: 12px; }
-  .board-placement-hint { bottom: 9px; font-size: 10px; padding: 7px 10px; gap: 6px; }
+  .board-svg {
+    border-radius: 12px;
+  }
+  .board-placement-hint {
+    bottom: 9px;
+    font-size: 10px;
+    padding: 7px 10px;
+    gap: 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .board-target .board-target-mark,
-  .board-hex-target polygon { transition: none; }
+  .board-hex-target polygon {
+    transition: none;
+  }
 }

@@ -1,0 +1,10 @@
+{
+  "name": "Islanders",
+  "short_name": "Islanders",
+  "description": "A strategy board game for 2–4 players.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#e6f1f5",
+  "theme_color": "#087da4",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

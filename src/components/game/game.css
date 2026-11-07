@@ -1,0 +1,191 @@
+/* Styles for pieces split out of GameTable: end-of-game screen, counter-offers, recipients, dialogs. */
+
+.player-name-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player-name-text svg {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+/* End of game */
+/* While results show, the notice layer fills the board so the panel can center and scroll. */
+.board-notices:has(> .end-game) {
+  inset: 8px;
+  justify-content: center;
+}
+.end-game {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  width: min(520px, 100%);
+  max-height: 100%;
+  background: #fffdf4;
+  border: 1px solid #c9b98a;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #0f3a4a55;
+  overflow: hidden;
+}
+.end-game > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 10px;
+  color: #a7720a;
+}
+.end-game h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+}
+.end-game header p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.end-game-scroll {
+  overflow: auto;
+  padding: 0 18px 8px;
+  overscroll-behavior: contain;
+}
+.end-standings {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.end-standings th,
+.end-standings td {
+  padding: 5px 4px;
+  text-align: center;
+}
+.end-standings thead th {
+  font-size: 11px;
+  color: #52717d;
+  font-weight: 700;
+}
+.end-standings tbody th {
+  text-align: left;
+  width: 40%;
+}
+.end-standings tbody tr + tr {
+  border-top: 1px solid #e3e9e6;
+}
+.end-standings .points {
+  font-weight: 900;
+  font-size: 18px;
+}
+.end-game .compact-tracker {
+  margin-top: 10px;
+}
+.end-game > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 18px 16px;
+  border-top: 1px solid #ece4cc;
+}
+.end-game > footer .button {
+  min-height: 42px;
+  padding: 8px 14px;
+}
+.end-wait {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Counter-offers inside a trade notice */
+.offer-counter {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #c8d6d3;
+}
+.offer-counter .accept-trade {
+  margin-left: auto;
+}
+.trade-recipients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+.trade-recipients button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 10px 4px 6px;
+  border: 1px solid #b8cbd0;
+  border-radius: 99px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.55;
+}
+.trade-recipients button[aria-pressed="true"] {
+  opacity: 1;
+  border-color: var(--player-accent);
+  box-shadow: inset 0 0 0 1px var(--player-accent);
+}
+.recipient-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--player-color);
+  box-shadow: inset 0 0 0 1px #10202a33;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* The trade panel scrolls inside the board corner instead of growing past the board. */
+.board-corner {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.board-corner > .trade-composer {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+@media (max-height: 520px) {
+  .trade-recipients {
+    padding-bottom: 5px;
+    gap: 4px;
+  }
+  .trade-recipients button {
+    min-height: 28px;
+    padding: 2px 8px 2px 4px;
+    font-size: 12px;
+  }
+}
+/* Keep the send button visible while the panel scrolls. */
+.board-corner > .trade-composer > footer {
+  position: sticky;
+  bottom: -7px;
+  margin: 0 -7px -7px;
+  padding: 6px 7px 7px;
+  background: #fffdf0;
+  border-top: 1px solid #e3dcc2;
+  z-index: 1;
+}
+.trade-recipients button {
+  min-height: 30px;
+  padding: 2px 9px 2px 4px;
+  font-size: 12px;
+}

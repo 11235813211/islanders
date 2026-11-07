@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 import WebSocket from 'ws';
 import type { GameAction, Session } from '../shared/types';
-import { server, origin, PlayerConnection, join, verifyPrivateView } from './server-helpers';
+import { join, origin, PlayerConnection, postRoom, server, verifyPrivateView } from './server-helpers';
 
-test('real room server enforces authority, serializes concurrent moves, and reconnects without replaying actions', async ({ request }) => {
+test('real room server enforces authority, serializes concurrent moves, and reconnects without replaying actions', async ({
+  request,
+}) => {
   const hostSession = await join(request, 'Server host');
   const guestSession = await join(request, 'Server guest', hostSession.roomId);
   const connections: PlayerConnection[] = [];
@@ -41,27 +43,46 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     expect(forged.messages.some(message => message.type === 'state')).toBe(false);
     const unauthenticated = connect(hostSession);
     await unauthenticated.open();
-    unauthenticated.socket.send(JSON.stringify({ type: 'action', id: 'no-auth', version: host.state.version, action: { type: 'start' } }));
+    unauthenticated.socket.send(
+      JSON.stringify({ type: 'action', id: 'no-auth', version: host.state.version, action: { type: 'start' } }),
+    );
     await expect.poll(() => unauthenticated.closeCode).toBe(4401);
     expect(unauthenticated.messages.some(message => message.type === 'state')).toBe(false);
 
     const lobbyVersion = host.state.version;
     const forgedActorId = crypto.randomUUID();
-    guest.socket.send(JSON.stringify({ type: 'action', id: forgedActorId, version: lobbyVersion, playerId: hostSession.playerId, action: { type: 'start' } }));
+    guest.socket.send(
+      JSON.stringify({
+        type: 'action',
+        id: forgedActorId,
+        version: lobbyVersion,
+        playerId: hostSession.playerId,
+        action: { type: 'start' },
+      }),
+    );
     const deniedStart = await guest.waitMessage(message => message.type === 'error' && message.id === forgedActorId);
     expect(deniedStart.type === 'error' && deniedStart.message).toContain('host');
     expect(guest.state.version).toBe(lobbyVersion);
 
     const start = host.send({ type: 'start' });
-    const started = await host.waitMessage(message => message.type === 'state' && message.acknowledgedId === start.id, start.after);
+    const started = await host.waitMessage(
+      message => message.type === 'state' && message.acknowledgedId === start.id,
+      start.after,
+    );
     expect(started.type === 'state' && started.state.phase).toBe('setup-settlement');
     await guest.waitState(lobbyVersion + 1);
     const repeatedStart = host.send({ type: 'start' }, lobbyVersion, start.id);
-    const replay = await host.waitMessage(message => message.type === 'state' && message.acknowledgedId === start.id, repeatedStart.after);
+    const replay = await host.waitMessage(
+      message => message.type === 'state' && message.acknowledgedId === start.id,
+      repeatedStart.after,
+    );
     expect(replay.type === 'state' && replay.state.version).toBe(lobbyVersion + 1);
 
     const outOfTurn = guest.send({ type: 'place-settlement', vertexId: host.state.legal.settlements[0]! });
-    const rejected = await guest.waitMessage(message => message.type === 'error' && message.id === outOfTurn.id, outOfTurn.after);
+    const rejected = await guest.waitMessage(
+      message => message.type === 'error' && message.id === outOfTurn.id,
+      outOfTurn.after,
+    );
     expect(rejected.type === 'error' && rejected.message).toContain('turn');
 
     // Both commands arrive with the same version: exactly one can commit.
@@ -69,7 +90,10 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     const placement = { type: 'place-settlement', vertexId: host.state.legal.settlements[0]! } as const;
     const first = host.send(placement, setupVersion);
     const second = host.send(placement, setupVersion);
-    const accepted = await host.waitMessage(message => message.type === 'state' && message.acknowledgedId === first.id, first.after);
+    const accepted = await host.waitMessage(
+      message => message.type === 'state' && message.acknowledgedId === first.id,
+      first.after,
+    );
     const stale = await host.waitMessage(message => message.type === 'error' && message.id === second.id, second.after);
     expect(accepted.type === 'state' && accepted.state.version).toBe(setupVersion + 1);
     expect(stale.type === 'error' && stale.message).toContain('changed');
@@ -80,9 +104,10 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     while (host.state.phase.startsWith('setup-')) {
       const actor = host.state.activePlayerId === hostSession.playerId ? host : guest;
       const view = actor.state;
-      const action: GameAction = view.phase === 'setup-settlement'
-        ? { type: 'place-settlement', vertexId: view.legal.settlements[0]! }
-        : { type: 'place-road', edgeId: view.legal.roads[0]! };
+      const action: GameAction =
+        view.phase === 'setup-settlement'
+          ? { type: 'place-settlement', vertexId: view.legal.settlements[0]! }
+          : { type: 'place-road', edgeId: view.legal.roads[0]! };
       const next = await actor.action(action);
       await Promise.all([host.waitState(next.version), guest.waitState(next.version)]);
     }
@@ -95,7 +120,10 @@ test('real room server enforces authority, serializes concurrent moves, and reco
 
     const rollVersion = host.state.version;
     const roll = host.send({ type: 'roll' });
-    const rolled = await host.waitMessage(message => message.type === 'state' && message.acknowledgedId === roll.id, roll.after);
+    const rolled = await host.waitMessage(
+      message => message.type === 'state' && message.acknowledgedId === roll.id,
+      roll.after,
+    );
     if (rolled.type !== 'state') throw new Error('Expected dice result.');
     expect(rolled.state.dice?.every(die => Number.isInteger(die) && die >= 1 && die <= 6)).toBe(true);
     const dice = rolled.state.dice;
@@ -110,14 +138,20 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     expect(host.state.dice).toEqual(dice);
     verifyPrivateView(host.state, hostSession.playerId);
     const retriedRoll = host.send({ type: 'roll' }, rollVersion, roll.id);
-    const retried = await host.waitMessage(message => message.type === 'state' && message.acknowledgedId === roll.id, retriedRoll.after);
+    const retried = await host.waitMessage(
+      message => message.type === 'state' && message.acknowledgedId === roll.id,
+      retriedRoll.after,
+    );
     expect(retried.type === 'state' && retried.state.version).toBe(version);
     expect(retried.type === 'state' && retried.state.dice).toEqual(dice);
 
     // A real random seven must also be playable through to the next player's turn.
     if (host.state.phase === 'robber') {
-      const victimHex = host.state.board.hexes.find(hex => host.state.legal.robberHexes.includes(hex.id)
-        && hex.vertexIds.some(id => host.state.buildings[id]?.playerId === guestSession.playerId));
+      const victimHex = host.state.board.hexes.find(
+        hex =>
+          host.state.legal.robberHexes.includes(hex.id) &&
+          hex.vertexIds.some(id => host.state.buildings[id]?.playerId === guestSession.playerId),
+      );
       await host.action({ type: 'move-robber', hexId: victimHex?.id ?? host.state.legal.robberHexes[0]! });
     }
     if (host.state.phase === 'steal') await host.action({ type: 'steal', playerId: host.state.legal.stealTargets[0]! });
@@ -143,23 +177,40 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     expect(secondTab.socket.readyState).toBe(WebSocket.OPEN);
     expect(thirdTab.state.version).toBe(guestRoll.version);
 
-    const lateJoin = await request.post(`${server}/api/rooms/${hostSession.roomId}/join`, { headers: { Origin: origin }, data: { name: 'Late guest' } });
+    const lateJoin = await request.post(`${server}/api/rooms/${hostSession.roomId}/join`, {
+      headers: { Origin: origin },
+      data: { name: 'Late guest' },
+    });
     expect(lateJoin.status()).toBe(409);
-  } finally { connections.forEach(connection => connection.dispose()); }
+  } finally {
+    for (const connection of connections) connection.dispose();
+  }
 });
 
 test('HTTP boundary rejects foreign origins, invalid room names, and oversized input', async ({ request }) => {
   const health = await request.get(`${server}/api/health`);
   expect(health.ok()).toBe(true);
-  const foreign = await request.post(`${server}/api/rooms`, { headers: { Origin: 'https://untrusted.example' }, data: { name: 'No access' } });
+  const foreign = await request.post(`${server}/api/rooms`, {
+    headers: { Origin: 'https://untrusted.example' },
+    data: { name: 'No access' },
+  });
   expect(foreign.status()).toBe(403);
   const absent = await request.post(`${server}/api/rooms`, { data: { name: 'No origin' } });
   expect(absent.status()).toBe(403);
-  const badCode = await request.post(`${server}/api/rooms/not-a-code/join`, { headers: { Origin: origin }, data: { name: 'Player' } });
+  const badCode = await request.post(`${server}/api/rooms/not-a-code/join`, {
+    headers: { Origin: origin },
+    data: { name: 'Player' },
+  });
   expect(badCode.status()).toBe(404);
-  const large = await request.post(`${server}/api/rooms`, { headers: { Origin: origin }, data: { name: 'x'.repeat(3000) } });
+  const large = await postRoom(request, {
+    headers: { Origin: origin },
+    data: { name: 'x'.repeat(3000) },
+  });
   expect(large.status()).toBe(413);
-  const invalidName = await request.post(`${server}/api/rooms`, { headers: { Origin: origin }, data: { name: '<script>' } });
+  const invalidName = await postRoom(request, {
+    headers: { Origin: origin },
+    data: { name: '<script>' },
+  });
   expect(invalidName.status()).toBe(400);
 });
 
@@ -167,19 +218,25 @@ test('accounts reclaim seats across devices and logout revokes only the current 
   const username = `user_${Date.now().toString(36)}`;
   const password = 'Testing-only-password-492!';
   const credentials = { username, password };
-  const signup = await request.post(`${server}/api/accounts/register`, { headers: { Origin: origin }, data: credentials });
+  const signup = await request.post(`${server}/api/accounts/register`, {
+    headers: { Origin: origin },
+    data: credentials,
+  });
   expect(signup.status(), await signup.text()).toBe(201);
-  const first = await signup.json() as { username: string; token: string };
+  const first = (await signup.json()) as { username: string; token: string };
   const h1 = { Origin: origin, Authorization: `Bearer ${username}:${first.token}` };
-  const bad = await request.post(`${server}/api/accounts/login`, { headers: { Origin: origin }, data: { username, password: 'Wrong-password-123' } });
+  const bad = await request.post(`${server}/api/accounts/login`, {
+    headers: { Origin: origin },
+    data: { username, password: 'Wrong-password-123' },
+  });
   expect(bad.status()).toBe(401);
   const login = await request.post(`${server}/api/accounts/login`, { headers: { Origin: origin }, data: credentials });
   expect(login.status()).toBe(200);
-  const second = await login.json() as { token: string };
+  const second = (await login.json()) as { token: string };
   const h2 = { Origin: origin, Authorization: `Bearer ${username}:${second.token}` };
-  const created = await request.post(`${server}/api/rooms`, { headers: h1, data: { name: 'ignored', playtest: true } });
+  const created = await postRoom(request, { headers: h1, data: { name: 'ignored', playtest: true } });
   expect(created.status()).toBe(201);
-  const session1 = await created.json() as Session;
+  const session1 = (await created.json()) as Session;
   expect(session1.roomId).toMatch(/^[A-Z]{3,12}\d{2}$/);
   const one = new PlayerConnection(session1.roomId);
   const two = new PlayerConnection(session1.roomId);
@@ -190,13 +247,15 @@ test('accounts reclaim seats across devices and logout revokes only the current 
     await one.action({ type: 'start' });
     const resumed = await request.post(`${server}/api/rooms/${session1.roomId}/join`, { headers: h2, data: {} });
     expect(resumed.status()).toBe(200);
-    const session2 = await resumed.json() as Session;
+    const session2 = (await resumed.json()) as Session;
     expect(session2.playerId).toBe(session1.playerId);
     await two.authenticate(session2);
     expect(two.state.phase).toBe('setup-settlement');
     expect(two.state.players).toHaveLength(3);
     const me = await request.get(`${server}/api/accounts/me`, { headers: h2 });
-    expect((await me.json()).rooms).toContainEqual({ roomId: session1.roomId, playerId: session1.playerId });
+    expect((await me.json()).rooms).toContainEqual(
+      expect.objectContaining({ roomId: session1.roomId, playerId: session1.playerId }),
+    );
     const logout = await request.post(`${server}/api/accounts/logout`, { headers: h1, data: {} });
     expect(logout.ok()).toBe(true);
     await expect.poll(() => one.closeCode).toBe(4401);
@@ -206,17 +265,26 @@ test('accounts reclaim seats across devices and logout revokes only the current 
     expect(next.phase).toBe('setup-road');
     // The oldest of eight device logins must stop receiving private room updates.
     for (let device = 0; device < 8; device++) {
-      const additional = await request.post(`${server}/api/accounts/login`, { headers: { Origin: origin }, data: credentials });
+      const additional = await request.post(`${server}/api/accounts/login`, {
+        headers: { Origin: origin },
+        data: credentials,
+      });
       expect(additional.status()).toBe(200);
     }
     await expect.poll(() => two.closeCode).toBe(4401);
     expect((await request.get(`${server}/api/accounts/me`, { headers: h2 })).status()).toBe(401);
-  } finally { one.dispose(); two.dispose(); }
+  } finally {
+    one.dispose();
+    two.dispose();
+  }
 });
 
 test('solo rooms control all seats and auto-roll once on the durable deadline', async ({ request }) => {
-  const response = await request.post(`${server}/api/rooms`, { headers: { Origin: origin }, data: { name: 'Solo tester', playtest: true } });
-  const session = await response.json() as Session;
+  const response = await postRoom(request, {
+    headers: { Origin: origin },
+    data: { name: 'Solo tester', playtest: true },
+  });
+  const session = (await response.json()) as Session;
   const client = new PlayerConnection(session.roomId);
   try {
     await client.authenticate(session);
@@ -229,13 +297,20 @@ test('solo rooms control all seats and auto-roll once on the durable deadline', 
         await expect.poll(() => client.state.selfId).toBe(id);
       }
       const state = client.state;
-      await client.action(state.phase === 'setup-settlement' ? { type: 'place-settlement', vertexId: state.legal.settlements[0]! } : { type: 'place-road', edgeId: state.legal.roads[0]! });
+      await client.action(
+        state.phase === 'setup-settlement'
+          ? { type: 'place-settlement', vertexId: state.legal.settlements[0]! }
+          : { type: 'place-road', edgeId: state.legal.roads[0]! },
+      );
     }
     const version = client.state.version;
     expect(client.state.rollDeadline).not.toBeNull();
-    await expect.poll(() => client.state.phase, { timeout: 9000 }).not.toBe('roll');
+    // The 5s auto-roll alarm can run late on a loaded local wrangler; allow headroom.
+    await expect.poll(() => client.state.phase, { timeout: 20_000 }).not.toBe('roll');
     expect(client.state.version).toBe(version + 1);
     expect(Object.values(client.state.diceCounts).reduce((a, b) => a + b, 0)).toBe(1);
     expect(client.state.rollDeadline).toBeNull();
-  } finally { client.dispose(); }
+  } finally {
+    client.dispose();
+  }
 });
