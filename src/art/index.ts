@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import type { BaseTerrain, Terrain } from '../../shared/types';
 import type { SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
-import { art } from './v8';
+import { art } from './v10';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
