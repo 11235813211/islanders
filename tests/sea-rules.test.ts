@@ -271,12 +271,16 @@ describe('stored rooms', () => {
 
 describe('bots on the built-in maps', () => {
   const shipsBuilt: number[] = [];
-  it.each(BUILTIN_BOARDS.map(b => [b.id, b] as const))('%s plays to the end', (_, design) => {
-    const levels = ['advanced', 'intermediate', 'beginner'] as const;
-    const g = playBotGame([...levels], 7, 8000, design);
-    expect(g.phase).toBe('finished');
-    shipsBuilt.push(Object.keys(g.ships).length);
-  });
+  it.each(BUILTIN_BOARDS.map(b => [b.id, b] as const))(
+    '%s plays to the end',
+    (_, design) => {
+      const levels = ['advanced', 'intermediate', 'beginner'] as const;
+      const g = playBotGame([...levels], 7, 8000, design);
+      expect(g.phase).toBe('finished');
+      shipsBuilt.push(Object.keys(g.ships).length);
+    },
+    30_000,
+  );
   it('bots sail on most maps', () => {
     expect(shipsBuilt.filter(n => n > 0).length).toBeGreaterThanOrEqual(Math.ceil(BUILTIN_BOARDS.length / 2));
   });

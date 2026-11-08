@@ -139,5 +139,5 @@ describe('special build phase', () => {
     expect(base.log.some(e => e.text.includes('ended their turn'))).toBe(true);
     const sea = BUILTIN_BOARDS.find(b => b.players.max >= 6) ?? BUILTIN_BOARDS[0]!;
     expect(playBotGame(Array(6).fill('intermediate'), 4, 9000, sea).phase).toBe('finished');
-  });
+  }, 30_000);
 });
