@@ -4,16 +4,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PLAYER_COLORS } from '../shared/colors';
 import type { PieceStyle, BaseTerrain as Terrain } from '../shared/types';
 import type { ArtPack } from '../src/art/types';
-import { art as v5 } from '../src/art/v5';
 import { art as v6 } from '../src/art/v6';
+import { art as v7 } from '../src/art/v7';
 
 // Side-by-side piece art for choosing between versions: writes test-results/art-compare.png.
 // Add or remove packs here to compare others. Run: npx playwright test tests/art-compare.spec.ts
 const PACKS: [string, ArtPack, PieceStyle][] = [
-  ['v5 classic', v5, 'classic'],
   ['v6 classic', v6, 'classic'],
-  ['v5 mountain chalet', v5, 'chalet'],
+  ['v7 classic', v7, 'classic'],
   ['v6 mountain chalet', v6, 'chalet'],
+  ['v7 mountain chalet', v7, 'chalet'],
 ];
 const TERRAINS: Terrain[] = ['wood', 'wheat', 'sheep', 'ore', 'brick', 'desert', 'wood', 'wheat'];
 const CELL = 120;
@@ -56,8 +56,8 @@ function closeUp(pack: ArtPack, style: PieceStyle): ReactElement {
   const colors = [PLAYER_COLORS.red, PLAYER_COLORS.blue, PLAYER_COLORS.white];
   return h(
     'svg',
-    { xmlns: 'http://www.w3.org/2000/svg', viewBox: `0 -26 ${colors.length * 96} 46`, width: 8 * CELL * 2 },
-    h('rect', { x: 0, y: -26, width: colors.length * 96, height: 46, fill: '#9acb49' }),
+    { xmlns: 'http://www.w3.org/2000/svg', viewBox: `0 -36 ${colors.length * 96} 56`, width: 8 * CELL * 2 },
+    h('rect', { x: 0, y: -36, width: colors.length * 96, height: 56, fill: '#9acb49' }),
     ...colors.map((color, i) =>
       h(
         'g',

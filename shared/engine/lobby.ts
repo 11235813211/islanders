@@ -220,13 +220,15 @@ export const lobbyHandlers: Pick<
     player.color = action.color;
   },
 
-  start({ next, playerId }) {
+  /** The board is drawn here, so nobody sees the layout before the game begins. */
+  start({ next, playerId, random }) {
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'start the game');
     requireRule(
       next.players.length >= 2 && next.players.length <= MAX_PLAYERS,
       'Invite at least one friend before starting.',
     );
+    Object.assign(next, boardFor(next.design, next.settings.numberLayout, random));
     const ids = next.players.map(candidate => candidate.id);
     next.setupOrder = [...ids, ...[...ids].reverse()];
     next.phase = 'setup-settlement';

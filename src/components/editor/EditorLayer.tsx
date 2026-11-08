@@ -1,10 +1,11 @@
 import { hexCenter, hexCorner } from '../../../shared/board';
 import { type BoardDesign, type DesignHarbor, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
-import { takesNumber } from '../../../shared/maps/edit';
+import { closedTiles, takesNumber } from '../../../shared/maps/edit';
 import { Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
-import { ClosedMark, tileVariant } from '../BoardScene';
+import { tileVariant } from '../BoardScene';
+import IslandRims from '../IslandRims';
 import type { EditorSelection } from './EditorCanvas';
 
 /** A stable color per link letter, so linked tiles and harbors are easy to match by eye. */
@@ -57,25 +58,29 @@ function RandomHarbor({ at, corners }: ReturnType<typeof harborGeometry>) {
 }
 
 /**
- * The design as the editor shows it: real tile art, "?" for anything left random, link letters,
- * island markers, harbors, and starting pieces. Number tokens and harbors are clickable.
+ * A design as drawn before any game: real tile art, "?" for anything left random, harbors,
+ * starting pieces, and a rim around islands open to starting settlements. In the editor, number
+ * tokens and harbors are clickable and link letters and empty neighbor cells show; `readOnly`
+ * (map previews) leaves those out.
  */
 export default function EditorLayer({
   uid,
   design,
-  selection,
-  select,
-  stepNumber,
+  selection = null,
+  select = () => {},
+  stepNumber = () => {},
+  readOnly = false,
 }: {
   uid: string;
   design: BoardDesign;
-  selection: EditorSelection;
-  select: (selection: EditorSelection) => void;
-  stepNumber: (q: number, r: number, delta: 1 | -1) => void;
+  selection?: EditorSelection;
+  select?: (selection: EditorSelection) => void;
+  stepNumber?: (q: number, r: number, delta: 1 | -1) => void;
+  readOnly?: boolean;
 }) {
   const occupied = new Set(design.tiles.map(t => tileKey(t.q, t.r)));
   const ghosts = new Map<string, { q: number; r: number }>();
-  for (const tile of design.tiles)
+  for (const tile of readOnly ? [] : design.tiles)
     for (const key of neighborKeys(tile))
       if (!occupied.has(key)) {
         const [q, r] = key.split(',').map(Number) as [number, number];
@@ -88,6 +93,7 @@ export default function EditorLayer({
     return `translate(${c.x} ${c.y})`;
   };
   const selectedTile = selection?.kind === 'tile' ? selection : null;
+  const closed = closedTiles(design);
   return (
     <>
       {[...ghosts.values()].map(cell => (
@@ -108,15 +114,14 @@ export default function EditorLayer({
         <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
           <Tile uid={uid} terrain={tile.kind} />
           {tile.bonus && <SEA.BonusChip points={tile.bonus} />}
-          {tile.noSetup && <ClosedMark />}
-          {tile.link && <LinkBadge letter={tile.link} x={-25} y={27} />}
+          {tile.link && !readOnly && <LinkBadge letter={tile.link} x={-25} y={27} />}
           {design.robber?.q === tile.q && design.robber.r === tile.r && <Robber />}
           {takesNumber(tile.kind) && (
             // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
             <g
-              className="editor-token"
-              role="button"
-              tabIndex={-1}
+              className={readOnly ? undefined : 'editor-token'}
+              role={readOnly ? undefined : 'button'}
+              tabIndex={readOnly ? undefined : -1}
               aria-label={`Number ${tile.number ?? 'random'}. Click to raise, Shift-click to lower.`}
               onClick={event => stepNumber(tile.q, tile.r, event.shiftKey ? -1 : 1)}
               onContextMenu={event => {
@@ -146,6 +151,14 @@ export default function EditorLayer({
           )}
         </g>
       ))}
+      {design.tiles.some(t => t.kind === 'sea') && (
+        <IslandRims
+          tiles={design.tiles.map(t => {
+            const land = t.kind !== 'sea' && t.kind !== 'iceberg';
+            return { q: t.q, r: t.r, land, open: land && !closed.has(tileKey(t.q, t.r)) };
+          })}
+        />
+      )}
       {design.pirate && (
         <g transform={place(design.pirate)}>
           <SEA.Pirate />
@@ -162,9 +175,9 @@ export default function EditorLayer({
           // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
           <g
             key={`${harbor.q},${harbor.r},${harbor.side}`}
-            className={`editor-harbor${picked ? ' picked' : ''}`}
-            role="button"
-            tabIndex={-1}
+            className={readOnly ? undefined : `editor-harbor${picked ? ' picked' : ''}`}
+            role={readOnly ? undefined : 'button'}
+            tabIndex={readOnly ? undefined : -1}
             aria-label={`${harbor.kind} harbor`}
             onClick={() => select({ kind: 'harbor', q: harbor.q, r: harbor.r, side: harbor.side })}
             onKeyDown={() => {}}
@@ -174,7 +187,9 @@ export default function EditorLayer({
             ) : (
               <Harbor resource={harbor.kind} at={geometry.at} corners={geometry.corners} />
             )}
-            {harbor.link && <LinkBadge letter={harbor.link} x={geometry.at.x + 17} y={geometry.at.y - 22} />}
+            {harbor.link && !readOnly && (
+              <LinkBadge letter={harbor.link} x={geometry.at.x + 17} y={geometry.at.y - 22} />
+            )}
           </g>
         );
       })}

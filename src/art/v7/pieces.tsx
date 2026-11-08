@@ -57,19 +57,34 @@ const dark = (points: Decal['points']): Decal => ({ points, fill: 'line' });
 const sideWindow = (house: House, z: number, y: number, size = 2.4) =>
   dark(onRight(house, rect(z, y, z + size, y + size)));
 
-/** v4's pieces in 3D: a gabled house, and a tall hall beside a house for a city. */
+/**
+ * The classic pieces in 3D: a gabled house, and for a city one joined building, a tall hall with
+ * a lower wing. Both halves share the same depth, so walls and roofs run front to back together,
+ * and neither roof overhangs the joint. No chimneys.
+ */
 function classic(city: boolean): Solid[] {
   if (city) {
-    // Side by side with their fronts in line: a tall hall left, a longer, lower house right.
-    const hall = gabledHouse({ x: -6.3, z: 0, width: 9, depth: 9, wall: 12, rise: 6, overhang: 1, fascia: 1.3 });
-    const house = gabledHouse({
-      x: 5.8,
-      z: 1.5,
-      width: 10.5,
-      depth: 12,
+    const depth = 11;
+    const hall = gabledHouse({
+      x: -5,
+      z: 0,
+      width: 9,
+      depth,
+      wall: 12,
+      rise: 6,
+      overhang: 1,
+      overhangRight: 0,
+      fascia: 1.3,
+    });
+    const wing = gabledHouse({
+      x: 4.5,
+      z: 0,
+      width: 10,
+      depth,
       wall: 7.5,
-      rise: 5,
-      overhang: 1.1,
+      rise: 4.2,
+      overhang: 1,
+      overhangLeft: 0,
       fascia: 1.3,
     });
     const h = hall.spec.x;
@@ -82,14 +97,18 @@ function classic(city: boolean): Solid[] {
       dark(onFront(hall, arch(h - 1.9, h + 1.9, 0, 6.6))),
       dark(onFront(hall, arch(h - 1, h + 1, 8, 10.6))),
     );
-    house.front.decals.push(dark(onFront(house, arch(house.spec.x - 1.9, house.spec.x + 1.9, 0, 5.8))));
-    house.right.decals.push(sideWindow(house, 0.3, 2.8));
-    return [...hall.solids, ...house.solids, chimney(house, 7.6, -1.5, 2.4)];
+    const w = wing.spec.x;
+    wing.front.decals.push(
+      dark(onFront(wing, rect(w - 3.4, 2.8, w - 1.2, 5))),
+      dark(onFront(wing, rect(w + 1.2, 2.8, w + 3.4, 5))),
+    );
+    wing.right.decals.push(sideWindow(wing, -1.2, 2.8));
+    return [...hall.solids, ...wing.solids];
   }
   const house = gabledHouse({ x: 0, z: 0, width: 12, depth: 11, wall: 8.5, rise: 6.5, overhang: 1.2, fascia: 1.4 });
   house.front.decals.push(dark(onFront(house, arch(-2, 2, 0, 6.2))));
   house.right.decals.push(sideWindow(house, -1.6, 3));
-  return [...house.solids, chimney(house, 3, -1.5, 2.6)];
+  return house.solids;
 }
 
 /** A shuttered square window on the front wall, centered at x with its bottom at y. */
@@ -106,7 +125,7 @@ function shuttered(house: House, x: number, y: number, size = 2.4): Decal[] {
  * A mountain chalet: stone ground floor with the door, timber floors with shuttered windows,
  * a balcony sheltered by the eaves, and a timber-framed gable.
  */
-function chalet(house: House, floors = 1): Solid[] {
+function chalet(house: House, floors = 1, joined: { left?: boolean; right?: boolean } = {}): Solid[] {
   const { x0, x1, z0, z1, spec } = house;
   const stone = 4;
   const balconyTop = house.eave - 0.5;
@@ -165,8 +184,10 @@ function chalet(house: House, floors = 1): Solid[] {
     { points: onRight(house, rect(z0, 0, z1, stone)), fill: -0.12 },
     sideWindow(house, spec.z - 1.2, stone + (floorHeight - 2.4) / 2),
   );
-  const balcony = box(x0 - 0.9, x1 + 0.9, balconyBottom, balconyTop, z0 - 1.5, z0);
-  const posts = Array.from({ length: Math.floor((spec.width + 1.8) / 2.2) - 1 }, (_, i) => x0 - 0.9 + 2.2 * (i + 1));
+  // The balcony stops flush at a side joined to another building.
+  const [bx0, bx1] = [x0 - (joined.left ? 0 : 0.9), x1 + (joined.right ? 0 : 0.9)];
+  const balcony = box(bx0, bx1, balconyBottom, balconyTop, z0 - 1.5, z0);
+  const posts = Array.from({ length: Math.floor((bx1 - bx0) / 2.2) - 1 }, (_, i) => bx0 + 2.2 * (i + 1));
   balcony.front.decals.push(
     ...posts.map(px => ({
       points: [
@@ -181,22 +202,39 @@ function chalet(house: House, floors = 1): Solid[] {
 
 function chaletPiece(city: boolean): Solid[] {
   if (city) {
-    const hall = gabledHouse({ x: -6.8, z: 0, width: 12, depth: 13, wall: 17.5, rise: 5, overhang: 2.3, fascia: 1.8 });
+    // One joined chalet: a tall two-storey hall and a lower lodge, the same depth front to back.
+    const depth = 14;
+    const hall = gabledHouse({
+      x: -6.5,
+      z: 0,
+      width: 12,
+      depth,
+      wall: 17.5,
+      rise: 5,
+      overhang: 2.3,
+      overhangRight: 0,
+      fascia: 1.8,
+    });
     const lodge = gabledHouse({
-      x: 7.2,
-      z: 0.5,
-      width: 10.5,
-      depth: 14,
+      x: 5.75,
+      z: 0,
+      width: 12.5,
+      depth,
       wall: 11.5,
       rise: 4.4,
-      overhang: 2,
-      fascia: 1.6,
+      overhang: 2.3,
+      overhangLeft: 0,
+      fascia: 1.8,
     });
-    return [...chalet(hall, 2), chimney(hall, -3.8, -3, 2.4), ...chalet(lodge)];
+    return [...chalet(hall, 2, { right: true }), chimney(hall, -3.4, -3, 2.4), ...chalet(lodge, 1, { left: true })];
   }
   const house = gabledHouse({ x: 0, z: 0, width: 13, depth: 16, wall: 12.5, rise: 5.4, overhang: 2.5, fascia: 1.9 });
   return [...chalet(house), chimney(house, 3.2, -3, 2.4)];
 }
+
+/** Drawn sizes. A city is built from more of the model than a settlement, and is also drawn larger. */
+const SETTLEMENT_SCALE = 1.15;
+const CITY_SCALE = 1.32;
 
 /** A settlement or city in the room's piece style, standing on its corner of the board. */
 export function BuildingPiece({
@@ -211,7 +249,7 @@ export function BuildingPiece({
   const solids = style === 'chalet' ? chaletPiece(city) : classic(city);
   // The model's ground center sits just below the corner, so the piece stands on it.
   return (
-    <g className="board-piece" transform={`translate(0 7) scale(${city ? 1.2 : 1.15})`}>
+    <g className="board-piece" transform={`translate(0 7) scale(${city ? CITY_SCALE : SETTLEMENT_SCALE})`}>
       <Solids solids={solids} color={color} />
     </g>
   );

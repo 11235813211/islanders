@@ -1,13 +1,13 @@
-/* Board editor: library on the left, canvas in the middle, settings on the right.
-   Built for a desktop first; on a phone the two side panels open as drawers. */
+/* Board editor: the canvas, with settings on the right. Boards are browsed in the shared map
+   browser (maps.css). Built for a desktop first; on a phone the settings open as a drawer. */
 .board-editor {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-areas:
-    "bar bar bar"
-    "notice notice notice"
-    "library stage inspector";
+    "bar bar"
+    "notice notice"
+    "stage inspector";
   height: calc(100dvh - 72px);
   min-height: 520px;
   color: var(--ink);
@@ -15,8 +15,9 @@
 .editor-bar {
   grid-area: bar;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
+  gap: 8px 14px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
@@ -28,15 +29,15 @@
 }
 .editor-tools {
   display: flex;
+  flex-basis: 100%;
   align-items: center;
   gap: 3px;
-  margin: 0 auto;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
 }
-.editor-tools button {
+.editor-tools > button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -49,10 +50,10 @@
   font-weight: 750;
   cursor: pointer;
 }
-.editor-tools button:hover {
+.editor-tools > button:hover {
   background: #edf7fa;
 }
-.editor-tools button[aria-pressed="true"] {
+.editor-tools > button[aria-pressed="true"] {
   background: var(--cyan);
   color: #fff;
 }
@@ -65,13 +66,110 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
+}
+.board-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.board-fields .board-name {
+  width: 220px;
+  padding: 6px 9px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.board-fields label,
+.board-fields .board-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.board-fields select,
+.board-fields input[type="number"] {
+  padding: 5px 6px;
+  font-size: 14px;
+}
+.board-fields input[type="number"] {
+  width: 58px;
+}
+.brush-picker {
+  position: relative;
+  margin-left: 6px;
+}
+.brush-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.tile-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+.brush-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 76px);
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px #173e5030;
+}
+.brush-menu button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.brush-menu button:hover {
+  background: #edf7fa;
+}
+.brush-menu button[aria-checked="true"] {
+  border-color: var(--cyan);
+  background: #dff1f6;
+}
+.inspector-hint {
+  margin: 4px 0 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.editor-notice.floating {
+  position: fixed;
+  z-index: 70;
+  bottom: 14px;
+  left: 14px;
+  border-radius: 8px;
 }
 .editor-actions .button {
   padding: 8px 12px;
   font-size: 14px;
 }
 .editor-panels {
-  display: none;
+  display: none !important;
 }
 .editor-notice {
   grid-area: notice;
@@ -81,146 +179,6 @@
   color: #7a4b00;
   font-size: 14px;
   font-weight: 700;
-}
-
-/* Library */
-.editor-library {
-  grid-area: library;
-  overflow: auto;
-  padding: 12px;
-  border-right: 1px solid var(--line);
-  background: #f7f3e6;
-}
-.library-category {
-  margin-bottom: 14px;
-  padding: 6px;
-  border: 1px solid transparent;
-  border-left: 4px solid var(--category);
-  border-radius: 8px;
-  background: #fffdf6;
-}
-.library-category.drop-target {
-  border-color: var(--category);
-  background: color-mix(in srgb, var(--category) 10%, #fff);
-}
-.library-category header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-.category-color {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  cursor: pointer;
-}
-.category-color::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.category-color::-webkit-color-swatch {
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--line);
-}
-.category-name {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--category);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-}
-.category-name:hover,
-.category-name:focus {
-  border-color: var(--line);
-  background: #fff;
-}
-.library-category header .icon-button {
-  display: none;
-  width: 24px;
-  height: 24px;
-}
-/* Category controls appear on hover, so the name has the full width otherwise. */
-.library-category header:hover .icon-button,
-.library-category header:focus-within .icon-button {
-  display: inline-flex;
-}
-.library-category ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.library-board {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  border-radius: 7px;
-}
-.library-board.active {
-  background: #dff1f6;
-}
-.library-board.dragging {
-  opacity: 0.4;
-}
-.library-board .icon-button {
-  width: 26px;
-  height: 26px;
-  opacity: 0;
-}
-.library-board:hover .icon-button,
-.library-board .icon-button:focus-visible {
-  opacity: 1;
-}
-.library-open {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  padding: 5px;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  text-align: left;
-  cursor: grab;
-}
-.library-open .map-thumbnail {
-  width: 46px;
-  flex: 0 0 auto;
-  border-radius: 4px;
-}
-.library-open span {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.library-open strong {
-  overflow: hidden;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.library-open small {
-  color: var(--muted);
-  font-size: 12px;
-}
-.library-new {
-  display: flex;
-  gap: 10px;
-  padding: 4px 6px 2px;
-}
-.library-new .text-button {
-  font-size: 13px;
 }
 
 /* Canvas */
@@ -243,7 +201,10 @@
   cursor: crosshair;
 }
 .editor-canvas.tool-select {
-  cursor: default;
+  cursor: grab;
+}
+.editor-canvas.tool-select:active {
+  cursor: grabbing;
 }
 .editor-canvas > svg {
   display: block;
@@ -425,6 +386,7 @@
 }
 .kind-grid button {
   justify-content: flex-start;
+  padding: 3px 5px;
 }
 .kind-grid button[aria-pressed="true"],
 .number-grid button[aria-checked="true"],
@@ -531,8 +493,8 @@
 }
 
 /* Narrower screens: tool labels go, then the side panels become drawers. */
-@media (max-width: 1280px) {
-  .editor-tools button span {
+@media (max-width: 760px) {
+  .editor-tools > button span {
     display: none;
   }
 }
@@ -544,22 +506,21 @@
       "notice"
       "stage";
     height: calc(100dvh - 60px);
+    overflow: hidden;
   }
   .editor-bar {
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px 8px;
+    padding: 6px 8px;
   }
-  .editor-bar h1 {
+  .board-fields .board-name {
+    width: 150px;
+  }
+  .board-fields label span,
+  .board-fields .board-field span {
     display: none;
   }
   .editor-tools {
-    order: 3;
-    width: 100%;
-    margin: 0;
     overflow-x: auto;
-  }
-  .editor-actions {
-    margin-left: auto;
   }
   .editor-actions .button {
     padding: 8px 10px;
@@ -568,34 +529,33 @@
     display: none;
   }
   .editor-panels {
-    display: flex;
+    display: inline-flex !important;
+    margin-left: auto;
   }
-  /* Drawers share the canvas's grid cell, so they always sit below the toolbar however it wraps. */
-  .board-editor {
-    overflow: hidden;
-  }
-  .editor-library,
+  /* The settings drawer shares the canvas's grid cell, so it always sits below the toolbar. */
   .editor-inspector {
     grid-area: stage;
     z-index: 40;
+    justify-self: end;
     width: min(340px, 88vw);
     min-height: 0;
     box-shadow: 0 0 30px #0004;
+    transform: translateX(105%);
     transition: transform 0.2s ease;
   }
-  .editor-library {
-    justify-self: start;
-    transform: translateX(-105%);
-  }
-  .editor-inspector {
-    justify-self: end;
-    transform: translateX(105%);
-  }
-  .board-editor.show-library .editor-library,
   .board-editor.show-inspector .editor-inspector {
     transform: none;
   }
   .editor-hint {
     display: none;
   }
+  .brush-menu {
+    right: 0;
+    left: auto;
+    grid-template-columns: repeat(3, 76px);
+  }
+}
+.editor-token:focus,
+.editor-harbor:focus {
+  outline: none;
 }

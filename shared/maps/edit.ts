@@ -2,7 +2,7 @@ import { HEX_RADIUS } from '../board';
 import { isProducing } from '../seafaring';
 import { RESOURCES, type Resource, type Terrain } from '../types';
 import { balancedNumbers, neighborKeys } from './balance';
-import { buildBoard } from './generate';
+import { buildBoard, drawHarborKinds } from './generate';
 import { autoHarbors } from './harbors';
 import {
   BASE_POOL,
@@ -165,6 +165,15 @@ export function islandOf(design: BoardDesign, q: number, r: number): DesignTile[
   return [...found.values()];
 }
 
+/** Keys of every land tile on an island closed to setup settlements (one flagged tile closes its island). */
+export function closedTiles(design: BoardDesign): Set<string> {
+  const closed = new Set<string>();
+  for (const tile of design.tiles)
+    if (tile.noSetup && !closed.has(tileKey(tile.q, tile.r)))
+      for (const member of islandOf(design, tile.q, tile.r)) closed.add(tileKey(member.q, member.r));
+  return closed;
+}
+
 /** Open or close a whole island to setup settlements. */
 export function setIslandClosed(design: BoardDesign, q: number, r: number, closed: boolean): BoardDesign {
   const members = new Set(islandOf(design, q, r).map(t => tileKey(t.q, t.r)));
@@ -259,6 +268,27 @@ export function fillNumbers(design: BoardDesign, random: () => number = Math.ran
   return {
     ...design,
     tiles: design.tiles.map(t => (takesNumber(t.kind) ? { ...t, number: numbers.get(tileKey(t.q, t.r)) } : t)),
+  };
+}
+
+/** About one harbor per two land tiles, like the base game's 9 for 19. */
+export const harborTarget = (design: BoardDesign) =>
+  Math.max(3, Math.round(design.tiles.filter(t => isLand(t.kind)).length / 2.1));
+
+/** Add harbors spread around the coasts until the board has about its share (a new spread each call). */
+export function placeHarbors(design: BoardDesign, random: () => number = Math.random): BoardDesign {
+  const extra = autoHarbors(design.tiles, harborTarget(design) - design.harbors.length, design.harbors, random);
+  return { ...design, harbors: [...design.harbors, ...extra] };
+}
+
+/** Give every random harbor a kind from a balanced draw (fixed and excluded kinds respected). */
+export function fillHarbors(design: BoardDesign, random: () => number = Math.random): BoardDesign {
+  const kinds = drawHarborKinds(design, random);
+  return {
+    ...design,
+    harbors: design.harbors.map(h =>
+      h.kind === 'random' ? { ...h, kind: kinds.get(`${h.q},${h.r},${h.side}`) ?? 'random' } : h,
+    ),
   };
 }
 

@@ -129,6 +129,17 @@ function resolveHarbors(
   return resolved.map(h => ({ ...h, resource: h.resource ?? draw.pop() ?? 'any' }));
 }
 
+/** Harbor kinds a balanced draw gives this design's harbors (fixed ones kept), keyed by `q,r,side`. */
+export function drawHarborKinds(
+  design: BoardDesign,
+  random: () => number = Math.random,
+): Map<string, Resource | 'any'> {
+  const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
+  const unique = { ...design, tiles };
+  const { terrains, links } = resolveTerrains(unique, random);
+  return new Map(resolveHarbors(unique, terrains, links, random).map(h => [`${h.q},${h.r},${h.side}`, h.resource]));
+}
+
 /** Connected land tiles get the same island number (1, 2, …). */
 function markIslands(board: Board): void {
   const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));

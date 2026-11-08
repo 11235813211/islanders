@@ -1,14 +1,15 @@
-// Gold field: an ochre ridge with gold seams, a timbered mine, a cart of nuggets, and a few
-// small sparkles (they twinkle slowly; see .gold-sparkle in Board.css).
+// Gold field: grey-brown rocky hills with a timbered mine and a cart. The gold is only an accent:
+// thin seams in the rock, a few nuggets, and three small sparkles (they twinkle slowly; see
+// .gold-sparkle in Board.css).
 
 /** Tweak here: ground, ridge faces, rock lines, gold, and the mine's timber. */
 export const GOLD = {
-  base: '#d4a64d',
-  ridge: '#b7843f',
-  ridgeLight: '#e2bd6c',
-  near: '#c8984a',
-  nearLight: '#dcb062',
-  rock: '#8b622f',
+  base: '#8f8270',
+  ridge: '#6f6455',
+  ridgeLight: '#a5998a',
+  near: '#857865',
+  nearLight: '#9d917f',
+  rock: '#4f463b',
   seam: '#ffe27a',
   nugget: '#f4c430',
   nuggetLight: '#fff0a1',
@@ -20,11 +21,9 @@ export const GOLD = {
 
 /** Where sparkles sit (clear of the number token in the middle). */
 const SPARKLES: [number, number, number][] = [
-  [-29, -29, 1],
-  [33, -4, 0.8],
-  [11, -41, 0.7],
-  [-38, 14, 0.75],
-  [-12, 42, 0.85],
+  [-29, -27, 0.8],
+  [33, -4, 0.65],
+  [-14, 42, 0.7],
 ];
 
 function Sparkle({ x, y, scale, index }: { x: number; y: number; scale: number; index: number }) {
@@ -56,10 +55,10 @@ export function GoldTile() {
       />
       {/* Seams of gold in the rock */}
       <path
-        d="m-45-13 5 3 4-4 5 5m26-24 4 5 5-3 3 6m-49 25 4-2 4 3"
+        d="m-45-13 5 3 4-4 5 5m26-24 4 5 5-3 3 6"
         fill="none"
         stroke={GOLD.seam}
-        strokeWidth="1.7"
+        strokeWidth="1.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -83,15 +82,15 @@ export function GoldTile() {
         <circle cx="-4" cy="5.5" r="2.2" fill={GOLD.timberDark} />
         <circle cx="4" cy="5.5" r="2.2" fill={GOLD.timberDark} />
       </g>
-      {/* Nuggets on the ground */}
-      <g fill={GOLD.nugget}>
-        <path d="m-30 38 3-3 4 1 1 3-4 2Z" />
-        <path d="m24 40 2-2 3 1v3h-3Z" />
-        <path d="m-46 28 2-2 3 1-1 3Z" />
+      {/* Rocks, and two nuggets among them */}
+      <g fill={GOLD.rock} opacity=".75">
+        <path d="m-38 40 4-4 6 1 1 4-6 2Z" />
+        <path d="m18 44 3-3 5 1v4h-5Z" />
+        <path d="m-48 22 3-3 4 1-1 4Z" />
       </g>
-      <g fill={GOLD.nuggetLight}>
-        <circle cx="-27" cy="36.5" r=".9" />
-        <circle cx="26" cy="39.5" r=".7" />
+      <g fill={GOLD.nugget}>
+        <path d="m-30 38 2-2 3 1 0 2-3 1Z" />
+        <path d="m26 40 2-2 2 1v2h-2Z" />
       </g>
       {SPARKLES.map(([x, y, scale], index) => (
         <Sparkle key={index} x={x} y={y} scale={scale} index={index} />

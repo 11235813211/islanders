@@ -32,9 +32,15 @@ export function coastEdges(tiles: DesignTile[]): (DesignHarbor & { x: number; y:
 
 /**
  * Add up to `count` random-kind harbors spread around the coasts: each new one goes on the
- * coastal edge farthest from every harbor already placed. Deterministic for a given board.
+ * coastal edge farthest from every harbor already placed. Without `random` the result is fixed for
+ * a board (the built-in maps); with it, the first harbor's spot varies so each call spreads differently.
  */
-export function autoHarbors(tiles: DesignTile[], count: number, existing: DesignHarbor[] = []): DesignHarbor[] {
+export function autoHarbors(
+  tiles: DesignTile[],
+  count: number,
+  existing: DesignHarbor[] = [],
+  random?: () => number,
+): DesignHarbor[] {
   const coast = coastEdges(tiles);
   const midpoint = (h: DesignHarbor) => {
     const a = hexCenter(h.q, h.r);
@@ -44,16 +50,22 @@ export function autoHarbors(tiles: DesignTile[], count: number, existing: Design
   };
   const placed = existing.map(midpoint);
   const added: DesignHarbor[] = [];
+  if (random && !placed.length && coast.length && count > 0) {
+    const { x, y, ...first } = coast[Math.floor(random() * coast.length)]!;
+    added.push(first);
+    placed.push({ x, y });
+  }
   const cx = coast.reduce((n, e) => n + e.x, 0) / Math.max(1, coast.length);
   const cy = coast.reduce((n, e) => n + e.y, 0) / Math.max(1, coast.length);
-  for (let i = 0; i < count; i++) {
+  for (let i = added.length; i < count; i++) {
     let best: { edge: (typeof coast)[number]; score: number } | null = null;
     for (const edge of coast) {
       const nearest = placed.length
         ? Math.min(...placed.map(p => Math.hypot(p.x - edge.x, p.y - edge.y)))
         : Math.hypot(edge.x - cx, edge.y - cy);
       if (placed.length && nearest < MIN_SPACING) continue;
-      if (!best || nearest > best.score + 1e-6) best = { edge, score: nearest };
+      const score = nearest + (random ? random() * 30 : 0);
+      if (!best || score > best.score + 1e-6) best = { edge, score };
     }
     if (!best) break;
     const { x, y, ...harbor } = best.edge;

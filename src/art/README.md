@@ -7,7 +7,8 @@ import from `src/art` and never draw art themselves.
   chimney, one outline tone, no shadow); `v5/` adds a mountain chalet style (room setting
   `pieceStyle`). `v6/` models settlements and cities in 3D and draws them in perspective
   (`projection.ts` is the camera, `solids.tsx` the shapes, `pieces.tsx` the pieces); roads are flat.
-  `v7/` adds sea maps in `v7/sea/`: one file per tile (ocean, land, gold, jungle, volcano, iceberg) with
+  `v7/` drops the classic chimneys, makes each city one joined building whose halves share a depth,
+  draws cities larger next to settlements, and adds sea maps in `v7/sea/`: one file per tile (ocean, land, gold, jungle, volcano, iceberg) with
   its colors at the top, plus ships, the pirate, and markers. Versions before v7 borrow v7's sea art.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
 - Compare piece art side by side: `npx playwright test tests/art-compare.spec.ts` writes

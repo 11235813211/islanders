@@ -95,7 +95,14 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   const pool: BoardDesign['pool'] = {};
   if (!record(value.pool)) fail('Invalid terrain mix.');
   for (const [kind, weight] of Object.entries(value.pool as Record<string, unknown>)) {
-    if (!FILL_KINDS.includes(kind as FillKind) || !int(weight, 0, 20)) fail('Terrain mix values are 0–20.');
+    // Shares may use one decimal place (the editor steps by 0.1).
+    const tenths = typeof weight === 'number' ? weight * 10 : Number.NaN;
+    if (
+      !FILL_KINDS.includes(kind as FillKind) ||
+      !(tenths >= 0 && tenths <= 200) ||
+      Math.abs(tenths - Math.round(tenths)) > 1e-6
+    )
+      fail('Terrain mix values are 0–20, in steps of 0.1.');
     if ((weight as number) > 0) pool[kind as FillKind] = weight as number;
   }
   const exclude = value.harborExclude;

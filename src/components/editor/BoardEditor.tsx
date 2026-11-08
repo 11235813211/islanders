@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye, FlaskConical, Library, Redo2, Save, SlidersHorizontal, Undo2, X } from 'lucide-react';
+import { Eye, FlaskConical, LayoutGrid, Redo2, Save, SlidersHorizontal, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
 import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
@@ -6,17 +6,20 @@ import type { AccountSession } from '../../../shared/types';
 import { publishLibrary, useBoardLibrary } from '../../hooks/useBoardLibrary';
 import { useHistory } from '../../hooks/useHistory';
 import { deleteBoard, saveBoard, saveLayout } from '../../lib/boardsApi';
-import { MapPreview } from '../maps/MapPicker';
-import BoardSettings from './BoardSettings';
+import MapBrowser from '../maps/MapBrowser';
+import MapPreview from '../maps/MapPreview';
+import BoardFields from './BoardFields';
+import BoardSettings, { type Refill } from './BoardSettings';
+import BrushPicker from './BrushPicker';
 import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
-import EditorLibrary from './EditorLibrary';
-import Inspector, { KIND_LABELS, KIND_ORDER } from './Inspector';
-import { freshId, TOOLS, typing } from './tools';
+import Inspector from './Inspector';
+import { freshId, KIND_LABELS, TOOLS, typing } from './tools';
 import './editor.css';
 
 /**
- * Board editor for admins: a library of boards in categories on the left, the board on a canvas
- * in the middle, and settings for the board or the selected tile on the right.
+ * Board editor for admins. It opens on the board browser (the same one the lobby uses), where
+ * boards and categories are arranged; opening a board shows it on a canvas, with the selected
+ * tile and the random fill on the right.
  */
 export default function BoardEditor({
   account,
@@ -28,6 +31,9 @@ export default function BoardEditor({
   playtest: (mapId: string) => void;
 }) {
   const { library: served, error: loadError } = useBoardLibrary();
+  const [browsing, setBrowsing] = useState(true);
+  /** The last fill pressed: pressing it again draws again from the same starting design. */
+  const lastFill = useRef<{ key: string; base: BoardDesign; result: BoardDesign } | null>(null);
   const [pending, setPending] = useState<BoardLibrary | null>(null);
   const library = pending ?? served;
   const history = useHistory<BoardDesign | null>(null);
@@ -38,7 +44,7 @@ export default function BoardEditor({
   const [brush, setBrush] = useState<DesignKind>('gold');
   const [message, setMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
-  const [panel, setPanel] = useState<'library' | 'inspector' | null>(null);
+  const [panel, setPanel] = useState<'inspector' | null>(null);
   const [busy, setBusy] = useState(false);
   const dirty = !!design && JSON.stringify(design) !== saved.current;
   const edit = useCallback(
@@ -49,13 +55,19 @@ export default function BoardEditor({
   const load = (next: BoardDesign, savedAlready: boolean) => {
     history.reset(structuredClone(next));
     saved.current = savedAlready ? JSON.stringify(next) : '';
+    lastFill.current = null;
     select(null);
     setPanel(null);
+    setBrowsing(false);
   };
-  // Open the first board once the library arrives.
-  useEffect(() => {
-    if (!design && served?.boards[0]) load(served.boards[0], true);
-  });
+  const refill: Refill = (key, fill) => {
+    if (!design) return;
+    const last = lastFill.current;
+    const base = last && last.key === key && last.result === design ? last.base : design;
+    const result = fill(base, Math.random);
+    lastFill.current = { key, base, result };
+    history.set(() => result);
+  };
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(() => setMessage(null), 4000);
@@ -100,7 +112,9 @@ export default function BoardEditor({
   const leaveUnsaved = () => !dirty || window.confirm('Discard unsaved changes to this board?');
   function open(id: string) {
     const board = library?.boards.find(b => b.id === id);
-    if (board && board.id !== design?.id && leaveUnsaved()) load(board, true);
+    if (!board) return;
+    if (board.id === design?.id) setBrowsing(false);
+    else if (leaveUnsaved()) load(board, true);
   }
   async function create(kind: 'blank' | 'base', categoryId: string, from?: BoardDesign) {
     if (!library || !leaveUnsaved()) return;
@@ -118,8 +132,8 @@ export default function BoardEditor({
       const next = { ...library, boards: library.boards.filter(b => b.id !== id) };
       publishLibrary(next);
       if (design?.id === id) {
-        history.reset(next.boards[0] ? structuredClone(next.boards[0]) : null);
-        saved.current = next.boards[0] ? JSON.stringify(next.boards[0]) : '';
+        history.reset(null);
+        saved.current = '';
       }
     }
   }
@@ -138,7 +152,7 @@ export default function BoardEditor({
         void save();
         return;
       }
-      if (typing(event.target)) return;
+      if (typing(event.target) || browsing) return;
       if (mod && event.key.toLowerCase() === 'z') {
         event.preventDefault();
         if (event.shiftKey) history.redo();
@@ -180,35 +194,38 @@ export default function BoardEditor({
   });
 
   const active = TOOLS.find(t => t.tool === tool)!;
+  if (browsing || !design)
+    return (
+      <>
+        <MapBrowser
+          library={library}
+          error={loadError}
+          players={4}
+          close={() => (design ? setBrowsing(false) : close())}
+          closeLabel={design ? 'Back to the board' : 'Close board editor'}
+          editing={{
+            open,
+            create: (kind, categoryId) => void create(kind, categoryId),
+            duplicate: id => {
+              const board = library?.boards.find(b => b.id === id);
+              if (board) void create('blank', board.categoryId, board);
+            },
+            remove: id => void remove(id),
+            changeLayout: next => void changeLayout(next),
+          }}
+        />
+        {!account && <p className="editor-notice floating">Sign in to save boards.</p>}
+        {message && <Toast message={message} dismiss={() => setMessage(null)} />}
+      </>
+    );
   return (
     <main className={`board-editor${panel ? ` show-${panel}` : ''}`}>
       <header className="editor-bar">
-        <button type="button" className="text-button" aria-label="Home" onClick={() => leaveUnsaved() && close()}>
-          <ArrowLeft size={18} />
-          <span className="editor-label">Home</span>
+        <button type="button" className="text-button" aria-label="All boards" onClick={() => setBrowsing(true)}>
+          <LayoutGrid size={18} />
+          <span className="editor-label">All boards</span>
         </button>
-        <h1>Board editor</h1>
-        <div className="editor-tools" role="toolbar" aria-label="Tools">
-          {TOOLS.map(t => (
-            <button
-              key={t.tool}
-              type="button"
-              aria-pressed={tool === t.tool}
-              title={`${t.hint} (${t.key.toUpperCase()})`}
-              onClick={() => setTool(t.tool)}
-            >
-              {t.icon}
-              <span>{t.label}</span>
-            </button>
-          ))}
-          <select aria-label="Brush terrain" value={brush} onChange={e => setBrush(e.target.value as DesignKind)}>
-            {KIND_ORDER.map(kind => (
-              <option key={kind} value={kind}>
-                Brush: {KIND_LABELS[kind]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {library && <BoardFields design={design} categories={library.categories} edit={edit} />}
         <div className="editor-actions">
           <button
             type="button"
@@ -232,7 +249,7 @@ export default function BoardEditor({
             type="button"
             className="button secondary"
             aria-label="Preview"
-            disabled={!design}
+            title="Draw a sample game board from this design"
             onClick={() => setPreview(true)}
           >
             <Eye size={17} />
@@ -241,11 +258,11 @@ export default function BoardEditor({
           <button
             type="button"
             className="button secondary"
-            disabled={!design || busy || !account}
+            disabled={busy || !account}
             title={account ? 'Save, then open a solo test room on this board' : 'Sign in to play test'}
             aria-label="Play test"
             onClick={async () => {
-              if (design && (!dirty || (await save()))) playtest(design.id);
+              if (!dirty || (await save())) playtest(design.id);
             }}
           >
             <FlaskConical size={17} />
@@ -254,7 +271,7 @@ export default function BoardEditor({
           <button
             type="button"
             className="button primary"
-            disabled={!design || busy || !account || !dirty}
+            disabled={busy || !account || !dirty}
             title={account ? 'Save (Ctrl/⌘ S)' : 'Sign in to save boards'}
             aria-label={dirty ? 'Save' : 'Saved'}
             onClick={() => void save()}
@@ -263,18 +280,23 @@ export default function BoardEditor({
             <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
           </button>
         </div>
-        <div className="editor-panels">
+        <div className="editor-tools" role="toolbar" aria-label="Tools">
+          {TOOLS.map(t => (
+            <button
+              key={t.tool}
+              type="button"
+              aria-pressed={tool === t.tool}
+              title={`${t.hint} (${t.key.toUpperCase()})`}
+              onClick={() => setTool(t.tool)}
+            >
+              {t.icon}
+              <span>{t.label}</span>
+            </button>
+          ))}
+          <BrushPicker brush={brush} setBrush={setBrush} />
           <button
             type="button"
-            className="icon-button"
-            aria-label="Show library"
-            onClick={() => setPanel(p => (p === 'library' ? null : 'library'))}
-          >
-            <Library size={19} />
-          </button>
-          <button
-            type="button"
-            className="icon-button"
+            className="icon-button editor-panels"
             aria-label="Show settings"
             onClick={() => setPanel(p => (p === 'inspector' ? null : 'inspector'))}
           >
@@ -283,64 +305,30 @@ export default function BoardEditor({
         </div>
       </header>
       {!account && <p className="editor-notice">Sign in to save boards. You can still draw and preview.</p>}
-      {library ? (
-        <EditorLibrary
-          library={library}
-          activeId={design?.id ?? null}
-          open={open}
-          create={(kind, categoryId) => void create(kind, categoryId)}
-          duplicate={id => {
-            const board = library.boards.find(b => b.id === id);
-            if (board) void create('blank', board.categoryId, board);
-          }}
-          remove={id => void remove(id)}
-          changeLayout={next => void changeLayout(next)}
-        />
-      ) : (
-        <nav className="editor-library">
-          <p className="muted">{loadError ?? 'Loading boards…'}</p>
-        </nav>
-      )}
       <section className="editor-stage">
-        {design ? (
-          <EditorCanvas
-            design={design}
-            selection={selection}
-            select={select}
-            tool={tool}
-            brush={brush}
-            edit={edit}
-            fitKey={design.id}
-          />
-        ) : (
-          <p className="muted editor-empty">Create a board from the library.</p>
-        )}
+        <EditorCanvas
+          design={design}
+          selection={selection}
+          select={select}
+          tool={tool}
+          brush={brush}
+          edit={edit}
+          fitKey={design.id}
+        />
         <p className="editor-hint">
-          <strong>{active.label}:</strong> {active.hint}. Shift-drag land · Ctrl/⌘-drag{' '}
-          {KIND_LABELS[brush].toLowerCase()} · Alt-drag delete · Click a number to raise it, Shift-click to lower ·
-          Scroll to pan, Ctrl/⌘-scroll to zoom
+          <strong>{active.label}:</strong> {active.hint}. Space-drag sea · Shift-drag land · Ctrl/⌘-drag{' '}
+          {KIND_LABELS[brush].toLowerCase()} · Alt-drag delete · Click a number to raise it, Shift-click to lower
         </p>
       </section>
       <aside className="editor-inspector" aria-label="Settings">
-        {design && library && (
-          <>
-            <Inspector design={design} selection={selection} select={select} edit={edit} />
-            <BoardSettings design={design} categories={library.categories} edit={edit} />
-          </>
-        )}
+        <Inspector design={design} selection={selection} select={select} edit={edit} />
+        <BoardSettings design={design} edit={edit} refill={refill} />
       </aside>
-      {message && (
-        <div className="toast toast-info" role="status">
-          <span>{message}</span>
-          <button type="button" className="icon-button" aria-label="Dismiss message" onClick={() => setMessage(null)}>
-            <X />
-          </button>
-        </div>
-      )}
-      {preview && design && (
+      {message && <Toast message={message} dismiss={() => setMessage(null)} />}
+      {preview && (
         <div className="map-picker" role="dialog" aria-modal="true" aria-label="Preview">
           <header className="map-picker-header">
-            <h2>Preview: {design.name}</h2>
+            <h2>Sample draw: {design.name}</h2>
             <button type="button" className="icon-button" aria-label="Close preview" onClick={() => setPreview(false)}>
               <X />
             </button>
@@ -349,5 +337,16 @@ export default function BoardEditor({
         </div>
       )}
     </main>
+  );
+}
+
+function Toast({ message, dismiss }: { message: string; dismiss: () => void }) {
+  return (
+    <div className="toast toast-info" role="status">
+      <span>{message}</span>
+      <button type="button" className="icon-button" aria-label="Dismiss message" onClick={dismiss}>
+        <X />
+      </button>
+    </div>
   );
 }

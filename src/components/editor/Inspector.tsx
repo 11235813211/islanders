@@ -14,43 +14,14 @@ import {
 import { RESOURCES, type Resource } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import { RESOURCE_LABELS } from '../ResourceHand';
+import { TileIcon } from './BrushPicker';
 import type { EditorSelection } from './EditorCanvas';
 import { linkColor } from './EditorLayer';
+import { KIND_LABELS, KIND_ORDER } from './tools';
 
-type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
-
-/** Terrains in the order the picker shows them. `land` means "random" when the game is set up. */
-export const KIND_ORDER: DesignKind[] = [
-  'land',
-  'wood',
-  'brick',
-  'sheep',
-  'wheat',
-  'ore',
-  'desert',
-  'gold',
-  'jungle',
-  'volcano',
-  'sea',
-  'iceberg',
-];
 const NUMBERS = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
 
-/** Short names for the terrain picker (the full names are tooltips). */
-export const KIND_LABELS: Record<DesignKind, string> = {
-  land: 'Random land',
-  wood: 'Forest',
-  brick: 'Hills',
-  sheep: 'Pasture',
-  wheat: 'Fields',
-  ore: 'Mountains',
-  desert: 'Desert',
-  gold: 'Gold',
-  jungle: 'Jungle',
-  volcano: 'Volcano',
-  sea: 'Sea',
-  iceberg: 'Iceberg',
-};
+type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
 export function KindSwatch({ kind }: { kind: DesignKind }) {
   return <span className="kind-swatch" style={{ background: TERRAIN[kind].color }} aria-hidden="true" />;
@@ -119,7 +90,7 @@ function TilePanel({
   return (
     <section className="inspector-section" aria-label="Selected tile">
       <h3>
-        <KindSwatch kind={tile.kind} /> {KIND_LABELS[tile.kind]}
+        <TileIcon kind={tile.kind} size={30} /> {KIND_LABELS[tile.kind]}
       </h3>
       <Field label="Terrain">
         <div className="kind-grid">
@@ -131,7 +102,7 @@ function TilePanel({
               title={TERRAIN[kind].name}
               onClick={() => edit(d => paint(d, [{ q, r }], kind))}
             >
-              <KindSwatch kind={kind} />
+              <TileIcon kind={kind} size={30} />
               {KIND_LABELS[kind]}
             </button>
           ))}

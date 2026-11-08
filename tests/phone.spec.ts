@@ -51,7 +51,7 @@ test('the map picker and a map’s large view fit a phone', async ({ page }) => 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/phone-map-picker.png' });
-  await picker.getByRole('button', { name: /^Small Isles/ }).tap();
+  await picker.getByRole('button', { name: 'View Small Isles' }).tap();
   await expect(picker.getByRole('img', { name: 'Small Isles map' })).toBeVisible();
   await picker.getByRole('button', { name: 'Use this map' }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'test-results/phone-map-detail.png' });
@@ -59,15 +59,16 @@ test('the map picker and a map’s large view fit a phone', async ({ page }) => 
   await expect(page.locator('.mode-card h3')).toHaveText('Small Isles');
 });
 
-test('the board editor fits a phone, with its library and settings as drawers', async ({ page }) => {
+test('the board editor fits a phone, with its settings as a drawer', async ({ page }) => {
   // The #editor address opens the editor directly (local dev allows editing for everyone).
   await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).tap();
   await expect(page.getByRole('img', { name: 'Board being edited' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/phone-editor.png' });
-  await page.getByRole('button', { name: 'Show library' }).tap();
-  await expect(page.getByRole('navigation', { name: 'Board library' }).getByText('Outer Isles')).toBeInViewport();
   await page.getByRole('button', { name: 'Show settings' }).tap();
-  await expect(page.getByLabel('Name', { exact: true })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Random fill' })).toBeInViewport();
+  await page.getByRole('button', { name: 'Fill land' }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Fill land' })).toBeInViewport();
 });

@@ -7,18 +7,23 @@ import { ArtDefs, SEA } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import EditorLayer from './EditorLayer';
 
-export type Tool = 'select' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
+export type Tool = 'select' | 'sea' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
 export type EditorSelection =
   | { kind: 'tile'; q: number; r: number }
   | { kind: 'harbor'; q: number; r: number; side: number }
   | null;
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
-/** The tool a press uses: modifier keys override the toolbar (Alt erases, Shift paints land, Ctrl/⌘ paints the brush). */
+/**
+ * The tool a press uses: held keys override the toolbar (Space paints sea, Alt erases, Shift paints
+ * land, Ctrl/⌘ paints the brush).
+ */
 function pressTool(
   event: { altKey: boolean; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
   tool: Tool,
+  space: boolean,
 ): Tool {
+  if (space) return 'sea';
   if (event.altKey) return 'erase';
   if (event.shiftKey) return 'land';
   if (event.ctrlKey || event.metaKey) return 'brush';
@@ -43,11 +48,15 @@ function fitView(design: BoardDesign, width: number, height: number): View {
   return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, scale };
 }
 
+/** Pixels a press may wander before it counts as a drag rather than a click. */
+const CLICK_SLOP = 5;
+const PAINTING: Tool[] = ['sea', 'land', 'brush', 'erase'];
+
 /**
- * The editing surface. Click a tile to select it; drag out from the board to add sea; Shift-drag
- * paints land, Ctrl/⌘-drag paints the brush terrain, Alt-drag deletes. Numbers: click to raise,
- * Shift-click or right-click to lower. Scroll pans, Ctrl/⌘-scroll or pinch zooms, and the right
- * or middle button (or Space) drags the view.
+ * The editing surface, with the game board's controls: scroll or pinch zooms, dragging moves the
+ * view, and a click selects a tile. Space-drag paints sea (over anything), Shift-drag land,
+ * Ctrl/⌘-drag the brush terrain, Alt-drag deletes. Numbers: click to raise, Shift-click or
+ * right-click to lower.
  */
 export default function EditorCanvas({
   design,
@@ -99,11 +108,11 @@ export default function EditorCanvas({
   }, [fitKey]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (
-        event.code === 'Space' &&
-        !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
-      )
-        space.current = event.type === 'keydown';
+      const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+      if (event.code !== 'Space' || typing) return;
+      // Space is a paint key here, so it must not scroll the page or press a focused button.
+      event.preventDefault();
+      space.current = event.type === 'keydown';
     };
     window.addEventListener('keydown', key);
     window.addEventListener('keyup', key);
@@ -142,8 +151,8 @@ export default function EditorCanvas({
     const element = root.current!;
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
-      if (event.ctrlKey || event.metaKey) zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * 0.01));
-      else setView(v => ({ ...v, cx: v.cx + event.deltaX / v.scale, cy: v.cy + event.deltaY / v.scale }));
+      // As on the game board: scrolling zooms. Trackpad pinches arrive as small Ctrl-scrolls.
+      zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.002)));
     };
     element.addEventListener('wheel', wheel, { passive: false });
     return () => element.removeEventListener('wheel', wheel);
@@ -161,13 +170,7 @@ export default function EditorCanvas({
     );
     current.last = to;
     const mode =
-      current.tool === 'select'
-        ? 'sea-new'
-        : current.tool === 'land'
-          ? 'land'
-          : current.tool === 'brush'
-            ? brush
-            : 'erase';
+      current.tool === 'sea' ? 'sea' : current.tool === 'land' ? 'land' : current.tool === 'brush' ? brush : 'erase';
     edit(d => paint(d, cells, mode), current.group);
   }
 
@@ -196,8 +199,8 @@ export default function EditorCanvas({
     }
     root.current!.setPointerCapture?.(event.pointerId);
     const point = toBoard(event.clientX, event.clientY);
-    const pan = event.button === 1 || event.button === 2 || space.current;
-    const active = pressTool(event, tool);
+    const active = pressTool(event, tool, space.current);
+    const pan = event.button === 1 || event.button === 2 || active === 'select';
     press.current = {
       tool: active,
       group: `stroke-${Date.now()}-${Math.random()}`,
@@ -207,13 +210,13 @@ export default function EditorCanvas({
       pan,
       screen: { x: event.clientX, y: event.clientY },
     };
-    if (!pan && (active === 'land' || active === 'brush' || active === 'erase')) strokeTo(point);
+    if (!pan && PAINTING.includes(active)) strokeTo(point);
   }
 
   function move(event: ReactPointerEvent) {
     const point = toBoard(event.clientX, event.clientY);
     const cell = cellAt(point.x, point.y);
-    const active = pressTool(event, tool);
+    const active = pressTool(event, tool, space.current);
     if (hover?.q !== cell.q || hover?.r !== cell.r || hover?.tool !== active) setHover({ ...cell, tool: active });
     if (event.pointerType === 'touch' && touches.current.has(event.pointerId)) {
       const previous = touches.current.get(event.pointerId)!;
@@ -237,6 +240,8 @@ export default function EditorCanvas({
     if (current.pan) {
       const dx = event.clientX - current.screen.x;
       const dy = event.clientY - current.screen.y;
+      if (!current.moved && Math.hypot(dx, dy) <= CLICK_SLOP) return;
+      current.moved = true;
       current.screen = { x: event.clientX, y: event.clientY };
       setView(v => ({ ...v, cx: v.cx - dx / v.scale, cy: v.cy - dy / v.scale }));
       return;
@@ -244,14 +249,14 @@ export default function EditorCanvas({
     const start = cellAt(current.start.x, current.start.y);
     if (!current.moved && cell.q === start.q && cell.r === start.r) return;
     current.moved = true;
-    if (['select', 'land', 'brush', 'erase'].includes(current.tool)) strokeTo(point);
+    if (PAINTING.includes(current.tool)) strokeTo(point);
   }
 
   function up(event: ReactPointerEvent) {
     touches.current.delete(event.pointerId);
     const current = press.current;
     press.current = null;
-    if (!current || current.pan || current.moved) return;
+    if (!current || current.moved || event.button === 1 || event.button === 2) return;
     click(current.start, current.tool);
   }
 

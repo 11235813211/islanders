@@ -30,7 +30,7 @@ async function cellPoint(page: Page, q: number, r: number, dx = 0, dy = 0) {
   return { x: box.x + ((c.x + dx - vx) / vw) * box.width, y: box.y + ((c.y + dy - vy) / vh) * box.height };
 }
 
-async function drag(page: Page, cells: [number, number][], modifier?: 'Shift' | 'Alt' | 'Control') {
+async function drag(page: Page, cells: [number, number][], modifier?: 'Shift' | 'Alt' | 'Control' | 'Space') {
   if (modifier) await page.keyboard.down(modifier);
   const start = await cellPoint(page, ...cells[0]!);
   await page.mouse.move(start.x, start.y);
@@ -52,20 +52,30 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   for (const board of stale) await page.request.delete(`${server}/api/boards/${board.id}`, { headers });
   await page.goto('/');
   await page.getByRole('button', { name: 'Board editor' }).click();
-  const library = page.getByRole('navigation', { name: 'Board library' });
+  const library = page.getByRole('dialog', { name: 'Boards' });
   await expect(library.getByText('Outer Isles')).toBeVisible();
+  await page.screenshot({ path: 'test-results/editor-browser.png' });
 
-  await library.getByRole('button', { name: 'Blank' }).first().click();
-  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('New board');
-  await page.getByLabel('Name', { exact: true }).fill('Editor test board');
+  await library.getByRole('button', { name: 'New blank board' }).first().click();
+  await expect(page.getByLabel('Board name')).toHaveValue('New board');
+  await page.getByLabel('Board name').fill('Editor test board');
 
-  // Drag outward from the single sea tile: more sea.
+  // A plain drag moves the view (nothing is painted). Space-drag paints sea.
   await drag(page, [
     [0, 0],
     [1, 0],
-    [2, 0],
-    [2, 1],
   ]);
+  await expect(page.locator('.editor-ghost')).toHaveCount(6);
+  await drag(
+    page,
+    [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [2, 1],
+    ],
+    'Space',
+  );
   // Shift-drag: land. Ctrl-drag: the brush terrain (gold by default). Alt-drag: delete.
   await drag(
     page,
@@ -77,6 +87,10 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   );
   await drag(page, [[0, 0]], 'Control');
   await drag(page, [[2, 1]], 'Alt');
+  // Space-drag paints sea over land too.
+  await drag(page, [[0, 1]], 'Shift');
+  await drag(page, [[0, 1]], 'Space');
+  await drag(page, [[0, 1]], 'Shift');
   await page.screenshot({ path: 'test-results/editor-desktop.png' });
 
   // Click a number token twice: random → 2 → 3. Shift-click lowers it back to 2.
@@ -122,13 +136,13 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
 test('boards move between categories by drag and drop, and categories can be added', async ({ page }) => {
   const headers = await signIn(page);
   await page.goto('/#editor');
-  const library = page.getByRole('navigation', { name: 'Board library' });
+  const library = page.getByRole('dialog', { name: 'Boards' });
   await expect(library.getByText('Outer Isles')).toBeVisible();
   const before = (await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary;
   await library.getByRole('button', { name: 'Add category' }).click();
   await expect(library.getByLabel('Category name')).toHaveCount(before.categories.length + 1);
-  const fresh = library.locator('.library-category').last();
-  await library.locator('.library-board', { hasText: 'Small Isles' }).dragTo(fresh);
+  const fresh = library.locator('.map-category').last();
+  await library.locator('.map-card', { hasText: 'Small Isles' }).dragTo(fresh);
   await expect(fresh.getByText('Small Isles')).toBeVisible();
   await expect
     .poll(async () => {

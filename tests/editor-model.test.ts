@@ -145,3 +145,25 @@ describe('editing', () => {
     expect(designWarnings(blank())[0]).toMatch(/land/);
   });
 });
+
+describe('repeatable fills', () => {
+  it('places harbors in a new spread each time and fills their kinds with a balanced draw', async () => {
+    const { placeHarbors, fillHarbors, harborTarget } = await import('../shared/maps/edit');
+    const d = { ...newDesign('base', 'b', 'seafaring', 'Base'), harbors: [] };
+    const spreads = new Set(
+      [1, 2, 3, 4, 5].map(seed => JSON.stringify(placeHarbors(d, seeded(seed)).harbors.map(h => [h.q, h.r, h.side]))),
+    );
+    expect(spreads.size).toBeGreaterThan(1);
+    const placed = placeHarbors(d, seeded(1));
+    expect(placed.harbors).toHaveLength(harborTarget(d));
+    const filled = fillHarbors(placed, seeded(2));
+    expect(filled.harbors.every(h => h.kind !== 'random')).toBe(true);
+    expect(filled.harbors.filter(h => h.kind === 'any').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('accepts terrain shares in tenths', () => {
+    const d = { ...newDesign('base', 'b', 'seafaring', 'Base'), pool: { wood: 2.5, gold: 0.3 } };
+    expect(parseDesign(d, ['seafaring']).pool).toEqual({ wood: 2.5, gold: 0.3 });
+    expect(() => parseDesign({ ...d, pool: { wood: 2.55 } }, ['seafaring'])).toThrow(/0.1/);
+  });
+});

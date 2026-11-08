@@ -298,3 +298,105 @@
     overflow: visible;
   }
 }
+
+/* Browser cards: an open button over the thumbnail, actions underneath. */
+.map-card {
+  cursor: default;
+}
+.map-card-open {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.map-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 32px;
+}
+.map-card-actions .button {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+.map-card-actions .text-button {
+  margin-right: auto;
+  font-size: 13px;
+}
+/* Made for another player count: still there, just quieter. */
+.map-card.misfit {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+.map-card.misfit:hover,
+.map-card.misfit:focus-within {
+  opacity: 0.8;
+}
+.map-card.dragging {
+  opacity: 0.35;
+}
+.map-category.drop-target {
+  border-radius: 10px;
+  outline: 2px dashed var(--category);
+  outline-offset: 6px;
+}
+.map-empty {
+  font-size: 14px;
+}
+.map-note {
+  font-size: 13px;
+}
+.category-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.category-editor .category-name {
+  width: 220px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--category);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.category-editor .category-name:hover,
+.category-editor .category-name:focus {
+  border-color: var(--line);
+  background: #fff;
+}
+.category-editor .text-button {
+  font-size: 13px;
+}
+.category-tools {
+  display: inline-flex;
+  margin-left: auto;
+}
+.category-color {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.category-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.category-color::-webkit-color-swatch {
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line);
+}

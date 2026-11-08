@@ -126,6 +126,9 @@ export interface HouseSpec {
   /** Height of the roof's peak above the walls. */
   rise: number;
   overhang: number;
+  /** Overhang past the left or right wall when it differs, e.g. 0 where two buildings join. */
+  overhangLeft?: number;
+  overhangRight?: number;
   /** Thickness of the roof's edge. */
   fascia: number;
 }
@@ -139,7 +142,9 @@ export function gabledHouse(spec: HouseSpec) {
   const [x0, x1, z0, z1] = [x - width / 2, x + width / 2, z - spec.depth / 2, z + spec.depth / 2];
   const slope = rise / (width / 2);
   const peak = wall + rise;
-  const [left, right, front, back] = [x0 - o, x1 + o, z0 - o, z1 + o];
+  const [oLeft, oRight] = [spec.overhangLeft ?? o, spec.overhangRight ?? o];
+  const [left, right, front, back] = [x0 - oLeft, x1 + oRight, z0 - o, z1 + o];
+  const [eaveLeft, eaveRight] = [wall - oLeft * slope, wall - oRight * slope];
   const eave = wall - o * slope;
   const gableFront = face([x0, 0, z0], [x1, 0, z0], [x1, wall, z0], [x, peak, z0], [x0, wall, z0]);
   const rightWall = face([x1, 0, z0], [x1, 0, z1], [x1, wall, z1], [x1, wall, z0]);
@@ -152,15 +157,16 @@ export function gabledHouse(spec: HouseSpec) {
     ],
     center: [x, wall / 2, z],
   };
-  const roofRight = face([x, peak + t, front], [x, peak + t, back], [right, eave + t, back], [right, eave + t, front]);
+  const [eL, eR] = [eaveLeft, eaveRight];
+  const roofRight = face([x, peak + t, front], [x, peak + t, back], [right, eR + t, back], [right, eR + t, front]);
   const roof: Solid = {
     faces: [
       roofRight,
-      face([x, peak + t, front], [x, peak + t, back], [left, eave + t, back], [left, eave + t, front]),
-      face([x, peak + t, front], [right, eave + t, front], [right, eave, front], [x, peak, front]),
-      face([x, peak + t, front], [left, eave + t, front], [left, eave, front], [x, peak, front]),
-      face([right, eave + t, front], [right, eave + t, back], [right, eave, back], [right, eave, front]),
-      face([left, eave + t, front], [left, eave + t, back], [left, eave, back], [left, eave, front]),
+      face([x, peak + t, front], [x, peak + t, back], [left, eL + t, back], [left, eL + t, front]),
+      face([x, peak + t, front], [right, eR + t, front], [right, eR, front], [x, peak, front]),
+      face([x, peak + t, front], [left, eL + t, front], [left, eL, front], [x, peak, front]),
+      face([right, eR + t, front], [right, eR + t, back], [right, eR, back], [right, eR, front]),
+      face([left, eL + t, front], [left, eL + t, back], [left, eL, back], [left, eL, front]),
     ],
     center: [x, wall + rise / 2, z],
   };

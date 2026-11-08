@@ -1,6 +1,6 @@
-import { Anchor, Eraser, Mountain, MousePointer2, Paintbrush, Sailboat, UserRound } from 'lucide-react';
+import { Anchor, Eraser, Hand, Mountain, Paintbrush, Sailboat, UserRound, Waves } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { BoardLibrary } from '../../../shared/maps';
+import type { BoardLibrary, DesignKind } from '../../../shared/maps';
 import type { Tool } from './EditorCanvas';
 
 /** Editor tools, their keyboard shortcuts, and helpers for naming new boards. */
@@ -8,10 +8,11 @@ export const TOOLS: { tool: Tool; key: string; label: string; icon: ReactNode; h
   {
     tool: 'select',
     key: 'v',
-    label: 'Select',
-    icon: <MousePointer2 size={17} />,
-    hint: 'Click to select; drag outward to add sea',
+    label: 'Move',
+    icon: <Hand size={17} />,
+    hint: 'Click to select, drag to move the view, scroll to zoom',
   },
+  { tool: 'sea', key: 's', label: 'Sea', icon: <Waves size={17} />, hint: 'Paint sea, over anything (or hold Space)' },
   { tool: 'land', key: 'l', label: 'Land', icon: <Mountain size={17} />, hint: 'Paint random land (or hold Shift)' },
   {
     tool: 'brush',
@@ -60,3 +61,35 @@ export const freshId = (library: BoardLibrary, name: string) => {
 };
 export const typing = (target: EventTarget | null) =>
   target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+
+/** Terrains in the order the picker shows them. `land` means "random" when the game is set up. */
+export const KIND_ORDER: DesignKind[] = [
+  'land',
+  'wood',
+  'brick',
+  'sheep',
+  'wheat',
+  'ore',
+  'desert',
+  'gold',
+  'jungle',
+  'volcano',
+  'sea',
+  'iceberg',
+];
+
+/** Short names for the terrain picker (the full names are tooltips). */
+export const KIND_LABELS: Record<DesignKind, string> = {
+  land: 'Random land',
+  wood: 'Forest',
+  brick: 'Hills',
+  sheep: 'Pasture',
+  wheat: 'Fields',
+  ore: 'Mountains',
+  desert: 'Desert',
+  gold: 'Gold',
+  jungle: 'Jungle',
+  volcano: 'Volcano',
+  sea: 'Sea',
+  iceberg: 'Iceberg',
+};
