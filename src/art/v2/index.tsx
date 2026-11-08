@@ -1,6 +1,6 @@
 // Art v2: v1 plus a light halo around roads and buildings (so every seat color
 // reads on every tile) and card colors matched to their board tiles.
-import type { Resource, Terrain } from '../../../shared/types';
+import type { Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack } from '../types';
 

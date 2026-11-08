@@ -1,7 +1,12 @@
+import type { BoardDesign } from './maps/types';
 export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
 export type Resource = (typeof RESOURCES)[number];
 export type ResourceBag = Record<Resource, number>;
-export type Terrain = Resource | 'desert';
+/** Tiles added for sea maps. Sea and icebergs are water; the rest are land. */
+export const SEA_TERRAINS = ['sea', 'gold', 'jungle', 'volcano', 'iceberg'] as const;
+export type SeaTerrain = (typeof SEA_TERRAINS)[number];
+export type BaseTerrain = Resource | 'desert';
+export type Terrain = BaseTerrain | SeaTerrain;
 export interface Hex {
   id: string;
   q: number;
@@ -10,7 +15,14 @@ export interface Hex {
   y: number;
   terrain: Terrain;
   number: number | null;
+  /** Corner vertices in order: lower right, bottom, lower left, upper left, top, upper right. */
   vertexIds: string[];
+  /** Land tiles on sea maps: which island (connected land) the tile belongs to. */
+  island?: number;
+  /** Victory points for settling this tile's island for the first time (sea maps). */
+  bonus?: number;
+  /** No setup settlements may touch this tile's island. */
+  noSetup?: boolean;
 }
 export interface Vertex {
   id: string;
@@ -63,6 +75,8 @@ export interface Player {
   resources: ResourceBag;
   development: DevelopmentCard[];
   knights: number;
+  /** Jungle finds. Each one stands in for any resource when buying a development card. */
+  discoveries: number;
   /** Set for bot seats, including humans who left mid-game (their seat is taken over). */
   bot?: BotLevel;
 }
@@ -86,6 +100,7 @@ export type Phase =
   | 'discard'
   | 'robber'
   | 'steal'
+  | 'gold'
   | 'free-roads'
   | 'build'
   | 'finished';
@@ -95,13 +110,15 @@ export type Phase =
  */
 export type GameEvent =
   | { kind: 'roll'; playerId: string; dice: [number, number]; gains: Record<string, ResourceBag> }
-  | { kind: 'build'; playerId: string; piece: 'road' | 'settlement' | 'city' | 'development' }
+  | { kind: 'build'; playerId: string; piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
   | { kind: 'player-trade'; fromId: string; toId: string; give: ResourceBag; get: ResourceBag }
   | { kind: 'offer'; playerId: string }
   | { kind: 'discard'; playerId: string; resources: ResourceBag }
   | { kind: 'steal'; thiefId: string; victimId: string; resource: Resource | null }
   | { kind: 'development'; playerId: string; card: DevelopmentType; gains: ResourceBag | null }
+  | { kind: 'gold'; playerId: string; resources: ResourceBag }
+  | { kind: 'eruption'; die: number; vertexId: string; playerId: string | null; damage: 'none' | 'city' | 'settlement' }
   | { kind: 'win'; playerId: string; points: number };
 export interface GameLog {
   id: number;
@@ -179,6 +196,8 @@ export interface UndoRecord {
     | 'setupOrder'
     | 'developmentDeck'
     | 'testMode'
+    | 'design'
+    | 'map'
   >;
 }
 export interface GameState {
@@ -193,7 +212,14 @@ export interface GameState {
   phase: Phase;
   buildings: Record<string, Building>;
   roads: Record<string, string>;
+  /** Edge id → owner. Only on sea maps. */
+  ships: Record<string, string>;
+  /** Robber hex id, or '' when it starts off the board (sea maps without a desert). */
   robber: string;
+  /** Pirate hex id on sea maps, or null when it is not on the board. */
+  pirate: string | null;
+  /** The hex the robber or pirate just moved to, during the steal phase. */
+  stealHex: string | null;
   bank: ResourceBag;
   setupOrder: string[];
   setupIndex: number;
@@ -202,9 +228,20 @@ export interface GameState {
   turn: number;
   dice: [number, number] | null;
   pendingDiscards: Record<string, number>;
+  /** Players choosing resources from gold fields or volcanoes, and how many each. */
+  pendingGold: Record<string, number>;
+  /** Ships built this turn (they may not move until next turn). */
+  shipsBuilt: string[];
+  shipMoved: boolean;
+  /** Islands each player has settled, and the bonus points those islands gave. */
+  islands: Record<string, number[]>;
+  bonusPoints: Record<string, number>;
   winnerId: string | null;
   log: GameLog[];
   settings: GameSettings;
+  /** The chosen map's design (null for the standard island), kept so Play again can rebuild it. */
+  design: BoardDesign | null;
+  map: MapInfo | null;
   rollDeadline: number | null;
   diceCounts: Record<number, number>;
   tradeOffer: TradeOffer | null;
@@ -237,10 +274,13 @@ export interface PublicPlayer {
   points: number;
   publicPoints: number;
   roadsLeft: number;
+  shipsLeft: number;
   settlementsLeft: number;
   citiesLeft: number;
   developmentCount: number;
   knights: number;
+  discoveries: number;
+  bonusPoints: number;
   longestRoad: number;
   bot: BotLevel | null;
   stats: PlayerStats;
@@ -248,9 +288,19 @@ export interface PublicPlayer {
 export interface LegalMoves {
   settlements: string[];
   roads: string[];
+  ships: string[];
   cities: string[];
+  /** Land hexes for the robber and, on sea maps, sea hexes for the pirate. */
   robberHexes: string[];
   stealTargets: string[];
+  /** Ship edge → edges it may move to this turn. */
+  shipMoves: Record<string, string[]>;
+}
+/** Which map a room plays. */
+export interface MapInfo {
+  id: string;
+  name: string;
+  players: { min: number; max: number };
 }
 export interface GameView {
   roomId: string;
@@ -262,12 +312,15 @@ export interface GameView {
   phase: Phase;
   buildings: Record<string, Building>;
   roads: Record<string, string>;
+  ships: Record<string, string>;
   robber: string;
+  pirate: string | null;
   bank: Record<Resource, boolean>;
   activePlayerId: string | null;
   turn: number;
   dice: [number, number] | null;
   pendingDiscards: Record<string, number>;
+  pendingGold: Record<string, number>;
   winnerId: string | null;
   log: GameLog[];
   selfId: string;
@@ -293,6 +346,9 @@ export interface GameView {
   /** The latest move its actor may ask to undo. `endsTurn` when that move was ending their turn. */
   undoAvailable: { actorId: string; description: string; endsTurn: boolean } | null;
   chat: ChatMessage[];
+  map: MapInfo | null;
+  /** True on maps with sea tiles: ships, the pirate, and island bonuses are in play. */
+  seafaring: boolean;
 }
 export type GameAction =
   | { type: 'start' }
@@ -313,6 +369,11 @@ export type GameAction =
   | { type: 'cancel-trade'; offerId: string }
   | { type: 'place-settlement'; vertexId: string }
   | { type: 'place-road'; edgeId: string }
+  | { type: 'place-ship'; edgeId: string }
+  | { type: 'build-ship'; edgeId: string }
+  | { type: 'move-ship'; from: string; to: string }
+  | { type: 'choose-gold'; resources: ResourceBag }
+  | { type: 'choose-map'; mapId: string }
   | { type: 'roll' }
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }

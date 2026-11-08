@@ -1,13 +1,15 @@
-import { House, Route } from 'lucide-react';
+import { House, Move, Route, Sailboat } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { GameAction, GameView, PublicPlayer, Resource } from '../../../shared/types';
 import { ResourceIcon } from '../../art';
+import type { BoardMode, PlaceKind } from '../Board';
 import { RESOURCE_LABELS } from '../ResourceHand';
 import { CityIcon } from './icons';
 
-export type BuildKind = 'road' | 'settlement' | 'city';
+export type BuildKind = PlaceKind;
 const RECIPES: Record<BuildKind | 'development', Resource[]> = {
   road: ['wood', 'brick'],
+  ship: ['wood', 'sheep'],
   settlement: ['wood', 'brick', 'sheep', 'wheat'],
   city: ['wheat', 'wheat', 'ore', 'ore', 'ore'],
   development: ['sheep', 'wheat', 'ore'],
@@ -35,6 +37,8 @@ function BuildButton({
   const icon =
     kind === 'road' ? (
       <Route size={23} />
+    ) : kind === 'ship' ? (
+      <Sailboat size={23} />
     ) : kind === 'settlement' ? (
       <House size={23} />
     ) : kind === 'city' ? (
@@ -94,7 +98,13 @@ function BuildButton({
   );
 }
 
-/** The four purchase buttons. Road, settlement, and city toggle a placement mode on the board. */
+/** Can the seat pay for a development card, counting jungle discoveries? */
+function canBuyDevelopment(view: GameView, self: PublicPlayer): boolean {
+  const missing = (['sheep', 'wheat', 'ore'] as const).filter(r => view.hand[r] === 0).length;
+  return missing <= Math.min(3, self.discoveries);
+}
+
+/** The purchase buttons. Road, ship, settlement, and city toggle a placement mode on the board. */
 export default function BuildBar({
   view,
   self,
@@ -106,11 +116,12 @@ export default function BuildBar({
   view: GameView;
   self: PublicPlayer;
   blocked: boolean;
-  mode: BuildKind | null;
-  setMode: (mode: BuildKind | null) => void;
+  mode: BoardMode;
+  setMode: (mode: BoardMode) => void;
   send: (action: GameAction) => void;
 }) {
-  const toggle = (kind: BuildKind) => setMode(mode === kind ? null : kind);
+  const toggle = (kind: Exclude<BoardMode, null>) => setMode(mode === kind ? null : kind);
+  const movable = Object.keys(view.legal.shipMoves).length > 0;
   return (
     <>
       <BuildButton
@@ -120,6 +131,27 @@ export default function BuildBar({
         disabled={blocked || !view.legal.roads.length}
         onClick={() => toggle('road')}
       />
+      {view.seafaring && (
+        <BuildButton
+          kind="ship"
+          remaining={self.shipsLeft}
+          selected={mode === 'ship'}
+          disabled={blocked || !view.legal.ships.length}
+          onClick={() => toggle('ship')}
+        />
+      )}
+      {view.seafaring && movable && (
+        <button
+          className={`build-compact move-ship ${mode === 'move-ship' ? 'selected' : ''}`}
+          aria-label="Move a ship"
+          aria-pressed={mode === 'move-ship'}
+          disabled={blocked}
+          onClick={() => toggle('move-ship')}
+        >
+          <Move size={21} />
+          <span className="build-label">Move</span>
+        </button>
+      )}
       <BuildButton
         kind="settlement"
         remaining={self.settlementsLeft}
@@ -137,12 +169,7 @@ export default function BuildBar({
       <BuildButton
         kind="development"
         remaining={view.developmentRemaining}
-        disabled={
-          blocked ||
-          view.phase !== 'build' ||
-          !view.developmentRemaining ||
-          !(['sheep', 'wheat', 'ore'] as const).every(r => view.hand[r] > 0)
-        }
+        disabled={blocked || view.phase !== 'build' || !view.developmentRemaining || !canBuyDevelopment(view, self)}
         onClick={() => send({ type: 'buy-development' })}
       />
     </>

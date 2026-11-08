@@ -15,77 +15,83 @@ function adjacent(a: Hex, b: Hex): boolean {
   return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(a.q + a.r - b.q - b.r)) === 1;
 }
 
-/** A stable graph is shared by the renderer and the authoritative rules. */
+/** Pixel center of axial hex (q, r) in board units. */
+export function hexCenter(q: number, r: number): { x: number; y: number } {
+  return { x: Math.sqrt(3) * HEX_RADIUS * (q + r / 2), y: 1.5 * HEX_RADIUS * r };
+}
+
+/** Corner `corner` of a hex centered at (x, y); see Hex.vertexIds for the order. */
+export function hexCorner(x: number, y: number, corner: number): { x: number; y: number } {
+  const angle = ((30 + 60 * corner) * Math.PI) / 180;
+  return { x: x + HEX_RADIUS * Math.cos(angle), y: y + HEX_RADIUS * Math.sin(angle) };
+}
+
+/** Tiles → hexes, shared corners, and edges. Hex ids follow the input order. */
+export function buildGraph(cells: { q: number; r: number; terrain: Terrain; number?: number | null }[]): Board {
+  const board: Board = { hexes: [], vertices: [], edges: [], harbors: [] };
+  const vertices = new Map<string, Vertex>();
+  const vertexById = new Map<string, Vertex>();
+  const edges = new Map<string, string>();
+  for (const cell of cells) {
+    const { x, y } = hexCenter(cell.q, cell.r);
+    const hex: Hex = {
+      id: `h${board.hexes.length}`,
+      q: cell.q,
+      r: cell.r,
+      x,
+      y,
+      terrain: cell.terrain,
+      number: cell.number ?? null,
+      vertexIds: [],
+    };
+    for (let corner = 0; corner < 6; corner++) {
+      const point = hexCorner(x, y, corner);
+      const key = `${Math.round(point.x * 1000)},${Math.round(point.y * 1000)}`;
+      let vertex = vertices.get(key);
+      if (!vertex) {
+        vertex = { id: `v${board.vertices.length}`, x: point.x, y: point.y, hexIds: [], edgeIds: [] };
+        vertices.set(key, vertex);
+        vertexById.set(vertex.id, vertex);
+        board.vertices.push(vertex);
+      }
+      vertex.hexIds.push(hex.id);
+      hex.vertexIds.push(vertex.id);
+    }
+    for (let corner = 0; corner < 6; corner++) {
+      const a = hex.vertexIds[corner]!;
+      const b = hex.vertexIds[(corner + 1) % 6]!;
+      const key = [a, b].sort().join(':');
+      if (!edges.has(key)) {
+        const id = `e${board.edges.length}`;
+        edges.set(key, id);
+        board.edges.push({ id, a, b });
+        vertexById.get(a)!.edgeIds.push(id);
+        vertexById.get(b)!.edgeIds.push(id);
+      }
+    }
+    board.hexes.push(hex);
+  }
+  return board;
+}
+
+/** The standard island: 19 land tiles in a hexagon, nine harbors, and numbers. */
 export function generateBoard(random: () => number = Math.random, layout: 'random' | 'ordered' = 'random'): Board {
   const terrains = shuffled<Terrain>(
     [
-      'wood',
-      'wood',
-      'wood',
-      'wood',
-      'sheep',
-      'sheep',
-      'sheep',
-      'sheep',
-      'wheat',
-      'wheat',
-      'wheat',
-      'wheat',
-      'brick',
-      'brick',
-      'brick',
-      'ore',
-      'ore',
-      'ore',
+      ...Array<Terrain>(4).fill('wood'),
+      ...Array<Terrain>(4).fill('sheep'),
+      ...Array<Terrain>(4).fill('wheat'),
+      ...Array<Terrain>(3).fill('brick'),
+      ...Array<Terrain>(3).fill('ore'),
       'desert',
     ],
     random,
   );
-  const board: Board = { hexes: [], vertices: [], edges: [], harbors: [] };
-  const vertices = new Map<string, Vertex>();
-  const edges = new Map<string, string>();
-  for (let r = -2; r <= 2; r++) {
-    for (let q = Math.max(-2, -r - 2); q <= Math.min(2, -r + 2); q++) {
-      const hex: Hex = {
-        id: `h${board.hexes.length}`,
-        q,
-        r,
-        x: Math.sqrt(3) * HEX_RADIUS * (q + r / 2),
-        y: 1.5 * HEX_RADIUS * r,
-        terrain: terrains[board.hexes.length],
-        number: null,
-        vertexIds: [],
-      };
-      for (let corner = 0; corner < 6; corner++) {
-        const angle = ((30 + 60 * corner) * Math.PI) / 180;
-        const x = hex.x + HEX_RADIUS * Math.cos(angle);
-        const y = hex.y + HEX_RADIUS * Math.sin(angle);
-        const key = `${Math.round(x * 1000)},${Math.round(y * 1000)}`;
-        let vertex = vertices.get(key);
-        if (!vertex) {
-          vertex = { id: `v${board.vertices.length}`, x, y, hexIds: [], edgeIds: [] };
-          vertices.set(key, vertex);
-          board.vertices.push(vertex);
-        }
-        vertex.hexIds.push(hex.id);
-        hex.vertexIds.push(vertex.id);
-      }
-      for (let corner = 0; corner < 6; corner++) {
-        const a = hex.vertexIds[corner];
-        const b = hex.vertexIds[(corner + 1) % 6];
-        const key = [a, b].sort().join(':');
-        if (!edges.has(key)) {
-          const id = `e${board.edges.length}`;
-          edges.set(key, id);
-          board.edges.push({ id, a, b });
-          board.vertices.find(v => v.id === a)!.edgeIds.push(id);
-          board.vertices.find(v => v.id === b)!.edgeIds.push(id);
-        }
-      }
-      board.hexes.push(hex);
-    }
-  }
-
+  const cells: { q: number; r: number; terrain: Terrain }[] = [];
+  for (let r = -2; r <= 2; r++)
+    for (let q = Math.max(-2, -r - 2); q <= Math.min(2, -r + 2); q++)
+      cells.push({ q, r, terrain: terrains[cells.length]! });
+  const board = buildGraph(cells);
   board.harbors = generateHarbors(board, random);
   assignNumbers(board, layout, random);
   return board;

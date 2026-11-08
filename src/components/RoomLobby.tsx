@@ -6,7 +6,6 @@ import {
   Eye,
   FlaskConical,
   LogOut,
-  Map as MapIcon,
   Plus,
   Swords,
   UserPlus,
@@ -27,7 +26,8 @@ import {
 } from '../../shared/types';
 import type { Connection } from '../hooks/useRoom';
 import LobbySeat from './lobby/LobbySeat';
-import { CATEGORIES, GAME_MODES, SettingControl } from './lobby/settings';
+import MapChoice from './lobby/MapChoice';
+import { CATEGORIES, SettingControl } from './lobby/settings';
 import './RoomLobby.css';
 
 export interface RoomLobbyProps {
@@ -45,7 +45,6 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
   const self = view.players.find(p => p.id === view.selfId);
   const takenBy = new Map(view.players.map(p => [p.color, p]));
   const change = (next: Partial<GameSettings>) => send({ type: 'configure', settings: { ...view.settings, ...next } });
-  const mode = GAME_MODES[0]!;
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -192,37 +191,28 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
           <h2>Game settings</h2>
           {!host && <span className="subtle-badge">Host controls</span>}
         </div>
-        <div className="mode-card tone-sea">
-          <MapIcon size={30} />
-          <div>
-            <h3>{mode.name}</h3>
-            <p>
-              {mode.board} · {mode.players}
-            </p>
-          </div>
-          <span className="mode-check">
-            <Check size={18} />
-          </span>
-        </div>
+        <MapChoice view={view} host={host} busy={busy} send={send} />
         {CATEGORIES.map(category => (
           <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
             <legend>{category.title}</legend>
-            {category.settings.map(def => {
-              // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
-              const Row = def.control.kind === 'stepper' ? 'div' : 'label';
-              return (
-                <Row className="setting-row" key={def.key}>
-                  <span className="setting-label">
-                    {def.icon}
-                    <span>
-                      <strong>{def.label}</strong>
-                      <small>{def.hint}</small>
+            {category.settings
+              .filter(def => def.when?.(view) ?? true)
+              .map(def => {
+                // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
+                const Row = def.control.kind === 'stepper' ? 'div' : 'label';
+                return (
+                  <Row className="setting-row" key={def.key}>
+                    <span className="setting-label">
+                      {def.icon}
+                      <span>
+                        <strong>{def.label}</strong>
+                        <small>{def.hint}</small>
+                      </span>
                     </span>
-                  </span>
-                  <SettingControl def={def} settings={view.settings} disabled={busy || !host} change={change} />
-                </Row>
-              );
-            })}
+                    <SettingControl def={def} settings={view.settings} disabled={busy || !host} change={change} />
+                  </Row>
+                );
+              })}
           </fieldset>
         ))}
         <div className="setup-start">

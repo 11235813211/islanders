@@ -1,5 +1,7 @@
 import { addPlayer, applyAction, createGame, getActivePlayerId, getView } from '../shared/engine';
-import { type GameState, RESOURCES, type ResourceBag } from '../shared/types';
+import { BASE_POOL, type BoardDesign } from '../shared/maps';
+import { parseGrid } from '../shared/maps/builtin';
+import { type GameAction, type GameState, RESOURCES, type ResourceBag } from '../shared/types';
 export const TEST_NOW = 1_800_000_000_000;
 export function seeded(seed = 42) {
   return () => {
@@ -58,4 +60,56 @@ export function richGame() {
     { id: 'monopoly-ui', kind: 'monopoly', boughtTurn: 0 },
   ];
   return g;
+}
+
+/** A lobby set to a designed map (the server normally looks the design up by id). */
+export function seaLobby(design: BoardDesign, count = 3, seed = 42) {
+  return applyAction(makeLobby(count), 'p0', { type: 'choose-map', mapId: design.id }, seeded(seed), TEST_NOW, {
+    design,
+  });
+}
+
+/** A small hand-drawn sea map for rules tests. `rows` use the token grid in shared/maps/builtin.ts. */
+export function testDesign(rows: string[], extra: Partial<BoardDesign> = {}): BoardDesign {
+  return {
+    id: 'test-map',
+    name: 'Test map',
+    categoryId: 'seafaring',
+    description: '',
+    players: { min: 2, max: 4 },
+    victoryPoints: 13,
+    ...parseGrid(rows),
+    harbors: [],
+    pool: { ...BASE_POOL },
+    harborExclude: [],
+    updatedAt: 0,
+    ...extra,
+  };
+}
+
+/** Corner `corner` (0–5, see Hex.vertexIds) of the hex at (q, r). */
+export function corner(game: GameState, q: number, r: number, index: number): string {
+  return game.board.hexes.find(h => h.q === q && h.r === r)!.vertexIds[index]!;
+}
+
+/** The edge joining two corners. */
+export function edgeBetween(game: GameState, a: string, b: string): string {
+  return game.board.edges.find(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))!.id;
+}
+
+/** A sea-map game past setup, every seat placing on the first legal spot (ships when no road fits). */
+export function seaSettled(design: BoardDesign, count = 3) {
+  let game = applyAction(seaLobby(design, count), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+  while (game.phase.startsWith('setup')) {
+    const id = getActivePlayerId(game)!;
+    const legal = getView(game, id).legal;
+    const action: GameAction =
+      game.phase === 'setup-settlement'
+        ? { type: 'place-settlement', vertexId: legal.settlements[Math.floor(legal.settlements.length / 3)]! }
+        : legal.ships.length
+          ? { type: 'place-ship', edgeId: legal.ships[0]! }
+          : { type: 'place-road', edgeId: legal.roads[0]! };
+    game = applyAction(game, id, action, seeded(), TEST_NOW);
+  }
+  return game;
 }

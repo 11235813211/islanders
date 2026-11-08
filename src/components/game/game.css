@@ -193,3 +193,18 @@
 .board-notices > .trade-notice {
   align-self: flex-end;
 }
+
+/* Jungle discoveries, beside the development cards in your hand. */
+.discovery-count {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 3px;
+  padding: 3px 9px 3px 5px;
+  border: 1px solid #d9c38f;
+  border-radius: 999px;
+  background: #fff6dc;
+  color: #5e4520;
+  font-size: 14px;
+  font-weight: 800;
+}

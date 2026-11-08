@@ -48,6 +48,11 @@ const SPEC = {
   'build-city': { vertexId: 'id' },
   'place-road': { edgeId: 'id' },
   'build-road': { edgeId: 'id' },
+  'place-ship': { edgeId: 'id' },
+  'build-ship': { edgeId: 'id' },
+  'move-ship': { from: 'id', to: 'id' },
+  'choose-gold': { resources: 'bag' },
+  'choose-map': { mapId: 'id' },
   trade: { give: 'resource', receive: 'resource' },
   discard: { resources: 'bag' },
   'move-robber': { hexId: 'id' },
@@ -78,6 +83,7 @@ export function isResourceBag(value: unknown): value is ResourceBag {
 
 function bagLabel(type: string, key: string): string {
   if (type === 'discard') return 'Discard amounts';
+  if (type === 'choose-gold') return 'Gold choices';
   if (key === 'give' || key === 'want') return 'Trade amounts';
   return 'Resource amounts';
 }

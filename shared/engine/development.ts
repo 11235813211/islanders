@@ -11,7 +11,7 @@ import {
   requireRule,
   resourceCount,
 } from './core';
-import { roadSites } from './legal';
+import { roadSites, shipSites } from './legal';
 
 type PlayAction = 'play-knight' | 'play-road-building' | 'play-monopoly' | 'play-plenty';
 const CARD_FOR: Record<PlayAction, DevelopmentType> = {
@@ -53,7 +53,14 @@ export const developmentHandlers: Pick<
   'buy-development'({ next, player, playerId }) {
     needPhase(next, 'build');
     requireRule(next.developmentDeck.length, 'The development deck is empty.');
-    pay(next, player, BUILD_COSTS.development);
+    // Jungle discoveries stand in for card costs first, one per resource.
+    const cost = { ...BUILD_COSTS.development };
+    for (const r of RESOURCES)
+      if (cost[r] && player.discoveries > 0) {
+        cost[r]--;
+        player.discoveries--;
+      }
+    pay(next, player, cost);
     player.development.push({ ...next.developmentDeck.pop()!, boughtTurn: next.turn });
     addLog(next, `${player.name} bought a development card.`, { kind: 'build', playerId, piece: 'development' });
   },
@@ -69,11 +76,14 @@ export const developmentHandlers: Pick<
   'play-road-building'(ctx, action) {
     const { next, playerId } = ctx;
     const index = takeCard(ctx, action.type, action.cardId);
-    const roads = pieceCounts(next, playerId).roads;
-    requireRule(roads < PIECE_LIMITS.roads && roadSites(next, playerId, false).length, 'No roads can be placed.');
+    const pieces = pieceCounts(next, playerId);
+    const roads = pieces.roads < PIECE_LIMITS.roads && roadSites(next, playerId, false).length > 0;
+    const ships = pieces.ships < PIECE_LIMITS.ships && shipSites(next, playerId, false).length > 0;
+    requireRule(roads || ships, 'No roads or ships can be placed.');
     next.resumePhase = next.phase as 'roll' | 'build';
     next.phase = 'free-roads';
-    next.freeRoads = Math.min(2, PIECE_LIMITS.roads - roads);
+    const left = (roads ? PIECE_LIMITS.roads - pieces.roads : 0) + (ships ? PIECE_LIMITS.ships - pieces.ships : 0);
+    next.freeRoads = Math.min(2, left);
     finishPlay(ctx, index, action.type, null);
   },
 

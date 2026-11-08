@@ -19,6 +19,7 @@ export function pendingBotActor(state: GameState): string | null {
   if (state.pausedAt !== null || !playing(state)) return null;
   if (state.phase === 'discard')
     return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0 && isBot(state, id)) ?? null;
+  if (state.phase === 'gold') return Object.keys(state.pendingGold).find(id => isBot(state, id)) ?? null;
   const offer = state.tradeOffer;
   if (offer && state.phase === 'build') {
     const answered = (id: string) => offer.declinedBy.includes(id) || offer.counters.some(c => c.fromId === id);
@@ -113,7 +114,9 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
     const id =
       next.phase === 'discard'
         ? Object.keys(next.pendingDiscards).find(id => next.pendingDiscards[id]! > 0)!
-        : getActivePlayerId(next)!;
+        : next.phase === 'gold'
+          ? Object.keys(next.pendingGold)[0]!
+          : getActivePlayerId(next)!;
     const view = getView(next, id);
     const choices = [
       () => chooseBotAction(view, { level: DEFAULT_BOT_LEVEL, builds, allowOffers: false }),
@@ -131,7 +134,8 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
       }
     }
     if (!applied) break;
-    if (['build-road', 'build-settlement', 'build-city', 'buy-development'].includes(applied.type)) builds++;
+    if (['build-road', 'build-ship', 'build-settlement', 'build-city', 'buy-development'].includes(applied.type))
+      builds++;
   }
   if (next.phase === 'build' && next.turn === turn)
     next = applyAction(next, getActivePlayerId(next)!, { type: 'end-turn' }, random, now);

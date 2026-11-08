@@ -46,12 +46,13 @@ export async function enterRoom(
   playtest = false,
   spectate = false,
   autoSpectate = false,
+  mapId?: string,
 ): Promise<Session> {
   const data = await apiRequest<Session>(
     `/api/rooms${roomId ? `/${encodeURIComponent(roomId)}/join` : ''}`,
     {
       method: 'POST',
-      body: JSON.stringify({ name, playtest, spectate, autoSpectate }),
+      body: JSON.stringify({ name, playtest, spectate, autoSpectate, ...(mapId ? { mapId } : {}) }),
     },
     account,
   );

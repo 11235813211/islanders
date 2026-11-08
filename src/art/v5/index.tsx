@@ -1,6 +1,6 @@
 // Art v5: v4's classic pieces plus a mountain chalet style, picked per room (settings.pieceStyle).
 // Chalets have a stone ground floor, a balcony, a framed gable, and shuttered square windows.
-import type { PieceStyle, Resource, Terrain } from '../../../shared/types';
+import type { PieceStyle, Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack } from '../types';
 

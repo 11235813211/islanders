@@ -1,4 +1,15 @@
-import { ArrowRight, Check, Eye, FlaskConical, LoaderCircle, Plus, Sailboat, Shield, Swords } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  Eye,
+  FlaskConical,
+  Hexagon,
+  LoaderCircle,
+  Plus,
+  Sailboat,
+  Shield,
+  Swords,
+} from 'lucide-react';
 import type { AccountRoomStatus } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
 import { parseJoinInput } from '../hooks/useRoom';
@@ -21,6 +32,7 @@ export default function HomeScreen({
   spectate,
   setSpectate,
   enter,
+  openEditor,
 }: {
   account: ReturnType<typeof useAccount>;
   canPlaytest: boolean;
@@ -32,6 +44,8 @@ export default function HomeScreen({
   spectate: boolean;
   setSpectate: (spectate: boolean) => void;
   enter: (kind: 'create' | 'join' | 'test', roomId?: string) => void;
+  /** Open the board editor (shown with the solo playtest, to the same accounts). */
+  openEditor: () => void;
 }) {
   return (
     <main className={`home-layout${canPlaytest ? '' : ' single'}`}>
@@ -135,6 +149,11 @@ export default function HomeScreen({
           <button className="button secondary full" disabled={loading} onClick={() => enter('test')}>
             <FlaskConical size={20} />
             Create solo test room
+            <ArrowRight size={20} />
+          </button>
+          <button className="button secondary full home-editor-button" disabled={loading} onClick={openEditor}>
+            <Hexagon size={20} />
+            Board editor
             <ArrowRight size={20} />
           </button>
         </section>

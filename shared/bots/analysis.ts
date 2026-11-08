@@ -1,5 +1,6 @@
 import { emptyBag } from '../engine/core';
-import { type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
+import { isRoadEdge, isShipEdge, terrainResource } from '../seafaring';
+import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 
 /**
  * Read-only helpers bots use to judge a position. Everything here works from a
@@ -35,8 +36,11 @@ export class Board {
   yieldAt(vertexId: string): ResourceBag {
     const bag = emptyBag();
     for (const hex of this.hexesAt(vertexId)) {
-      if (hex.terrain === 'desert') continue;
-      bag[hex.terrain] += pips(hex.number) * (hex.id === this.view.robber ? 0.3 : 1);
+      const share = pips(hex.number) * (hex.id === this.view.robber ? 0.3 : 1);
+      const resource = terrainResource(hex.terrain);
+      // Gold and volcanoes pay whatever is needed: count them as a little of everything.
+      if (resource) bag[resource] += share;
+      else if (hex.terrain === 'gold' || hex.terrain === 'volcano') for (const r of RESOURCES) bag[r] += share / 4;
     }
     return bag;
   }
@@ -109,19 +113,21 @@ export function roadPaths(board: Board): Map<string, { distance: number; firstEd
   for (const v of view.board.vertices) {
     const own = view.buildings[v.id]?.playerId === self;
     const touchesRoad = !view.buildings[v.id] && v.edgeIds.some(id => view.roads[id] === self);
-    if (own || touchesRoad) {
+    const touchesShip = !view.buildings[v.id] && v.edgeIds.some(id => view.ships[id] === self);
+    if (own || touchesRoad || touchesShip) {
       result.set(v.id, { distance: 0, firstEdge: null });
       queue.push(v.id);
     }
   }
-  // 0-1 BFS: existing own roads cost nothing, open edges cost one road.
+  // 0-1 BFS: existing own roads and ships cost nothing, open edges cost one road or ship.
   while (queue.length) {
     const id = queue.shift()!;
     const here = result.get(id)!;
     if (view.buildings[id] && view.buildings[id].playerId !== self) continue;
     for (const edgeId of board.vertex.get(id)!.edgeIds) {
-      const owner = view.roads[edgeId];
+      const owner = view.roads[edgeId] ?? view.ships[edgeId];
       if (owner && owner !== self) continue;
+      if (!owner && !isRoadEdge(view.board, edgeId) && !isShipEdge(view.board, edgeId)) continue;
       const e = board.edge.get(edgeId)!;
       const other = e.a === id ? e.b : e.a;
       const cost = owner ? 0 : 1;
@@ -195,4 +201,25 @@ export function eventsThisTurn(view: GameView, kinds: string[]): number {
       kinds.includes(entry.event.kind) &&
       ('playerId' in entry.event ? entry.event.playerId === view.selfId : false),
   ).length;
+}
+
+/** Build a road or ship on this edge, whichever is legal right now (road first). */
+export function linkAction(view: GameView, edgeId: string | null | undefined): GameAction | null {
+  if (!edgeId) return null;
+  if (view.legal.roads.includes(edgeId))
+    return { type: view.phase === 'setup-road' ? 'place-road' : 'build-road', edgeId };
+  if (view.legal.ships.includes(edgeId))
+    return { type: view.phase === 'setup-road' ? 'place-ship' : 'build-ship', edgeId };
+  return null;
+}
+
+/** Resources from gold: what a city or settlement still needs, spread over different kinds. */
+export function goldChoice(view: GameView): GameAction {
+  const owed = view.pendingGold[view.selfId] ?? 0;
+  const need = (r: Resource) =>
+    Math.max(0, COSTS.city[r] - view.hand[r]) + Math.max(0, COSTS.settlement[r] - view.hand[r]) * 1.2;
+  const ranked = RESOURCES.filter(r => view.bank[r]).sort((a, b) => need(b) - need(a) || view.hand[a] - view.hand[b]);
+  const resources = emptyBag();
+  for (let i = 0; i < owed && ranked.length; i++) resources[ranked[i % ranked.length]!]++;
+  return { type: 'choose-gold', resources };
 }

@@ -1,11 +1,13 @@
 import { GameError } from '../shared/engine';
 import type { AccountIdentity, AccountStore } from './accounts';
+import type { BoardLibraryStore } from './boards';
 import { ProtocolError } from './protocol';
 import type { GameRoom } from './room';
 
 export interface Env {
   ROOMS: DurableObjectNamespace<GameRoom>;
   ACCOUNTS: DurableObjectNamespace<AccountStore>;
+  LIBRARY: DurableObjectNamespace<BoardLibraryStore>;
   ASSETS: Fetcher;
   ALLOWED_ORIGINS: string;
   DEV_MODE?: string;
@@ -41,8 +43,10 @@ export function failure(error: unknown): Response {
 
 export const roomStub = (env: Env, roomId: string) => env.ROOMS.get(env.ROOMS.idFromName(roomId));
 export const accountStub = (env: Env, username: string) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName(username));
+/** The one board library for the whole site. */
+export const libraryStub = (env: Env) => env.LIBRARY.get(env.LIBRARY.idFromName('library'));
 
-/** Solo test rooms are a developer tool: open in local dev, otherwise limited to listed accounts. */
+/** Solo test rooms and the board editor are developer tools: open in local dev, otherwise limited to listed accounts. */
 export function canPlaytest(env: Env, identity: AccountIdentity | null): boolean {
   if (env.DEV_MODE === 'true') return true;
   const allowed = (env.PLAYTEST_USERS ?? '')

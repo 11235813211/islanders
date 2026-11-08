@@ -1,8 +1,10 @@
 import { assignNumbers, generateBoard } from '../board';
 import { firstFreeColor } from '../colors';
+import { buildBoard } from '../maps/generate';
+import type { BoardDesign } from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName } from '../settings';
-import { DEFAULT_BOT_LEVEL, type GameState, type Player } from '../types';
+import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
 import {
   addLog,
   emptyBag,
@@ -16,12 +18,23 @@ import {
 } from './core';
 import { SCHEMA_VERSION } from './migrations';
 
+/** A fresh board for the room's map: the standard island, or a new draw of the chosen design. */
+export function boardFor(
+  design: BoardDesign | null,
+  layout: GameSettings['numberLayout'],
+  random: () => number,
+): { board: Board; robber: string; pirate: string | null } {
+  if (design) return buildBoard(design, random);
+  const board = generateBoard(random, layout);
+  return { board, robber: board.hexes.find(hex => hex.terrain === 'desert')!.id, pirate: null };
+}
+
 export function createGame(
   roomId: string,
   random: () => number = Math.random,
   options: { testMode?: boolean; now?: number } = {},
 ): GameState {
-  const board = generateBoard(random, DEFAULT_SETTINGS.numberLayout);
+  const { board, robber, pirate } = boardFor(null, DEFAULT_SETTINGS.numberLayout, random);
   return {
     schemaVersion: SCHEMA_VERSION,
     roomId,
@@ -33,7 +46,10 @@ export function createGame(
     phase: 'lobby',
     buildings: {},
     roads: {},
-    robber: board.hexes.find(hex => hex.terrain === 'desert')!.id,
+    ships: {},
+    robber,
+    pirate,
+    stealHex: null,
     bank: { wood: 19, brick: 19, sheep: 19, wheat: 19, ore: 19 },
     setupOrder: [],
     setupIndex: 0,
@@ -42,9 +58,16 @@ export function createGame(
     turn: 0,
     dice: null,
     pendingDiscards: {},
+    pendingGold: {},
+    shipsBuilt: [],
+    shipMoved: false,
+    islands: {},
+    bonusPoints: {},
     winnerId: null,
     log: [],
     settings: { ...DEFAULT_SETTINGS },
+    design: null,
+    map: null,
     rollDeadline: null,
     diceCounts: emptyDiceCounts(),
     tradeOffer: null,
@@ -77,6 +100,7 @@ function newSeat(state: GameState, id: string, name: string): Player {
     resources: emptyBag(),
     development: [],
     knights: 0,
+    discoveries: 0,
   };
 }
 
@@ -161,14 +185,30 @@ export const lobbyHandlers: Pick<
   | 'add-bot'
   | 'set-bot-level'
   | 'play-again'
+  | 'choose-map'
 > = {
   configure({ state, next, player, playerId, random }, action) {
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'change room settings');
     next.settings = { ...next.settings, ...action.settings };
-    if (state.settings.numberLayout !== next.settings.numberLayout)
+    if (state.settings.numberLayout !== next.settings.numberLayout && !next.design)
       assignNumbers(next.board, next.settings.numberLayout, random);
     addLog(next, `${player.name} updated the room settings.`);
+  },
+
+  /** Switch maps (or draw the same map again). The server looks up the design and passes it in. */
+  'choose-map'({ next, player, playerId, random, design }, action) {
+    needPhase(next, 'lobby');
+    requireHost(next, playerId, 'choose the map');
+    const base = action.mapId === 'base';
+    requireRule(base || design?.id === action.mapId, 'That map is not available.');
+    const chosen = base ? null : design!;
+    Object.assign(next, boardFor(chosen, next.settings.numberLayout, random));
+    if ((next.design?.id ?? 'base') !== action.mapId)
+      next.settings.victoryPoints = chosen?.victoryPoints ?? DEFAULT_SETTINGS.victoryPoints;
+    next.design = chosen;
+    next.map = chosen ? { id: chosen.id, name: chosen.name, players: chosen.players } : null;
+    addLog(next, `${player.name} chose ${chosen ? chosen.name : 'the standard island'}.`);
   },
 
   'choose-color'({ next, player, playerId }, action) {
@@ -265,15 +305,18 @@ export const lobbyHandlers: Pick<
     needPhase(next, 'finished');
     requireHost(next, playerId, 'start a new game');
     const fresh = createGame(next.roomId, random, { testMode: next.testMode, now });
-    assignNumbers(fresh.board, next.settings.numberLayout, random);
+    Object.assign(fresh, boardFor(next.design, next.settings.numberLayout, random));
     const players = next.players.map(p => ({
       ...p,
       resources: emptyBag(),
       development: [],
       knights: 0,
+      discoveries: 0,
     }));
     Object.assign(next, {
       ...fresh,
+      design: next.design,
+      map: next.map,
       version: next.version,
       players,
       spectators: next.spectators,

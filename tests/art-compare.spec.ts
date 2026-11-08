@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import { createElement as h, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PLAYER_COLORS } from '../shared/colors';
-import type { PieceStyle, Terrain } from '../shared/types';
+import type { PieceStyle, BaseTerrain as Terrain } from '../shared/types';
 import type { ArtPack } from '../src/art/types';
 import { art as v5 } from '../src/art/v5';
 import { art as v6 } from '../src/art/v6';

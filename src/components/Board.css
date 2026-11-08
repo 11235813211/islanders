@@ -149,3 +149,39 @@
     transition: none;
   }
 }
+
+/* Sea maps. Gold sparkles twinkle slowly, out of step (each has its own delay). */
+.gold-sparkle {
+  animation: gold-twinkle 3.4s ease-in-out infinite;
+}
+@keyframes gold-twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gold-sparkle {
+    animation: none;
+  }
+}
+.board-ship-piece,
+.board-pirate,
+.board-bonus,
+.board-closed,
+.volcano-corner {
+  pointer-events: none;
+}
+.volcano-corner text {
+  font-family: "DM Sans Variable", sans-serif;
+}
+/* The ship being moved fades while you pick where it goes. */
+.board-ship-moving {
+  opacity: 0.4;
+}
+.board-bonus text {
+  font-family: "DM Sans Variable", sans-serif;
+}

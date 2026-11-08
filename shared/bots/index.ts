@@ -1,4 +1,5 @@
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView } from '../types';
+import { goldChoice } from './analysis';
 import { beginner } from './beginner';
 import { advanced, intermediate } from './strategic';
 import type { BotOptions, Brain } from './types';
@@ -29,6 +30,7 @@ export function chooseBotAction(view: GameView, options: BotOptions = {}): GameA
   const brain = BOTS[options.level ?? DEFAULT_BOT_LEVEL].brain;
   const offer = view.tradeOffer;
   if (view.phase === 'discard') return brain.discard(view);
+  if (view.phase === 'gold') return goldChoice(view);
   if (offer && view.phase === 'build') {
     if (offer.fromId === view.selfId) return brain.review(view, offer);
     const answered = offer.declinedBy.includes(view.selfId) || offer.counters.some(c => c.fromId === view.selfId);

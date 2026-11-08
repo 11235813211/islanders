@@ -13,10 +13,11 @@ import {
   idleResume,
   normalizeGame,
 } from '../shared/engine';
+import type { BoardDesign } from '../shared/maps';
 import { emptyRoomMs, guestName } from '../shared/settings';
 import type { AccountRoomStatus, GameAction, GameState, ServerMessage, Session } from '../shared/types';
 import type { AccountIdentity } from './accounts';
-import { accountStub, checkLimit, type Env, failure, json, logError } from './env';
+import { accountStub, checkLimit, type Env, failure, json, libraryStub, logError } from './env';
 import {
   AUTH_TIMEOUT_MS,
   hashToken,
@@ -77,6 +78,7 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'add-bot',
   'set-bot-level',
   'play-again',
+  'choose-map',
 ]);
 
 /** One serialized, durable source of truth per invite code. No client owns game state. */
@@ -249,6 +251,13 @@ export class GameRoom extends DurableObject<Env> {
     return { ...room, sessions: room.sessions.filter(s => s.playerId !== playerId) };
   }
 
+  /** The library's design for a map id (null for the standard island or an unknown id). */
+  private async design(mapId: string): Promise<BoardDesign | undefined> {
+    if (mapId === 'base') return undefined;
+    const design = await libraryStub(this.env).board(mapId);
+    return design ? structuredClone(design) : undefined;
+  }
+
   // ---- RPC ----
 
   async revoke(username: string, sessionHash: string): Promise<void> {
@@ -305,6 +314,7 @@ export class GameRoom extends DurableObject<Env> {
             name: string | null;
             identity?: AccountIdentity | null;
             playtest?: boolean;
+            mapId?: string;
           };
           const name = parseOptionalName(body) ?? guestName([], secureRandom);
           const identity = body.identity;
@@ -324,6 +334,13 @@ export class GameRoom extends DurableObject<Env> {
                   game.players.map(p => p.name),
                   secureRandom,
                 ),
+              });
+          }
+          if (body.mapId) {
+            const design = await this.design(body.mapId);
+            if (design)
+              game = applyAction(game, playerId, { type: 'choose-map', mapId: design.id }, secureRandom, Date.now(), {
+                design,
               });
           }
           const session = await this.issueSession(
@@ -465,8 +482,10 @@ export class GameRoom extends DurableObject<Env> {
         }
         const action = message.action;
         const actor = SELF_ACTIONS.has(action.type) ? attachment.playerId : this.actor(attachment);
+        const design = action.type === 'choose-map' ? await this.design(action.mapId) : undefined;
         const game = applyAction(room.game, actor, action, secureRandom, Date.now(), {
           online: room.game.testMode ? room.game.players.map(p => p.id) : this.online(),
+          design,
         });
         const sessions = room.sessions.map(session =>
           session.tokenHash === saved.tokenHash

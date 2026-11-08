@@ -1,12 +1,12 @@
 import { BarChart3, Dices, Hash, House, Minus, Plus, Shield, Timer, Trophy } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
-import type { GameSettings } from '../../../shared/types';
+import type { GameSettings, GameView } from '../../../shared/types';
 
 /**
  * Lobby settings are data. To add a setting: add the field to GameSettings,
  * validate it in shared/settings.ts, then add one entry to a category below.
- * New categories (expansions, custom boards) are new entries in CATEGORIES.
+ * The map itself is chosen above the settings (MapChoice.tsx).
  */
 export type Control =
   | { kind: 'select'; options: { value: string | number; label: string }[] }
@@ -19,6 +19,8 @@ export interface SettingDef {
   hint: string;
   icon: ReactNode;
   control: Control;
+  /** Show the setting only when this holds (default: always). */
+  when?: (view: GameView) => boolean;
 }
 export interface Category {
   id: string;
@@ -26,9 +28,6 @@ export interface Category {
   tone: 'sea' | 'sand' | 'brick' | 'forest' | 'ore';
   settings: SettingDef[];
 }
-
-/** Game modes shown at the top of the settings. Only the base game exists today. */
-export const GAME_MODES = [{ id: 'base', name: 'Base game', board: 'Standard island', players: '2–4 players' }];
 
 export const CATEGORIES: Category[] = [
   {
@@ -41,6 +40,8 @@ export const CATEGORIES: Category[] = [
         label: 'Number layout',
         hint: 'Standard follows the printed spiral; random keeps 6s and 8s apart.',
         icon: <Hash size={20} />,
+        // Designed maps always draw balanced numbers.
+        when: view => !view.map,
         control: {
           kind: 'select',
           options: [

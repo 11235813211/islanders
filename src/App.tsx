@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { isBotGame } from '../shared/settings';
 import type { AccountSession, GameAction, Session } from '../shared/types';
 import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
+import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
 import InviteDialog, { type InviteKind } from './components/InviteDialog';
@@ -29,6 +30,7 @@ function App() {
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const [spectate, setSpectate] = useState(false);
   const [leavingGame, setLeavingGame] = useState(false);
+  const [editing, setEditing] = useState(() => location.hash === '#editor');
   const busy = loading || room.pending || (Boolean(session) && room.connection !== 'online');
   const hasGame = Boolean(view && view.phase !== 'lobby');
   // Solo test rooms are a developer tool: local dev, or accounts listed in PLAYTEST_USERS.
@@ -61,7 +63,7 @@ function App() {
     setNotice(room.left);
   }, [room.left]);
 
-  async function enter(kind: 'create' | 'join' | 'test', roomCode = code, directInvite = false) {
+  async function enter(kind: 'create' | 'join' | 'test', roomCode = code, directInvite = false, mapId?: string) {
     const request = ++entryRequest.current;
     setLoading(true);
     setError(null);
@@ -83,9 +85,11 @@ function App() {
           kind === 'test',
           watching,
           directInvite,
+          mapId,
         ));
       if (entryRequest.current !== request) return;
       history.replaceState(null, '', `${location.pathname}${location.search}#room=${next.roomId}`);
+      setEditing(false);
       setSession(next);
       void account.refresh();
     } catch (err) {
@@ -101,6 +105,7 @@ function App() {
   }
   function home() {
     setLeavingGame(false);
+    setEditing(false);
     entryRequest.current++;
     attemptedInvite.current = '';
     setInviteCode('');
@@ -213,6 +218,14 @@ function App() {
         </button>
       </main>
     );
+  else if (!session && editing && canPlaytest)
+    screen = (
+      <BoardEditor
+        account={account.account}
+        close={home}
+        playtest={mapId => void enter('test', undefined, false, mapId)}
+      />
+    );
   else if (!session)
     screen = (
       <HomeScreen
@@ -226,6 +239,10 @@ function App() {
         spectate={spectate}
         setSpectate={setSpectate}
         enter={(kind, roomId) => void enter(kind, roomId)}
+        openEditor={() => {
+          history.replaceState(null, '', `${location.pathname}${location.search}#editor`);
+          setEditing(true);
+        }}
       />
     );
   else if (!view)

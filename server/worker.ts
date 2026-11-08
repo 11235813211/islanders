@@ -1,8 +1,11 @@
+import { isIdentifier } from '../shared/actions';
 import type { AccountRoomStatus } from '../shared/types';
 import type { AccountIdentity, Revoked } from './accounts';
-import { accountStub, canPlaytest, checkLimit, type Env, failure, json, logError, roomStub } from './env';
+import type { LibraryResult } from './boards';
+import { accountStub, canPlaytest, checkLimit, type Env, failure, json, libraryStub, logError, roomStub } from './env';
 import {
   hashToken,
+  MAX_BOARD_BYTES,
   originAllowed,
   ProtocolError,
   parseAuthorization,
@@ -21,7 +24,7 @@ function cors(response: Response, origin: string | null): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
-  headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  headers.set('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   headers.set('Access-Control-Max-Age', '86400');
   return new Response(response.body, { status: response.status, headers });
@@ -147,6 +150,30 @@ async function handleClientError(request: Request, env: Env, requester: string):
   return new Response(null, { status: 204 });
 }
 
+/**
+ * The board library. Anyone may read it (the map picker); editing needs a board-editor account
+ * (the same accounts that may create solo test rooms).
+ */
+async function handleBoards(url: URL, request: Request, env: Env): Promise<Response> {
+  const library = libraryStub(env);
+  const match = /^\/api\/boards(?:\/([^/]+))?$/.exec(url.pathname)!;
+  const id = match[1];
+  if (request.method === 'GET' && !id) return json(structuredClone(await library.library()));
+  if (!canPlaytest(env, await accountFor(request, env, true)))
+    throw new ProtocolError('Board editing is not available on this account.', 403);
+  const reply = <T>(result: LibraryResult<T>) =>
+    result.ok ? json(structuredClone(result.value ?? { ok: true })) : json({ error: result.error }, result.status);
+  if (request.method === 'PUT' && !id) return reply(await library.saveLayout(await readBody(request, MAX_BOARD_BYTES)));
+  if (!id || !isIdentifier(id)) throw new ProtocolError('Board not found.', 404);
+  if (request.method === 'PUT') {
+    const body = await readBody(request, MAX_BOARD_BYTES);
+    if (!record(body) || body.id !== id) throw new ProtocolError('The board id does not match the address.');
+    return reply(await library.saveBoard(body));
+  }
+  if (request.method === 'DELETE') return reply(await library.deleteBoard(id));
+  throw new ProtocolError('Use GET, PUT, or DELETE for boards.', 405);
+}
+
 async function handleRooms(url: URL, request: Request, env: Env): Promise<Response> {
   if (url.pathname === '/api/rooms' && request.method === 'POST') {
     const body = await readBody(request);
@@ -157,13 +184,14 @@ async function handleRooms(url: URL, request: Request, env: Env): Promise<Respon
       throw new ProtocolError('Invalid playtest setting.');
     if (body.playtest === true && !canPlaytest(env, identity))
       throw new ProtocolError('Solo test rooms are not available on this account.', 403);
+    if (body.mapId !== undefined && !isIdentifier(body.mapId)) throw new ProtocolError('Invalid map.');
     for (let attempt = 0; attempt < 20; attempt++) {
       const code = roomCode();
       const response = await roomStub(env, code).fetch(
         new Request(`https://room.internal/create/${code}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, identity, playtest: body.playtest === true }),
+          body: JSON.stringify({ name, identity, playtest: body.playtest === true, mapId: body.mapId }),
         }),
       );
       if (response.status !== 409) return response;
@@ -208,9 +236,9 @@ export default {
     if (url.pathname === '/api/health' && request.method === 'GET')
       return json({ ok: true, service: 'islanders', protocol: 3 });
     const origin = request.headers.get('Origin');
-    // Same-origin GET fetches can omit Origin; /me still requires its bearer credential.
-    const readAccount = request.method === 'GET' && url.pathname === '/api/accounts/me' && !origin;
-    if (!readAccount && !originAllowed(origin, env.ALLOWED_ORIGINS || '', url.origin, env.DEV_MODE === 'true'))
+    // Same-origin GET fetches can omit Origin; /me still requires its bearer credential, and the board list is public.
+    const plainRead = request.method === 'GET' && ['/api/accounts/me', '/api/boards'].includes(url.pathname) && !origin;
+    if (!plainRead && !originAllowed(origin, env.ALLOWED_ORIGINS || '', url.origin, env.DEV_MODE === 'true'))
       return json({ error: 'This origin is not allowed.' }, 403);
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }), origin);
     const requester = request.headers.get('CF-Connecting-IP') ?? 'local-development';
@@ -222,7 +250,10 @@ export default {
       if (accountMatch) response = await handleAccounts(accountMatch[1]!, request, env, requester);
       else if (url.pathname === '/api/client-errors' && request.method === 'POST')
         response = await handleClientError(request, env, requester);
-      else {
+      else if (url.pathname === '/api/boards' || url.pathname.startsWith('/api/boards/')) {
+        await checkLimit(env.CONNECTION_LIMITER, `boards:${requester}`);
+        response = await handleBoards(url, request, env);
+      } else {
         await checkLimit(
           url.pathname === '/api/rooms' ? env.ROOM_CREATION_LIMITER : env.CONNECTION_LIMITER,
           `http:${requester}`,

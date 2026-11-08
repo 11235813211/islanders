@@ -59,6 +59,20 @@ const MIGRATIONS: Migration[] = [
     s.updatedAt ??= now;
     s.finishedAt ??= s.phase === 'finished' ? now : null;
   },
+  // 1 → 2: sea maps (ships, pirate, gold, discoveries, island bonuses, chosen map).
+  s => {
+    s.ships ??= {};
+    s.pirate ??= null;
+    s.stealHex ??= null;
+    s.pendingGold ??= {};
+    s.shipsBuilt ??= [];
+    s.shipMoved ??= false;
+    s.islands ??= {};
+    s.bonusPoints ??= {};
+    s.design ??= null;
+    s.map ??= null;
+    for (const p of s.players) p.discoveries ??= 0;
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

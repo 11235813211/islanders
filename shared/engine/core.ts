@@ -1,3 +1,4 @@
+import type { BoardDesign } from '../maps/types';
 import {
   type GameAction,
   type GameEvent,
@@ -29,13 +30,14 @@ export const emptyDiceCounts = (): Record<number, number> =>
 export const AUTO_ROLL_SECONDS = [0, 5, 10, 15, 30];
 export const MAX_PLAYERS = 4;
 export const TRADE_OFFER_MS = 30_000;
-export const BUILD_COSTS: Record<'road' | 'settlement' | 'city' | 'development', ResourceBag> = {
+export const BUILD_COSTS: Record<'road' | 'ship' | 'settlement' | 'city' | 'development', ResourceBag> = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 },
+  ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0 },
   settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0 },
   city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3 },
   development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1 },
 };
-export const PIECE_LIMITS = { roads: 15, settlements: 5, cities: 4 } as const;
+export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4 } as const;
 
 /** Append a log line (capped at 60), optionally with a structured event. */
 export function addLog(state: GameState, text: string, event?: GameEvent): void {
@@ -81,7 +83,8 @@ export function pieceCounts(state: GameState, playerId: string) {
   const settlements = buildings.filter(building => building.kind === 'settlement').length;
   const cities = buildings.filter(building => building.kind === 'city').length;
   const roads = Object.values(state.roads).filter(owner => owner === playerId).length;
-  return { settlements, cities, roads, points: settlements + cities * 2 };
+  const ships = Object.values(state.ships).filter(owner => owner === playerId).length;
+  return { settlements, cities, roads, ships, points: settlements + cities * 2 };
 }
 
 /** Context passed to every action handler. `next` is a private clone the handler mutates. */
@@ -92,6 +95,8 @@ export interface ActionContext {
   player: Player;
   now: number;
   random: () => number;
+  /** The design for a `choose-map` action, looked up by the server. */
+  design?: BoardDesign;
 }
 
 /** One handler per action type, split across the engine modules and merged in apply.ts. */

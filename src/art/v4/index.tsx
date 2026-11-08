@@ -1,6 +1,6 @@
 // Art v4: refined v3 pieces. One outline tone throughout, rounded joins, eaves that overhang
 // the walls, a chimney, door and windows, and no ground shadow.
-import type { Resource, Terrain } from '../../../shared/types';
+import type { Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack } from '../types';
 

@@ -24,23 +24,31 @@ export function tradeRates(state: GameState, playerId: string): Record<Resource,
   ) as Record<Resource, number>;
 }
 
-/** Longest edge trail. Edges may not repeat; branches and opponent buildings break continuity. */
+/**
+ * Longest trade route: a trail of roads and ships that never repeats an edge. Opponent buildings
+ * break it, and it may switch between road and ship only at its owner's settlement or city.
+ */
 export function longestRoad(state: GameState, playerId: string): number {
-  const edges = state.board.edges.filter(edge => state.roads[edge.id] === playerId);
+  const own = (id: string): 'road' | 'ship' | null =>
+    state.roads[id] === playerId ? 'road' : state.ships?.[id] === playerId ? 'ship' : null;
+  const edges = state.board.edges.filter(edge => own(edge.id));
   const incident = new Map<string, typeof edges>();
   for (const edge of edges) for (const id of [edge.a, edge.b]) incident.set(id, [...(incident.get(id) ?? []), edge]);
-  const walk = (vertex: string, used: Set<string>): number => {
-    if (used.size && state.buildings[vertex] && state.buildings[vertex].playerId !== playerId) return 0;
+  const walk = (vertex: string, used: Set<string>, kind: 'road' | 'ship' | null): number => {
+    const building = state.buildings[vertex];
+    if (used.size && building && building.playerId !== playerId) return 0;
     let best = 0;
     for (const edge of incident.get(vertex) ?? []) {
       if (used.has(edge.id)) continue;
+      const next = own(edge.id)!;
+      if (kind && next !== kind && building?.playerId !== playerId) continue;
       used.add(edge.id);
-      best = Math.max(best, 1 + walk(edge.a === vertex ? edge.b : edge.a, used));
+      best = Math.max(best, 1 + walk(edge.a === vertex ? edge.b : edge.a, used, next));
       used.delete(edge.id);
     }
     return best;
   };
-  return Math.max(0, ...[...incident.keys()].map(vertex => walk(vertex, new Set())));
+  return Math.max(0, ...[...incident.keys()].map(vertex => walk(vertex, new Set(), null)));
 }
 
 export function updateAwards(state: GameState): void {
@@ -61,5 +69,6 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
   const cards = hidden
     ? (state.players.find(p => p.id === playerId)?.development.filter(c => c.kind === 'victory-point').length ?? 0)
     : 0;
-  return structures + cards + (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
+  const awards = (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
+  return structures + cards + awards + (state.bonusPoints?.[playerId] ?? 0);
 }

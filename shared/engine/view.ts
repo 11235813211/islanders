@@ -1,4 +1,5 @@
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
+import { boardIndex } from '../seafaring';
 import { type GameState, type GameView, RESOURCES, type Resource } from '../types';
 import {
   emptyBag,
@@ -35,8 +36,11 @@ export function getView(state: GameState, selfId: string): GameView {
         points: victoryPoints(state, candidate.id, candidate.id === selfId || finished),
         developmentCount: candidate.development.length,
         knights: candidate.knights,
+        discoveries: candidate.discoveries,
+        bonusPoints: state.bonusPoints[candidate.id] ?? 0,
         longestRoad: longestRoad(state, candidate.id),
         roadsLeft: PIECE_LIMITS.roads - pieces.roads,
+        shipsLeft: PIECE_LIMITS.ships - pieces.ships,
         settlementsLeft: PIECE_LIMITS.settlements - pieces.settlements,
         citiesLeft: PIECE_LIMITS.cities - pieces.cities,
         stats: state.stats[candidate.id] ?? emptyStats(),
@@ -45,7 +49,9 @@ export function getView(state: GameState, selfId: string): GameView {
     phase: state.phase,
     buildings: state.buildings,
     roads: state.roads,
+    ships: state.ships,
     robber: state.robber,
+    pirate: state.pirate,
     // Exact bank counts reveal an opponent's hand by subtraction in a two-player
     // game. Clients only need to know whether a bank trade can receive a card.
     bank: Object.fromEntries(RESOURCES.map(resource => [resource, state.bank[resource] > 0])) as Record<
@@ -56,6 +62,7 @@ export function getView(state: GameState, selfId: string): GameView {
     turn: state.turn,
     dice: state.dice,
     pendingDiscards: state.pendingDiscards,
+    pendingGold: state.pendingGold,
     winnerId: state.winnerId,
     // Only the thief and the victim learn which card was stolen.
     log: state.log.map(entry =>
@@ -100,5 +107,7 @@ export function getView(state: GameState, selfId: string): GameView {
     diceCounts: state.settings.trackDice || finished ? state.diceCounts : {},
     tradeOffer: state.tradeOffer,
     testMode: state.testMode,
+    map: state.map,
+    seafaring: boardIndex(state.board).seafaring,
   } satisfies GameView);
 }

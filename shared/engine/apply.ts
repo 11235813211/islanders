@@ -1,15 +1,23 @@
 import { parseAction } from '../actions';
+import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
 import { type ActionContext, addLog, getActivePlayerId, type Handlers, requireRule } from './core';
 import { developmentHandlers } from './development';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
+import { seaHandlers } from './sea';
 import { socialAction } from './social';
 import { pruneTradeOffer, tradeHandlers } from './trade';
 import { turnHandlers } from './turn';
 
-const HANDLERS: Handlers = { ...lobbyHandlers, ...turnHandlers, ...tradeHandlers, ...developmentHandlers } as Handlers;
+const HANDLERS: Handlers = {
+  ...lobbyHandlers,
+  ...turnHandlers,
+  ...seaHandlers,
+  ...tradeHandlers,
+  ...developmentHandlers,
+} as Handlers;
 
 /** Actions a player may take when it is not their turn. */
 const OFF_TURN = new Set<GameAction['type']>([
@@ -22,7 +30,9 @@ const OFF_TURN = new Set<GameAction['type']>([
   'add-bot',
   'set-bot-level',
   'play-again',
+  'choose-map',
   'discard',
+  'choose-gold',
   'accept-trade',
   'decline-trade',
   'counter-trade',
@@ -33,7 +43,10 @@ const ALWAYS = new Set<GameAction['type']>(['leave', 'transfer-host', 'play-agai
 const REVERSIBLE = new Set<GameAction['type']>([
   'place-settlement',
   'place-road',
+  'place-ship',
   'build-road',
+  'build-ship',
+  'move-ship',
   'build-settlement',
   'build-city',
   'trade',
@@ -58,7 +71,7 @@ export function applyAction(
   rawAction: GameAction,
   random: () => number = Math.random,
   now = Date.now(),
-  context: { online?: string[] } = {},
+  context: { online?: string[]; design?: BoardDesign } = {},
 ): GameState {
   const action = parseAction(rawAction);
   const social = socialAction(state, playerId, action, now, context.online);
@@ -89,6 +102,7 @@ export function applyAction(
     player: next.players.find(candidate => candidate.id === playerId)!,
     now,
     random,
+    design: context.design,
   };
   (HANDLERS[action.type] as (ctx: ActionContext, action: GameAction) => void)(ctx, action);
   afterAction(state, next, playerId, action, now);
@@ -152,6 +166,8 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         setupOrder: _setup,
         developmentDeck: _deck,
         testMode: _test,
+        design: _design,
+        map: _map,
         ...snapshot
       } = structuredClone(state);
       next.undoHistory = [...state.undoHistory, ...(state.undo ? [state.undo] : [])];

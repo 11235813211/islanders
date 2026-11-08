@@ -1,5 +1,5 @@
-// Panels that open in the board's corner, like the trade panel: discarding on a 7, Year of
-// Plenty, and Monopoly. Each picks resources by tapping cards, then confirms with one button.
+// Panels that open in the board's corner, like the trade panel: discarding on a 7, choosing
+// gold, Year of Plenty, and Monopoly. Each picks resources by tapping cards, then confirms with one button.
 import { ArrowDown, ArrowUp, Check, X } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { emptyBag, resourceCount } from '../../../shared/engine';
@@ -258,6 +258,37 @@ export function MonopolyPanel({
         pressed={r => choice === r}
         pick={setChoice}
       />
+    </Panel>
+  );
+}
+
+/** Gold fields and volcanoes: pick the resources you are owed (everyone owed picks at once). */
+export function GoldPanel({ view, busy, send }: { view: GameView; busy: boolean; send: (a: GameAction) => void }) {
+  const [bag, setBag] = useState(emptyBag);
+  const owed = view.pendingGold[view.selfId] ?? 0;
+  const picked = resourceCount(bag);
+  return (
+    <Panel
+      title="Gold"
+      status={`${picked} / ${owed} chosen`}
+      action={
+        <button
+          className="button primary"
+          disabled={busy || picked !== owed}
+          onClick={() => send({ type: 'choose-gold', resources: bag })}
+        >
+          <Check size={18} />
+          Take {owed === 1 ? '1 resource' : `${owed} resources`}
+        </button>
+      }
+    >
+      <Palette
+        label="Choose resources from gold"
+        name={r => `Take one more ${RESOURCE_LABELS[r]}`}
+        disabled={r => busy || picked >= owed || !view.bank[r]}
+        pick={r => setBag({ ...bag, [r]: bag[r] + 1 })}
+      />
+      <Chosen bag={bag} label="Take" direction="in" hint="Choose cards above" remove={r => setBag(without(bag, r))} />
     </Panel>
   );
 }

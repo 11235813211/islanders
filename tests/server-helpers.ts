@@ -131,3 +131,15 @@ export function verifyPrivateView(state: GameView, playerId: string) {
     Object.values(state.hand).reduce((total, count) => total + count, 0),
   );
 }
+
+/** Register a fresh account. Returns request headers that sign in as it. */
+export async function registerAccount(request: APIRequestContext): Promise<Record<string, string>> {
+  const username = `user_${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
+  const signup = await request.post(`${server}/api/accounts/register`, {
+    headers: { Origin: origin },
+    data: { username, password: 'Testing-only-password-492!' },
+  });
+  expect(signup.status(), await signup.text()).toBe(201);
+  const { token } = (await signup.json()) as { token: string };
+  return { Origin: origin, Authorization: `Bearer ${username}:${token}` };
+}

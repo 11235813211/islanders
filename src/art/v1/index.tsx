@@ -1,6 +1,6 @@
 // Art v1: the original illustrated board and cards (as of commit 66de65b).
 // Frozen snapshot. To change art, create a new version (see src/art/README.md).
-import type { Resource, Terrain } from '../../../shared/types';
+import type { Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack } from '../types';
 

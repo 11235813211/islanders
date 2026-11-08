@@ -1,33 +1,33 @@
 import { type CSSProperties, type KeyboardEvent, useId } from 'react';
 import { playerColor } from '../../shared/colors';
 import type { GameView } from '../../shared/types';
-import {
-  ArtDefs,
-  BuildingPiece,
-  Harbor,
-  HexTile,
-  NumberToken,
-  ROAD_INSET,
-  Road,
-  Robber,
-  SeaBackdrop,
-  SeaDecorations,
-  TERRAIN,
-} from '../art';
-import { cameraViewBox } from '../lib/boardCamera';
+import { ArtDefs, BuildingPiece, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
+import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
+import BoardScene from './BoardScene';
 import './Board.css';
+
+export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city';
+export type BoardMode = PlaceKind | 'robber' | 'move-ship' | null;
+/** A picked spot waiting for confirmation. `choices` lists both pieces when a coastal edge takes either. */
+export interface Selection {
+  kind: PlaceKind;
+  id: string;
+  choices?: PlaceKind[];
+}
 
 export interface BoardProps {
   view: GameView;
-  mode: 'road' | 'settlement' | 'city' | 'robber' | null;
+  mode: BoardMode;
   onVertex: (id: string) => void;
   onEdge: (id: string) => void;
   onHex: (id: string) => void;
   disabled?: boolean;
   camera?: { x: number; y: number; zoom: number };
-  selected?: { kind: 'road' | 'settlement' | 'city'; id: string } | null;
-  onConfirm?: () => void;
+  selected?: Selection | null;
+  onConfirm?: (kind: PlaceKind) => void;
+  /** While moving a ship: the ship being moved, once picked. */
+  moveFrom?: string | null;
 }
 
 /**
@@ -67,7 +67,25 @@ function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void)
   }
 }
 
-/** Interactive board: art comes from src/art; this file owns targets, clicks, and the camera. */
+/** Edges to highlight for the current phase and mode. */
+function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null | undefined): string[] {
+  const { legal } = view;
+  if (mode === 'move-ship') return moveFrom ? (legal.shipMoves[moveFrom] ?? []) : Object.keys(legal.shipMoves);
+  if (mode === 'road') return legal.roads;
+  if (mode === 'ship') return legal.ships;
+  const linking = view.phase === 'setup-road' || view.phase === 'free-roads';
+  if (mode === null && (linking || view.phase === 'build')) return [...legal.roads, ...legal.ships];
+  return [];
+}
+
+function hintFor(mode: BoardMode, hexes: number, edges: number, moveFrom: string | null | undefined): string {
+  if (hexes) return 'Choose a tile for the robber or the pirate';
+  if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
+  if (edges) return mode === 'ship' ? 'Choose a highlighted sea edge' : 'Choose a highlighted edge';
+  return mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner';
+}
+
+/** Interactive board: art comes from BoardScene and src/art; this file owns targets, clicks, and the camera. */
 export default function Board({
   view,
   mode,
@@ -78,14 +96,16 @@ export default function Board({
   camera = { x: 0, y: 0, zoom: 1 },
   selected,
   onConfirm,
+  moveFrom,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
+  const frame = boardFrame(view.board.hexes);
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
+  const edges = new Map(view.board.edges.map(edge => [edge.id, edge]));
   const playerName = (id: string) => view.players.find(player => player.id === id)?.name;
   const color = (playerId: string) => playerColor(view.players.find(player => player.id === playerId)?.color).fill;
   const selfColor = view.players.find(player => player.id === view.selfId)?.color;
   const settlementMode = view.phase === 'setup-settlement' || mode === 'settlement';
-  const roadMode = view.phase === 'setup-road' || view.phase === 'free-roads' || mode === 'road';
   const direct = mode === null && view.phase === 'build';
   const robberMode = view.phase === 'robber' || mode === 'robber';
   const vertexTargets = new Set(
@@ -99,158 +119,160 @@ export default function Board({
             ? view.legal.settlements
             : [],
   );
-  const edgeTargets = new Set(disabled || (!roadMode && !direct) ? [] : view.legal.roads);
+  const edgeTargets = new Set(disabled ? [] : edgeTargetsFor(view, mode, moveFrom));
   const hexTargets = new Set(disabled || !robberMode ? [] : view.legal.robberHexes);
   const edgeEnds = (edgeId: string) => {
-    const edge = view.board.edges.find(e => e.id === edgeId)!;
+    const edge = edges.get(edgeId)!;
     return [vertices.get(edge.a)!, vertices.get(edge.b)!] as const;
   };
-  const selectedPoint =
-    selected?.kind === 'road'
+  const edgeLabel = (edgeId: string) => {
+    if (mode === 'move-ship') return moveFrom ? `Move ship to ${edgeId}` : `Move the ship at ${edgeId}`;
+    const road = view.legal.roads.includes(edgeId) && mode !== 'ship';
+    const ship = view.legal.ships.includes(edgeId) && mode !== 'road';
+    return `${road && ship ? 'Build road or ship' : ship ? 'Build ship' : 'Build road'} at ${edgeId}`;
+  };
+  const isEdge = (kind: PlaceKind) => kind === 'road' || kind === 'ship';
+  const selectedPoint = selected
+    ? isEdge(selected.kind)
       ? (() => {
           const [a, b] = edgeEnds(selected.id);
           return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
         })()
-      : selected
-        ? vertices.get(selected.id)
-        : null;
+      : vertices.get(selected.id)
+    : null;
+  const choices = selected?.choices ?? (selected ? [selected.kind] : []);
   const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size > 0;
+  const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected;
   return (
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
       <svg
         className={`board-svg${selfColor === 'white' ? ' board-light-seat' : ''}`}
         style={{ '--target-color': color(view.selfId) } as CSSProperties}
-        viewBox={cameraViewBox(camera)}
+        viewBox={cameraViewBox(camera, frame)}
+        data-frame={`${frame.x} ${frame.y} ${frame.width} ${frame.height}`}
         role="group"
         aria-label="Island game board. Highlighted locations are legal moves."
       >
-        <title>Islanders board with nine trading harbors</title>
+        <title>Islanders board</title>
         <defs>
           <ArtDefs uid={uid} />
+          <SEA.Defs uid={uid} />
           <clipPath id={`${uid}-sea-clip`}>
-            <rect x="-335" y="-300" width="670" height="600" rx="18" />
+            <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx="18" />
           </clipPath>
         </defs>
         <g clipPath={`url(#${uid}-sea-clip)`}>
-          <SeaBackdrop uid={uid} hexes={view.board.hexes} />
-          {view.board.hexes.map(hex => (
-            <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
-              <title>
-                {TERRAIN[hex.terrain].name}
-                {hex.number ? ` · ${hex.number}` : ''}
-                {view.robber === hex.id ? ' · robber blocks production' : ''}
-              </title>
-              <HexTile uid={uid} terrain={hex.terrain} />
-              {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
-              {view.robber === hex.id && <Robber />}
-            </g>
-          ))}
-          {view.board.harbors.map(port => (
-            <g
-              key={port.id}
-              className="board-harbor"
-              aria-label={`${port.resource === 'any' ? 'Any resource 3:1' : `${port.resource} 2:1`} harbor`}
-            >
-              <title>
-                {port.resource === 'any'
-                  ? 'Trade any three matching resources for one'
-                  : `Trade two ${port.resource} for one resource`}
-                . Build on either connected coastal corner.
-              </title>
-              <Harbor resource={port.resource} at={port} corners={port.vertices.map(id => vertices.get(id)!)} />
-            </g>
-          ))}
-          {view.board.edges
-            .filter(edge => view.roads[edge.id])
-            .map(edge => {
-              const [a, b] = edgeEnds(edge.id);
-              const owner = view.roads[edge.id]!;
-              return (
-                <g key={edge.id} className="board-road" aria-label={`${playerName(owner)}'s road`}>
-                  <title>{playerName(owner)}&apos;s road</title>
-                  <Road from={a} to={b} color={color(owner)} />
-                </g>
-              );
-            })}
+          <BoardScene
+            uid={uid}
+            board={view.board}
+            frame={frame}
+            robber={view.robber}
+            pirate={view.pirate}
+            showClosed={view.phase === 'setup-settlement'}
+          />
+          {Object.entries(view.roads).map(([edgeId, owner]) => {
+            const [a, b] = edgeEnds(edgeId);
+            return (
+              <g key={edgeId} className="board-road" aria-label={`${playerName(owner)}'s road`}>
+                <title>{playerName(owner)}&apos;s road</title>
+                <Road from={a} to={b} color={color(owner)} />
+              </g>
+            );
+          })}
+          {Object.entries(view.ships).map(([edgeId, owner]) => {
+            const [a, b] = edgeEnds(edgeId);
+            return (
+              <g
+                key={edgeId}
+                className={`board-ship-piece${moveFrom === edgeId ? ' board-ship-moving' : ''}`}
+                aria-label={`${playerName(owner)}'s ship`}
+              >
+                <title>{playerName(owner)}&apos;s ship</title>
+                <SEA.Ship from={a} to={b} color={color(owner)} />
+              </g>
+            );
+          })}
           {view.board.hexes
             .filter(hex => hexTargets.has(hex.id))
-            .map(hex => (
-              <g
-                key={hex.id}
-                className="board-target board-hex-target"
-                role="button"
-                tabIndex={0}
-                aria-label={`Move robber to ${TERRAIN[hex.terrain].name}${hex.number ? `, number ${hex.number}` : ''}`}
-                onClick={() => onHex(hex.id)}
-                onKeyDown={event => keyboardActivate(event, () => onHex(hex.id))}
-                transform={`translate(${hex.x} ${hex.y})`}
-              >
-                <polygon
-                  points={hexPoints(52)}
-                  fill="transparent"
-                  stroke="#fff5d7"
-                  strokeWidth="2.5"
-                  strokeDasharray="5 4"
-                />
-              </g>
-            ))}
-          {view.board.edges
-            .filter(edge => edgeTargets.has(edge.id))
-            .map(edge => {
-              const [a, b] = edgeEnds(edge.id);
-              const dx = (b.x - a.x) * ROAD_INSET;
-              const dy = (b.y - a.y) * ROAD_INSET;
+            .map(hex => {
+              const pirate = hex.terrain === 'sea';
               return (
                 <g
-                  key={edge.id}
-                  className={`board-target board-road-target${selected?.id === edge.id ? ' board-target-selected' : ''}`}
+                  key={hex.id}
+                  className={`board-target board-hex-target${pirate ? ' board-sea-target' : ''}`}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Build road at ${edge.id}`}
-                  onClick={() => onEdge(edge.id)}
-                  onKeyDown={event => keyboardActivate(event, () => onEdge(edge.id))}
+                  aria-label={`Move ${pirate ? 'pirate' : 'robber'} to ${TERRAIN[hex.terrain].name}${hex.number ? `, number ${hex.number}` : ''}`}
+                  onClick={() => onHex(hex.id)}
+                  onKeyDown={event => keyboardActivate(event, () => onHex(hex.id))}
+                  transform={`translate(${hex.x} ${hex.y})`}
                 >
-                  <circle
-                    cx={(a.x + b.x) / 2}
-                    cy={(a.y + b.y) / 2}
-                    r="12"
+                  <polygon
+                    points={hexPoints(52)}
                     fill="transparent"
-                    className="board-hit-area"
+                    stroke="#fff5d7"
+                    strokeWidth="2.5"
+                    strokeDasharray={pirate ? '2 5' : '5 4'}
                   />
-                  <line
-                    className="board-hit-area"
-                    x1={a.x + dx}
-                    y1={a.y + dy}
-                    x2={b.x - dx}
-                    y2={b.y - dy}
-                    stroke="transparent"
-                    strokeWidth="22"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    className="board-target-mark"
-                    x1={a.x + dx}
-                    y1={a.y + dy}
-                    x2={b.x - dx}
-                    y2={b.y - dy}
-                    stroke="#fff9df"
-                    strokeWidth="7"
-                    strokeDasharray="2 5"
-                    strokeLinecap="round"
-                  >
-                    {!stillMotion() && selected?.id !== edge.id && (
-                      <animate attributeName="opacity" values="0.45;1;0.45" {...PULSE} />
-                    )}
-                  </line>
                 </g>
               );
             })}
-          {view.board.vertices
-            .filter(vertex => view.buildings[vertex.id])
-            .map(vertex => {
-              const building = view.buildings[vertex.id]!;
+          {[...edgeTargets].map(edgeId => {
+            const [a, b] = edgeEnds(edgeId);
+            const dx = (b.x - a.x) * ROAD_INSET;
+            const dy = (b.y - a.y) * ROAD_INSET;
+            const seaOnly = !view.legal.roads.includes(edgeId) && mode !== 'road';
+            return (
+              <g
+                key={edgeId}
+                className={`board-target board-road-target${selected?.id === edgeId ? ' board-target-selected' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label={edgeLabel(edgeId)}
+                onClick={() => onEdge(edgeId)}
+                onKeyDown={event => keyboardActivate(event, () => onEdge(edgeId))}
+              >
+                <circle
+                  cx={(a.x + b.x) / 2}
+                  cy={(a.y + b.y) / 2}
+                  r="12"
+                  fill="transparent"
+                  className="board-hit-area"
+                />
+                <line
+                  className="board-hit-area"
+                  x1={a.x + dx}
+                  y1={a.y + dy}
+                  x2={b.x - dx}
+                  y2={b.y - dy}
+                  stroke="transparent"
+                  strokeWidth="22"
+                  strokeLinecap="round"
+                />
+                <line
+                  className="board-target-mark"
+                  x1={a.x + dx}
+                  y1={a.y + dy}
+                  x2={b.x - dx}
+                  y2={b.y - dy}
+                  stroke="#fff9df"
+                  strokeWidth="7"
+                  strokeDasharray={seaOnly ? '1 6' : '2 5'}
+                  strokeLinecap="round"
+                >
+                  {!stillMotion() && selected?.id !== edgeId && (
+                    <animate attributeName="opacity" values="0.45;1;0.45" {...PULSE} />
+                  )}
+                </line>
+              </g>
+            );
+          })}
+          {Object.entries(view.buildings)
+            .sort(([a], [b]) => vertices.get(a)!.y - vertices.get(b)!.y)
+            .map(([vertexId, building]) => {
+              const vertex = vertices.get(vertexId)!;
               return (
-                <g key={vertex.id} transform={`translate(${vertex.x} ${vertex.y - 3})`}>
+                <g key={vertexId} transform={`translate(${vertex.x} ${vertex.y - 3})`}>
                   <title>
                     {playerName(building.playerId)}&apos;s {building.kind}
                   </title>
@@ -262,70 +284,100 @@ export default function Board({
                 </g>
               );
             })}
-          {view.board.vertices
-            .filter(vertex => vertexTargets.has(vertex.id))
-            .map(vertex => (
+          {[...vertexTargets].map(vertexId => {
+            const vertex = vertices.get(vertexId)!;
+            return (
               <g
-                key={vertex.id}
-                className={`board-target board-vertex-target${selected?.id === vertex.id ? ' board-target-selected' : ''}`}
+                key={vertexId}
+                className={`board-target board-vertex-target${selected?.id === vertexId ? ' board-target-selected' : ''}`}
                 role="button"
                 tabIndex={0}
-                aria-label={`${view.legal.cities.includes(vertex.id) ? 'Upgrade to city' : 'Build settlement'} at ${vertex.id}`}
-                onClick={() => onVertex(vertex.id)}
-                onKeyDown={event => keyboardActivate(event, () => onVertex(vertex.id))}
+                aria-label={`${view.legal.cities.includes(vertexId) ? 'Upgrade to city' : 'Build settlement'} at ${vertexId}`}
+                onClick={() => onVertex(vertexId)}
+                onKeyDown={event => keyboardActivate(event, () => onVertex(vertexId))}
                 transform={`translate(${vertex.x} ${vertex.y})`}
               >
                 <circle r="17" fill="transparent" className="board-hit-area" />
                 {/* Settlements that can become cities stay clickable but unmarked: the piece itself is the target. */}
-                {!view.legal.cities.includes(vertex.id) && <CornerMark />}
+                {!view.legal.cities.includes(vertexId) && <CornerMark />}
               </g>
-            ))}
+            );
+          })}
           {selected && selectedPoint && (
-            <g className="map-confirm" transform={`translate(${selectedPoint.x} ${selectedPoint.y - 42})`}>
-              <path d="M-32 18H32V-22H-32ZM-6 18 0 26 6 18" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
-              <g
-                role="button"
-                tabIndex={0}
-                aria-label={`Confirm ${selected.kind}`}
-                onClick={event => {
-                  event.stopPropagation();
-                  onConfirm?.();
-                }}
-                onKeyDown={event => keyboardActivate(event, () => onConfirm?.())}
-              >
-                <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
-                {/* The board's own piece art, outlined in a dark tone of the seat color, so even white shows on the cream card. */}
-                {selected.kind === 'road' ? (
-                  <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color(view.selfId)} />
-                ) : (
-                  <g transform="translate(-11 -1) scale(.75)">
-                    <BuildingPiece
-                      color={color(view.selfId)}
-                      city={selected.kind === 'city'}
-                      style={view.settings.pieceStyle}
-                    />
-                  </g>
-                )}
-                <circle cx="17" cy="-2" r="10" fill="#198144" />
-                <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-              </g>
-            </g>
+            <ConfirmCard
+              at={selectedPoint}
+              choices={choices}
+              view={view}
+              color={color(view.selfId)}
+              onConfirm={onConfirm}
+            />
           )}
-          <SeaDecorations />
+          <SeaDecorations frame={frame} />
         </g>
       </svg>
-      {hasTargets && !direct && !selected && (
+      {showHint && (
         <div className="board-placement-hint" role="status">
           <span />
-          {hexTargets.size
-            ? 'Choose a tile for the robber'
-            : edgeTargets.size
-              ? 'Choose a highlighted road'
-              : mode === 'city'
-                ? 'Choose a settlement to upgrade'
-                : 'Choose a highlighted corner'}
+          {hintFor(mode, hexTargets.size, edgeTargets.size, moveFrom)}
         </div>
       )}
     </div>
+  );
+}
+
+/** The card above a picked spot: one confirm button per piece that fits there. */
+function ConfirmCard({
+  at,
+  choices,
+  view,
+  color,
+  onConfirm,
+}: {
+  at: { x: number; y: number };
+  choices: PlaceKind[];
+  view: GameView;
+  color: string;
+  onConfirm?: (kind: PlaceKind) => void;
+}) {
+  const width = 64 * choices.length;
+  return (
+    <g className="map-confirm" transform={`translate(${at.x} ${at.y - 42})`}>
+      <path
+        d={`M${-width / 2} 18H-6L0 26 6 18H${width / 2}V-22H${-width / 2}Z`}
+        fill="#fffdf4"
+        stroke="#123d54"
+        strokeWidth="2"
+      />
+      {choices.map((kind, i) => (
+        <g
+          key={kind}
+          transform={`translate(${-width / 2 + 32 + i * 64} 0)`}
+          role="button"
+          tabIndex={0}
+          aria-label={`Confirm ${kind}`}
+          onClick={event => {
+            event.stopPropagation();
+            onConfirm?.(kind);
+          }}
+          onKeyDown={event => keyboardActivate(event, () => onConfirm?.(kind))}
+        >
+          <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
+          {/* The board's own piece art, outlined in a dark tone of the seat color, so even white shows on the cream card. */}
+          {kind === 'road' && <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color} />}
+          {kind === 'ship' && (
+            <g transform="translate(-10 0) scale(.8)">
+              <SEA.Ship from={{ x: -18, y: 8 }} to={{ x: 18, y: 8 }} color={color} />
+            </g>
+          )}
+          {(kind === 'settlement' || kind === 'city') && (
+            <g transform="translate(-11 -1) scale(.75)">
+              <BuildingPiece color={color} city={kind === 'city'} style={view.settings.pieceStyle} />
+            </g>
+          )}
+          <circle cx="17" cy="-2" r="10" fill="#198144" />
+          <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+        </g>
+      ))}
+    </g>
   );
 }

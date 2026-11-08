@@ -1,6 +1,6 @@
 // Art v3: pieces are shaded in their own color (lit roof, dark side wall, dark outline)
 // instead of a cream halo, so they sit on the board rather than float over it.
-import type { Resource, Terrain } from '../../../shared/types';
+import type { Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack } from '../types';
 

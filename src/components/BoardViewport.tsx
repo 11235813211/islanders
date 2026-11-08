@@ -1,6 +1,6 @@
 import { Maximize, Minus, Plus } from 'lucide-react';
 import { type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
-import { type Camera, cameraGesture, cameraViewBox, initialCamera, type Point } from '../lib/boardCamera';
+import { boardFrame, type Camera, cameraGesture, cameraViewBox, initialCamera, type Point } from '../lib/boardCamera';
 import Board, { type BoardProps } from './Board';
 
 const center = (points: Point[]) => ({
@@ -27,21 +27,23 @@ export default function BoardViewport({
   const root = useRef<HTMLDivElement>(null);
   const [camera, setCamera] = useState(initialCamera);
   const current = useRef(camera);
-  const frame = useRef(0);
+  const animationFrame = useRef(0);
   const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pointers = useRef(new Map<number, Point>());
   const baseline = useRef({ camera, points: [] as Point[] });
   const dragged = useRef(false);
   const suppressClick = useRef(false);
+  const frame = useRef(boardFrame(props.view.board.hexes));
+  frame.current = boardFrame(props.view.board.hexes);
 
   /** Show a camera now without re-rendering the board. */
   const preview = (next: Camera) => {
     current.current = next;
-    if (frame.current) return;
-    frame.current = requestAnimationFrame(() => {
-      frame.current = 0;
+    if (animationFrame.current) return;
+    animationFrame.current = requestAnimationFrame(() => {
+      animationFrame.current = 0;
       const element = root.current;
-      element?.querySelector('.board-svg')?.setAttribute('viewBox', cameraViewBox(current.current));
+      element?.querySelector('.board-svg')?.setAttribute('viewBox', cameraViewBox(current.current, frame.current));
       element?.setAttribute('data-zoom', current.current.zoom.toFixed(2));
     });
   };
@@ -67,7 +69,14 @@ export default function BoardViewport({
       event.preventDefault();
       const point = { x: event.clientX, y: event.clientY };
       preview(
-        cameraGesture(current.current, point, point, Math.exp(-event.deltaY * 0.002), element.getBoundingClientRect()),
+        cameraGesture(
+          current.current,
+          point,
+          point,
+          Math.exp(-event.deltaY * 0.002),
+          element.getBoundingClientRect(),
+          frame.current,
+        ),
       );
       rebase();
       clearTimeout(settle.current);
@@ -85,7 +94,14 @@ export default function BoardViewport({
       suppressClick.current = true;
       if (event.cancelable) event.preventDefault();
       preview(
-        cameraGesture(base.camera, from, to, distance(points) / distance(base.points), element.getBoundingClientRect()),
+        cameraGesture(
+          base.camera,
+          from,
+          to,
+          distance(points) / distance(base.points),
+          element.getBoundingClientRect(),
+          frame.current,
+        ),
       );
     };
     // Listen on window rather than capturing pointers: touch input is already captured by the
@@ -115,7 +131,7 @@ export default function BoardViewport({
     window.addEventListener('pointercancel', up);
     window.addEventListener('blur', cancelAll);
     return () => {
-      cancelAnimationFrame(frame.current);
+      cancelAnimationFrame(animationFrame.current);
       clearTimeout(settle.current);
       element.removeEventListener('wheel', wheel);
       document.removeEventListener('gesturestart', stopPageZoom);
@@ -140,7 +156,7 @@ export default function BoardViewport({
   const zoom = (factor: number) => {
     const rect = root.current!.getBoundingClientRect();
     const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    update(cameraGesture(current.current, point, point, factor, rect));
+    update(cameraGesture(current.current, point, point, factor, rect, frame.current));
     rebase();
   };
   return (

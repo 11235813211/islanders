@@ -10,11 +10,13 @@ Live site: https://play.islandersgame.workers.dev (Cloudflare Worker `play`, fre
 
 - `shared/` runs on client and server.
   - `engine/`: the authoritative rules. `index.ts` is the public API (`applyAction`, `getView`, `advanceTime`, …); import from `shared/engine`, not its files. `apply.ts` dispatches actions to handlers in `lobby.ts`, `turn.ts`, `trade.ts`, `development.ts`, `social.ts`; `time.ts` runs deadlines and bots; `view.ts` is the only projection sent to clients; `migrations.ts` upgrades stored rooms.
+  - `engine/sea.ts` (ships, gold choices) and `engine/production.ts` (rolls, gold, jungle, volcano eruptions) hold the sea-map rules; `seafaring.ts` is the shared land/sea geometry (which edges take roads or ships, islands).
+  - `maps/`: designed boards. `types.ts` (BoardDesign), `generate.ts` (design → Board with balanced random fills), `balance.ts`, `builtin.ts` (the maps that ship, drawn as token grids), `edit.ts` (every board-editor edit, pure), `validate.ts`, `library.ts`.
   - `actions.ts`: the one table of every action's fields, used by both server and engine.
   - `types.ts` (all state/view/action types), `settings.ts` (defaults and limits), `colors.ts` (seat palette), `guest-names.ts` (editable list), `rules.ts` (scoring helpers), `board.ts`.
   - `bots/`: `beginner.ts`, `strategic.ts` (Intermediate and Advanced profiles), `analysis.ts` (position helpers). Bots read only `GameView`, never hidden state.
-- `server/`: `worker.ts` routes HTTP, `room.ts` is one Durable Object per room, `accounts.ts` one per account, `protocol.ts` parses input, `env.ts` shared helpers. `index.ts` only re-exports.
-- `src/`: `App.tsx` (screens), `components/RoomLobby.tsx` (lobby and its settings schema), `components/GameTable.tsx` with pieces in `components/game/`, `components/Board.tsx` (targets and clicks), `art/` (all drawings, versioned: see `src/art/README.md`), `hooks/`, `lib/`.
+- `server/`: `worker.ts` routes HTTP, `room.ts` is one Durable Object per room, `accounts.ts` one per account, `boards.ts` the one board library (`/api/boards`; editing is limited to `PLAYTEST_USERS`), `protocol.ts` parses input, `env.ts` shared helpers. `index.ts` only re-exports.
+- `src/`: `App.tsx` (screens), `components/RoomLobby.tsx` (lobby and its settings schema), `components/GameTable.tsx` with pieces in `components/game/`, `components/Board.tsx` (targets and clicks) over `components/BoardScene.tsx` (the map art, shared with previews and the editor), `components/maps/` (map picker), `components/editor/` (board editor), `art/` (all drawings, versioned: see `src/art/README.md`), `hooks/`, `lib/`.
 - `src/components/game/phone.css` holds phone-only layout overrides.
 
 ## Adding things
@@ -23,6 +25,7 @@ Live site: https://play.islandersgame.workers.dev (Cloudflare Worker `play`, fre
 - New room setting: `GameSettings` field → default and check in `shared/settings.ts` → one entry in `CATEGORIES` in `RoomLobby.tsx`.
 - New stored field: add it to the type, set it in `createGame`, and append a numbered step to `MIGRATIONS` in `engine/migrations.ts` (never edit an old step).
 - New art: `npm run art:new`, then edit the new `src/art/vN`.
+- New built-in map: one `map(...)` entry in `shared/maps/builtin.ts` (token grid). New terrain: `SEA_TERRAINS` in `shared/types.ts`, its rule in `shared/engine/production.ts`, a tile file in `src/art/vN/sea/`.
 
 ## Tests (all tests and test tools live in `tests/`)
 
@@ -30,7 +33,7 @@ Live site: https://play.islandersgame.workers.dev (Cloudflare Worker `play`, fre
 - `npm test`: rules, bots, and protocol unit tests (seconds). Run first after any `shared/` or `server/protocol.ts` change.
 - `npx playwright test tests/<file>.spec.ts`: browser and real-server tests (starts wrangler and Vite). Run the relevant file, not the whole suite, while iterating.
 - `npx playwright test --project=iphone`: phone checks (`tests/phone.spec.ts`).
-- Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`.
+- Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`. Sea tiles and pieces: `tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
 - Bot strength: `GAMES=240 npx vitest run tests/bots.test.ts -t report` (about a minute). Run it after changing bot logic; Advanced should beat Intermediate, which should beat Beginner.
 - `npm run check` (lint, unit tests, build) must pass before you say you're done. Report failures honestly.
 

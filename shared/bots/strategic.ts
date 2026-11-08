@@ -18,6 +18,7 @@ import {
   eventsThisTurn,
   expansionTarget,
   type Goal,
+  linkAction,
   pips,
   resourceWeights,
   type SpotTuning,
@@ -127,7 +128,7 @@ class Planner {
   }
 
   setupRoad(): GameAction {
-    const edges = this.view.legal.roads.map(id => this.board.edge.get(id)!);
+    const edges = [...this.view.legal.roads, ...this.view.legal.ships].map(id => this.board.edge.get(id)!);
     const reach = (edgeId: string) => {
       const e = this.board.edge.get(edgeId)!;
       const far = this.view.buildings[e.a] ? e.b : e.a;
@@ -135,7 +136,7 @@ class Planner {
       return Math.max(0, ...spots.map(v => spotValue(this.board, v, this.weights)));
     };
     edges.sort((a, b) => reach(b.id) - reach(a.id));
-    return { type: 'place-road', edgeId: edges[0]!.id };
+    return linkAction(this.view, edges[0]!.id)!;
   }
 
   // ---- robber ----
@@ -222,7 +223,8 @@ class Planner {
       if (held(resource) >= 3) return { type: 'play-monopoly', cardId: monopoly.id, resource };
     }
     const roadBuilding = this.playable('road-building');
-    if (roadBuilding && this.self.roadsLeft >= 2 && this.self.settlementsLeft && this.view.legal.roads.length) {
+    const links = this.view.legal.roads.length + this.view.legal.ships.length;
+    if (roadBuilding && this.self.roadsLeft + this.self.shipsLeft >= 2 && this.self.settlementsLeft && links) {
       const spot = expansionTarget(this.board, this.weights);
       if (spot && spot.distance >= 1) return { type: 'play-road-building', cardId: roadBuilding.id };
     }
@@ -231,9 +233,10 @@ class Planner {
 
   // ---- building and trading ----
 
-  roadTowardTarget(maxDistance = 3): string | null {
+  /** A road or ship toward the best reachable open corner. */
+  roadTowardTarget(maxDistance = 3): GameAction | null {
     const spot = expansionTarget(this.board, this.weights, maxDistance);
-    return spot?.firstEdge && this.view.legal.roads.includes(spot.firstEdge) ? spot.firstEdge : null;
+    return linkAction(this.view, spot?.firstEdge);
   }
 
   bestSettlement(): string {
@@ -299,9 +302,9 @@ class Planner {
     if (view.legal.cities.length) return { type: 'build-city', vertexId: this.bestCity() };
     if (view.legal.settlements.length) return { type: 'build-settlement', vertexId: this.bestSettlement() };
 
-    if (goal === 'settlement' && view.legal.roads.length) {
+    if (goal === 'settlement') {
       const road = this.roadTowardTarget();
-      if (road) return { type: 'build-road', edgeId: road };
+      if (road) return road;
     }
     const trade = this.bankTrade(goal);
     if (trade) return trade;
@@ -311,9 +314,9 @@ class Planner {
       if (offer) return offer;
     }
     // Spare roads toward a nearby spot.
-    if (view.legal.roads.length && this.self.roadsLeft > 2) {
+    if (this.self.roadsLeft + this.self.shipsLeft > 2) {
       const road = this.roadTowardTarget(2);
-      if (road) return { type: 'build-road', edgeId: road };
+      if (road) return road;
     }
     return { type: 'end-turn' };
   }
@@ -354,10 +357,11 @@ function makeBrain(profile: Profile): Brain {
           return { type: 'move-robber', hexId: p.robberHex() };
         case 'steal':
           return { type: 'steal', playerId: p.stealTarget() };
-        case 'free-roads': {
-          const road = p.roadTowardTarget(4) ?? view.legal.roads[0];
-          return road ? { type: 'build-road', edgeId: road } : { type: 'finish-free-roads' };
-        }
+        case 'free-roads':
+          return (
+            p.roadTowardTarget(4) ??
+            linkAction(view, view.legal.roads[0] ?? view.legal.ships[0]) ?? { type: 'finish-free-roads' }
+          );
         case 'build':
           return p.build(options);
         default:

@@ -1,4 +1,9 @@
+import { HEX_RADIUS } from '../../shared/board';
+import type { Hex } from '../../shared/types';
+import type { Frame } from '../art/types';
+
 export interface Camera {
+  /** Offset of the view's center from the frame's center, in board units. */
   x: number;
   y: number;
   zoom: number;
@@ -15,19 +20,56 @@ export interface Viewport {
 }
 export const initialCamera: Camera = { x: 0, y: 0, zoom: 1 };
 
-/** The board SVG's viewBox for a camera (the board is drawn in a 670×600 space centered at 0,0). */
-export function cameraViewBox(camera: Camera): string {
-  return `${camera.x - 335 / camera.zoom} ${camera.y - 300 / camera.zoom} ${670 / camera.zoom} ${600 / camera.zoom}`;
+/** The standard island is drawn in a 670×600 area centered at 0,0. */
+export const BASE_FRAME: Frame = { x: -335, y: -300, width: 670, height: 600 };
+/** Sea around a designed board's outermost tiles. */
+const MARGIN = 26;
+
+/** The area a board is drawn in: the standard frame, or the tiles' bounds plus a margin for sea maps. */
+export function boardFrame(hexes: Pick<Hex, 'x' | 'y' | 'terrain'>[]): Frame {
+  if (!hexes.length || !hexes.some(h => h.terrain === 'sea')) return BASE_FRAME;
+  const halfWidth = (Math.sqrt(3) / 2) * HEX_RADIUS;
+  const xs = hexes.map(h => h.x);
+  const ys = hexes.map(h => h.y);
+  const x = Math.min(...xs) - halfWidth - MARGIN;
+  const y = Math.min(...ys) - HEX_RADIUS - MARGIN;
+  return {
+    x,
+    y,
+    width: Math.max(...xs) + halfWidth + MARGIN - x,
+    height: Math.max(...ys) + HEX_RADIUS + MARGIN - y,
+  };
+}
+
+/** The board SVG's viewBox for a camera. */
+export function cameraViewBox(camera: Camera, frame: Frame = BASE_FRAME): string {
+  const w = frame.width / camera.zoom;
+  const h = frame.height / camera.zoom;
+  const cx = frame.x + frame.width / 2 + camera.x;
+  const cy = frame.y + frame.height / 2 + camera.y;
+  return `${cx - w / 2} ${cy - h / 2} ${w} ${h}`;
 }
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
-export function cameraGesture(camera: Camera, from: Point, to: Point, factor: number, rect: Viewport): Camera {
-  const zoom = clamp(camera.zoom * factor, 0.8, 4);
-  const units = Math.max(670 / rect.width, 600 / rect.height);
+
+/** Pan and zoom so the board point under `from` ends up under `to`, scaled by `factor`. */
+export function cameraGesture(
+  camera: Camera,
+  from: Point,
+  to: Point,
+  factor: number,
+  rect: Viewport,
+  frame: Frame = BASE_FRAME,
+  maxZoom = 4,
+): Camera {
+  const zoom = clamp(camera.zoom * factor, 0.8, maxZoom);
+  const units = Math.max(frame.width / rect.width, frame.height / rect.height);
   const cx = rect.left + rect.width / 2,
     cy = rect.top + rect.height / 2;
+  const rangeX = frame.width * 0.54;
+  const rangeY = frame.height * 0.54;
   return {
     zoom,
-    x: clamp(camera.x + units * ((from.x - cx) / camera.zoom - (to.x - cx) / zoom), -360, 360),
-    y: clamp(camera.y + units * ((from.y - cy) / camera.zoom - (to.y - cy) / zoom), -320, 320),
+    x: clamp(camera.x + units * ((from.x - cx) / camera.zoom - (to.x - cx) / zoom), -rangeX, rangeX),
+    y: clamp(camera.y + units * ((from.y - cy) / camera.zoom - (to.y - cy) / zoom), -rangeY, rangeY),
   };
 }

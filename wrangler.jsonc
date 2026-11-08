@@ -19,6 +19,10 @@
       {
         "name": "ACCOUNTS",
         "class_name": "AccountStore"
+      },
+      {
+        "name": "LIBRARY",
+        "class_name": "BoardLibraryStore"
       }
     ]
   },
@@ -30,6 +34,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["AccountStore"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["BoardLibraryStore"]
     }
   ],
   "ratelimits": [
@@ -62,7 +70,7 @@
     // Same-origin hosting is allowed automatically; add exact origins only for a separate frontend.
     "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173",
     "DEV_MODE": "false",
-    // Account usernames (comma-separated) that may create solo test rooms in production.
+    // Account usernames (comma-separated) that may create solo test rooms and edit boards in production.
     "PLAYTEST_USERS": "BentoBox"
   },
   "observability": {

@@ -1,15 +1,16 @@
 import { advanceTime, applyAction, botDueAt } from '../shared/engine';
+import type { BoardDesign } from '../shared/maps';
 import type { BotLevel, GameState } from '../shared/types';
-import { conserved, makeLobby, seeded, TEST_NOW } from './fixtures';
+import { conserved, makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
 
 /**
  * Play one complete game where every seat is a bot, driven only by
  * advanceTime (the same path the room's alarm uses). Throws if the game
  * stalls or resources stop adding up.
  */
-export function playBotGame(levels: BotLevel[], seed: number, maxSteps = 6000): GameState {
+export function playBotGame(levels: BotLevel[], seed: number, maxSteps = 6000, design?: BoardDesign): GameState {
   const random = seeded(seed);
-  let g = makeLobby(levels.length);
+  let g = design ? seaLobby(design, levels.length, seed) : makeLobby(levels.length);
   g.players.forEach((p, i) => {
     p.bot = levels[i];
   });

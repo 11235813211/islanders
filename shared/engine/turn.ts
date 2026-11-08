@@ -1,9 +1,9 @@
-import { type GameState, RESOURCES, type ResourceBag } from '../types';
+import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
+import { type GameState, RESOURCES } from '../types';
 import {
   addLog,
   BUILD_COSTS,
   bumpStat,
-  emptyBag,
   type Handlers,
   needPhase,
   PIECE_LIMITS,
@@ -12,34 +12,8 @@ import {
   requireRule,
   resourceCount,
 } from './core';
-import { legalMoves, roadSites, stealTargets } from './legal';
-
-/** Pay out a roll. If the bank can't cover everyone owed a resource, nobody gets it (unless only one player is owed). */
-function produce(state: GameState, total: number): Record<string, ResourceBag> {
-  const demand = new Map<string, ResourceBag>(state.players.map(player => [player.id, emptyBag()]));
-  for (const hex of state.board.hexes) {
-    if (hex.terrain === 'desert' || hex.number !== total || hex.id === state.robber) continue;
-    for (const vertexId of hex.vertexIds) {
-      const building = state.buildings[vertexId];
-      if (building) demand.get(building.playerId)![hex.terrain] += building.kind === 'city' ? 2 : 1;
-    }
-  }
-  const gains: Record<string, ResourceBag> = {};
-  for (const resource of RESOURCES) {
-    const recipients = state.players.filter(player => demand.get(player.id)![resource] > 0);
-    const needed = recipients.reduce((sum, player) => sum + demand.get(player.id)![resource], 0);
-    if (recipients.length > 1 && needed > state.bank[resource]) continue;
-    for (const player of recipients) {
-      const amount = Math.min(demand.get(player.id)![resource], state.bank[resource]);
-      state.bank[resource] -= amount;
-      player.resources[resource] += amount;
-      gains[player.id] ??= emptyBag();
-      gains[player.id]![resource] += amount;
-    }
-  }
-  for (const [id, bag] of Object.entries(gains)) bumpStat(state, id, 'gained', resourceCount(bag));
-  return gains;
-}
+import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
+import { erupt, produce } from './production';
 
 /** Take one weighted-random card from the victim, then return to the phase the robber interrupted. */
 export function stealResource(state: GameState, actorId: string, victimId: string, random: () => number): void {
@@ -66,10 +40,45 @@ export function stealResource(state: GameState, actorId: string, victimId: strin
   state.resumePhase = null;
 }
 
-function finishFreeRoads(next: GameState): void {
+export function finishFreeRoads(next: GameState): void {
   next.phase = next.resumePhase ?? 'build';
   next.resumePhase = null;
   next.freeRoads = 0;
+}
+
+/** After a free road or ship from Road Building: stop when both are used or nothing more fits. */
+export function afterFreePiece(next: GameState, playerId: string): void {
+  next.freeRoads--;
+  const pieces = pieceCounts(next, playerId);
+  const roads = pieces.roads < PIECE_LIMITS.roads && roadSites(next, playerId, false).length;
+  const ships = pieces.ships < PIECE_LIMITS.ships && shipSites(next, playerId, false).length;
+  if (!next.freeRoads || (!roads && !ships)) finishFreeRoads(next);
+}
+
+/** Note the island a new settlement stands on; the first settlement there may earn its bonus. */
+export function visitIsland(next: GameState, playerId: string, vertexId: string, setup: boolean): void {
+  const island = vertexIsland(next.board, vertexId);
+  if (island === null) return;
+  const visited = next.islands[playerId] ?? [];
+  if (visited.includes(island)) return;
+  next.islands[playerId] = [...visited, island];
+  const bonus = setup ? 0 : islandBonus(next.board, island);
+  if (!bonus) return;
+  next.bonusPoints[playerId] = (next.bonusPoints[playerId] ?? 0) + bonus;
+  const name = next.players.find(p => p.id === playerId)!.name;
+  addLog(next, `${name} settled a new island and earned ${bonus} bonus point${bonus === 1 ? '' : 's'}.`);
+}
+
+/** End the setup round's road-or-ship placement. */
+export function finishSetupLink(next: GameState): void {
+  next.lastSettlement = null;
+  next.setupIndex++;
+  if (next.setupIndex === next.setupOrder.length) {
+    next.phase = 'roll';
+    next.turnIndex = 0;
+    next.turn = 1;
+    addLog(next, 'Setup complete.');
+  } else next.phase = 'setup-settlement';
 }
 
 export const turnHandlers: Pick<
@@ -94,14 +103,15 @@ export const turnHandlers: Pick<
     );
     next.buildings[action.vertexId] = { playerId, kind: 'settlement' };
     next.lastSettlement = action.vertexId;
+    visitIsland(next, playerId, action.vertexId, true);
     // The second setup settlement collects one of each adjacent resource.
     if (next.setupIndex >= next.players.length) {
-      const vertex = next.board.vertices.find(candidate => candidate.id === action.vertexId)!;
-      for (const hexId of vertex.hexIds) {
-        const terrain = next.board.hexes.find(hex => hex.id === hexId)!.terrain;
-        if (terrain !== 'desert' && next.bank[terrain] > 0) {
-          next.bank[terrain]--;
-          player.resources[terrain]++;
+      const index = boardIndex(next.board);
+      for (const hexId of index.vertex.get(action.vertexId)!.hexIds) {
+        const resource = terrainResource(index.hex.get(hexId)!.terrain);
+        if (resource && next.bank[resource] > 0) {
+          next.bank[resource]--;
+          player.resources[resource]++;
           bumpStat(next, playerId, 'gained');
         }
       }
@@ -117,15 +127,8 @@ export const turnHandlers: Pick<
       'Connect this road to the settlement you just placed.',
     );
     next.roads[action.edgeId] = playerId;
-    next.lastSettlement = null;
-    next.setupIndex++;
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
-    if (next.setupIndex === next.setupOrder.length) {
-      next.phase = 'roll';
-      next.turnIndex = 0;
-      next.turn = 1;
-      addLog(next, 'Setup complete.');
-    } else next.phase = 'setup-settlement';
+    finishSetupLink(next);
   },
 
   roll({ next, player, playerId, random }) {
@@ -137,6 +140,7 @@ export const turnHandlers: Pick<
     next.diceCounts[total]++;
     if (total === 7) {
       next.pendingDiscards = {};
+      next.stealHex = null;
       for (const candidate of next.players) {
         const count = resourceCount(candidate.resources);
         if (count > next.settings.discardLimit) next.pendingDiscards[candidate.id] = Math.floor(count / 2);
@@ -145,8 +149,9 @@ export const turnHandlers: Pick<
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains: {} });
     } else {
       const gains = produce(next, total);
-      next.phase = 'build';
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains });
+      erupt(next, total, random);
+      next.phase = Object.keys(next.pendingGold).length ? 'gold' : 'build';
     }
   },
 
@@ -169,11 +174,14 @@ export const turnHandlers: Pick<
   'move-robber'({ next, player, playerId, random }, action) {
     needPhase(next, 'robber');
     requireRule(legalMoves(next, playerId).robberHexes.includes(action.hexId), 'Move the robber to a different hex.');
-    next.robber = action.hexId;
+    const pirate = boardIndex(next.board).hex.get(action.hexId)!.terrain === 'sea';
+    if (pirate) next.pirate = action.hexId;
+    else next.robber = action.hexId;
+    next.stealHex = action.hexId;
     const victims = stealTargets(next, playerId);
     next.phase = victims.length ? 'steal' : (next.resumePhase ?? 'build');
     if (!victims.length) next.resumePhase = null;
-    addLog(next, `${player.name} moved the robber.`);
+    addLog(next, `${player.name} moved the ${pirate ? 'pirate' : 'robber'}.`);
     if (victims.length === 1) stealResource(next, playerId, victims[0]!, random);
   },
 
@@ -195,15 +203,7 @@ export const turnHandlers: Pick<
     if (next.phase !== 'free-roads') pay(next, player, BUILD_COSTS.road);
     next.roads[action.edgeId] = playerId;
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
-    if (next.phase === 'free-roads') {
-      next.freeRoads--;
-      if (
-        !next.freeRoads ||
-        pieceCounts(next, playerId).roads === PIECE_LIMITS.roads ||
-        !roadSites(next, playerId, false).length
-      )
-        finishFreeRoads(next);
-    }
+    if (next.phase === 'free-roads') afterFreePiece(next, playerId);
   },
 
   'build-settlement'({ next, player, playerId }, action) {
@@ -215,6 +215,7 @@ export const turnHandlers: Pick<
     pay(next, player, BUILD_COSTS.settlement);
     next.buildings[action.vertexId] = { playerId, kind: 'settlement' };
     addLog(next, `${player.name} founded a settlement.`, { kind: 'build', playerId, piece: 'settlement' });
+    visitIsland(next, playerId, action.vertexId, false);
   },
 
   'build-city'({ next, player, playerId }, action) {
@@ -242,6 +243,8 @@ export const turnHandlers: Pick<
     next.phase = 'roll';
     next.developmentPlayed = false;
     next.tradeOffer = null;
+    next.shipsBuilt = [];
+    next.shipMoved = false;
     addLog(next, `${player.name} ended their turn.`);
   },
 };

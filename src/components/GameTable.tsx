@@ -4,11 +4,13 @@ import { playerVars } from '../../shared/colors';
 import { emptyBag } from '../../shared/engine';
 import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView, Resource } from '../../shared/types';
+import { SEA } from '../art';
 import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
+import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
-import BuildBar, { type BuildKind } from './game/BuildBar';
-import { addDiscard, DiscardPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
+import BuildBar from './game/BuildBar';
+import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
 import EndGame from './game/EndGame';
@@ -53,6 +55,8 @@ function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null)
       return 'Choosing a player…';
     case 'discard':
       return 'Discarding resources…';
+    case 'gold':
+      return 'Choosing gold…';
     default:
       return ownTurn ? 'Build or trade' : `${active?.name}’s turn`;
   }
@@ -77,8 +81,9 @@ export default function GameTable({
 }) {
   const view = room.view!;
   const send = room.send;
-  const [mode, setModeState] = useState<BuildKind | null>(null);
-  const [selected, setSelected] = useState<{ kind: BuildKind; id: string } | null>(null);
+  const [mode, setModeState] = useState<BoardMode>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
+  const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [trade, setTrade] = useState<TradeDraft | null>(null);
   const [devKind, setDevKind] = useState<DevelopmentType | null>(null);
   const [discard, setDiscard] = useState(emptyBag);
@@ -96,9 +101,10 @@ export default function GameTable({
   const blocked = busy || paused || spectator || !ownTurn;
   useTurnAlerts(view);
 
-  const setMode = (next: BuildKind | null) => {
+  const setMode = (next: BoardMode) => {
     setModeState(next);
     setSelected(null);
+    setMoveFrom(null);
   };
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 200);
@@ -119,13 +125,16 @@ export default function GameTable({
     const next =
       view.phase === 'discard'
         ? Object.keys(view.pendingDiscards).find(id => (view.pendingDiscards[id] ?? 0) > 0)
-        : view.activePlayerId;
+        : view.phase === 'gold'
+          ? Object.keys(view.pendingGold)[0]
+          : view.activePlayerId;
     if (next && next !== view.selfId && !view.players.find(p => p.id === next)?.bot) room.viewAs(next);
   }, [view, follow, busy, room.viewAs, spectator, paused]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset local choices when the seat or phase changes.
   useEffect(() => {
     setModeState(null);
     setSelected(null);
+    setMoveFrom(null);
     setDevKind(null);
     setDiscard(emptyBag());
     setTrade(previous => (previous?.counterOf && view.phase === 'build' ? previous : null));
@@ -139,13 +148,13 @@ export default function GameTable({
   }, [finished]);
   useEffect(() => {
     if (!selected) return;
-    const legal =
-      selected.kind === 'road'
-        ? view.legal.roads
-        : selected.kind === 'city'
-          ? view.legal.cities
-          : view.legal.settlements;
-    if (!legal.includes(selected.id)) setSelected(null);
+    const legal = {
+      road: view.legal.roads,
+      ship: view.legal.ships,
+      city: view.legal.cities,
+      settlement: view.legal.settlements,
+    };
+    if (!(selected.choices ?? [selected.kind]).some(kind => legal[kind].includes(selected.id))) setSelected(null);
   }, [view.legal, selected]);
   useEffect(() => {
     if (!selected) return;
@@ -167,28 +176,41 @@ export default function GameTable({
   const remaining = view.turnDeadline === null ? 0 : Math.max(0, Math.ceil((view.turnDeadline - clock) / 1000));
   const rollIn = view.rollDeadline === null ? null : Math.max(0, Math.ceil((view.rollDeadline - clock) / 1000));
 
-  function place(selection: { kind: BuildKind; id: string }) {
+  function place(kind: PlaceKind, id: string) {
     if (blocked) return;
-    if (selection.kind === 'road')
-      send({ type: view.phase === 'setup-road' ? 'place-road' : 'build-road', edgeId: selection.id });
+    const setup = view.phase === 'setup-road';
+    if (kind === 'road') send({ type: setup ? 'place-road' : 'build-road', edgeId: id });
+    else if (kind === 'ship') send({ type: setup ? 'place-ship' : 'build-ship', edgeId: id });
     else
       send({
         type:
-          view.phase === 'setup-settlement'
-            ? 'place-settlement'
-            : selection.kind === 'city'
-              ? 'build-city'
-              : 'build-settlement',
-        vertexId: selection.id,
+          view.phase === 'setup-settlement' ? 'place-settlement' : kind === 'city' ? 'build-city' : 'build-settlement',
+        vertexId: id,
       });
     setMode(null);
   }
-  function pick(kind: BuildKind, id: string) {
-    if (mode) place({ kind, id });
+  function pickVertex(id: string) {
+    const kind = view.legal.cities.includes(id) ? 'city' : 'settlement';
+    if (mode) place(kind, id);
     else setSelected({ kind, id });
+  }
+  /** An edge: a ship to move (or where it goes), or a road or ship, asking which when a coast takes both. */
+  function pickEdge(id: string) {
+    if (mode === 'move-ship') {
+      if (!moveFrom) return setMoveFrom(id);
+      send({ type: 'move-ship', from: moveFrom, to: id });
+      return setMode(null);
+    }
+    const choices: PlaceKind[] = [];
+    if (mode !== 'ship' && view.legal.roads.includes(id)) choices.push('road');
+    if (mode !== 'road' && view.legal.ships.includes(id)) choices.push('ship');
+    if (!choices.length) return;
+    if (mode && choices.length === 1) return place(choices[0]!, id);
+    setSelected({ kind: choices[0]!, id, ...(choices.length > 1 ? { choices } : {}) });
   }
 
   const discarding = view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0 && !paused;
+  const choosingGold = view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && !paused;
   const inCorner = (kind: DevelopmentType | null) => kind === 'year-of-plenty' || kind === 'monopoly';
   /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
   function tapCard(resource: Resource) {
@@ -206,6 +228,7 @@ export default function GameTable({
     const close = () => setDevKind(null);
     if (discarding)
       return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
+    if (choosingGold) return <GoldPanel key={view.selfId} view={view} busy={busy} send={send} />;
     if (devKind === 'year-of-plenty') return <PlentyPanel view={view} busy={busy} send={send} close={close} />;
     if (devKind === 'monopoly') return <MonopolyPanel view={view} busy={busy} send={send} close={close} />;
     if (!trade) return null;
@@ -288,9 +311,10 @@ export default function GameTable({
         mode={view.phase === 'robber' ? 'robber' : mode}
         disabled={blocked}
         selected={selected}
-        onConfirm={() => selected && place(selected)}
-        onVertex={id => pick(view.legal.cities.includes(id) ? 'city' : 'settlement', id)}
-        onEdge={id => pick('road', id)}
+        moveFrom={moveFrom}
+        onConfirm={kind => selected && place(kind, selected.id)}
+        onVertex={pickVertex}
+        onEdge={pickEdge}
         corner={cornerPanel()}
         onHex={hexId => send({ type: 'move-robber', hexId })}
       >
@@ -333,6 +357,17 @@ export default function GameTable({
         ) : (
           <ResourceHand hand={view.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
+            {!!self?.discoveries && (
+              <span
+                className="discovery-count"
+                role="img"
+                aria-label={`${self.discoveries} discoveries`}
+                title="Discoveries from jungles. Each pays one resource of a development card."
+              >
+                <SEA.DiscoveryIcon size={22} />
+                {self.discoveries}
+              </span>
+            )}
           </ResourceHand>
         )}
       </section>

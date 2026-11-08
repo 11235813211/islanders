@@ -1,6 +1,6 @@
 // Art v6: settlements and cities are modeled in 3D and drawn in perspective (pieces.tsx,
 // solids.tsx, projection.ts), and roads are flat.
-import type { Resource, Terrain } from '../../../shared/types';
+import type { Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack } from '../types';
 import { BuildingPiece, ROAD_INSET, Road } from './pieces';

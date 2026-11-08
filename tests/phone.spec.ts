@@ -41,3 +41,33 @@ test('the home screen and lobby fit a phone', async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/iphone-lobby.png', fullPage: true });
 });
+
+test('the map picker and a map’s large view fit a phone', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create room', exact: true }).tap();
+  await page.getByRole('radio', { name: 'Choose map' }).tap();
+  const picker = page.getByRole('dialog', { name: 'Maps' });
+  await expect(picker.getByRole('heading', { name: 'Seafaring' })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: 'test-results/phone-map-picker.png' });
+  await picker.getByRole('button', { name: /^Small Isles/ }).tap();
+  await expect(picker.getByRole('img', { name: 'Small Isles map' })).toBeVisible();
+  await picker.getByRole('button', { name: 'Use this map' }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/phone-map-detail.png' });
+  await picker.getByRole('button', { name: 'Use this map' }).tap();
+  await expect(page.locator('.mode-card h3')).toHaveText('Small Isles');
+});
+
+test('the board editor fits a phone, with its library and settings as drawers', async ({ page }) => {
+  // The #editor address opens the editor directly (local dev allows editing for everyone).
+  await page.goto('/#editor');
+  await expect(page.getByRole('img', { name: 'Board being edited' })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: 'test-results/phone-editor.png' });
+  await page.getByRole('button', { name: 'Show library' }).tap();
+  await expect(page.getByRole('navigation', { name: 'Board library' }).getByText('Outer Isles')).toBeInViewport();
+  await page.getByRole('button', { name: 'Show settings' }).tap();
+  await expect(page.getByLabel('Name', { exact: true })).toBeInViewport();
+});

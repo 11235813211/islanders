@@ -1,6 +1,6 @@
 import { emptyBag } from '../engine/core';
 import { type GameAction, type GameView, RESOURCES, type ResourceBag, type TradeOffer } from '../types';
-import { Board, COSTS, canPay, pips, roadPaths } from './analysis';
+import { Board, COSTS, canPay, linkAction, pips, roadPaths } from './analysis';
 import type { Brain, TurnOptions } from './types';
 
 /**
@@ -20,12 +20,12 @@ function cornerScore(board: Board, id: string): number {
 const best = (board: Board, ids: string[]) =>
   [...ids].sort((a, b) => cornerScore(board, b) - cornerScore(board, a) || a.localeCompare(b))[0]!;
 
-/** First road toward the best open corner, weighing value against distance. */
+/** First road or ship toward the best open corner, weighing value against distance. */
 function expansionRoad(board: Board): string | undefined {
   const { view } = board;
   let choice: { edge: string; value: number } | undefined;
   for (const [vertexId, path] of roadPaths(board)) {
-    if (!path.firstEdge || !board.isOpenSpot(vertexId) || !view.legal.roads.includes(path.firstEdge)) continue;
+    if (!path.firstEdge || !board.isOpenSpot(vertexId) || !linkAction(view, path.firstEdge)) continue;
     const value = cornerScore(board, vertexId) / (1 + path.distance ** 1.5);
     if (!choice || value > choice.value) choice = { edge: path.firstEdge, value };
   }
@@ -34,11 +34,11 @@ function expansionRoad(board: Board): string | undefined {
 
 function setupRoad(board: Board): GameAction {
   const { view } = board;
-  const edges = view.legal.roads.map(id => board.edge.get(id)!);
+  const edges = [...view.legal.roads, ...view.legal.ships].map(id => board.edge.get(id)!);
   const reach = (e: (typeof edges)[number]) =>
     Math.max(0, ...[e.a, e.b].filter(id => !view.buildings[id]).map(id => cornerScore(board, id)));
   edges.sort((a, b) => reach(b) - reach(a));
-  return { type: 'place-road', edgeId: edges[0]!.id };
+  return linkAction(view, edges[0]!.id)!;
 }
 
 /** Does the hand pay for something it couldn't before? */
@@ -73,9 +73,11 @@ export const beginner: Brain = {
       return { type: 'steal', playerId: target.id };
     }
     if (view.phase === 'free-roads')
-      return view.legal.roads.length
-        ? { type: 'build-road', edgeId: expansionRoad(board) ?? view.legal.roads[0]! }
-        : { type: 'finish-free-roads' };
+      return (
+        linkAction(view, expansionRoad(board) ?? view.legal.roads[0] ?? view.legal.ships[0]) ?? {
+          type: 'finish-free-roads',
+        }
+      );
     if (view.phase !== 'build' || builds >= 2) return { type: 'end-turn' };
     if (view.legal.cities.length) return { type: 'build-city', vertexId: best(board, view.legal.cities) };
     if (view.legal.settlements.length)
@@ -107,8 +109,8 @@ export const beginner: Brain = {
       }
     }
     if (view.developmentRemaining && canPay(view.hand, COSTS.development)) return { type: 'buy-development' };
-    const road = view.legal.roads.length ? expansionRoad(board) : undefined;
-    if (road) return { type: 'build-road', edgeId: road };
+    const link = linkAction(view, expansionRoad(board));
+    if (link) return link;
     return { type: 'end-turn' };
   },
 

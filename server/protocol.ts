@@ -5,6 +5,8 @@ import type { ClientMessage, GameAction } from '../shared/types';
 export const ROOM_PATTERN = /^(?:[A-Z]{3,12}\d{2}|[A-HJ-NP-Z2-9]{8})$/;
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
 export const MAX_BODY_BYTES = 2048;
+/** Saved boards are larger than other requests: a few hundred tiles. */
+export const MAX_BOARD_BYTES = 96 * 1024;
 export const MAX_MESSAGE_BYTES = 4096;
 export const AUTH_TIMEOUT_MS = 10_000;
 
@@ -137,12 +139,12 @@ export function originAllowed(
   }
 }
 
-export async function readBody(request: Request): Promise<unknown> {
+export async function readBody(request: Request, maxBytes = MAX_BODY_BYTES): Promise<unknown> {
   if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') {
     throw new ProtocolError('Send application/json.', 415);
   }
   const length = request.headers.get('content-length');
-  if (length && Number(length) > MAX_BODY_BYTES) throw new ProtocolError('Request is too large.', 413);
+  if (length && Number(length) > maxBytes) throw new ProtocolError('Request is too large.', 413);
   if (!request.body) throw new ProtocolError('Request body is required.');
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -152,7 +154,7 @@ export async function readBody(request: Request): Promise<unknown> {
       const chunk = await reader.read();
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel();
         throw new ProtocolError('Request is too large.', 413);
       }
