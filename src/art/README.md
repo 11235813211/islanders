@@ -10,7 +10,11 @@ import from `src/art` and never draw art themselves.
   `v7/` drops the classic chimneys, makes each city one joined building whose halves share a depth,
   draws cities larger next to settlements, and adds sea maps in `v7/sea/`: one file per tile (ocean, land, gold, jungle, volcano, iceberg) with
   its colors at the top, plus ships, the pirate, and markers. Versions before v7 borrow v7's sea art.
+  `v8/` redraws the jungle as dense olive palms and broadleaf canopy, gold as a rocky river gorge
+  with a waterfall, and the volcano as a raised basalt cone seen from above at an angle.
+  Its crater stays visible above the number token. Other illustrations are preserved from v7.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
+  It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Compare piece art side by side: `npx playwright test tests/art-compare.spec.ts` writes
   `test-results/art-compare.png` (edit the list at the top of that file).
 - `index.ts` picks the active version. That one import line is the only thing to change.
