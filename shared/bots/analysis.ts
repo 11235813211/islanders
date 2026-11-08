@@ -223,3 +223,14 @@ export function goldChoice(view: GameView): GameAction {
   for (let i = 0; i < owed && ranked.length; i++) resources[ranked[i % ranked.length]!]++;
   return { type: 'choose-gold', resources };
 }
+
+/** Special build phase (five or six players): a city, then a settlement, on the best spot; otherwise pass. */
+export function specialBuild(view: GameView): GameAction {
+  const board = new Board(view);
+  const weights = resourceWeights(board, view.selfId);
+  const best = (ids: string[]) =>
+    ids.reduce((a, b) => (spotValue(board, b, weights) > spotValue(board, a, weights) ? b : a));
+  if (view.legal.cities.length) return { type: 'build-city', vertexId: best(view.legal.cities) };
+  if (view.legal.settlements.length) return { type: 'build-settlement', vertexId: best(view.legal.settlements) };
+  return { type: 'end-turn' };
+}

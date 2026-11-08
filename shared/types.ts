@@ -103,6 +103,8 @@ export type Phase =
   | 'gold'
   | 'free-roads'
   | 'build'
+  /** Five or six players: after each turn, the others may build in order (no trading). */
+  | 'special-build'
   | 'finished';
 /**
  * Structured record of what a log line describes, for bots, stats, and UI.
@@ -249,6 +251,8 @@ export interface GameState {
   developmentDeck: DevelopmentCard[];
   developmentPlayed: boolean;
   freeRoads: number;
+  /** Who is building in the special build phase, or null. */
+  specialBuilder: string | null;
   resumePhase: 'roll' | 'build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
@@ -295,6 +299,8 @@ export interface LegalMoves {
   stealTargets: string[];
   /** Ship edge → edges it may move to this turn. */
   shipMoves: Record<string, string[]>;
+  /** Can buy a development card now (jungle discoveries count toward the cost). */
+  development: boolean;
 }
 /** Which map a room plays. */
 export interface MapInfo {
@@ -317,6 +323,8 @@ export interface GameView {
   pirate: string | null;
   bank: Record<Resource, boolean>;
   activePlayerId: string | null;
+  /** Whose turn it is; differs from activePlayerId during setup and the special build phase. */
+  turnPlayerId: string | null;
   turn: number;
   dice: [number, number] | null;
   pendingDiscards: Record<string, number>;

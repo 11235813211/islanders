@@ -45,7 +45,7 @@ function parseTile(v: unknown): DesignTile {
     tile.number = t.number as number;
   }
   const l = link(t.link);
-  if (l) tile.link = l;
+  if (l && tile.kind === 'land') tile.link = l;
   if (t.noSetup === true) tile.noSetup = true;
   if (t.bonus !== undefined) {
     if (!int(t.bonus, 1, 3)) fail('Island bonuses are 1 to 3 points.');
@@ -67,7 +67,7 @@ function parseHarbor(v: unknown): DesignHarbor {
     kind: h.kind as DesignHarbor['kind'],
   };
   const l = link(h.link);
-  if (l) harbor.link = l;
+  if (l && harbor.kind === 'random') harbor.link = l;
   return harbor;
 }
 
@@ -81,11 +81,11 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   const players = value.players as Record<string, unknown>;
   if (
     !record(players) ||
-    !int(players.min, 2, 4) ||
-    !int(players.max, 2, 4) ||
+    !int(players.min, 2, 6) ||
+    !int(players.max, 2, 6) ||
     (players.min as number) > (players.max as number)
   )
-    fail('Players must be a range within 2–4.');
+    fail('Players must be a range within 2–6.');
   if (!int(value.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max))
     fail(`Points to win must be ${VICTORY_POINT_RANGE.min}–${VICTORY_POINT_RANGE.max}.`);
   if (!Array.isArray(value.tiles) || value.tiles.length < 1 || value.tiles.length > DESIGN_LIMITS.tiles)
@@ -106,7 +106,9 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     if ((weight as number) > 0) pool[kind as FillKind] = weight as number;
   }
   const exclude = value.harborExclude;
-  if (!Array.isArray(exclude) || !exclude.every(r => RESOURCES.includes(r))) fail('Invalid harbor exclusions.');
+  if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
+    fail('Invalid harbor exclusions.');
+  if (value.swapNumbers !== undefined && typeof value.swapNumbers !== 'boolean') fail('Invalid number swap setting.');
   return {
     id: value.id as string,
     name,
@@ -119,7 +121,8 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),
     pool,
-    harborExclude: [...new Set(exclude as Resource[])],
+    harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
+    ...(value.swapNumbers ? { swapNumbers: true } : {}),
     updatedAt: 0,
   };
 }

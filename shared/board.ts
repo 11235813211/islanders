@@ -1,4 +1,4 @@
-import type { Board, Hex, Terrain, Vertex } from './types';
+import type { Board, Harbor, Hex, Terrain, Vertex } from './types';
 
 export const HEX_RADIUS = 60;
 
@@ -74,63 +74,96 @@ export function buildGraph(cells: { q: number; r: number; terrain: Terrain; numb
   return board;
 }
 
-/** The standard island: 19 land tiles in a hexagon, nine harbors, and numbers. */
-export function generateBoard(random: () => number = Math.random, layout: 'random' | 'ordered' = 'random'): Board {
-  const terrains = shuffled<Terrain>(
-    [
-      ...Array<Terrain>(4).fill('wood'),
-      ...Array<Terrain>(4).fill('sheep'),
-      ...Array<Terrain>(4).fill('wheat'),
-      ...Array<Terrain>(3).fill('brick'),
-      ...Array<Terrain>(3).fill('ore'),
-      'desert',
-    ],
+/** The standard island's tiles, numbers, and harbors; `large` is the 5–6 player island. */
+const ISLANDS = {
+  standard: {
+    rows: [3, 4, 5, 4, 3],
+    terrains: { wood: 4, sheep: 4, wheat: 4, brick: 3, ore: 3, desert: 1 },
+    harbors: ['any', 'any', 'any', 'any', 'wood', 'brick', 'sheep', 'wheat', 'ore'],
+    ordered: [5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11],
+  },
+  large: {
+    rows: [3, 4, 5, 6, 5, 4, 3],
+    terrains: { wood: 6, sheep: 6, wheat: 6, brick: 5, ore: 5, desert: 2 },
+    harbors: ['any', 'any', 'any', 'any', 'any', 'wood', 'brick', 'sheep', 'sheep', 'wheat', 'ore'],
+    ordered: [2, 5, 4, 6, 3, 9, 8, 11, 11, 10, 6, 3, 8, 4, 8, 10, 11, 12, 10, 5, 4, 9, 5, 9, 12, 3, 2, 6],
+  },
+} satisfies Record<
+  string,
+  { rows: number[]; terrains: Partial<Record<Terrain, number>>; harbors: Harbor['resource'][]; ordered: number[] }
+>;
+type Island = (typeof ISLANDS)[keyof typeof ISLANDS];
+/** Row widths of the standard and 5–6 player islands, for previews. */
+export const ISLAND_ROWS = { standard: ISLANDS.standard.rows, large: ISLANDS.large.rows };
+
+/** The island for a player count: five and six players use the larger one. */
+const islandFor = (large: boolean): Island => (large ? ISLANDS.large : ISLANDS.standard);
+
+/**
+ * Axial cells for rows of the given widths, centered on the middle row. The standard island
+ * (3-4-5-4-3) comes out as the usual radius-2 hexagon.
+ */
+export function islandCells(rows: number[]): { q: number; r: number }[] {
+  const middle = (rows.length - 1) / 2;
+  const widest = Math.max(...rows);
+  const cells: { q: number; r: number }[] = [];
+  rows.forEach((width, i) => {
+    const r = i - middle;
+    // Keeps every row centered on x = (widest is odd ? 0 : -half a hex).
+    const start = Math.round(-(width - 1) / 2 - r / 2 - (widest % 2 ? 0 : 0.5) + 0.01);
+    for (let q = start; q < start + width; q++) cells.push({ q, r });
+  });
+  return cells;
+}
+
+/** The standard island (19 tiles, nine harbors), or the 5–6 player island (30 tiles, eleven harbors). */
+export function generateBoard(
+  random: () => number = Math.random,
+  layout: 'random' | 'ordered' = 'random',
+  large = false,
+): Board {
+  const island = islandFor(large);
+  const terrains = shuffled(
+    Object.entries(island.terrains).flatMap(([terrain, count]) => Array<Terrain>(count).fill(terrain as Terrain)),
     random,
   );
-  const cells: { q: number; r: number; terrain: Terrain }[] = [];
-  for (let r = -2; r <= 2; r++)
-    for (let q = Math.max(-2, -r - 2); q <= Math.min(2, -r + 2); q++)
-      cells.push({ q, r, terrain: terrains[cells.length]! });
-  const board = buildGraph(cells);
+  const board = buildGraph(islandCells(island.rows).map((cell, i) => ({ ...cell, terrain: terrains[i]! })));
   board.harbors = generateHarbors(board, random);
   assignNumbers(board, layout, random);
   return board;
 }
 
-export const ORDERED_NUMBERS = [5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11];
+export const ORDERED_NUMBERS = ISLANDS.standard.ordered;
 
-/** Counterclockwise rings from the northwest corner, then inward. */
+/** Counterclockwise rings from the northwest corner, then inward, for any island built by islandCells. */
 export function spiralHexes(board: Board): Hex[] {
+  const remaining = new Set(board.hexes);
   const result: Hex[] = [];
-  const directions = [
-    [-1, 1],
-    [0, 1],
-    [1, 0],
-    [1, -1],
-    [0, -1],
-    [-1, 0],
-  ];
-  for (let radius = 2; radius > 0; radius--) {
-    let q = 0,
-      r = -radius;
-    for (const [dq, dr] of directions)
-      for (let step = 0; step < radius; step++) {
-        result.push(board.hexes.find(hex => hex.q === q && hex.r === r)!);
-        q += dq;
-        r += dr;
-      }
+  const cx = board.hexes.reduce((sum, h) => sum + h.x, 0) / board.hexes.length;
+  const cy = board.hexes.reduce((sum, h) => sum + h.y, 0) / board.hexes.length;
+  // Peel the outer ring each pass (hexes missing a neighbour), starting at its top-left hex.
+  while (remaining.size) {
+    const ring = [...remaining].filter(h => [...remaining].filter(o => adjacent(h, o)).length < 6);
+    const degrees = (h: Hex) => (Math.atan2(h.y - cy, h.x - cx) * 180) / Math.PI;
+    const first = ring.reduce((a, b) => (b.y < a.y - 1 || (Math.abs(b.y - a.y) < 1 && b.x < a.x) ? b : a));
+    // Counterclockwise on screen is decreasing angle (y points down).
+    const from = degrees(first) + 0.5;
+    ring.sort((a, b) => ((((from - degrees(a)) % 360) + 360) % 360) - ((((from - degrees(b)) % 360) + 360) % 360));
+    for (const h of ring) remaining.delete(h);
+    result.push(...ring);
   }
-  result.push(board.hexes.find(hex => hex.q === 0 && hex.r === 0)!);
   return result;
 }
 
+/** The base island's number tokens: its ordered spiral, or a random draw with no two red numbers touching. */
 export function assignNumbers(board: Board, layout: 'random' | 'ordered', random: () => number = Math.random): void {
   for (const hex of board.hexes) hex.number = null;
+  const ordered = islandFor(board.hexes.length > 19).ordered;
   if (layout === 'ordered') {
     spiralHexes(board)
       .filter(hex => hex.terrain !== 'desert')
       .forEach((hex, index) => {
-        hex.number = ORDERED_NUMBERS[index];
+        hex.number = ordered[index] ?? null;
       });
     return;
   }
@@ -140,58 +173,58 @@ export function assignNumbers(board: Board, layout: 'random' | 'ordered', random
     board.hexes.filter(h => h.terrain !== 'desert'),
     random,
   );
+  const red = ordered.filter(n => n === 6 || n === 8);
   function chooseRed(start: number, chosen: Hex[]): Hex[] | undefined {
-    if (chosen.length === 4) return chosen;
+    if (chosen.length === red.length) return chosen;
     for (let i = start; i < producing.length; i++) {
-      if (chosen.every(other => !adjacent(producing[i], other))) {
-        const found = chooseRed(i + 1, [...chosen, producing[i]]);
+      if (chosen.every(other => !adjacent(producing[i]!, other))) {
+        const found = chooseRed(i + 1, [...chosen, producing[i]!]);
         if (found) return found;
       }
     }
     return undefined;
   }
   const redHexes = chooseRed(0, [])!;
-  const redNumbers = shuffled([6, 6, 8, 8], random);
+  const redNumbers = shuffled(red, random);
   redHexes.forEach((hex, i) => {
-    hex.number = redNumbers[i];
+    hex.number = redNumbers[i]!;
   });
-  const numbers = shuffled([2, 3, 3, 4, 4, 5, 5, 9, 9, 10, 10, 11, 11, 12], random);
+  const numbers = shuffled(
+    ordered.filter(n => n !== 6 && n !== 8),
+    random,
+  );
   producing
     .filter(hex => hex.number === null)
     .forEach((hex, i) => {
-      hex.number = numbers[i];
+      hex.number = numbers[i]!;
     });
 }
 
-/** Nine non-overlapping coastal edges: four general and five specialized ports. */
+/** Evenly spaced coastal harbors: nine on the standard island, eleven on the large one. */
 export function generateHarbors(board: Board, random: () => number = () => 0.5): Board['harbors'] {
   const vertices = new Map(board.vertices.map(v => [v.id, v]));
+  const cx = board.hexes.reduce((sum, h) => sum + h.x, 0) / board.hexes.length;
+  const cy = board.hexes.reduce((sum, h) => sum + h.y, 0) / board.hexes.length;
   const coast = board.edges.filter(
     edge => vertices.get(edge.a)!.hexIds.filter(id => vertices.get(edge.b)!.hexIds.includes(id)).length === 1,
   );
-  coast.sort((a, b) => {
-    const angle = (edge: typeof a) =>
-      Math.atan2(vertices.get(edge.a)!.y + vertices.get(edge.b)!.y, vertices.get(edge.a)!.x + vertices.get(edge.b)!.x);
-    return angle(a) - angle(b);
+  const middle = (edge: (typeof coast)[number]) => ({
+    x: (vertices.get(edge.a)!.x + vertices.get(edge.b)!.x) / 2 - cx,
+    y: (vertices.get(edge.a)!.y + vertices.get(edge.b)!.y) / 2 - cy,
   });
-  const kinds = shuffled<Board['harbors'][number]['resource']>(
-    ['any', 'any', 'any', 'any', 'wood', 'brick', 'sheep', 'wheat', 'ore'],
-    random,
-  );
+  coast.sort((a, b) => Math.atan2(middle(a).y, middle(a).x) - Math.atan2(middle(b).y, middle(b).x));
+  const kinds = shuffled<Harbor['resource']>(islandFor(board.hexes.length > 19).harbors, random);
   return kinds.map((resource, i) => {
-    const edge = coast[Math.floor((i * coast.length) / 9)];
-    const a = vertices.get(edge.a)!,
-      b = vertices.get(edge.b)!;
-    const x = (a.x + b.x) / 2,
-      y = (a.y + b.y) / 2,
-      length = Math.hypot(x, y);
+    const edge = coast[Math.floor((i * coast.length) / kinds.length)]!;
+    const { x, y } = middle(edge);
+    const length = Math.hypot(x, y);
     return {
       id: `port-${i}`,
       edgeId: edge.id,
       vertices: [edge.a, edge.b],
       resource,
-      x: x + (x / length) * 38,
-      y: y + (y / length) * 38,
+      x: cx + x + (x / length) * 38,
+      y: cy + y + (y / length) * 38,
     };
   });
 }

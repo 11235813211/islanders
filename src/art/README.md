@@ -17,6 +17,7 @@ import from `src/art` and never draw art themselves.
   with grass and places its waterfall at the top, and simplifies volcano texture with plain white
   eruption numbers. The raised crater and its space above the number token are preserved.
   `v10/` thins and lightens the volcano's inner crater wall, exposing more of the lava lake.
+  `v11/` drops the iceberg tile's pale tint, so its water matches the sea tiles around it.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Compare piece art side by side: `npx playwright test tests/art-compare.spec.ts` writes

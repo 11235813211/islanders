@@ -46,7 +46,7 @@ function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null)
     case 'setup-road':
       return 'Placing road…';
     case 'free-roads':
-      return 'Placing free roads…';
+      return view.seafaring ? 'Placing free roads or ships…' : 'Placing free roads…';
     case 'roll':
       return `Roll dice${rollIn === null ? '' : ` · auto ${rollIn}s`}`;
     case 'robber':
@@ -57,6 +57,8 @@ function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null)
       return 'Discarding resources…';
     case 'gold':
       return 'Choosing gold…';
+    case 'special-build':
+      return ownTurn ? 'Special build: no trading' : `${active?.name} is building…`;
     default:
       return ownTurn ? 'Build or trade' : `${active?.name}’s turn`;
   }
@@ -215,6 +217,7 @@ export default function GameTable({
   /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
   function tapCard(resource: Resource) {
     if (discarding) return setDiscard(bag => addDiscard(bag, resource, view));
+    if (view.phase === 'special-build') return; // building only: no trades
     setDevKind(kind => (inCorner(kind) ? null : kind));
     setTrade(previous => addTradeResource(previous, resource, view));
   }
@@ -256,6 +259,13 @@ export default function GameTable({
     turnAction = (
       <button className="button primary turn-action" disabled={blocked} onClick={() => send({ type: 'end-turn' })}>
         <span>End turn</span>
+        <ArrowRight size={18} />
+      </button>
+    );
+  if (ownTurn && view.phase === 'special-build')
+    turnAction = (
+      <button className="button primary turn-action" disabled={blocked} onClick={() => send({ type: 'end-turn' })}>
+        <span>Done building</span>
         <ArrowRight size={18} />
       </button>
     );

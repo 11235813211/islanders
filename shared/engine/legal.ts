@@ -1,6 +1,6 @@
 import { victoryPoints } from '../rules';
 import { boardIndex, isLandTerrain, isLandVertex, isRoadEdge, isShipEdge, otherEnd } from '../seafaring';
-import type { GameState, LegalMoves } from '../types';
+import { type GameState, type LegalMoves, type Player, RESOURCES } from '../types';
 import { BUILD_COSTS, canAfford, getActivePlayerId, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
 
 /** Open land corners at least two edges from any building; outside setup, touching your road or ship. */
@@ -116,6 +116,20 @@ function robberHexes(state: GameState, selfId: string): string[] {
     .map(hex => hex.id);
 }
 
+/** Enough cards for a development card, with jungle discoveries standing in for missing ones. */
+export function affordsDevelopment(state: GameState, player: Player): boolean {
+  if (!state.developmentDeck.length) return false;
+  const cost = BUILD_COSTS.development;
+  const missing = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - player.resources[r]), 0);
+  return missing <= player.discoveries;
+}
+
+/** In the special build phase, would this player have anything to build? Players with nothing are skipped. */
+export function canSpecialBuild(state: GameState, playerId: string): boolean {
+  const legal = legalMoves({ ...state, phase: 'special-build', specialBuilder: playerId }, playerId);
+  return legal.development || [legal.settlements, legal.roads, legal.ships, legal.cities].some(list => list.length);
+}
+
 /** Moves the given seat may make right now. Empty unless it is that seat's turn. */
 export function legalMoves(state: GameState, selfId: string): LegalMoves {
   const legal: LegalMoves = {
@@ -126,6 +140,7 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     robberHexes: [],
     stealTargets: [],
     shipMoves: {},
+    development: false,
   };
   const player = state.players.find(candidate => candidate.id === selfId);
   if (!player || getActivePlayerId(state) !== selfId || state.pausedAt !== null) return legal;
@@ -141,7 +156,8 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     if (pieces.roads < PIECE_LIMITS.roads) legal.roads = roadSites(state, selfId, false);
     if (pieces.ships < PIECE_LIMITS.ships) legal.ships = shipSites(state, selfId, false);
   }
-  if (state.phase === 'build') {
+  if (state.phase === 'build' || state.phase === 'special-build') {
+    legal.development = affordsDevelopment(state, player);
     if (pieces.settlements < PIECE_LIMITS.settlements && canAfford(player, BUILD_COSTS.settlement))
       legal.settlements = settlementSites(state, selfId, false);
     if (pieces.roads < PIECE_LIMITS.roads && canAfford(player, BUILD_COSTS.road))
@@ -153,7 +169,7 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
         .filter(([, building]) => building.playerId === selfId && building.kind === 'settlement')
         .map(([vertexId]) => vertexId);
     }
-    legal.shipMoves = shipMoves(state, selfId);
+    if (state.phase === 'build') legal.shipMoves = shipMoves(state, selfId);
   }
   return legal;
 }

@@ -1,3 +1,4 @@
+import { ISLAND_ROWS, islandCells } from '../../../shared/board';
 import type { BoardDesign, BoardLibrary } from '../../../shared/maps';
 import { BASE_POOL } from '../../../shared/maps';
 import { closedTiles } from '../../../shared/maps/edit';
@@ -29,25 +30,27 @@ export function mapRules(design: BoardDesign): string[] {
 }
 
 /** The standard island as a design, for its thumbnail. */
-export const STANDARD_ISLAND: BoardDesign = {
-  id: 'base',
-  name: 'Standard island',
-  categoryId: '',
-  description: '',
-  players: { min: 2, max: 4 },
-  victoryPoints: 10,
-  tiles: Array.from({ length: 5 }, (_, i) => i - 2).flatMap(r =>
-    Array.from({ length: 5 }, (_, i) => i - 2)
-      .filter(q => Math.abs(q + r) <= 2)
-      .map(q => ({ q, r, kind: 'land' as const })),
-  ),
-  harbors: [],
-  robber: null,
-  pirate: null,
-  pool: { ...BASE_POOL },
-  harborExclude: [],
-  updatedAt: 0,
-};
+/** A preview of the base game's island, as plain land (the layout is drawn at the start). */
+function baseIsland(large: boolean): BoardDesign {
+  return {
+    id: 'base',
+    name: large ? 'Large island' : 'Standard island',
+    categoryId: '',
+    description: '',
+    players: large ? { min: 5, max: 6 } : { min: 2, max: 4 },
+    victoryPoints: 10,
+    tiles: islandCells(large ? ISLAND_ROWS.large : ISLAND_ROWS.standard).map(c => ({ ...c, kind: 'land' as const })),
+    harbors: [],
+    robber: null,
+    pirate: null,
+    pool: { ...BASE_POOL },
+    harborExclude: [],
+    updatedAt: 0,
+  };
+}
+export const STANDARD_ISLAND = baseIsland(false);
+/** The 5–6 player island. */
+export const LARGE_ISLAND = baseIsland(true);
 
 /** Move the board `id` to just before `beforeId` (or the end of `categoryId`), in that category. */
 export function moveBoard(library: BoardLibrary, id: string, categoryId: string, beforeId?: string): BoardLibrary {

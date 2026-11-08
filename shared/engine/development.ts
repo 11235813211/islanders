@@ -51,11 +51,12 @@ export const developmentHandlers: Pick<
   'buy-development' | 'play-knight' | 'play-road-building' | 'play-monopoly' | 'play-plenty'
 > = {
   'buy-development'({ next, player, playerId }) {
-    needPhase(next, 'build');
+    needPhase(next, 'build', 'special-build');
     requireRule(next.developmentDeck.length, 'The development deck is empty.');
-    // Jungle discoveries stand in for card costs first, one per resource.
+    // Jungle discoveries stand in for card costs first, one per resource, covering missing cards first.
     const cost = { ...BUILD_COSTS.development };
-    for (const r of RESOURCES)
+    const order = [...RESOURCES].sort((a, b) => player.resources[a] - player.resources[b]);
+    for (const r of order)
       if (cost[r] && player.discoveries > 0) {
         cost[r]--;
         player.discoveries--;

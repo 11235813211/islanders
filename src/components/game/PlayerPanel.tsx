@@ -44,7 +44,7 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
                 <th className="player-cell">
                   <span
                     className="player-name"
-                    title={`${p.name}${p.bot ? ` · ${p.bot} bot` : ''}${offline ? ' · disconnected' : ''}. ${p.settlementsLeft} settlements, ${p.citiesLeft} cities and ${p.roadsLeft} roads remaining.`}
+                    title={`${p.name}${p.bot ? ` · ${p.bot} bot` : ''}${offline ? ' · disconnected' : ''}. ${p.settlementsLeft} settlements, ${p.citiesLeft} cities, ${p.roadsLeft} roads${view.seafaring ? ` and ${p.shipsLeft} ships` : ''} remaining.`}
                   >
                     <span className="player-name-text">
                       {p.bot && <Bot size={13} aria-label="Bot" />}

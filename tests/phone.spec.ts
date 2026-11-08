@@ -67,8 +67,8 @@ test('the board editor fits a phone, with its settings as a drawer', async ({ pa
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/phone-editor.png' });
+  // The fills sit in the top bar; the drawer holds the land mix.
+  await expect(page.getByRole('button', { name: 'Fill land', exact: true })).toBeInViewport();
   await page.getByRole('button', { name: 'Show settings' }).tap();
-  await expect(page.getByRole('heading', { name: 'Random fill' })).toBeInViewport();
-  await page.getByRole('button', { name: 'Fill land' }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole('button', { name: 'Fill land' })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Random land mix' })).toBeInViewport();
 });

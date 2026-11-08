@@ -73,6 +73,10 @@ const MIGRATIONS: Migration[] = [
     s.map ??= null;
     for (const p of s.players) p.discoveries ??= 0;
   },
+  // 2 → 3: five and six players (special build phase).
+  s => {
+    s.specialBuilder ??= null;
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

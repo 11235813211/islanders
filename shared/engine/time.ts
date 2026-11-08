@@ -103,6 +103,13 @@ export function advanceTime(state: GameState, now: number, random: () => number 
 
 /** Finish exactly one expired turn (or setup placement), including every forced choice. */
 function finishTimedTurn(state: GameState, now: number, random: () => number): GameState {
+  // A special builder who runs out of time just passes; nobody builds for them.
+  if (state.phase === 'special-build') {
+    const next = applyAction(state, state.specialBuilder!, { type: 'end-turn' }, random, now);
+    next.undo = null;
+    next.undoHistory = [];
+    return next;
+  }
   let next = structuredClone(state);
   let builds = 0;
   const turn = state.turn;
@@ -110,7 +117,8 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
   const active = next.players.find(p => p.id === getActivePlayerId(next))!;
   if (!active.bot) addLog(next, `${active.name} ran out of time. A bot is finishing the turn.`);
   for (let step = 0; step < 40; step++) {
-    if (next.phase === 'finished' || next.turn !== turn || next.setupIndex !== setupIndex) break;
+    if (next.phase === 'finished' || next.phase === 'special-build') break;
+    if (next.turn !== turn || next.setupIndex !== setupIndex) break;
     const id =
       next.phase === 'discard'
         ? Object.keys(next.pendingDiscards).find(id => next.pendingDiscards[id]! > 0)!

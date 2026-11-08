@@ -30,6 +30,12 @@
 .editor-tools {
   display: flex;
   flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.editor-tool-group {
+  display: flex;
   align-items: center;
   gap: 3px;
   padding: 3px;
@@ -37,7 +43,7 @@
   border-radius: 10px;
   background: #fff;
 }
-.editor-tools > button {
+.editor-tool-group > button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -50,12 +56,107 @@
   font-weight: 750;
   cursor: pointer;
 }
-.editor-tools > button:hover {
+.editor-tool-group > button:hover {
   background: #edf7fa;
 }
-.editor-tools > button[aria-pressed="true"] {
+.editor-tool-group > button[aria-pressed="true"] {
   background: var(--cyan);
   color: #fff;
+}
+.editor-link-letter .chip-row {
+  flex-wrap: nowrap;
+}
+/* Fills: one colored group each (land, numbers, harbors, harbor kinds). Solid = draw, outline = clear. */
+.fill-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.fill-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1.5px solid color-mix(in srgb, var(--group) 45%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--group) 9%, #fff);
+}
+.fill-group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 30px;
+  color: var(--group);
+}
+.fill-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1.5px solid var(--group);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fill-button.fill {
+  background: var(--group);
+  color: #fff;
+}
+.fill-button.clear,
+.fill-button.menu,
+.fill-button.toggle {
+  background: #fff;
+  color: var(--group);
+}
+.fill-button.toggle[aria-pressed="true"] {
+  background: var(--group);
+  color: #fff;
+}
+.fill-button:hover {
+  filter: brightness(1.08);
+}
+.any-harbor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.any-harbor.small {
+  font-size: 10.5px;
+}
+.harbor-kinds {
+  position: relative;
+}
+.harbor-kinds-count {
+  font-size: 12px;
+  font-weight: 850;
+}
+.harbor-kinds-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 4px;
+  width: 210px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px #173e5030;
+}
+.harbor-kinds-menu .check-row {
+  gap: 7px;
+  font-size: 13.5px;
+}
+.tool-link .editor-token {
+  pointer-events: none;
 }
 .editor-tools select {
   margin-left: 4px;
@@ -257,6 +358,10 @@
   fill: #c2363655;
   stroke: #ff9b8f;
 }
+.editor-hover.hover-link {
+  fill: #8a5bb833;
+  stroke: #d9c2f2;
+}
 .editor-hover.hover-harbor,
 .editor-hover.hover-robber,
 .editor-hover.hover-pirate {
@@ -365,7 +470,7 @@
 }
 .kind-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
 }
 .kind-grid button,
@@ -386,7 +491,11 @@
 }
 .kind-grid button {
   justify-content: flex-start;
+  min-width: 0;
   padding: 3px 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .kind-grid button[aria-pressed="true"],
 .number-grid button[aria-checked="true"],
@@ -494,7 +603,7 @@
 
 /* Narrower screens: tool labels go, then the side panels become drawers. */
 @media (max-width: 760px) {
-  .editor-tools > button span {
+  .editor-tool-group > button span {
     display: none;
   }
 }
@@ -520,7 +629,7 @@
     display: none;
   }
   .editor-tools {
-    overflow-x: auto;
+    gap: 5px;
   }
   .editor-actions .button {
     padding: 8px 10px;

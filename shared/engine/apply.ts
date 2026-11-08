@@ -2,7 +2,14 @@ import { parseAction } from '../actions';
 import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
-import { type ActionContext, addLog, getActivePlayerId, type Handlers, requireRule } from './core';
+import {
+  type ActionContext,
+  addLog,
+  getActivePlayerId,
+  type Handlers,
+  requireRule,
+  SPECIAL_BUILD_SECONDS,
+} from './core';
 import { developmentHandlers } from './development';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
@@ -136,8 +143,17 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   if (next.phase === 'roll' && state.phase !== 'roll') {
     next.rollDeadline = next.settings.autoRollSeconds ? now + next.settings.autoRollSeconds * 1000 : null;
   } else if (next.phase !== 'roll') next.rollDeadline = null;
-  if (playing && (action.type === 'start' || next.setupIndex !== state.setupIndex || next.turn !== state.turn)) {
-    next.turnDeadline = now + next.settings.turnSeconds * 1000;
+  const newSeat =
+    action.type === 'start' ||
+    next.setupIndex !== state.setupIndex ||
+    next.turn !== state.turn ||
+    next.specialBuilder !== state.specialBuilder;
+  if (playing && newSeat) {
+    const seconds =
+      next.phase === 'special-build'
+        ? Math.min(SPECIAL_BUILD_SECONDS, next.settings.turnSeconds)
+        : next.settings.turnSeconds;
+    next.turnDeadline = now + seconds * 1000;
     next.turnExpired = false;
   }
   if (!playing) {

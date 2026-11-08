@@ -15,6 +15,7 @@ import {
 import { type CSSProperties, useEffect, useState } from 'react';
 import { BOTS } from '../../shared/bots';
 import { PLAYER_COLORS, playerVars } from '../../shared/colors';
+import { MAX_PLAYERS } from '../../shared/engine';
 import {
   BOT_LEVELS,
   type BotLevel,
@@ -28,6 +29,10 @@ import type { Connection } from '../hooks/useRoom';
 import LobbySeat from './lobby/LobbySeat';
 import MapChoice from './lobby/MapChoice';
 import { CATEGORIES, SettingControl } from './lobby/settings';
+
+/** Empty seats to show: up to four, then one more at a time up to six, so a small table looks complete. */
+const openSeats = (seated: number) => Math.min(MAX_PLAYERS, Math.max(4, seated + 1)) - seated;
+
 import './RoomLobby.css';
 
 export interface RoomLobbyProps {
@@ -80,7 +85,7 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
         <div className="test-banner">
           <Eye size={20} />
           <span>You are spectating. Player hands stay private.</span>
-          {!view.testMode && view.players.length < 4 && (
+          {!view.testMode && view.players.length < MAX_PLAYERS && (
             <button className="button secondary" disabled={busy} onClick={() => send({ type: 'switch-role' })}>
               <UserPlus size={18} />
               Take a seat
@@ -100,7 +105,9 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
       <section className="setup-players panel">
         <div className="section-heading">
           <h2>Players</h2>
-          <span className="subtle-badge">{view.players.length} / 4</span>
+          <span className="subtle-badge">
+            {view.players.length} / {MAX_PLAYERS}
+          </span>
         </div>
         {view.players.map(p => (
           <LobbySeat
@@ -137,7 +144,7 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
             })}
           </div>
         )}
-        {host && view.players.length < 4 && (
+        {host && view.players.length < MAX_PLAYERS && (
           <div className="add-bot">
             <Bot size={22} />
             <select aria-label="New bot level" value={botLevel} onChange={e => setBotLevel(e.target.value as BotLevel)}>
@@ -159,7 +166,7 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
           </div>
         )}
         {!view.testMode &&
-          Array.from({ length: 4 - view.players.length }, (_, i) => (
+          Array.from({ length: openSeats(view.players.length) }, (_, i) => (
             <button key={i} className="open-seat" onClick={invite}>
               <Plus size={23} />
               Invite a player

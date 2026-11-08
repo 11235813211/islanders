@@ -5,6 +5,7 @@ import {
   BUILD_COSTS,
   bumpStat,
   type Handlers,
+  isLargeGame,
   needPhase,
   PIECE_LIMITS,
   pay,
@@ -12,7 +13,7 @@ import {
   requireRule,
   resourceCount,
 } from './core';
-import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
+import { canSpecialBuild, legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { erupt, produce } from './production';
 
 /** Take one weighted-random card from the victim, then return to the phase the robber interrupted. */
@@ -67,6 +68,19 @@ export function visitIsland(next: GameState, playerId: string, vertexId: string,
   next.bonusPoints[playerId] = (next.bonusPoints[playerId] ?? 0) + bonus;
   const name = next.players.find(p => p.id === playerId)!.name;
   addLog(next, `${name} settled a new island and earned ${bonus} bonus point${bonus === 1 ? '' : 's'}.`);
+}
+
+/**
+ * With five or six players, after each turn the others may build in turn order (no trading or
+ * cards). Returns who builds next, skipping anyone with nothing they could build; null ends it.
+ */
+function nextSpecialBuilder(next: GameState): string | null {
+  if (!isLargeGame(next.players.length)) return null;
+  const count = next.players.length;
+  const from = next.specialBuilder ? next.players.findIndex(p => p.id === next.specialBuilder) : next.turnIndex;
+  for (let i = (from + 1) % count; i !== next.turnIndex; i = (i + 1) % count)
+    if (canSpecialBuild(next, next.players[i]!.id)) return next.players[i]!.id;
+  return null;
 }
 
 /** End the setup round's road-or-ship placement. */
@@ -195,7 +209,7 @@ export const turnHandlers: Pick<
   },
 
   'build-road'({ next, player, playerId }, action) {
-    needPhase(next, 'build', 'free-roads');
+    needPhase(next, 'build', 'free-roads', 'special-build');
     requireRule(
       legalMoves(next, playerId).roads.includes(action.edgeId),
       'Choose a connected, open road and make sure you can pay its cost.',
@@ -207,7 +221,7 @@ export const turnHandlers: Pick<
   },
 
   'build-settlement'({ next, player, playerId }, action) {
-    needPhase(next, 'build');
+    needPhase(next, 'build', 'special-build');
     requireRule(
       legalMoves(next, playerId).settlements.includes(action.vertexId),
       'Choose a legal settlement connected to your road and make sure you can pay its cost.',
@@ -219,7 +233,7 @@ export const turnHandlers: Pick<
   },
 
   'build-city'({ next, player, playerId }, action) {
-    needPhase(next, 'build');
+    needPhase(next, 'build', 'special-build');
     requireRule(
       legalMoves(next, playerId).cities.includes(action.vertexId),
       'Upgrade one of your settlements and make sure you can pay its cost.',
@@ -235,16 +249,24 @@ export const turnHandlers: Pick<
     addLog(next, `${player.name} finished Road Building.`);
   },
 
+  /** Ends a turn, or one player's part of the special build phase. */
   'end-turn'({ next, player }) {
-    needPhase(next, 'build');
+    needPhase(next, 'build', 'special-build');
+    if (next.phase === 'build') addLog(next, `${player.name} ended their turn.`);
+    next.tradeOffer = null;
+    const builder = nextSpecialBuilder(next);
+    if (builder) {
+      next.phase = 'special-build';
+      next.specialBuilder = builder;
+      return;
+    }
+    next.specialBuilder = null;
     next.turnIndex = (next.turnIndex + 1) % next.players.length;
     next.turn++;
     next.dice = null;
     next.phase = 'roll';
     next.developmentPlayed = false;
-    next.tradeOffer = null;
     next.shipsBuilt = [];
     next.shipMoved = false;
-    addLog(next, `${player.name} ended their turn.`);
   },
 };

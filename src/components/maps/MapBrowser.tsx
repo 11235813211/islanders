@@ -105,7 +105,7 @@ export default function MapBrowser({
   closeLabel?: string;
   editing?: LibraryActions;
 }) {
-  const [count, setCount] = useState<number | null>(editing ? null : Math.min(4, Math.max(2, players)));
+  const [count, setCount] = useState<number | null>(editing ? null : Math.min(6, Math.max(2, players)));
   const [open, setOpen] = useState<BoardDesign | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
@@ -139,7 +139,7 @@ export default function MapBrowser({
         </h2>
         <div className="map-filter" role="radiogroup" aria-label="Players">
           <Users size={17} />
-          {[null, 2, 3, 4].map(n => (
+          {[null, 2, 3, 4, 5, 6].map(n => (
             // biome-ignore lint/a11y/useSemanticElements: a segmented control of buttons.
             <button
               key={n ?? 'all'}

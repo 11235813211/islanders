@@ -1,7 +1,8 @@
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import type { DesignKind } from '../../../shared/maps';
 import { ArtDefs, SEA, TERRAIN, Tile } from '../../art';
+import { useDismiss } from '../../hooks/useDismiss';
 import { KIND_LABELS, KIND_ORDER } from './tools';
 
 /** A terrain's real tile art as a small hexagon icon. */
@@ -18,18 +19,12 @@ export function TileIcon({ kind, size = 26 }: { kind: DesignKind; size?: number 
   );
 }
 
-/** The terrain Ctrl/⌘-drag (and the Paint tool) paints, picked from hexagon icons. */
+/** The terrain Ctrl/⌘-drag paints, picked from hexagon icons. */
 export default function BrushPicker({ brush, setBrush }: { brush: DesignKind; setBrush: (kind: DesignKind) => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', away);
-    return () => document.removeEventListener('pointerdown', away);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, close, root);
   return (
     <div className="brush-picker" ref={root}>
       <button

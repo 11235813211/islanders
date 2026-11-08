@@ -16,7 +16,7 @@ export interface DesignTile {
   kind: DesignKind;
   /** Fixed number token. Absent on a producing tile means a balanced random number. */
   number?: number;
-  /** Tiles and harbors sharing a letter get the same resource. */
+  /** Tiles and harbors sharing a letter get the same resource. Only random land is linked. */
   link?: string;
   /** No setup settlement may touch this tile's island. */
   noSetup?: boolean;
@@ -30,6 +30,7 @@ export interface DesignHarbor {
   r: number;
   side: number;
   kind: Resource | 'any' | 'random';
+  /** Same resource as the tiles with this letter. Only random harbors are linked. */
   link?: string;
 }
 
@@ -48,8 +49,13 @@ export interface BoardDesign {
   pirate: { q: number; r: number } | null;
   /** Relative share of each terrain when filling random land. Missing or 0 means never. */
   pool: Partial<Record<FillKind, number>>;
-  /** Resources random harbors never become. */
-  harborExclude: Resource[];
+  /** Kinds random harbors never become (the editor shows the rest as what they can give). */
+  harborExclude: (Resource | 'any')[];
+  /**
+   * Each game, numbers swap with their equal-odds partner (2↔12, 3↔11, 4↔10, 5↔9, 6↔8), half
+   * each way, so a board with set numbers plays differently with the same odds.
+   */
+  swapNumbers?: boolean;
   updatedAt: number;
 }
 

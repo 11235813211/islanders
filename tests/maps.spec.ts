@@ -52,3 +52,24 @@ test('back to the base game resets the points target', async ({ page }) => {
   await expect(page.locator('.mode-card h3')).toHaveText('Standard island');
   await expect(page.getByRole('group', { name: 'Points to win' }).locator('output')).toHaveText('10');
 });
+
+test('on a sea map a real game lets a player place a ship in setup', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create room' }).click();
+  await page.getByRole('radio', { name: 'Choose map' }).click();
+  await page.getByRole('dialog', { name: 'Maps' }).getByRole('button', { name: 'Use Small Isles' }).click();
+  await page.getByRole('button', { name: 'Add bot' }).click();
+  await page.getByRole('button', { name: 'Start game' }).click();
+  // Our first settlement goes on the first open corner; then a ship goes on a sea edge beside it.
+  const corner = page.getByRole('button', { name: /^Build settlement at / }).first();
+  await expect(corner).toBeVisible({ timeout: 30_000 });
+  await corner.click();
+  await page.getByRole('button', { name: 'Confirm settlement' }).click();
+  const seaEdge = page.getByRole('button', { name: /^Build (road or ship|ship) at / }).first();
+  test.skip(!(await seaEdge.isVisible()), 'The first corner on this draw is inland');
+  const label = (await seaEdge.getAttribute('aria-label'))!;
+  await seaEdge.click();
+  if (label.includes('road or ship')) await page.getByRole('button', { name: 'Confirm ship' }).click();
+  else await page.getByRole('button', { name: /Confirm/ }).click();
+  await expect(page.locator('.board-ship-piece')).toHaveCount(1);
+});

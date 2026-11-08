@@ -13,7 +13,7 @@ export const DEV_CARDS: Record<DevelopmentType, { name: string; effect: string; 
   },
   'road-building': {
     name: 'Road Building',
-    effect: 'Build two roads for free.',
+    effect: 'Build two roads for free (or ships, on sea maps).',
     icon: size => <Route size={size} />,
   },
   'year-of-plenty': {

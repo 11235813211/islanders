@@ -67,6 +67,9 @@ function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void)
   }
 }
 
+/** Phases where pieces can be bought: your turn, or your slot in the special build phase. */
+const buildingPhase = (view: GameView) => view.phase === 'build' || view.phase === 'special-build';
+
 /** Edges to highlight for the current phase and mode. */
 function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null | undefined): string[] {
   const { legal } = view;
@@ -74,7 +77,7 @@ function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null
   if (mode === 'road') return legal.roads;
   if (mode === 'ship') return legal.ships;
   const linking = view.phase === 'setup-road' || view.phase === 'free-roads';
-  if (mode === null && (linking || view.phase === 'build')) return [...legal.roads, ...legal.ships];
+  if (mode === null && (linking || buildingPhase(view))) return [...legal.roads, ...legal.ships];
   return [];
 }
 
@@ -106,7 +109,7 @@ export default function Board({
   const color = (playerId: string) => playerColor(view.players.find(player => player.id === playerId)?.color).fill;
   const selfColor = view.players.find(player => player.id === view.selfId)?.color;
   const settlementMode = view.phase === 'setup-settlement' || mode === 'settlement';
-  const direct = mode === null && view.phase === 'build';
+  const direct = mode === null && buildingPhase(view);
   const robberMode = view.phase === 'robber' || mode === 'robber';
   const vertexTargets = new Set(
     disabled

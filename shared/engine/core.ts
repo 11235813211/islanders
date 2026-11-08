@@ -28,7 +28,17 @@ export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
 
 export const AUTO_ROLL_SECONDS = [0, 5, 10, 15, 30];
-export const MAX_PLAYERS = 4;
+export const MAX_PLAYERS = 6;
+/** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
+export const isLargeGame = (players: number): boolean => players >= 5;
+/** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
+export const SPECIAL_BUILD_SECONDS = 30;
+
+/** Resource cards of each kind in the bank: 19, or 24 with five or six players. */
+export function bankFor(players: number): ResourceBag {
+  const n = isLargeGame(players) ? 24 : 19;
+  return { wood: n, brick: n, sheep: n, wheat: n, ore: n };
+}
 export const TRADE_OFFER_MS = 30_000;
 export const BUILD_COSTS: Record<'road' | 'ship' | 'settlement' | 'city' | 'development', ResourceBag> = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 },
@@ -54,13 +64,18 @@ export function getActivePlayerId(state: GameState): string | null {
   if (state.phase === 'lobby' || state.phase === 'finished') return null;
   if (state.phase === 'setup-settlement' || state.phase === 'setup-road')
     return state.setupOrder[state.setupIndex] ?? null;
+  if (state.phase === 'special-build') return state.specialBuilder;
   return state.players[state.turnIndex]?.id ?? null;
 }
 
 /** True when the latest undoable move was its actor ending their turn. */
 export function undoEndsTurn(state: GameState): boolean {
   const snapshot = state.undo?.snapshot;
-  return !!snapshot && snapshot.phase === 'build' && snapshot.turn !== state.turn;
+  return (
+    !!snapshot &&
+    (snapshot.phase === 'build' || snapshot.phase === 'special-build') &&
+    (snapshot.turn !== state.turn || snapshot.specialBuilder !== state.specialBuilder)
+  );
 }
 
 export const isHuman = (player: Player): boolean => !player.bot;

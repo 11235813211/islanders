@@ -1,4 +1,4 @@
-import { Anchor, Eraser, Hand, Mountain, Paintbrush, Sailboat, UserRound, Waves } from 'lucide-react';
+import { Anchor, Hand, Link2, Sailboat, UserRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { BoardLibrary, DesignKind } from '../../../shared/maps';
 import type { Tool } from './EditorCanvas';
@@ -12,16 +12,13 @@ export const TOOLS: { tool: Tool; key: string; label: string; icon: ReactNode; h
     icon: <Hand size={17} />,
     hint: 'Click to select, drag to move the view, scroll to zoom',
   },
-  { tool: 'sea', key: 's', label: 'Sea', icon: <Waves size={17} />, hint: 'Paint sea, over anything (or hold Space)' },
-  { tool: 'land', key: 'l', label: 'Land', icon: <Mountain size={17} />, hint: 'Paint random land (or hold Shift)' },
   {
-    tool: 'brush',
-    key: 'b',
-    label: 'Paint',
-    icon: <Paintbrush size={17} />,
-    hint: 'Paint the brush terrain (or hold Ctrl/⌘)',
+    tool: 'link',
+    key: 'k',
+    label: 'Link',
+    icon: <Link2 size={17} />,
+    hint: 'Click or drag over random tiles and harbors to give them the same resource',
   },
-  { tool: 'erase', key: 'e', label: 'Delete', icon: <Eraser size={17} />, hint: 'Delete tiles (or hold Alt/Option)' },
   {
     tool: 'harbor',
     key: 'h',

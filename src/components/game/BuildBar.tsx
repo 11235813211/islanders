@@ -98,12 +98,6 @@ function BuildButton({
   );
 }
 
-/** Can the seat pay for a development card, counting jungle discoveries? */
-function canBuyDevelopment(view: GameView, self: PublicPlayer): boolean {
-  const missing = (['sheep', 'wheat', 'ore'] as const).filter(r => view.hand[r] === 0).length;
-  return missing <= Math.min(3, self.discoveries);
-}
-
 /** The purchase buttons. Road, ship, settlement, and city toggle a placement mode on the board. */
 export default function BuildBar({
   view,
@@ -169,7 +163,7 @@ export default function BuildBar({
       <BuildButton
         kind="development"
         remaining={view.developmentRemaining}
-        disabled={blocked || view.phase !== 'build' || !view.developmentRemaining || !canBuyDevelopment(view, self)}
+        disabled={blocked || !view.legal.development}
         onClick={() => send({ type: 'buy-development' })}
       />
     </>

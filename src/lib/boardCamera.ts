@@ -25,19 +25,22 @@ export const BASE_FRAME: Frame = { x: -335, y: -300, width: 670, height: 600 };
 /** Sea around a designed board's outermost tiles. */
 const MARGIN = 26;
 
-/** The area a board is drawn in: the standard frame, or the tiles' bounds plus a margin for sea maps. */
+/** The area a board is drawn in: the standard frame, or the tiles' bounds plus a sea margin. */
 export function boardFrame(hexes: Pick<Hex, 'x' | 'y' | 'terrain'>[]): Frame {
-  if (!hexes.length || !hexes.some(h => h.terrain === 'sea')) return BASE_FRAME;
+  const sea = hexes.some(h => h.terrain === 'sea');
+  if (!hexes.length || (!sea && hexes.length <= 19)) return BASE_FRAME;
+  // The 5–6 player island gets the same sea border as the standard frame.
+  const [marginX, marginY] = sea ? [MARGIN, MARGIN] : [75, 60];
   const halfWidth = (Math.sqrt(3) / 2) * HEX_RADIUS;
   const xs = hexes.map(h => h.x);
   const ys = hexes.map(h => h.y);
-  const x = Math.min(...xs) - halfWidth - MARGIN;
-  const y = Math.min(...ys) - HEX_RADIUS - MARGIN;
+  const x = Math.min(...xs) - halfWidth - marginX;
+  const y = Math.min(...ys) - HEX_RADIUS - marginY;
   return {
     x,
     y,
-    width: Math.max(...xs) + halfWidth + MARGIN - x,
-    height: Math.max(...ys) + HEX_RADIUS + MARGIN - y,
+    width: Math.max(...xs) + halfWidth + marginX - x,
+    height: Math.max(...ys) + HEX_RADIUS + marginY - y,
   };
 }
 

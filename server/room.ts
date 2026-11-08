@@ -11,6 +11,7 @@ import {
   getView,
   idlePause,
   idleResume,
+  MAX_PLAYERS,
   normalizeGame,
 } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
@@ -367,7 +368,10 @@ export class GameRoom extends DurableObject<Env> {
           const identity = body.identity;
           const existing =
             identity && [...room.game.players, ...room.game.spectators].find(player => player.id === identity.playerId);
-          if (body.autoSpectate && (room.game.testMode || room.game.phase !== 'lobby' || room.game.players.length >= 4))
+          if (
+            body.autoSpectate &&
+            (room.game.testMode || room.game.phase !== 'lobby' || room.game.players.length >= MAX_PLAYERS)
+          )
             body.spectate = true;
           if (!existing && room.game.testMode && !body.spectate)
             throw new ProtocolError('This is a solo test room. Join as a spectator or create a multiplayer room.', 409);

@@ -168,6 +168,23 @@ export const BUILTIN_BOARDS: BoardDesign[] = [
     ],
   ),
   map(
+    'wide-sea',
+    'Wide Sea',
+    'For five or six: a long home island, and four isles across the water worth 2 points each.',
+    { categoryId: 'seafaring', players: [5, 6], victoryPoints: 13, harbors: 12 },
+    [
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+      ' ~ L L L L ~ ~ ~ L*! L ~ ~ ~',
+      '~ L L L L L ~ ~ ~ g ~ ~ ~',
+      ' ~ L L L L L ~ ~ ~ ~ L*! L ~',
+      '~ L L L L L L ~@ ~ ~ ~ L ~',
+      ' ~ L L L L L ~ ~ ~ ~ L*! L ~',
+      '~ L L L L L ~ ~ ~ g ~ ~ ~',
+      ' ~ L L L L ~ ~ ~ L*! L ~ ~ ~',
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+    ],
+  ),
+  map(
     'small-isles',
     'Small Isles',
     'A compact map for two or three: one home island and a far isle with gold.',

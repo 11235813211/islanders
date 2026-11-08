@@ -7,11 +7,13 @@ import { DEFAULT_SETTINGS, guestName } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
 import {
   addLog,
+  bankFor,
   emptyBag,
   emptyDiceCounts,
   emptyStats,
   type Handlers,
   humanPlayers,
+  isLargeGame,
   MAX_PLAYERS,
   needPhase,
   requireRule,
@@ -23,10 +25,19 @@ export function boardFor(
   design: BoardDesign | null,
   layout: GameSettings['numberLayout'],
   random: () => number,
+  players = 4,
 ): { board: Board; robber: string; pirate: string | null } {
   if (design) return buildBoard(design, random);
-  const board = generateBoard(random, layout);
+  const board = generateBoard(random, layout, isLargeGame(players));
   return { board, robber: board.hexes.find(hex => hex.terrain === 'desert')!.id, pirate: null };
+}
+
+/** The board, bank, and development deck for the seats at the table (five or six get more of each). */
+function dealTable(next: GameState, random: () => number): void {
+  const players = next.players.length;
+  Object.assign(next, boardFor(next.design, next.settings.numberLayout, random, players));
+  next.bank = bankFor(players);
+  next.developmentDeck = developmentDeck(random, isLargeGame(players));
 }
 
 export function createGame(
@@ -50,7 +61,7 @@ export function createGame(
     robber,
     pirate,
     stealHex: null,
-    bank: { wood: 19, brick: 19, sheep: 19, wheat: 19, ore: 19 },
+    bank: bankFor(4),
     setupOrder: [],
     setupIndex: 0,
     lastSettlement: null,
@@ -75,6 +86,7 @@ export function createGame(
     developmentDeck: developmentDeck(random),
     developmentPlayed: false,
     freeRoads: 0,
+    specialBuilder: null,
     resumePhase: null,
     longestRoadId: null,
     largestArmyId: null,
@@ -106,7 +118,7 @@ function newSeat(state: GameState, id: string, name: string): Player {
 
 export function addPlayer(state: GameState, input: { id: string; name: string }): GameState {
   requireRule(state.phase === 'lobby', 'This game has already started.');
-  requireRule(state.players.length < MAX_PLAYERS, 'This island already has four players.');
+  requireRule(state.players.length < MAX_PLAYERS, 'This island already has six players.');
   requireRule(
     typeof input?.id === 'string' &&
       /^[\w-]{1,128}$/.test(input.id) &&
@@ -203,7 +215,7 @@ export const lobbyHandlers: Pick<
     const base = action.mapId === 'base';
     requireRule(base || design?.id === action.mapId, 'That map is not available.');
     const chosen = base ? null : design!;
-    Object.assign(next, boardFor(chosen, next.settings.numberLayout, random));
+    Object.assign(next, boardFor(chosen, next.settings.numberLayout, random, next.players.length));
     if ((next.design?.id ?? 'base') !== action.mapId)
       next.settings.victoryPoints = chosen?.victoryPoints ?? DEFAULT_SETTINGS.victoryPoints;
     next.design = chosen;
@@ -228,7 +240,7 @@ export const lobbyHandlers: Pick<
       next.players.length >= 2 && next.players.length <= MAX_PLAYERS,
       'Invite at least one friend before starting.',
     );
-    Object.assign(next, boardFor(next.design, next.settings.numberLayout, random));
+    dealTable(next, random);
     const ids = next.players.map(candidate => candidate.id);
     next.setupOrder = [...ids, ...[...ids].reverse()];
     next.phase = 'setup-settlement';
@@ -276,7 +288,7 @@ export const lobbyHandlers: Pick<
   'add-bot'({ next, playerId, random }, action) {
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'add bots');
-    requireRule(next.players.length < MAX_PLAYERS, 'This island already has four players.');
+    requireRule(next.players.length < MAX_PLAYERS, 'This island already has six players.');
     let id: string;
     do id = `bot-${Math.floor(random() * 2 ** 32).toString(36)}`;
     while (next.players.some(p => p.id === id));
@@ -307,7 +319,6 @@ export const lobbyHandlers: Pick<
     needPhase(next, 'finished');
     requireHost(next, playerId, 'start a new game');
     const fresh = createGame(next.roomId, random, { testMode: next.testMode, now });
-    Object.assign(fresh, boardFor(next.design, next.settings.numberLayout, random));
     const players = next.players.map(p => ({
       ...p,
       resources: emptyBag(),
@@ -327,6 +338,7 @@ export const lobbyHandlers: Pick<
       chat: next.chat,
       stats: Object.fromEntries(players.map(p => [p.id, emptyStats()])),
     });
+    dealTable(next, random);
     addLog(next, 'New game. Same seats, new board.');
   },
 };

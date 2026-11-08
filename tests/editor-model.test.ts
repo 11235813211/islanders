@@ -3,10 +3,7 @@ import { hexCenter } from '../shared/board';
 import { BUILTIN_CATEGORIES, buildBoard, parseDesign } from '../shared/maps';
 import {
   cellAt,
-  clearNumbers,
   designWarnings,
-  fillLand,
-  fillNumbers,
   harborEdge,
   islandOf,
   newDesign,
@@ -19,6 +16,15 @@ import {
   toggleHarbor,
   updateTile,
 } from '../shared/maps/edit';
+import {
+  clearNumbers,
+  fillHarbors,
+  fillLand,
+  fillNumbers,
+  setLinks,
+  unfillHarbors,
+  unfillLand,
+} from '../shared/maps/fill';
 import { seeded } from './fixtures';
 
 const blank = () => newDesign('blank', 'b', 'seafaring', 'Blank');
@@ -148,7 +154,7 @@ describe('editing', () => {
 
 describe('repeatable fills', () => {
   it('places harbors in a new spread each time and fills their kinds with a balanced draw', async () => {
-    const { placeHarbors, fillHarbors, harborTarget } = await import('../shared/maps/edit');
+    const { placeHarbors, harborTarget } = await import('../shared/maps/fill');
     const d = { ...newDesign('base', 'b', 'seafaring', 'Base'), harbors: [] };
     const spreads = new Set(
       [1, 2, 3, 4, 5].map(seed => JSON.stringify(placeHarbors(d, seeded(seed)).harbors.map(h => [h.q, h.r, h.side]))),
@@ -165,5 +171,70 @@ describe('repeatable fills', () => {
     const d = { ...newDesign('base', 'b', 'seafaring', 'Base'), pool: { wood: 2.5, gold: 0.3 } };
     expect(parseDesign(d, ['seafaring']).pool).toEqual({ wood: 2.5, gold: 0.3 });
     expect(() => parseDesign({ ...d, pool: { wood: 2.55 } }, ['seafaring'])).toThrow(/0.1/);
+  });
+});
+
+describe('links, unfills, and number swaps', () => {
+  it('only random pieces are linked: linking makes them random, setting a kind drops the link', () => {
+    let d = fillLand(base(), seeded(1));
+    d = fillHarbors(d, seeded(2));
+    const [h] = d.harbors;
+    d = setLinks(d, [{ q: 0, r: 0 }], [h!], 'A');
+    expect(d.tiles.find(t => t.q === 0 && t.r === 0)).toMatchObject({ kind: 'land', link: 'A' });
+    expect(d.harbors[0]).toMatchObject({ kind: 'random', link: 'A' });
+    d = updateTile(d, 0, 0, { kind: 'ore' });
+    expect(d.tiles.find(t => t.q === 0 && t.r === 0)!.link).toBeUndefined();
+    d = paint(setLinks(d, [{ q: 0, r: 0 }], [], 'B'), [{ q: 0, r: 0 }], 'wheat');
+    expect(d.tiles.find(t => t.q === 0 && t.r === 0)!.link).toBeUndefined();
+    // Fills leave linked pieces random, and stored designs drop links on set pieces.
+    d = setLinks(d, [{ q: 1, r: 0 }], [], 'C');
+    expect(fillLand(d, seeded(3)).tiles.find(t => t.q === 1 && t.r === 0)!.kind).toBe('land');
+    const stored = { ...d, tiles: d.tiles.map(t => (t.q === 1 && t.r === 0 ? { ...t, kind: 'ore' as const } : t)) };
+    expect(parseDesign(stored, ['seafaring']).tiles.find(t => t.q === 1 && t.r === 0)!.link).toBeUndefined();
+    expect(setLinks(d, [{ q: 1, r: 0 }], [], null).tiles.find(t => t.q === 1 && t.r === 0)!.link).toBeUndefined();
+  });
+
+  it('unfills land and harbor kinds, keeping numbers and harbor spots', () => {
+    const filled = fillHarbors(fillNumbers(fillLand(base(), seeded(1)), seeded(2)), seeded(3));
+    const land = unfillLand(filled);
+    expect(land.tiles.filter(t => t.kind !== 'sea').every(t => t.kind === 'land')).toBe(true);
+    expect(land.tiles.map(t => t.number)).toEqual(filled.tiles.map(t => t.number));
+    const harbors = unfillHarbors(filled);
+    expect(harbors.harbors.every(h => h.kind === 'random')).toBe(true);
+    expect(harbors.harbors.map(h => h.side)).toEqual(filled.harbors.map(h => h.side));
+    expect(clearNumbers(filled).tiles.every(t => t.number === undefined)).toBe(true);
+  });
+
+  it('random harbors only give the allowed kinds', () => {
+    const d = { ...base(), harborExclude: ['any', 'wood', 'brick', 'sheep', 'wheat'] as const };
+    const built = buildBoard({ ...d, harborExclude: [...d.harborExclude] }, seeded(4)).board;
+    expect(built.harbors.every(h => h.resource === 'ore')).toBe(true);
+  });
+
+  it('swapping equal-odds numbers keeps each pair split evenly and the reds red', () => {
+    const fixed = fillNumbers(fillLand(base(), seeded(6)), seeded(5));
+    const swap = { ...fixed, swapNumbers: true };
+    const layouts = new Set<string>();
+    for (let seed = 1; seed < 12; seed++) {
+      const numbers = buildBoard(swap, seeded(seed))
+        .board.hexes.map(h => h.number)
+        .filter((n): n is number => n !== null);
+      layouts.add(numbers.join());
+      const count = (n: number) => numbers.filter(x => x === n).length;
+      for (const [a, b] of [
+        [2, 12],
+        [3, 11],
+        [4, 10],
+        [5, 9],
+        [6, 8],
+      ] as const)
+        expect(Math.abs(count(a) - count(b))).toBeLessThanOrEqual(1);
+      for (const t of fixed.tiles.filter(t => t.number === 6 || t.number === 8)) {
+        const n = buildBoard(swap, seeded(seed)).board.hexes.find(h => h.q === t.q && h.r === t.r)!.number;
+        expect([6, 8]).toContain(n);
+      }
+    }
+    expect(layouts.size).toBeGreaterThan(1);
+    expect(parseDesign(swap, ['seafaring']).swapNumbers).toBe(true);
   });
 });

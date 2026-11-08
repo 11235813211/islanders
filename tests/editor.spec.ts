@@ -105,7 +105,18 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   const land = await cellPoint(page, 0, 1, 0, -32);
   await page.mouse.click(land.x, land.y);
   await page.getByRole('checkbox', { name: 'No starting settlements' }).check();
-  await page.getByRole('button', { name: 'Fill land' }).click();
+  await page.getByRole('button', { name: 'Fill land', exact: true }).click();
+  // The Link tool makes a filled tile random land again, linked to A.
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  const linked = await cellPoint(page, 0, 1, 0, -32);
+  await page.mouse.click(linked.x, linked.y);
+  await page.getByRole('button', { name: 'Move', exact: true }).click();
+  // Numbers swap with their equal-odds partner each game; harbors can't be 2:1 lumber.
+  await page.getByRole('button', { name: /^Swap equal-odds numbers/ }).click();
+  await page.getByRole('button', { name: /^Random harbors can give/ }).click();
+  await page.getByRole('checkbox', { name: '2:1 Lumber' }).uncheck();
+  await page.screenshot({ path: 'test-results/editor-fills.png' });
+  await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
@@ -118,6 +129,9 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   expect(at(1, 0)?.number).toBe(2);
   expect(at(1, 0)?.kind).not.toBe('land');
   expect(at(0, 1)?.noSetup).toBe(true);
+  expect(at(0, 1)).toMatchObject({ kind: 'land', link: 'A' });
+  expect(saved.swapNumbers).toBe(true);
+  expect(saved.harborExclude).toEqual(['wood']);
   expect(at(2, 0)?.kind).toBe('sea');
   expect(at(2, 1)).toBeUndefined();
 

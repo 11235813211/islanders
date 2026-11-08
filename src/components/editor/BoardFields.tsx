@@ -47,7 +47,7 @@ export default function BoardFields({
               set({ players });
             }}
           >
-            {[2, 3, 4].map(n => (
+            {[2, 3, 4, 5, 6].map(n => (
               <option key={n} value={n}>
                 {n}
               </option>

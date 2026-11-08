@@ -68,6 +68,7 @@ export default function EditorLayer({
   design,
   selection = null,
   select = () => {},
+  pickHarbor,
   stepNumber = () => {},
   readOnly = false,
 }: {
@@ -75,6 +76,8 @@ export default function EditorLayer({
   design: BoardDesign;
   selection?: EditorSelection;
   select?: (selection: EditorSelection) => void;
+  /** Replaces selecting when a harbor is clicked (the Link tool). */
+  pickHarbor?: (harbor: DesignHarbor) => void;
   stepNumber?: (q: number, r: number, delta: 1 | -1) => void;
   readOnly?: boolean;
 }) {
@@ -179,7 +182,9 @@ export default function EditorLayer({
             role={readOnly ? undefined : 'button'}
             tabIndex={readOnly ? undefined : -1}
             aria-label={`${harbor.kind} harbor`}
-            onClick={() => select({ kind: 'harbor', q: harbor.q, r: harbor.r, side: harbor.side })}
+            onClick={() =>
+              pickHarbor ? pickHarbor(harbor) : select({ kind: 'harbor', q: harbor.q, r: harbor.r, side: harbor.side })
+            }
             onKeyDown={() => {}}
           >
             {harbor.kind === 'random' ? (

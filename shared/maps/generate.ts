@@ -1,7 +1,7 @@
 import { buildGraph, hexCenter, shuffled } from '../board';
 import { isLandTerrain, isProducing, isWater } from '../seafaring';
 import { type Board, type Harbor, RESOURCES, type Resource, type Terrain } from '../types';
-import { apportion, balancedNumbers, type Cell, clumping, neighborKeys } from './balance';
+import { apportion, balancedNumbers, type Cell, clumping, neighborKeys, swapEqualOdds } from './balance';
 import { BASE_POOL, type BoardDesign, type DesignTile, type FillKind, SIDE_DIRECTIONS, tileKey } from './types';
 
 /** How far a harbor sign sits out from its edge, toward the sea tile. */
@@ -66,7 +66,9 @@ function resolveTerrains(
   const openGroups = [...groups].filter(([, g]) => !g.fixed).sort((a, b) => b[1].tiles.length - a[1].tiles.length);
   for (const [link, g] of openGroups) {
     const size = g.tiles.filter(t => t.kind === 'land').length;
-    const allowed = [...counts.keys()].filter(k => !g.harbor || RESOURCES.includes(k as Resource));
+    const allowed = [...counts.keys()].filter(
+      k => !g.harbor || (RESOURCES.includes(k as Resource) && !design.harborExclude.includes(k as Resource)),
+    );
     const ranked = shuffled(allowed, random).sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0));
     const kind: FillKind = ranked[0] ?? shuffled(RESOURCES, random)[0]!;
     counts.set(kind, (counts.get(kind) ?? 0) - size);
@@ -122,7 +124,9 @@ function resolveHarbors(
       h.kind !== 'random' ? h.kind : linked && RESOURCES.includes(linked as Resource) ? (linked as Resource) : null;
     return { q: h.q, r: h.r, side: h.side, resource };
   });
-  const weights = new Map(HARBOR_WEIGHTS.filter(([k]) => k === 'any' || !design.harborExclude.includes(k)));
+  const allowed = HARBOR_WEIGHTS.filter(([k]) => !design.harborExclude.includes(k));
+  // With every kind excluded, random harbors fall back to 3:1.
+  const weights = new Map(allowed.length ? allowed : HARBOR_WEIGHTS.slice(0, 1));
   const fixed = new Map<Resource | 'any', number>();
   for (const h of resolved) if (h.resource) fixed.set(h.resource, (fixed.get(h.resource) ?? 0) + 1);
   const draw = shuffled(apportion(resolved.filter(h => !h.resource).length, weights, fixed, random), random);
@@ -181,7 +185,7 @@ export function buildBoard(
     const valid = t.number && t.number >= 2 && t.number <= 12 && t.number !== 7;
     if (valid && isProducing(terrains.get(tileKey(t.q, t.r))!)) fixed.set(tileKey(t.q, t.r), t.number!);
   }
-  const numbers = balancedNumbers(producing, fixed, random);
+  const numbers = balancedNumbers(producing, design.swapNumbers ? swapEqualOdds(fixed, random) : fixed, random);
   const board = buildGraph(
     tiles.map(t => {
       const k = tileKey(t.q, t.r);

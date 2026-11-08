@@ -37,6 +37,24 @@ export function apportion<K>(total: number, weights: Map<K, number>, fixed: Map<
   return shares.flatMap((s, i) => Array<K>(counts[i]!).fill(s.kind));
 }
 
+/**
+ * Swap each number with its equal-odds partner (2↔12, 3↔11, 4↔10, 5↔9, 6↔8) so that each pair
+ * splits evenly, as in the base set; with an odd count the extra goes either way at random.
+ */
+export function swapEqualOdds(numbers: Map<string, number>, random: () => number): Map<string, number> {
+  const byOdds = new Map<number, string[]>();
+  for (const [k, n] of numbers) byOdds.set(pips(n), [...(byOdds.get(pips(n)) ?? []), k]);
+  const swapped = new Map<string, number>();
+  for (const [odds, keys] of byOdds) {
+    const [low, high] = [odds + 1, 13 - odds];
+    const lows = Math.floor(keys.length / 2) + (keys.length % 2 && random() < 0.5 ? 1 : 0);
+    shuffled(keys, random).forEach((k, i) => {
+      swapped.set(k, i < lows ? low : high);
+    });
+  }
+  return swapped;
+}
+
 export interface Cell {
   q: number;
   r: number;

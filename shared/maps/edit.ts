@@ -1,8 +1,7 @@
 import { HEX_RADIUS } from '../board';
 import { isProducing } from '../seafaring';
-import { RESOURCES, type Resource, type Terrain } from '../types';
-import { balancedNumbers, neighborKeys } from './balance';
-import { buildBoard, drawHarborKinds } from './generate';
+import type { Terrain } from '../types';
+import { neighborKeys } from './balance';
 import { autoHarbors } from './harbors';
 import {
   BASE_POOL,
@@ -20,7 +19,7 @@ import { DESIGN_LIMITS, LINK_LETTERS } from './validate';
  * editor can keep an undo history of plain snapshots.
  */
 
-const isLand = (kind: DesignKind) => kind !== 'sea' && kind !== 'iceberg';
+export const isLand = (kind: DesignKind) => kind !== 'sea' && kind !== 'iceberg';
 /** `land` will become a producing terrain most of the time, so it carries a number like one. */
 export const takesNumber = (kind: DesignKind) => kind === 'land' || isProducing(kind as Terrain);
 
@@ -74,8 +73,8 @@ export function newDesign(kind: 'blank' | 'base', id: string, categoryId: string
   };
 }
 
-/** Drop harbors, starts, and links that no longer fit the tiles. */
-function tidy(design: BoardDesign): BoardDesign {
+/** Drop harbors, starts, and links that no longer fit the tiles. Only random pieces keep a link. */
+export function tidy(design: BoardDesign): BoardDesign {
   const byKey = new Map(design.tiles.map(t => [tileKey(t.q, t.r), t]));
   const harbors = design.harbors.filter(h => {
     const land = byKey.get(tileKey(h.q, h.r));
@@ -88,11 +87,17 @@ function tidy(design: BoardDesign): BoardDesign {
   return {
     ...design,
     tiles: design.tiles.map(t => {
-      if (isLand(t.kind)) return t;
-      const { number: _n, link: _l, noSetup: _s, bonus: _b, ...rest } = t;
+      if (t.kind === 'land' || (isLand(t.kind) && !t.link)) return t;
+      const { link: _l, ...linkless } = t;
+      if (isLand(t.kind)) return linkless;
+      const { number: _n, noSetup: _s, bonus: _b, ...rest } = linkless;
       return rest;
     }),
-    harbors,
+    harbors: harbors.map(h => {
+      if (h.kind === 'random' || !h.link) return h;
+      const { link: _l, ...rest } = h;
+      return rest;
+    }),
     robber: robber ? design.robber : null,
     pirate: pirate ? design.pirate : null,
   };
@@ -230,8 +235,9 @@ export function toggleHarbor(design: BoardDesign, q: number, r: number, side: nu
   return { ...design, harbors: [...design.harbors, { ...edge, kind: 'random' }] };
 }
 
+/** Change one harbor's kind or link (a set kind drops its link). */
 export function updateHarbor(design: BoardDesign, harbor: DesignHarbor, patch: Partial<DesignHarbor>): BoardDesign {
-  return {
+  return tidy({
     ...design,
     harbors: design.harbors.map(h => {
       if (!sameEdge(h, harbor)) return h;
@@ -239,68 +245,13 @@ export function updateHarbor(design: BoardDesign, harbor: DesignHarbor, patch: P
       if (patch.link === undefined && 'link' in patch) delete next.link;
       return next;
     }),
-  };
+  });
 }
 
 /** The first link letter no tile or harbor uses yet. */
 export function nextLink(design: BoardDesign): string {
   const used = new Set([...design.tiles, ...design.harbors].map(t => t.link).filter(Boolean));
   return [...LINK_LETTERS].find(l => !used.has(l)) ?? 'Z';
-}
-
-/** Turn every random land tile into the terrain a balanced draw gives it. Linked groups stay matched. */
-export function fillLand(design: BoardDesign, random: () => number = Math.random): BoardDesign {
-  const { board } = buildBoard(design, random);
-  const drawn = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h.terrain]));
-  return tidy({
-    ...design,
-    tiles: design.tiles.map(t => (t.kind === 'land' ? { ...t, kind: drawn.get(tileKey(t.q, t.r)) ?? 'land' } : t)),
-  });
-}
-
-/** Give every numbered tile without a number a balanced one (keeping the numbers already set). */
-export function fillNumbers(design: BoardDesign, random: () => number = Math.random): BoardDesign {
-  const producing = design.tiles.filter(t => takesNumber(t.kind)).map(t => ({ q: t.q, r: t.r, terrain: t.kind }));
-  const fixed = new Map(
-    design.tiles.filter(t => t.number !== undefined && takesNumber(t.kind)).map(t => [tileKey(t.q, t.r), t.number!]),
-  );
-  const numbers = balancedNumbers(producing, fixed, random);
-  return {
-    ...design,
-    tiles: design.tiles.map(t => (takesNumber(t.kind) ? { ...t, number: numbers.get(tileKey(t.q, t.r)) } : t)),
-  };
-}
-
-/** About one harbor per two land tiles, like the base game's 9 for 19. */
-export const harborTarget = (design: BoardDesign) =>
-  Math.max(3, Math.round(design.tiles.filter(t => isLand(t.kind)).length / 2.1));
-
-/** Add harbors spread around the coasts until the board has about its share (a new spread each call). */
-export function placeHarbors(design: BoardDesign, random: () => number = Math.random): BoardDesign {
-  const extra = autoHarbors(design.tiles, harborTarget(design) - design.harbors.length, design.harbors, random);
-  return { ...design, harbors: [...design.harbors, ...extra] };
-}
-
-/** Give every random harbor a kind from a balanced draw (fixed and excluded kinds respected). */
-export function fillHarbors(design: BoardDesign, random: () => number = Math.random): BoardDesign {
-  const kinds = drawHarborKinds(design, random);
-  return {
-    ...design,
-    harbors: design.harbors.map(h =>
-      h.kind === 'random' ? { ...h, kind: kinds.get(`${h.q},${h.r},${h.side}`) ?? 'random' } : h,
-    ),
-  };
-}
-
-/** Make every number random again. */
-export function clearNumbers(design: BoardDesign): BoardDesign {
-  return {
-    ...design,
-    tiles: design.tiles.map(t => {
-      const { number: _n, ...rest } = t;
-      return rest;
-    }),
-  };
 }
 
 /** Problems worth fixing before a board is played. Empty when the board looks playable. */
@@ -315,16 +266,5 @@ export function designWarnings(design: BoardDesign): string[] {
     warnings.push(
       `Only ${open.length} land tiles allow starting settlements; ${design.players.max} players need room for ${design.players.max * 2}.`,
     );
-  const linked = new Map<string, Set<string>>();
-  for (const t of design.tiles)
-    if (t.link && t.kind !== 'land') linked.set(t.link, new Set([...(linked.get(t.link) ?? []), t.kind]));
-  for (const [letter, kinds] of linked)
-    if (kinds.size > 1) warnings.push(`Link ${letter} joins tiles set to different terrains; the first one wins.`);
-  const harborLinks = design.harbors.filter(h => h.link).map(h => h.link!);
-  for (const letter of harborLinks) {
-    const fixed = design.tiles.find(t => t.link === letter && t.kind !== 'land');
-    if (fixed && !RESOURCES.includes(fixed.kind as Resource))
-      warnings.push(`Harbor link ${letter} follows a ${fixed.kind} tile, so it becomes a random harbor.`);
-  }
   return [...new Set(warnings)];
 }

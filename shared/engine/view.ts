@@ -59,6 +59,7 @@ export function getView(state: GameState, selfId: string): GameView {
       boolean
     >,
     activePlayerId: active,
+    turnPlayerId: ['lobby', 'finished'].includes(state.phase) ? null : (state.players[state.turnIndex]?.id ?? null),
     turn: state.turn,
     dice: state.dice,
     pendingDiscards: state.pendingDiscards,

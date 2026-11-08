@@ -17,7 +17,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
   },
 
   'build-ship'({ next, player, playerId }, action) {
-    needPhase(next, 'build', 'free-roads');
+    needPhase(next, 'build', 'free-roads', 'special-build');
     requireRule(
       legalMoves(next, playerId).ships.includes(action.edgeId),
       'Choose open sea next to your settlement or ship, away from the pirate, and make sure you can pay.',

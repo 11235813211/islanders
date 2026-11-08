@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { type BoardDesign, type DesignHarbor, type DesignKind, type DesignTile, tileKey } from '../../../shared/maps';
 import {
   islandOf,
-  nextLink,
   paint,
   setIslandBonus,
   setIslandClosed,
@@ -11,12 +10,13 @@ import {
   updateHarbor,
   updateTile,
 } from '../../../shared/maps/edit';
+import { setLinks } from '../../../shared/maps/fill';
 import { RESOURCES, type Resource } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import { RESOURCE_LABELS } from '../ResourceHand';
 import { TileIcon } from './BrushPicker';
 import type { EditorSelection } from './EditorCanvas';
-import { linkColor } from './EditorLayer';
+import LinkPicker from './LinkPicker';
 import { KIND_LABELS, KIND_ORDER } from './tools';
 
 const NUMBERS = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
@@ -32,41 +32,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     <div className="inspector-field">
       <span className="inspector-label">{label}</span>
       {children}
-    </div>
-  );
-}
-
-/** Pick a link letter: none, one already in use, or a new one. */
-function LinkPicker({
-  design,
-  value,
-  change,
-}: {
-  design: BoardDesign;
-  value: string | undefined;
-  change: (link: string | undefined) => void;
-}) {
-  const used = [...new Set([...design.tiles, ...design.harbors].map(t => t.link).filter(Boolean) as string[])].sort();
-  const fresh = nextLink(design);
-  return (
-    <div className="chip-row" role="radiogroup" aria-label="Link">
-      <button type="button" role="radio" aria-checked={!value} onClick={() => change(undefined)}>
-        None
-      </button>
-      {[...used, ...(used.includes(fresh) ? [] : [fresh])].map(letter => (
-        <button
-          key={letter}
-          type="button"
-          role="radio"
-          aria-checked={value === letter}
-          style={{ '--chip': linkColor(letter) } as React.CSSProperties}
-          className="link-chip"
-          title={used.includes(letter) ? `Same resource as the other ${letter} pieces` : 'Start a new link'}
-          onClick={() => change(letter)}
-        >
-          {used.includes(letter) ? letter : `+ ${letter}`}
-        </button>
-      ))}
     </div>
   );
 }
@@ -136,7 +101,8 @@ function TilePanel({
       )}
       {land && (
         <Field label="Same resource as">
-          <LinkPicker design={design} value={tile.link} change={link => edit(d => updateTile(d, q, r, { link }))} />
+          <LinkPicker design={design} value={tile.link} change={link => edit(d => setLinks(d, [tile], [], link))} />
+          <p className="inspector-hint">Linked tiles are random land; the link picks their resource.</p>
         </Field>
       )}
       {land && (
@@ -233,7 +199,7 @@ function HarborPanel({
         </div>
       </Field>
       <Field label="Same resource as">
-        <LinkPicker design={design} value={harbor.link} change={link => edit(d => updateHarbor(d, harbor, { link }))} />
+        <LinkPicker design={design} value={harbor.link} change={link => edit(d => setLinks(d, [], [harbor], link))} />
       </Field>
       <button
         type="button"

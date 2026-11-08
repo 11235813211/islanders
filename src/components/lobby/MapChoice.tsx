@@ -1,10 +1,11 @@
 import { AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useState } from 'react';
+import { isLargeGame } from '../../../shared/engine';
 import type { GameAction, GameView } from '../../../shared/types';
 import { useBoardLibrary } from '../../hooks/useBoardLibrary';
 import MapBrowser from '../maps/MapBrowser';
 import MapThumbnail from '../maps/MapThumbnail';
-import { playerRange, playersMismatch, STANDARD_ISLAND } from '../maps/mapInfo';
+import { LARGE_ISLAND, playerRange, playersMismatch, STANDARD_ISLAND } from '../maps/mapInfo';
 
 /**
  * The lobby's map: the standard island or a chosen map, previewed as designed (the actual layout
@@ -24,8 +25,9 @@ export default function MapChoice({
   const [browsing, setBrowsing] = useState(false);
   const { library, error } = useBoardLibrary();
   const map = view.map;
-  const design = map ? library?.boards.find(b => b.id === map.id) : STANDARD_ISLAND;
   const players = view.players.length;
+  const base = isLargeGame(players) ? LARGE_ISLAND : STANDARD_ISLAND;
+  const design = map ? library?.boards.find(b => b.id === map.id) : base;
   return (
     <div className="map-choice">
       <div className="map-choice-switch" role="radiogroup" aria-label="Map">
@@ -47,8 +49,8 @@ export default function MapChoice({
       <div className="mode-card tone-sea">
         {design && <MapThumbnail tiles={design.tiles} label={`${design.name} preview`} />}
         <div>
-          <h3>{map?.name ?? 'Standard island'}</h3>
-          <p>{map ? `${playerRange(map.players)} players` : '2–4 players'} · a new layout every game</p>
+          <h3>{map?.name ?? base.name}</h3>
+          <p>{playerRange((map ?? base).players)} players · a new layout every game</p>
         </div>
         <button type="button" className="button secondary" disabled={busy} onClick={() => setBrowsing(true)}>
           <MapIcon size={17} />

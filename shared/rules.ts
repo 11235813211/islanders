@@ -1,13 +1,14 @@
 import { shuffled } from './board';
 import { type DevelopmentCard, type DevelopmentType, type GameState, RESOURCES, type Resource } from './types';
 
-export function developmentDeck(random: () => number): DevelopmentCard[] {
+/** The shuffled development deck: 25 cards, or 34 for five and six players. */
+export function developmentDeck(random: () => number, large = false): DevelopmentCard[] {
   const kinds: DevelopmentType[] = [
-    ...Array<DevelopmentType>(14).fill('knight'),
+    ...Array<DevelopmentType>(large ? 20 : 14).fill('knight'),
     ...Array<DevelopmentType>(5).fill('victory-point'),
-    ...Array<DevelopmentType>(2).fill('road-building'),
-    ...Array<DevelopmentType>(2).fill('year-of-plenty'),
-    ...Array<DevelopmentType>(2).fill('monopoly'),
+    ...Array<DevelopmentType>(large ? 3 : 2).fill('road-building'),
+    ...Array<DevelopmentType>(large ? 3 : 2).fill('year-of-plenty'),
+    ...Array<DevelopmentType>(large ? 3 : 2).fill('monopoly'),
   ];
   return shuffled(kinds, random).map((kind, i) => ({ id: `dev-${i}`, kind, boughtTurn: -1 }));
 }

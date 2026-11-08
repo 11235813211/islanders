@@ -1,4 +1,4 @@
-import { Eye, FlaskConical, LayoutGrid, Redo2, Save, SlidersHorizontal, Undo2, X } from 'lucide-react';
+import { Eye, FlaskConical, LayoutGrid, Redo2, Save, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
 import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
@@ -9,9 +9,10 @@ import { deleteBoard, saveBoard, saveLayout } from '../../lib/boardsApi';
 import MapBrowser from '../maps/MapBrowser';
 import MapPreview from '../maps/MapPreview';
 import BoardFields from './BoardFields';
-import BoardSettings, { type Refill } from './BoardSettings';
-import BrushPicker from './BrushPicker';
+import BoardSettings from './BoardSettings';
 import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
+import EditorToolbar from './EditorToolbar';
+import type { Refill } from './FillBar';
 import Inspector from './Inspector';
 import { freshId, KIND_LABELS, TOOLS, typing } from './tools';
 import './editor.css';
@@ -42,6 +43,7 @@ export default function BoardEditor({
   const [selection, select] = useState<EditorSelection>(null);
   const [tool, setTool] = useState<Tool>('select');
   const [brush, setBrush] = useState<DesignKind>('gold');
+  const [linkLetter, setLinkLetter] = useState<string | null>('A');
   const [message, setMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [panel, setPanel] = useState<'inspector' | null>(null);
@@ -280,29 +282,18 @@ export default function BoardEditor({
             <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
           </button>
         </div>
-        <div className="editor-tools" role="toolbar" aria-label="Tools">
-          {TOOLS.map(t => (
-            <button
-              key={t.tool}
-              type="button"
-              aria-pressed={tool === t.tool}
-              title={`${t.hint} (${t.key.toUpperCase()})`}
-              onClick={() => setTool(t.tool)}
-            >
-              {t.icon}
-              <span>{t.label}</span>
-            </button>
-          ))}
-          <BrushPicker brush={brush} setBrush={setBrush} />
-          <button
-            type="button"
-            className="icon-button editor-panels"
-            aria-label="Show settings"
-            onClick={() => setPanel(p => (p === 'inspector' ? null : 'inspector'))}
-          >
-            <SlidersHorizontal size={19} />
-          </button>
-        </div>
+        <EditorToolbar
+          design={design}
+          tool={tool}
+          setTool={setTool}
+          brush={brush}
+          setBrush={setBrush}
+          linkLetter={linkLetter}
+          setLinkLetter={setLinkLetter}
+          edit={edit}
+          refill={refill}
+          togglePanel={() => setPanel(p => (p === 'inspector' ? null : 'inspector'))}
+        />
       </header>
       {!account && <p className="editor-notice">Sign in to save boards. You can still draw and preview.</p>}
       <section className="editor-stage">
@@ -312,6 +303,7 @@ export default function BoardEditor({
           select={select}
           tool={tool}
           brush={brush}
+          linkLetter={linkLetter}
           edit={edit}
           fitKey={design.id}
         />
@@ -322,7 +314,7 @@ export default function BoardEditor({
       </section>
       <aside className="editor-inspector" aria-label="Settings">
         <Inspector design={design} selection={selection} select={select} edit={edit} />
-        <BoardSettings design={design} edit={edit} refill={refill} />
+        <BoardSettings design={design} edit={edit} />
       </aside>
       {message && <Toast message={message} dismiss={() => setMessage(null)} />}
       {preview && (

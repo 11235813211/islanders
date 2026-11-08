@@ -3,11 +3,13 @@ import { type PointerEvent as ReactPointerEvent, useEffect, useId, useLayoutEffe
 import { HEX_RADIUS, hexCenter } from '../../../shared/board';
 import { type BoardDesign, type DesignKind, tileKey } from '../../../shared/maps';
 import { cellAt, paint, sideAt, stepNumber, toggleHarbor, updateTile } from '../../../shared/maps/edit';
+import { setLinks } from '../../../shared/maps/fill';
 import { ArtDefs, SEA } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import EditorLayer from './EditorLayer';
 
-export type Tool = 'select' | 'sea' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
+/** Toolbar tools, plus the painting tools held keys switch to (sea, land, brush, erase). */
+export type Tool = 'select' | 'link' | 'sea' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
 export type EditorSelection =
   | { kind: 'tile'; q: number; r: number }
   | { kind: 'harbor'; q: number; r: number; side: number }
@@ -50,7 +52,7 @@ function fitView(design: BoardDesign, width: number, height: number): View {
 
 /** Pixels a press may wander before it counts as a drag rather than a click. */
 const CLICK_SLOP = 5;
-const PAINTING: Tool[] = ['sea', 'land', 'brush', 'erase'];
+const PAINTING: Tool[] = ['sea', 'land', 'brush', 'erase', 'link'];
 
 /**
  * The editing surface, with the game board's controls: scroll or pinch zooms, dragging moves the
@@ -64,6 +66,7 @@ export default function EditorCanvas({
   select,
   tool,
   brush,
+  linkLetter,
   edit,
   fitKey,
 }: {
@@ -72,6 +75,8 @@ export default function EditorCanvas({
   select: (selection: EditorSelection) => void;
   tool: Tool;
   brush: DesignKind;
+  /** What the Link tool gives tiles and harbors (null unlinks). */
+  linkLetter: string | null;
   edit: Edit;
   /** Refit the view when this changes (a different board was opened). */
   fitKey: string;
@@ -169,6 +174,7 @@ export default function EditorCanvas({
       ),
     );
     current.last = to;
+    if (current.tool === 'link') return edit(d => setLinks(d, cells, [], linkLetter), current.group);
     const mode =
       current.tool === 'sea' ? 'sea' : current.tool === 'land' ? 'land' : current.tool === 'brush' ? brush : 'erase';
     edit(d => paint(d, cells, mode), current.group);
@@ -178,6 +184,8 @@ export default function EditorCanvas({
     const { q, r } = cellAt(point.x, point.y);
     const tile = design.tiles.find(t => t.q === q && t.r === r);
     if (active === 'select') select(tile ? { kind: 'tile', q, r } : null);
+    // Clicking a tile that already has this link takes it off again.
+    if (active === 'link' && tile) edit(d => setLinks(d, [{ q, r }], [], tile.link === linkLetter ? null : linkLetter));
     if (active === 'harbor') {
       edit(d => toggleHarbor(d, q, r, sideAt(q, r, point.x, point.y)));
       select(null);
@@ -210,7 +218,8 @@ export default function EditorCanvas({
       pan,
       screen: { x: event.clientX, y: event.clientY },
     };
-    if (!pan && PAINTING.includes(active)) strokeTo(point);
+    // A link click toggles (see click), so only drags paint links.
+    if (!pan && PAINTING.includes(active) && active !== 'link') strokeTo(point);
   }
 
   function move(event: ReactPointerEvent) {
@@ -285,6 +294,11 @@ export default function EditorCanvas({
           design={design}
           selection={selection}
           select={select}
+          pickHarbor={
+            tool === 'link'
+              ? harbor => edit(d => setLinks(d, [], [harbor], harbor.link === linkLetter ? null : linkLetter))
+              : undefined
+          }
           stepNumber={(q, r, delta) =>
             edit(d =>
               updateTile(d, q, r, { number: stepNumber(d.tiles.find(t => t.q === q && t.r === r)?.number, delta) }),
