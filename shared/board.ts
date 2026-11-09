@@ -121,26 +121,52 @@ export function generateBoard(
   random: () => number = Math.random,
   layout: 'random' | 'ordered' = 'random',
   large = false,
+  sea = false,
 ): Board {
   const island = islandFor(large);
   const terrains = shuffled(
     Object.entries(island.terrains).flatMap(([terrain, count]) => Array<Terrain>(count).fill(terrain as Terrain)),
     random,
   );
-  const board = buildGraph(islandCells(island.rows).map((cell, i) => ({ ...cell, terrain: terrains[i]! })));
+  const land = islandCells(island.rows).map((cell, i) => ({ ...cell, terrain: terrains[i]! }));
+  const board = buildGraph(sea ? [...land, ...seaRing(land)] : land);
   board.harbors = generateHarbors(board, random);
   assignNumbers(board, layout, random);
   return board;
 }
 
+/** One ring of sea around the island (the Seafarers variation on the base game), after the land. */
+function seaRing(land: { q: number; r: number }[]): { q: number; r: number; terrain: Terrain }[] {
+  const taken = new Set(land.map(c => `${c.q},${c.r}`));
+  const ring = new Map<string, { q: number; r: number; terrain: Terrain }>();
+  for (const c of land)
+    for (const [dq, dr] of AXIAL_NEIGHBORS) {
+      const key = `${c.q + dq},${c.r + dr}`;
+      if (!taken.has(key)) ring.set(key, { q: c.q + dq, r: c.r + dr, terrain: 'sea' });
+    }
+  return [...ring.values()];
+}
+const AXIAL_NEIGHBORS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, -1],
+  [-1, 1],
+] as const;
+const landHexes = (board: Board) => board.hexes.filter(h => h.terrain !== 'sea');
+/** The 5–6 player island has more than the standard 19 land tiles. */
+const isLarge = (board: Board) => landHexes(board).length > 19;
+
 export const ORDERED_NUMBERS = ISLANDS.standard.ordered;
 
 /** Counterclockwise rings from the northwest corner, then inward, for any island built by islandCells. */
 export function spiralHexes(board: Board): Hex[] {
-  const remaining = new Set(board.hexes);
+  const land = landHexes(board);
+  const remaining = new Set(land);
   const result: Hex[] = [];
-  const cx = board.hexes.reduce((sum, h) => sum + h.x, 0) / board.hexes.length;
-  const cy = board.hexes.reduce((sum, h) => sum + h.y, 0) / board.hexes.length;
+  const cx = land.reduce((sum, h) => sum + h.x, 0) / land.length;
+  const cy = land.reduce((sum, h) => sum + h.y, 0) / land.length;
   // Peel the outer ring each pass (hexes missing a neighbour), starting at its top-left hex.
   while (remaining.size) {
     const ring = [...remaining].filter(h => [...remaining].filter(o => adjacent(h, o)).length < 6);
@@ -158,7 +184,7 @@ export function spiralHexes(board: Board): Hex[] {
 /** The base island's number tokens: its ordered spiral, or a random draw with no two red numbers touching. */
 export function assignNumbers(board: Board, layout: 'random' | 'ordered', random: () => number = Math.random): void {
   for (const hex of board.hexes) hex.number = null;
-  const ordered = islandFor(board.hexes.length > 19).ordered;
+  const ordered = islandFor(isLarge(board)).ordered;
   if (layout === 'ordered') {
     spiralHexes(board)
       .filter(hex => hex.terrain !== 'desert')
@@ -170,7 +196,7 @@ export function assignNumbers(board: Board, layout: 'random' | 'ordered', random
   // Backtracking guarantees separated high-probability numbers even when a
   // deterministic test random source repeatedly returns the same value.
   const producing = shuffled(
-    board.hexes.filter(h => h.terrain !== 'desert'),
+    landHexes(board).filter(h => h.terrain !== 'desert'),
     random,
   );
   const red = ordered.filter(n => n === 6 || n === 8);
@@ -203,17 +229,22 @@ export function assignNumbers(board: Board, layout: 'random' | 'ordered', random
 /** Evenly spaced coastal harbors: nine on the standard island, eleven on the large one. */
 export function generateHarbors(board: Board, random: () => number = () => 0.5): Board['harbors'] {
   const vertices = new Map(board.vertices.map(v => [v.id, v]));
-  const cx = board.hexes.reduce((sum, h) => sum + h.x, 0) / board.hexes.length;
-  const cy = board.hexes.reduce((sum, h) => sum + h.y, 0) / board.hexes.length;
+  const land = landHexes(board);
+  const isLand = new Set(land.map(h => h.id));
+  const cx = land.reduce((sum, h) => sum + h.x, 0) / land.length;
+  const cy = land.reduce((sum, h) => sum + h.y, 0) / land.length;
+  // Coast: edges with land on exactly one side (open water or the sea ring on the other).
   const coast = board.edges.filter(
-    edge => vertices.get(edge.a)!.hexIds.filter(id => vertices.get(edge.b)!.hexIds.includes(id)).length === 1,
+    edge =>
+      vertices.get(edge.a)!.hexIds.filter(id => vertices.get(edge.b)!.hexIds.includes(id) && isLand.has(id)).length ===
+      1,
   );
   const middle = (edge: (typeof coast)[number]) => ({
     x: (vertices.get(edge.a)!.x + vertices.get(edge.b)!.x) / 2 - cx,
     y: (vertices.get(edge.a)!.y + vertices.get(edge.b)!.y) / 2 - cy,
   });
   coast.sort((a, b) => Math.atan2(middle(a).y, middle(a).x) - Math.atan2(middle(b).y, middle(b).x));
-  const kinds = shuffled<Harbor['resource']>(islandFor(board.hexes.length > 19).harbors, random);
+  const kinds = shuffled<Harbor['resource']>(islandFor(isLarge(board)).harbors, random);
   return kinds.map((resource, i) => {
     const edge = coast[Math.floor((i * coast.length) / kinds.length)]!;
     const { x, y } = middle(edge);

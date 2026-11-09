@@ -31,6 +31,8 @@ function App() {
   const [spectate, setSpectate] = useState(false);
   const [leavingGame, setLeavingGame] = useState(false);
   const [editing, setEditing] = useState(() => location.hash === '#editor');
+  /** The board editor's "discard unsaved changes?" check, for the header's Home button. */
+  const editorLeave = useRef<(() => boolean) | null>(null);
   const busy = loading || room.pending || (Boolean(session) && room.connection !== 'online');
   const hasGame = Boolean(view && view.phase !== 'lobby');
   // Solo test rooms are a developer tool: local dev, or accounts listed in PLAYTEST_USERS.
@@ -153,7 +155,7 @@ function App() {
   /** Home from the header. Leaving a game against bots first asks whether to save it or end it. */
   function goHome() {
     if (view && hasGame && view.role === 'player' && isBotGame(view)) setLeavingGame(true);
-    else home();
+    else if (!editing || (editorLeave.current?.() ?? true)) home();
   }
   function send(action: GameAction) {
     setError(null);
@@ -169,7 +171,7 @@ function App() {
         </span>
       </button>
       <nav>
-        {session && (
+        {(session || editing) && (
           <button className="text-button" aria-label="Home" onClick={goHome}>
             <ArrowLeft size={18} />
             <span>Home</span>
@@ -224,6 +226,7 @@ function App() {
         account={account.account}
         close={home}
         playtest={mapId => void enter('test', undefined, false, mapId)}
+        leaveCheck={editorLeave}
       />
     );
   else if (!session)

@@ -6,7 +6,8 @@ import { type Board, type Edge, type Hex, RESOURCES, type Resource, type Terrain
  */
 
 export const isWater = (terrain: Terrain) => terrain === 'sea' || terrain === 'iceberg';
-export const isLandTerrain = (terrain: Terrain) => !isWater(terrain);
+/** Fog is neither: nothing is built beside it until it is revealed. */
+export const isLandTerrain = (terrain: Terrain) => !isWater(terrain) && terrain !== 'fog';
 /** Terrains that carry a number token: the producing ones, and icebergs (whose number makes them drift). */
 export const takesToken = (terrain: Terrain) => isProducing(terrain) || terrain === 'iceberg';
 /** Terrains that pay something when their number is rolled. */

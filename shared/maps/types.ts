@@ -8,7 +8,10 @@ import type { Resource, Terrain } from '../types';
 /** A tile in a design. `land` is filled with a random terrain from the design's pool. */
 export type DesignKind = Terrain | 'land';
 /** Terrains random land can become. */
-export type FillKind = Exclude<Terrain, 'sea'>;
+export type FillKind = Exclude<Terrain, 'sea' | 'fog'>;
+/** What a fog tile may turn out to be. */
+export type FogKind = Exclude<FillKind, 'iceberg'> | 'sea';
+export type Pool = Partial<Record<FillKind, number>>;
 
 export interface DesignTile {
   q: number;
@@ -61,6 +64,10 @@ export interface BoardDesign {
    * each way, so a board with set numbers plays differently with the same odds.
    */
   swapNumbers?: boolean;
+  /** Own random-land mixes for some islands, keyed by one of the island's tiles (`q,r`). */
+  islandPools?: Record<string, Pool>;
+  /** What fog tiles may turn out to be, as shares (default FOG_POOL). */
+  fogPool?: Partial<Record<FogKind, number>>;
   /** 0–RICH_LEVELS: how much richer random numbers are on islands closed to setup (0 is the normal mix). */
   richIslands?: number;
   /** Expansions whose rules or pieces the board needs. Absent: Seafarers when it has sea (see boardExpansions). */
@@ -82,6 +89,17 @@ export type Expansion = keyof typeof EXPANSIONS;
 export function boardExpansions(design: Pick<BoardDesign, 'expansions' | 'tiles'>): Expansion[] {
   return design.expansions ?? (design.tiles.some(t => t.kind === 'sea') ? ['seafarers'] : []);
 }
+
+/** The Fog Islands stack: two sea, two gold, and eight land tiles. */
+export const FOG_POOL: Partial<Record<FogKind, number>> = {
+  sea: 2,
+  gold: 2,
+  wheat: 2,
+  brick: 2,
+  ore: 2,
+  sheep: 1,
+  wood: 1,
+};
 
 /** Random-land presets for the editor: shares per terrain (iceberg is a percent of sea). */
 export const POOL_PRESETS: Record<'base' | 'tropic' | 'polar' | 'all', Partial<Record<FillKind, number>>> = {

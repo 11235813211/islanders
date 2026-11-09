@@ -38,6 +38,7 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
               <tr
                 className={view.activePlayerId === p.id ? 'active' : ''}
                 key={p.id}
+                data-player-id={p.id}
                 style={playerVars(p.color) as CSSProperties}
                 aria-label={`${p.name}${view.selfId === p.id ? ', you' : ''}`}
               >

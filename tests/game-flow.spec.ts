@@ -59,13 +59,13 @@ test('the end-of-game screen shows standings and lets the host play again', asyn
   expect(game.state().players).toHaveLength(4);
 });
 
-test('the turn chime can be switched off and stays off', async ({ page }) => {
+test('the turn chime starts off, can be switched on, and stays on', async ({ page }) => {
   await mountGame(page, richGame());
   const chime = page.getByRole('button', { name: 'Turn chime' });
-  await expect(chime).toHaveAttribute('aria-pressed', 'true');
-  await chime.click();
   await expect(chime).toHaveAttribute('aria-pressed', 'false');
-  expect(await page.evaluate(() => localStorage.getItem('islanders:sound'))).toBe('off');
+  await chime.click();
+  await expect(chime).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => localStorage.getItem('islanders:sound'))).toBe('on');
 });
 
 test('the host adds a bot, changes its level, and removes it in the lobby', async ({ page }) => {

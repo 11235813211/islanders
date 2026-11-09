@@ -6,6 +6,7 @@ import {
   RESOURCES,
   type Resource,
   type ResourceBag,
+  type TradeBag,
   type TradeOffer,
 } from '../types';
 import {
@@ -236,7 +237,7 @@ class Planner {
   /** A road or ship toward the best reachable open corner. */
   roadTowardTarget(maxDistance = 3): GameAction | null {
     const spot = expansionTarget(this.board, this.weights, maxDistance);
-    return linkAction(this.view, spot?.firstEdge);
+    return linkAction(this.view, spot?.firstEdge, spot?.firstKind);
   }
 
   bestSettlement(): string {
@@ -269,7 +270,11 @@ class Planner {
     return give ? { type: 'trade', give, receive } : null;
   }
 
-  /** One fair 1-for-1 offer per turn for a card the goal needs. */
+  /**
+   * One fair 1-for-1 offer per turn for a card the goal needs. Bots get it freely; people only when
+   * it is the last card the goal needs, at most every third turn, and never the same offer again
+   * within five turns (it was turned down, and little has changed since).
+   */
   playerOffer(goal: Goal): GameAction | null {
     if (eventsThisTurn(this.view, ['offer'])) return null;
     const cost = COSTS[goal];
@@ -280,8 +285,14 @@ class Planner {
       (a, b) => this.weights[a] - this.weights[b],
     )[0];
     if (!want || !give) return null;
+    const short = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - this.view.hand[r]), 0);
+    const askPeople =
+      short === 1 &&
+      !recentOffer(this.view, 3, (_, __, people) => people) &&
+      !recentOffer(this.view, 5, (g, w, people) => people && g[give] > 0 && w[want] > 0);
     const to = this.view.players
       .filter(p => p.id !== this.view.selfId && p.publicPoints < this.target - 2 && p.resourceCount > 0)
+      .filter(p => p.bot || askPeople)
       .map(p => p.id);
     if (!to.length) return null;
     return {
@@ -333,6 +344,27 @@ class Planner {
     const after = turnsToAfford({ ...this.view, hand }, this.production, COSTS[goal]);
     return bagValue(get, this.weights) >= bagValue(give, this.weights) * 0.95 && after <= before;
   }
+}
+
+/** Did this seat make a matching offer within its last `turns` turns? `people`: it went to a person. */
+function recentOffer(
+  view: GameView,
+  turns: number,
+  matches: (give: TradeBag, want: TradeBag, people: boolean) => boolean,
+): boolean {
+  const since = view.turn - turns * view.players.length;
+  const person = new Set(view.players.filter(p => !p.bot).map(p => p.id));
+  return view.log.some(
+    entry =>
+      entry.event?.kind === 'offer' &&
+      entry.event.playerId === view.selfId &&
+      (entry.turn ?? 0) > since &&
+      matches(
+        entry.event.give,
+        entry.event.want,
+        (entry.event.to ?? []).some(id => person.has(id)),
+      ),
+  );
 }
 
 /** Advanced's settings. Exported so the tuning report can try variations. */

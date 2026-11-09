@@ -19,8 +19,9 @@ import {
   pieceCounts,
   requireRule,
 } from './core';
+import { revealFog } from './fog';
 import { canSpecialBuild, legalMoves, roadSites, shipSites, stealTargets } from './legal';
-import { drift, erupt, produce } from './production';
+import { drift, eruptingVolcanoes, produce } from './production';
 
 /**
  * Take one weighted-random card (or, where the room allows it, a discovery) from the victim, then
@@ -94,6 +95,12 @@ function nextSpecialBuilder(next: GameState): string | null {
   return null;
 }
 
+/** After a roll pays out: gold choices first, then any eruption, then building. */
+export function afterProduction(next: GameState): GameState['phase'] {
+  if (Object.keys(next.pendingGold).length) return 'gold';
+  return next.eruption ? 'eruption' : 'build';
+}
+
 /** End the setup round's road-or-ship placement. */
 export function finishSetupLink(next: GameState): void {
   next.lastSettlement = null;
@@ -153,6 +160,7 @@ export const turnHandlers: Pick<
     );
     next.roads[action.edgeId] = playerId;
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
+    revealFog(next, action.edgeId, playerId);
     finishSetupLink(next);
   },
 
@@ -175,9 +183,10 @@ export const turnHandlers: Pick<
     } else {
       const gains = produce(next, total);
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains });
-      erupt(next, total, random);
       drift(next, total, random);
-      next.phase = Object.keys(next.pendingGold).length ? 'gold' : 'build';
+      const volcanoes = eruptingVolcanoes(next, total);
+      next.eruption = volcanoes.length ? volcanoes : null;
+      next.phase = afterProduction(next);
     }
   },
 
@@ -236,6 +245,7 @@ export const turnHandlers: Pick<
     next.roads[action.edgeId] = playerId;
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
     if (next.phase === 'free-roads') afterFreePiece(next, playerId);
+    revealFog(next, action.edgeId, playerId);
   },
 
   'build-settlement'({ next, player, playerId }, action) {

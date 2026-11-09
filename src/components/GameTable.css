@@ -1627,3 +1627,93 @@
     padding: 5px;
   }
 }
+
+/* The roller's red button during an eruption. */
+.button.volcano-roll {
+  border-color: #9e1d10;
+  background: #d22b1c;
+  color: #fff;
+  box-shadow: 0 2px 0 #8e1a0f;
+}
+.button.volcano-roll:hover:not(:disabled) {
+  background: #e23b2a;
+}
+/* Everyone sees this while volcanoes wait to erupt. */
+.eruption-banner {
+  position: fixed;
+  z-index: 80;
+  top: 10px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: 2px solid #ffd1c4;
+  border-radius: 999px;
+  background: #c8200f;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 20px #8e1a0f80;
+  transform: translateX(-50%);
+  animation: eruption-flash 0.8s steps(2, jump-none) infinite;
+  pointer-events: none;
+}
+@keyframes eruption-flash {
+  from {
+    background: #c8200f;
+  }
+  to {
+    background: #ff4a1c;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eruption-banner {
+    animation: none;
+  }
+}
+
+/* Cards flying from a tile to whoever it paid. */
+.resource-flights {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  pointer-events: none;
+}
+.resource-flight {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border: 2px solid #fff;
+  border-radius: 9px;
+  background: #fffdf4;
+  box-shadow: 0 4px 12px #0f2f3f55;
+  animation: resource-flight 1.2s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+@keyframes resource-flight {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(0, -14px) scale(1.1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fx), var(--fy)) scale(0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .resource-flight {
+    display: none;
+  }
+}

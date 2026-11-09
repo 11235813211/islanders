@@ -83,19 +83,9 @@ function DotLimit({ tile, edit }: { tile: DesignTile; edit: Edit }) {
   );
 }
 
-function TilePanel({
-  design,
-  tile,
-  edit,
-  close,
-}: {
-  design: BoardDesign;
-  tile: DesignTile;
-  edit: Edit;
-  close: () => void;
-}) {
+function TilePanel({ design, tile, edit }: { design: BoardDesign; tile: DesignTile; edit: Edit }) {
   const { q, r } = tile;
-  const land = tile.kind !== 'sea' && tile.kind !== 'iceberg';
+  const land = tile.kind !== 'sea' && tile.kind !== 'iceberg' && tile.kind !== 'fog';
   const island = land ? islandOf(design, q, r) : [];
   const robberHere = design.robber?.q === q && design.robber.r === r;
   const pirateHere = design.pirate?.q === q && design.pirate.r === r;
@@ -200,17 +190,6 @@ function TilePanel({
           {land ? 'Robber starts here' : 'Pirate starts here'}
         </label>
       )}
-      <button
-        type="button"
-        className="button secondary danger"
-        onClick={() => {
-          edit(d => paint(d, [{ q, r }], 'erase'));
-          close();
-        }}
-      >
-        <Trash2 size={16} />
-        Delete tile
-      </button>
     </section>
   );
 }
@@ -287,7 +266,7 @@ export default function Inspector({
     selection?.kind === 'harbor'
       ? design.harbors.find(h => h.q === selection.q && h.r === selection.r && h.side === selection.side)
       : undefined;
-  if (tile) return <TilePanel design={design} tile={tile} edit={edit} close={() => select(null)} />;
+  if (tile) return <TilePanel design={design} tile={tile} edit={edit} />;
   if (harbor) return <HarborPanel design={design} harbor={harbor} edit={edit} close={() => select(null)} />;
   return (
     <section className="inspector-section inspector-empty">

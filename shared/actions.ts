@@ -36,8 +36,9 @@ type FieldSpec = Field | `${Field}?`;
 const SPEC = {
   start: {},
   roll: {},
+  'roll-volcanoes': {},
   'end-turn': {},
-  'buy-development': {},
+  'buy-development': { discoveries: 'bag?' },
   'finish-free-roads': {},
   leave: {},
   'switch-role': {},

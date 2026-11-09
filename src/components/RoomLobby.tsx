@@ -12,7 +12,7 @@ import {
   Users,
   Wifi,
 } from 'lucide-react';
-import { type CSSProperties, useEffect, useState } from 'react';
+import { type CSSProperties, Fragment, useEffect, useState } from 'react';
 import { BOTS } from '../../shared/bots';
 import { PLAYER_COLORS, playerVars } from '../../shared/colors';
 import { MAX_PLAYERS } from '../../shared/engine';
@@ -198,29 +198,40 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
           <h2>Game settings</h2>
           {!host && <span className="subtle-badge">Host controls</span>}
         </div>
-        <MapChoice view={view} host={host} busy={busy} send={send} />
-        {CATEGORIES.map(category => (
-          <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
-            <legend>{category.title}</legend>
-            {category.settings
-              .filter(def => def.when?.(view) ?? true)
-              .map(def => {
-                // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
-                const Row = def.control.kind === 'stepper' ? 'div' : 'label';
-                return (
-                  <Row className="setting-row" key={def.key}>
-                    <span className="setting-label">
-                      {def.icon}
-                      <span>
-                        <strong>{def.label}</strong>
-                        <small>{def.hint}</small>
+        {CATEGORIES.map((category, i) => (
+          <Fragment key={category.id}>
+            {/* Variations come first, then the map they apply to, then the other settings. */}
+            {i === 1 && <MapChoice view={view} host={host} busy={busy} send={send} />}
+            <fieldset className={`setting-group tone-${category.tone}`}>
+              <legend>{category.title}</legend>
+              {category.settings
+                .filter(def => def.when?.(view) ?? true)
+                .map(def => {
+                  // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
+                  const Row = def.control.kind === 'stepper' ? 'div' : 'label';
+                  return (
+                    <Row className="setting-row" key={def.key}>
+                      <span className="setting-label">
+                        {def.icon}
+                        <span>
+                          <strong>{def.label}</strong>
+                          <small>{def.hint}</small>
+                        </span>
                       </span>
-                    </span>
-                    <SettingControl def={def} settings={view.settings} disabled={busy || !host} change={change} />
-                  </Row>
-                );
-              })}
-          </fieldset>
+                      <SettingControl
+                        def={def}
+                        settings={view.settings}
+                        disabled={busy || !host}
+                        change={next => {
+                          const question = def.confirm?.(view, next[def.key]!);
+                          if (!question || window.confirm(question)) change(next);
+                        }}
+                      />
+                    </Row>
+                  );
+                })}
+            </fieldset>
+          </Fragment>
         ))}
         <div className="setup-start">
           <p>

@@ -10,6 +10,8 @@ import {
   EXPANSIONS,
   type Expansion,
   type FillKind,
+  type FogKind,
+  type Pool,
 } from './types';
 
 /** Limits that keep a board small enough to send and to play within the server's CPU budget. */
@@ -21,6 +23,25 @@ export const LINK_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const KINDS: DesignKind[] = [...RESOURCES, 'desert', ...SEA_TERRAINS, 'land'];
 const FILL_KINDS: FillKind[] = [...RESOURCES, 'desert', 'gold', 'jungle', 'volcano', 'iceberg'];
+const FOG_KINDS: FogKind[] = ['sea', ...RESOURCES, 'desert', 'gold', 'jungle', 'volcano'];
+/** Fog contents in the order the editor lists them. */
+export const FOG_POOL_KINDS = FOG_KINDS;
+
+/** A terrain mix: shares 0–20 in steps of 0.1 (icebergs: a whole percent of the sea). */
+function parsePool(value: unknown, kinds: readonly string[]): Record<string, number> {
+  if (!record(value)) return fail('Invalid terrain mix.');
+  const pool: Record<string, number> = {};
+  for (const [kind, weight] of Object.entries(value)) {
+    // Shares may use one decimal place (the editor steps by 0.1).
+    const tenths = typeof weight === 'number' ? weight * 10 : Number.NaN;
+    if (kind === 'iceberg') {
+      if (!int(weight, 0, ICEBERG_MAX_PERCENT)) fail(`Icebergs cover 0–${ICEBERG_MAX_PERCENT}% of the sea.`);
+    } else if (!kinds.includes(kind) || !(tenths >= 0 && tenths <= 200) || Math.abs(tenths - Math.round(tenths)) > 1e-6)
+      fail('Terrain mix values are 0–20, in steps of 0.1.');
+    if ((weight as number) > 0) pool[kind] = weight as number;
+  }
+  return pool;
+}
 
 export class DesignError extends Error {}
 const fail = (message: string): never => {
@@ -109,21 +130,16 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     fail(`Use 1–${DESIGN_LIMITS.tiles} tiles.`);
   if (!Array.isArray(value.harbors) || value.harbors.length > DESIGN_LIMITS.harbors)
     fail(`Use at most ${DESIGN_LIMITS.harbors} harbors.`);
-  const pool: BoardDesign['pool'] = {};
-  if (!record(value.pool)) fail('Invalid terrain mix.');
-  for (const [kind, weight] of Object.entries(value.pool as Record<string, unknown>)) {
-    // Shares may use one decimal place (the editor steps by 0.1).
-    const tenths = typeof weight === 'number' ? weight * 10 : Number.NaN;
-    if (kind === 'iceberg') {
-      if (!int(weight, 0, ICEBERG_MAX_PERCENT)) fail(`Icebergs cover 0–${ICEBERG_MAX_PERCENT}% of the sea.`);
-    } else if (
-      !FILL_KINDS.includes(kind as FillKind) ||
-      !(tenths >= 0 && tenths <= 200) ||
-      Math.abs(tenths - Math.round(tenths)) > 1e-6
-    )
-      fail('Terrain mix values are 0–20, in steps of 0.1.');
-    if ((weight as number) > 0) pool[kind as FillKind] = weight as number;
+  const pool = parsePool(value.pool, FILL_KINDS) as Pool;
+  const islandPools: Record<string, Pool> = {};
+  if (value.islandPools !== undefined) {
+    if (!record(value.islandPools) || Object.keys(value.islandPools).length > 40) fail('Invalid island mixes.');
+    for (const [key, mix] of Object.entries(value.islandPools as Record<string, unknown>)) {
+      if (!/^-?\d{1,2},-?\d{1,2}$/.test(key)) fail('Invalid island mixes.');
+      islandPools[key] = parsePool(mix, FILL_KINDS) as Pool;
+    }
   }
+  const fogPool = value.fogPool === undefined ? undefined : parsePool(value.fogPool, FOG_KINDS);
   const exclude = value.harborExclude;
   if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
     fail('Invalid harbor exclusions.');
@@ -148,6 +164,8 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),
     pool,
+    ...(Object.keys(islandPools).length ? { islandPools } : {}),
+    ...(fogPool ? { fogPool } : {}),
     harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
     ...(value.swapNumbers ? { swapNumbers: true } : {}),
     ...(value.richIslands ? { richIslands: value.richIslands as number } : {}),

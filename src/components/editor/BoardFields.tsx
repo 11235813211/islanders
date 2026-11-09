@@ -7,7 +7,12 @@ import {
   EXPANSIONS,
   type Expansion,
 } from '../../../shared/maps';
+import { RICH_LEVELS } from '../../../shared/maps/balance';
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
+
+/** Numbers on islands closed to setup: how much richer than the normal mix. */
+const RICH_LABELS = ['Normal numbers', 'Better', 'Rich', 'Richer', 'Mostly 6 & 8'];
+
 import { useDismiss } from '../../hooks/useDismiss';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
@@ -117,6 +122,27 @@ export default function BoardFields({
               set({ victoryPoints: n });
           }}
         />
+      </label>
+      <label data-tip="How much better random numbers are on islands closed to setup settlements">
+        <span>Closed islands</span>
+        <select
+          aria-label="Numbers on closed islands"
+          value={design.richIslands ?? 0}
+          disabled={!design.tiles.some(t => t.noSetup)}
+          onChange={e => {
+            const level = Number(e.target.value);
+            edit(d => {
+              const { richIslands: _r, ...rest } = d;
+              return level ? { ...rest, richIslands: level } : rest;
+            });
+          }}
+        >
+          {RICH_LABELS.slice(0, RICH_LEVELS + 1).map((label, level) => (
+            <option key={label} value={level}>
+              {label}
+            </option>
+          ))}
+        </select>
       </label>
       <ExpansionsMenu design={design} set={set} />
     </div>

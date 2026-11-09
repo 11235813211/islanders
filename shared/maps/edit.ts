@@ -19,7 +19,8 @@ import { DESIGN_LIMITS, LINK_LETTERS } from './validate';
  * editor can keep an undo history of plain snapshots.
  */
 
-export const isLand = (kind: DesignKind) => kind !== 'sea' && kind !== 'iceberg';
+/** Land in the design: anything but water and unexplored fog. */
+export const isLand = (kind: DesignKind) => kind !== 'sea' && kind !== 'iceberg' && kind !== 'fog';
 /** `land` will become a producing terrain most of the time, so it carries a number like one. */
 export const takesNumber = (kind: DesignKind) => kind === 'land' || takesToken(kind as Terrain);
 
@@ -98,7 +99,18 @@ export function tidy(design: BoardDesign): BoardDesign {
     }),
     robber: robber ? design.robber : null,
     pirate: pirate ? design.pirate : null,
+    ...islandPoolsOn(design, byKey),
   };
+}
+
+/** Island mixes whose tile is still land (anything else drops them). */
+function islandPoolsOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<BoardDesign, 'islandPools'> {
+  if (!design.islandPools) return {};
+  const kept = Object.entries(design.islandPools).filter(([k]) => {
+    const tile = byKey.get(k);
+    return !!tile && isLand(tile.kind);
+  });
+  return { islandPools: kept.length ? Object.fromEntries(kept) : undefined };
 }
 
 /**

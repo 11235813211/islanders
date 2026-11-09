@@ -43,13 +43,17 @@ export function tournament(
   levels: BotLevel[],
   games: number,
   firstSeed = 1,
-): Record<BotLevel, number> & { unfinished: number } {
-  const wins = { beginner: 0, intermediate: 0, advanced: 0, unfinished: 0 };
+  /** Maps to cycle through (sea maps); the standard island when empty. */
+  designs: BoardDesign[] = [],
+): Record<BotLevel, number> & { unfinished: number; turns: number } {
+  const wins = { beginner: 0, intermediate: 0, advanced: 0, unfinished: 0, turns: 0 };
   for (let i = 0; i < games; i++) {
     const orders = permutations(levels);
     const seats = orders[i % orders.length]!;
-    const g = playBotGame(seats, firstSeed + i);
+    const design = designs.length ? designs[i % designs.length] : undefined;
+    const g = playBotGame(seats, firstSeed + i, design ? 9000 : 6000, design);
     const winner = g.players.find(p => p.id === g.winnerId);
+    wins.turns += g.turn / games;
     if (winner?.bot) wins[winner.bot]++;
     else wins.unfinished++;
   }

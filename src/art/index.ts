@@ -4,7 +4,8 @@ import { createElement } from 'react';
 import type { BaseTerrain, Terrain } from '../../shared/types';
 import type { SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
-import { art } from './v11';
+import { art } from './v12';
+import { FogTile as FallbackFogTile } from './v12/sea/fog';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
@@ -26,7 +27,13 @@ export const {
 /** Sea-map art: the active version's, or v7's for versions made before sea maps. */
 export const SEA: SeaArt = (art as { sea?: SeaArt }).sea ?? fallbackSea;
 /** Name and map color of every terrain, plus `land` (unassigned land in the editor). */
-export const TERRAIN: Record<Terrain | 'land', { name: string; color: string }> = { ...art.terrain, ...SEA.terrain };
+export const TERRAIN: Record<Terrain | 'land', { name: string; color: string }> = {
+  ...art.terrain,
+  ...SEA.terrain,
+  fog: { name: 'Fog · revealed when reached', color: '#eef3f5' },
+};
+/** Unexplored fog: the active version's, or v12's for versions made before fog. */
+const FogTile = SEA.FogTile ?? FallbackFogTile;
 
 const BASE_TERRAINS = new Set<string>(Object.keys(art.terrain));
 
@@ -40,6 +47,7 @@ export function Tile({
   terrain: Terrain | 'land';
   variant?: number;
 }): ReactElement {
+  if (terrain === 'fog') return createElement(FogTile, { uid });
   return BASE_TERRAINS.has(terrain)
     ? createElement(HexTile, { uid, terrain: terrain as BaseTerrain })
     : createElement(SEA.SeaTile, { uid, terrain: terrain as SeaTileKind, variant });

@@ -1,16 +1,4 @@
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  FlaskConical,
-  LayoutGrid,
-  Lock,
-  Redo2,
-  Save,
-  Undo2,
-  X,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, FlaskConical, LayoutGrid, Lock, Redo2, Save, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
 import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
@@ -39,10 +27,13 @@ export default function BoardEditor({
   account,
   close,
   playtest,
+  leaveCheck,
 }: {
   account: AccountSession | null;
   close: () => void;
   playtest: (mapId: string) => void;
+  /** Set to a check the site header runs before leaving (false keeps the editor open). */
+  leaveCheck: { current: (() => boolean) | null };
 }) {
   const { library: served, error: loadError, reload } = useBoardLibrary();
   const [browsing, setBrowsing] = useState(true);
@@ -140,6 +131,8 @@ export default function BoardEditor({
   const goHome = () => {
     if (leaveUnsaved()) close();
   };
+  // The site header's Home button asks here first, so unsaved changes aren't lost.
+  leaveCheck.current = leaveUnsaved;
   function open(id: string) {
     const board = library?.boards.find(b => b.id === id);
     if (!board) return;
@@ -311,10 +304,6 @@ export default function BoardEditor({
             <Save size={17} />
             <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
           </button>
-          <button type="button" className="button secondary" aria-label="Home" onClick={goHome}>
-            <ArrowLeft size={17} />
-            <span className="editor-label">Home</span>
-          </button>
         </div>
         <EditorToolbar
           design={design}
@@ -362,7 +351,7 @@ export default function BoardEditor({
       </section>
       <aside className="editor-inspector" aria-label="Settings">
         <Inspector design={design} selection={selection} select={select} edit={edit} />
-        <BoardSettings design={design} edit={edit} />
+        <BoardSettings design={design} edit={edit} selection={selection} />
       </aside>
       {message && <Toast message={message} dismiss={() => setMessage(null)} />}
       {preview && (

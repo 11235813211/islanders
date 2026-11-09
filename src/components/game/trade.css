@@ -1,33 +1,33 @@
 /* Trade offers: each side from the viewer's view (green: you get, red: you give), one colored
    square per recipient's answer, and the yes / no / counter buttons (yes carries the time left). */
 .trade-notice {
-  align-items: flex-start;
+  align-items: center;
 }
 .offer-exchange {
   flex-wrap: wrap;
-  gap: 4px 10px;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 4px;
 }
 .offer-side {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
-.offer-side small {
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
 .offer-arrow {
   display: inline-grid;
   place-items: center;
 }
-.offer-side.get .offer-arrow,
-.offer-side.get small {
+.offer-side.get .offer-arrow {
   color: #14892f;
 }
-.offer-side.give .offer-arrow,
-.offer-side.give small {
+.offer-side.give .offer-arrow {
   color: #ce352b;
+}
+.offer-for {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 .trade-chip.get {
   outline: 2px solid #1c9a3c;
@@ -44,17 +44,25 @@
   margin-top: 6px;
 }
 .offer-answer {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   height: 24px;
-  padding: 0;
+  padding: 0 7px 0 5px;
   border: 2px solid #10202a33;
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--player-color);
   color: var(--player-ink);
   font-size: 13px;
   font-weight: 900;
+}
+.answer-name {
+  max-width: 90px;
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .offer-answer.waiting {
   opacity: 0.75;
@@ -136,7 +144,6 @@
     height: 34px;
   }
   .offer-answer {
-    width: 21px;
     height: 21px;
   }
 }
@@ -170,4 +177,72 @@
 .trade-selection.give .trade-card {
   outline: 2px solid #d43d31;
   outline-offset: 1px;
+}
+
+/* Buying a development card with discoveries: card or discovery for each of its resources. */
+.discovery-choices {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0;
+}
+.discovery-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.discovery-choice button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.discovery-choice button[aria-pressed="true"] {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: #fff;
+}
+.discovery-choice button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Knight, Road Building and Victory Point popups sit just above their card in the hand. */
+.card-popover {
+  position: fixed;
+  z-index: 60;
+  width: min(340px, calc(100vw - 16px));
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px #0f2f3f40;
+  transform: translateX(-50%);
+}
+.card-popover .section-heading h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.card-popover::after {
+  position: absolute;
+  bottom: -7px;
+  left: calc(50% - 7px);
+  width: 14px;
+  height: 14px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  content: "";
+  transform: rotate(45deg);
 }

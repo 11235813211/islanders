@@ -194,12 +194,19 @@ describe('gold, volcanoes, and jungles', () => {
       g.buildings[volcano.vertexIds[ERUPTION_CORNER[1]]!] = { playerId: 'p1', kind: 'city' };
     });
     g.phase = 'roll';
-    g = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2, 0.2)); // 2 + 2, then eruption die 2
+    g = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2)); // 2 + 2
+    // Gold from the volcano is chosen first; then the roller rolls the eruption die.
+    expect(g.phase).toBe('gold');
+    expect(g.pendingGold.p1).toBe(2);
+    expect(g.eruption).toEqual([hexOf(g, 'volcano').id]);
+    g = act(g, 'p1', { type: 'choose-gold', resources: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 } });
+    expect(g.phase).toBe('eruption');
+    expect(() => act(g, 'p0', { type: 'end-turn' })).toThrow();
+    g = act(g, 'p0', { type: 'roll-volcanoes' }, sequence(0.2)); // die 2
     const vertex = hexOf(g, 'volcano').vertexIds[ERUPTION_CORNER[1]]!;
     expect(g.buildings[vertex]).toEqual({ playerId: 'p1', kind: 'settlement' });
     expect(g.log.some(l => l.event?.kind === 'eruption' && l.event.damage === 'city')).toBe(true);
-    // Gold from the volcano was paid before it erupted.
-    expect(g.pendingGold.p1).toBe(2);
+    expect(g.phase).toBe('build');
   });
 
   it('jungles give discoveries that pay for development cards', () => {

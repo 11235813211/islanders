@@ -106,6 +106,7 @@ export default function BuildBar({
   mode,
   setMode,
   send,
+  buyWithDiscoveries,
 }: {
   view: GameView;
   self: PublicPlayer;
@@ -113,6 +114,8 @@ export default function BuildBar({
   mode: BoardMode;
   setMode: (mode: BoardMode) => void;
   send: (action: GameAction) => void;
+  /** With discoveries in hand, the Dev Card button asks which resources they pay for. */
+  buyWithDiscoveries: () => void;
 }) {
   const toggle = (kind: Exclude<BoardMode, null>) => setMode(mode === kind ? null : kind);
   const movable = Object.keys(view.legal.shipMoves).length > 0;
@@ -164,7 +167,7 @@ export default function BuildBar({
         kind="development"
         remaining={view.developmentRemaining}
         disabled={blocked || !view.legal.development}
-        onClick={() => send({ type: 'buy-development' })}
+        onClick={() => (self.discoveries > 0 ? buyWithDiscoveries() : send({ type: 'buy-development' }))}
       />
     </>
   );

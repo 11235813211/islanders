@@ -149,6 +149,15 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
 
 test('boards move between categories by drag and drop, and categories can be added', async ({ page }) => {
   const headers = await signIn(page);
+  // Empty categories left by an interrupted earlier run (the local library persists).
+  const stale = (await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary;
+  const used = new Set(stale.boards.map(b => b.categoryId));
+  const kept = stale.categories.filter(c => c.name !== 'New category' || used.has(c.id));
+  if (kept.length < stale.categories.length)
+    await page.request.put(`${server}/api/boards`, {
+      headers,
+      data: { categories: kept, order: stale.boards.map(b => ({ id: b.id, categoryId: b.categoryId })) },
+    });
   await page.goto('/#editor');
   const library = page.getByRole('dialog', { name: 'Boards' });
   await expect(library.getByText('Outer Isles')).toBeVisible();

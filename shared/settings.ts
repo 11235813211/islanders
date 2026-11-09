@@ -14,6 +14,10 @@ export const DEFAULT_SETTINGS: GameSettings = {
   showBank: false,
   discoveries: 'kept',
   volcanoGold: true,
+  seafarers: false,
+  volcanoStart: true,
+  volcanoDice: 'random',
+  shipMoving: 'ends',
 };
 /** Trade offer lengths the lobby offers. */
 export const TRADE_SECONDS = [15, 30, 45, 60, 90, 120] as const;
@@ -86,7 +90,11 @@ export function validSettings(
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
     (s.showBank === undefined || typeof s.showBank === 'boolean') &&
     (s.discoveries === undefined || Object.hasOwn(DISCOVERY_RULES, s.discoveries as string)) &&
-    (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean')
+    (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&
+    (s.seafarers === undefined || typeof s.seafarers === 'boolean') &&
+    (s.volcanoStart === undefined || typeof s.volcanoStart === 'boolean') &&
+    (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string)) &&
+    (s.shipMoving === undefined || ['open', 'ends'].includes(s.shipMoving as string))
   );
 }
 

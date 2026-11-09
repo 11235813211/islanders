@@ -1,7 +1,7 @@
 import { assignNumbers, generateBoard } from '../board';
 import { firstFreeColor } from '../colors';
 import { buildBoard } from '../maps/generate';
-import type { BoardDesign } from '../maps/types';
+import { type BoardDesign, boardExpansions } from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
@@ -26,16 +26,26 @@ export function boardFor(
   layout: GameSettings['numberLayout'],
   random: () => number,
   players = 4,
-): { board: Board; robber: string; pirate: string | null } {
-  if (design) return buildBoard(design, random);
-  const board = generateBoard(random, layout, isLargeGame(players));
-  return { board, robber: board.hexes.find(hex => hex.terrain === 'desert')!.id, pirate: null };
+  seafarers = !!design,
+): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
+  if (design) {
+    const built = buildBoard(design, random);
+    return seafarers ? built : { ...built, pirate: null };
+  }
+  const board = generateBoard(random, layout, isLargeGame(players), seafarers);
+  return {
+    board,
+    robber: board.hexes.find(hex => hex.terrain === 'desert')!.id,
+    // One ring of sea is all coast, so the pirate starts off the board until a 7 or a knight.
+    pirate: null,
+    fog: {},
+  };
 }
 
 /** The board, bank, and development deck for the seats at the table (five or six get more of each). */
 function dealTable(next: GameState, random: () => number): void {
   const players = next.players.length;
-  Object.assign(next, boardFor(next.design, next.settings.numberLayout, random, players));
+  Object.assign(next, boardFor(next.design, next.settings.numberLayout, random, players, next.settings.seafarers));
   next.bank = bankFor(players);
   next.developmentDeck = developmentDeck(random, isLargeGame(players));
 }
@@ -70,6 +80,10 @@ export function createGame(
     dice: null,
     pendingDiscards: {},
     pendingGold: {},
+    goldDeadline: null,
+    eruption: null,
+    volcanoDecks: {},
+    fog: {},
     shipsBuilt: [],
     shipMoved: false,
     islands: {},
@@ -203,7 +217,13 @@ export const lobbyHandlers: Pick<
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'change room settings');
     next.settings = { ...next.settings, ...action.settings };
-    if (state.settings.numberLayout !== next.settings.numberLayout && !next.design)
+    // Turning Seafarers on or off redraws the preview (the standard island gains or loses its sea).
+    if (state.settings.seafarers !== next.settings.seafarers)
+      Object.assign(
+        next,
+        boardFor(next.design, next.settings.numberLayout, random, next.players.length, next.settings.seafarers),
+      );
+    else if (state.settings.numberLayout !== next.settings.numberLayout && !next.design)
       assignNumbers(next.board, next.settings.numberLayout, random);
     addLog(next, `${player.name} updated the room settings.`);
   },
@@ -215,9 +235,15 @@ export const lobbyHandlers: Pick<
     const base = action.mapId === 'base';
     requireRule(base || design?.id === action.mapId, 'That map is not available.');
     const chosen = base ? null : design!;
-    Object.assign(next, boardFor(chosen, next.settings.numberLayout, random, next.players.length));
-    if ((next.design?.id ?? 'base') !== action.mapId)
+    if ((next.design?.id ?? 'base') !== action.mapId) {
       next.settings.victoryPoints = chosen?.victoryPoints ?? DEFAULT_SETTINGS.victoryPoints;
+      // Sea maps start with Seafarers on; the host may still turn it off.
+      next.settings.seafarers = !!chosen && boardExpansions(chosen).includes('seafarers');
+    }
+    Object.assign(
+      next,
+      boardFor(chosen, next.settings.numberLayout, random, next.players.length, next.settings.seafarers),
+    );
     next.design = chosen;
     next.map = chosen ? { id: chosen.id, name: chosen.name, players: chosen.players } : null;
     addLog(next, `${player.name} chose ${chosen ? chosen.name : 'the standard island'}.`);

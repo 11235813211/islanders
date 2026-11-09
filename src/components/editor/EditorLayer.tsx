@@ -1,7 +1,7 @@
 import { hexCenter, hexCorner } from '../../../shared/board';
-import { type BoardDesign, type DesignHarbor, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
+import { type BoardDesign, type DesignHarbor, type DesignTile, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
-import { closedTiles, takesNumber } from '../../../shared/maps/edit';
+import { closedTiles, isLand, takesNumber } from '../../../shared/maps/edit';
 import { Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import { tileVariant } from '../BoardScene';
@@ -57,6 +57,46 @@ function RandomHarbor({ at, corners }: ReturnType<typeof harborGeometry>) {
   );
 }
 
+/** A tile's number token: set (click to raise, Shift-click or right-click to lower) or "?" for random. */
+function NumberSlot({
+  uid,
+  tile,
+  readOnly,
+  stepNumber,
+}: {
+  uid: string;
+  tile: DesignTile;
+  readOnly: boolean;
+  stepNumber: (q: number, r: number, delta: 1 | -1) => void;
+}) {
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
+    <g
+      className={readOnly ? undefined : 'editor-token'}
+      role={readOnly ? undefined : 'button'}
+      tabIndex={readOnly ? undefined : -1}
+      aria-label={`Number ${tile.number ?? 'random'}. Click to raise, Shift-click to lower.`}
+      onClick={event => stepNumber(tile.q, tile.r, event.shiftKey ? -1 : 1)}
+      onContextMenu={event => {
+        event.preventDefault();
+        stepNumber(tile.q, tile.r, -1);
+      }}
+      onKeyDown={() => {}}
+    >
+      {tile.number ? (
+        <NumberToken uid={uid} number={tile.number} />
+      ) : (
+        <g transform="translate(0 8)">
+          <circle r="18" fill="#fff9e7" fillOpacity=".8" stroke="#8f7c55" strokeWidth="1.4" strokeDasharray="3 3" />
+          <text textAnchor="middle" y="6.5" fontSize="18" fontWeight="800" fill="#6b6650">
+            ?
+          </text>
+        </g>
+      )}
+    </g>
+  );
+}
+
 /**
  * A design as drawn before any game: real tile art, "?" for anything left random, harbors,
  * starting pieces, and a rim around islands open to starting settlements. In the editor, number
@@ -89,8 +129,8 @@ export default function EditorLayer({
         const [q, r] = key.split(',').map(Number) as [number, number];
         ghosts.set(key, { q, r });
       }
-  const water = design.tiles.filter(t => t.kind === 'sea' || t.kind === 'iceberg');
-  const land = design.tiles.filter(t => t.kind !== 'sea' && t.kind !== 'iceberg');
+  const water = design.tiles.filter(t => !isLand(t.kind));
+  const land = design.tiles.filter(t => isLand(t.kind));
   const place = (t: { q: number; r: number }) => {
     const c = hexCenter(t.q, t.r);
     return `translate(${c.x} ${c.y})`;
@@ -110,6 +150,8 @@ export default function EditorLayer({
       {water.map(tile => (
         <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
           <Tile uid={uid} terrain={tile.kind} variant={tileVariant(tile)} />
+          {/* An iceberg's number says when it drifts. */}
+          {tile.kind === 'iceberg' && <NumberSlot uid={uid} tile={tile} readOnly={readOnly} stepNumber={stepNumber} />}
         </g>
       ))}
       <SEA.IslandBase uid={uid} hexes={land.map(t => hexCenter(t.q, t.r))} />
@@ -119,45 +161,13 @@ export default function EditorLayer({
           {tile.bonus && <SEA.BonusChip points={tile.bonus} />}
           {tile.link && !readOnly && <LinkBadge letter={tile.link} x={-25} y={27} />}
           {design.robber?.q === tile.q && design.robber.r === tile.r && <Robber />}
-          {takesNumber(tile.kind) && (
-            // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
-            <g
-              className={readOnly ? undefined : 'editor-token'}
-              role={readOnly ? undefined : 'button'}
-              tabIndex={readOnly ? undefined : -1}
-              aria-label={`Number ${tile.number ?? 'random'}. Click to raise, Shift-click to lower.`}
-              onClick={event => stepNumber(tile.q, tile.r, event.shiftKey ? -1 : 1)}
-              onContextMenu={event => {
-                event.preventDefault();
-                stepNumber(tile.q, tile.r, -1);
-              }}
-              onKeyDown={() => {}}
-            >
-              {tile.number ? (
-                <NumberToken uid={uid} number={tile.number} />
-              ) : (
-                <g transform="translate(0 8)">
-                  <circle
-                    r="18"
-                    fill="#fff9e7"
-                    fillOpacity=".8"
-                    stroke="#8f7c55"
-                    strokeWidth="1.4"
-                    strokeDasharray="3 3"
-                  />
-                  <text textAnchor="middle" y="6.5" fontSize="18" fontWeight="800" fill="#6b6650">
-                    ?
-                  </text>
-                </g>
-              )}
-            </g>
-          )}
+          {takesNumber(tile.kind) && <NumberSlot uid={uid} tile={tile} readOnly={readOnly} stepNumber={stepNumber} />}
         </g>
       ))}
       {design.tiles.some(t => t.kind === 'sea') && (
         <IslandRims
           tiles={design.tiles.map(t => {
-            const land = t.kind !== 'sea' && t.kind !== 'iceberg';
+            const land = isLand(t.kind);
             return { q: t.q, r: t.r, land, open: land && !closed.has(tileKey(t.q, t.r)) };
           })}
         />

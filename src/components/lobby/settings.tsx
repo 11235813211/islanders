@@ -8,16 +8,17 @@ import {
   House,
   Landmark,
   Minus,
+  Mountain,
+  Move,
   Plus,
+  Sailboat,
   Shield,
   Timer,
   Trophy,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DISCOVERY_RULES, TRADE_SECONDS, VICTORY_POINT_RANGE } from '../../../shared/settings';
-import type { DiscoveryRule, GameSettings, GameView, Terrain } from '../../../shared/types';
-
-const hasTerrain = (view: GameView, terrain: Terrain) => view.board.hexes.some(h => h.terrain === terrain);
+import type { DiscoveryRule, GameSettings, GameView } from '../../../shared/types';
 
 /**
  * Lobby settings are data. To add a setting: add the field to GameSettings,
@@ -37,6 +38,8 @@ export interface SettingDef {
   control: Control;
   /** Show the setting only when this holds (default: always). */
   when?: (view: GameView) => boolean;
+  /** A question to confirm before this change, or null to apply it straight away. */
+  confirm?: (view: GameView, value: GameSettings[keyof GameSettings]) => string | null;
 }
 export interface Category {
   id: string;
@@ -46,6 +49,68 @@ export interface Category {
 }
 
 export const CATEGORIES: Category[] = [
+  {
+    id: 'variations',
+    title: 'Variations',
+    tone: 'sea',
+    settings: [
+      {
+        key: 'seafarers',
+        label: 'Seafarers',
+        hint: 'Ships and the pirate. On the standard island, this adds a ring of sea around it.',
+        icon: <Sailboat size={20} />,
+        control: { kind: 'toggle' },
+        confirm: (view, on) =>
+          !on && view.features.sea
+            ? 'This map is made for Seafarers. Without it there are no ships or pirate, so other islands can’t be reached. Turn Seafarers off anyway?'
+            : null,
+      },
+      {
+        key: 'shipMoving',
+        label: 'Moving ships',
+        hint: 'Published rule: only the last ship of an open route moves. Any route end: a ship next to your settlement may move too.',
+        icon: <Move size={20} />,
+        when: view => view.settings.seafarers,
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'ends', label: 'Any route end' },
+            { value: 'open', label: 'Published rule' },
+          ],
+        },
+      },
+      {
+        key: 'volcanoStart',
+        label: 'Start next to volcanoes',
+        hint: 'Whether setup settlements may touch a volcano.',
+        icon: <Mountain size={20} />,
+        when: view => view.features.volcano,
+        control: { kind: 'toggle' },
+      },
+      {
+        key: 'volcanoDice',
+        label: 'Eruption dice',
+        hint: 'Random, or balanced: each volcano erupts toward all six corners before any corner repeats.',
+        icon: <Dices size={20} />,
+        when: view => view.features.volcano,
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'random', label: 'Random' },
+            { value: 'balanced', label: 'Balanced' },
+          ],
+        },
+      },
+      {
+        key: 'volcanoGold',
+        label: 'Volcanoes pay',
+        hint: 'On: a volcano pays a resource of your choice, then erupts. Off: it only erupts.',
+        icon: <Flame size={20} />,
+        when: view => view.features.volcano,
+        control: { kind: 'toggle' },
+      },
+    ],
+  },
   {
     id: 'board',
     title: 'Board',
@@ -113,14 +178,6 @@ export const CATEGORIES: Category[] = [
             label: DISCOVERY_RULES[value].label,
           })),
         },
-      },
-      {
-        key: 'volcanoGold',
-        label: 'Volcanoes pay',
-        hint: 'On: a volcano pays a resource of your choice, then erupts. Off: it only erupts.',
-        icon: <Flame size={20} />,
-        when: view => hasTerrain(view, 'volcano'),
-        control: { kind: 'toggle' },
       },
       {
         key: 'friendlyRobber',

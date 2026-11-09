@@ -1,5 +1,5 @@
+import { boardExpansions, FOG_POOL, type Pool } from '../maps/types';
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
-import { boardIndex } from '../seafaring';
 import { type GameState, type GameView, RESOURCES, type Resource } from '../types';
 import {
   emptyBag,
@@ -9,9 +9,27 @@ import {
   pieceCounts,
   requireRule,
   resourceCount,
+  seaRules,
   undoEndsTurn,
 } from './core';
 import { legalMoves } from './legal';
+
+/** What the map has, or may draw from its random land: sea (so it needs Seafarers) and volcanoes. */
+function mapFeatures(state: GameState): GameView['features'] {
+  const design = state.design;
+  if (!design) return { sea: false, volcano: false };
+  const random = design.tiles.some(t => t.kind === 'land');
+  const draws = (pool: Pool | undefined) => random && (pool?.volcano ?? 0) > 0;
+  const fogVolcano = design.tiles.some(t => t.kind === 'fog') && ((design.fogPool ?? FOG_POOL).volcano ?? 0) > 0;
+  return {
+    sea: boardExpansions(design).includes('seafarers'),
+    volcano:
+      design.tiles.some(t => t.kind === 'volcano') ||
+      draws(design.pool) ||
+      Object.values(design.islandPools ?? {}).some(draws) ||
+      fogVolcano,
+  };
+}
 
 /** Explicit projection: internal state and opponents' hands never reach clients. */
 export function getView(state: GameState, selfId: string): GameView {
@@ -66,6 +84,9 @@ export function getView(state: GameState, selfId: string): GameView {
     dice: state.dice,
     pendingDiscards: state.pendingDiscards,
     pendingGold: state.pendingGold,
+    goldDeadline: state.goldDeadline,
+    eruption: state.eruption,
+    features: mapFeatures(state),
     winnerId: state.winnerId,
     // Only the thief and the victim learn which card was stolen.
     log: state.log.map(entry =>
@@ -111,6 +132,6 @@ export function getView(state: GameState, selfId: string): GameView {
     tradeOffer: state.tradeOffer,
     testMode: state.testMode,
     map: state.map,
-    seafaring: boardIndex(state.board).seafaring,
+    seafaring: seaRules(state),
   } satisfies GameView);
 }

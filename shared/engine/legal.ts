@@ -9,11 +9,12 @@ import {
   PIECE_LIMITS,
   pieceCounts,
   resourceCount,
+  seaRules,
 } from './core';
 
 /**
  * Open land corners at least two edges from any building; outside setup, touching your road or ship.
- * Setup settlements stay off closed islands and away from volcanoes.
+ * Setup settlements stay off closed islands, and away from volcanoes unless the room allows it.
  */
 export function settlementSites(state: GameState, playerId: string, setup: boolean): string[] {
   const index = boardIndex(state.board);
@@ -22,7 +23,10 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
       if (state.buildings[vertex.id] || !isLandVertex(state.board, vertex.id)) return false;
       if (vertex.edgeIds.some(id => state.buildings[otherEnd(index.edge.get(id)!, vertex.id)])) return false;
       if (setup)
-        return !vertex.hexIds.some(id => index.hex.get(id)!.noSetup || index.hex.get(id)!.terrain === 'volcano');
+        return !vertex.hexIds.some(id => {
+          const hex = index.hex.get(id)!;
+          return hex.noSetup || (hex.terrain === 'volcano' && !state.settings.volcanoStart);
+        });
       return vertex.edgeIds.some(id => state.roads[id] === playerId || state.ships[id] === playerId);
     })
     .map(vertex => vertex.id);
@@ -59,7 +63,7 @@ function besidePirate(state: GameState, edgeId: string): boolean {
 
 /** Open sea edges a ship may go on. `moving` is a ship being moved (it no longer counts as a link). */
 export function shipSites(state: GameState, playerId: string, setup: boolean, moving?: string): string[] {
-  if (!boardIndex(state.board).seafaring) return [];
+  if (!seaRules(state)) return [];
   return state.board.edges
     .filter(edge => {
       if (edge.id === moving || state.roads[edge.id] || (state.ships[edge.id] && edge.id !== moving)) return false;
@@ -70,13 +74,17 @@ export function shipSites(state: GameState, playerId: string, setup: boolean, mo
     .map(edge => edge.id);
 }
 
-/** A ship at the open end of its line: one of its corners has neither your building nor another of your ships. */
-function openEnded(state: GameState, playerId: string, edgeId: string): boolean {
+/**
+ * A ship at the end of its line: one of its corners has no other of your ships. The published rule
+ * (`open`) also needs that corner free of your buildings, so a route closed by settlements stays put.
+ */
+function movableEnd(state: GameState, playerId: string, edgeId: string): boolean {
   const index = boardIndex(state.board);
   const edge = index.edge.get(edgeId)!;
+  const published = state.settings.shipMoving === 'open';
   return [edge.a, edge.b].some(
     id =>
-      state.buildings[id]?.playerId !== playerId &&
+      (!published || state.buildings[id]?.playerId !== playerId) &&
       !index.vertex.get(id)!.edgeIds.some(other => other !== edgeId && state.ships[other] === playerId),
   );
 }
@@ -87,7 +95,7 @@ export function shipMoves(state: GameState, playerId: string): Record<string, st
   const moves: Record<string, string[]> = {};
   for (const [edgeId, owner] of Object.entries(state.ships)) {
     if (owner !== playerId || state.shipsBuilt.includes(edgeId) || besidePirate(state, edgeId)) continue;
-    if (!openEnded(state, playerId, edgeId)) continue;
+    if (!movableEnd(state, playerId, edgeId)) continue;
     const targets = shipSites(state, playerId, false, edgeId);
     if (targets.length) moves[edgeId] = targets;
   }
@@ -125,7 +133,7 @@ function robberHexes(state: GameState, selfId: string): string[] {
   };
   return state.board.hexes
     .filter(hex => {
-      if (hex.terrain === 'sea') return index.seafaring && hex.id !== state.pirate && !protectedHex(hex.id);
+      if (hex.terrain === 'sea') return seaRules(state) && hex.id !== state.pirate && !protectedHex(hex.id);
       return isLandTerrain(hex.terrain) && hex.id !== state.robber && !protectedHex(hex.id);
     })
     .map(hex => hex.id);

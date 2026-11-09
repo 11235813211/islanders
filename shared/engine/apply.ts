@@ -5,6 +5,7 @@ import type { GameAction, GameState } from '../types';
 import {
   type ActionContext,
   addLog,
+  GOLD_SECONDS,
   getActivePlayerId,
   type Handlers,
   requireRule,
@@ -141,9 +142,13 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   pruneTradeOffer(next);
 
   const playing = !['lobby', 'finished'].includes(next.phase);
-  if (next.phase === 'roll' && state.phase !== 'roll') {
+  // The dice and the volcano dice both roll themselves after the room's auto-roll wait.
+  const rolling = (phase: GameState['phase']) => phase === 'roll' || phase === 'eruption';
+  if (rolling(next.phase) && next.phase !== state.phase) {
     next.rollDeadline = next.settings.autoRollSeconds ? now + next.settings.autoRollSeconds * 1000 : null;
-  } else if (next.phase !== 'roll') next.rollDeadline = null;
+  } else if (!rolling(next.phase)) next.rollDeadline = null;
+  if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + GOLD_SECONDS * 1000;
+  else if (next.phase !== 'gold') next.goldDeadline = null;
   const newSeat =
     action.type === 'start' ||
     next.setupIndex !== state.setupIndex ||
@@ -167,7 +172,9 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
 
   if (!PASSIVE.has(action.type)) {
     next.proposal = null;
-    if (REVERSIBLE.has(action.type) && next.phase !== 'finished') {
+    // Revealing fog shows hidden tiles, so that move can't be taken back.
+    const revealed = next.board.hexes.some((h, i) => state.board.hexes[i]?.terrain === 'fog' && h.terrain !== 'fog');
+    if (REVERSIBLE.has(action.type) && next.phase !== 'finished' && !revealed) {
       const {
         undo: _undo,
         undoHistory: _history,

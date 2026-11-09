@@ -6,7 +6,7 @@ import { addLog, GameError, getActivePlayerId, undoEndsTurn } from './core';
 import { getView } from './view';
 
 /** How long a bot "thinks" before each move, so people can follow along. */
-export const BOT_THINK_MS = 900;
+export const BOT_THINK_MS = 450;
 /** Extra wait before a bot starts its turn after a person ends theirs, so that person can undo. */
 export const UNDO_GRACE_MS = 2500;
 /** Safety valve: a bot that has done this much in one turn ends it. */
@@ -38,7 +38,11 @@ const endTurnUndoable = (state: GameState) => undoEndsTurn(state) && !isBot(stat
 
 /** When the next bot move is due, or null. */
 export function botDueAt(state: GameState): number | null {
-  if (!pendingBotActor(state)) return null;
+  const actor = pendingBotActor(state);
+  if (!actor) return null;
+  // Answering someone else's trade offer needs no show of thinking.
+  const answering = state.tradeOffer?.to.includes(actor) && state.tradeOffer.fromId !== actor;
+  if (answering) return state.updatedAt;
   return state.updatedAt + BOT_THINK_MS + (endTurnUndoable(state) ? UNDO_GRACE_MS : 0);
 }
 
@@ -93,6 +97,10 @@ export function advanceTime(state: GameState, now: number, random: () => number 
       return finishTimedTurn(next, now, random);
     if (next.phase === 'roll' && next.rollDeadline !== null && next.rollDeadline <= now)
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll' }, random, now);
+    if (next.phase === 'eruption' && next.rollDeadline !== null && next.rollDeadline <= now)
+      return applyAction(next, getActivePlayerId(next)!, { type: 'roll-volcanoes' }, random, now);
+    if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
+      return chooseGoldForAll(next, now, random);
   }
   if (changed) {
     next.version++;
@@ -100,6 +108,16 @@ export function advanceTime(state: GameState, now: number, random: () => number 
   }
   const due = botDueAt(state);
   return due !== null && due <= now ? runBotStep(state, now, random) : state;
+}
+
+/** Gold time ran out: pick for everyone still choosing, as an Advanced bot would. */
+function chooseGoldForAll(state: GameState, now: number, random: () => number): GameState {
+  let next = state;
+  for (const id of Object.keys(state.pendingGold)) {
+    if (next.phase !== 'gold' || !next.pendingGold[id]) continue;
+    next = applyAction(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+  }
+  return next;
 }
 
 /** Finish exactly one expired turn (or setup placement), including every forced choice. */

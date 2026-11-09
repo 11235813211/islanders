@@ -1,4 +1,4 @@
-import { ArrowRight, Clock3, Dices, Eye, Trophy, Undo2 } from 'lucide-react';
+import { ArrowRight, Clock3, Dices, Eye, Flame, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
 import { emptyBag } from '../../shared/engine';
@@ -13,10 +13,12 @@ import BuildBar from './game/BuildBar';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
+import DiscoveryPanel from './game/DiscoveryPanel';
 import EndGame from './game/EndGame';
 import LeaveDialog from './game/LeaveDialog';
 import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
+import ResourceFlights from './game/ResourceFlights';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import { TradeNotice } from './game/TradeNotice';
@@ -59,6 +61,8 @@ function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null)
       return 'Discarding resources…';
     case 'gold':
       return 'Choosing gold…';
+    case 'eruption':
+      return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
     case 'special-build':
       return ownTurn ? 'Special build: no trading' : `${active?.name} is building…`;
     default:
@@ -92,6 +96,7 @@ export default function GameTable({
   const [devKind, setDevKind] = useState<DevelopmentType | null>(null);
   const [discard, setDiscard] = useState<TradeBag>(emptyBag);
   const [endHidden, setEndHidden] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [panel, setPanel] = useState<PanelTab | null>(() => (matchMedia('(min-width: 721px)').matches ? 'chat' : null));
@@ -140,6 +145,7 @@ export default function GameTable({
     setSelected(null);
     setMoveFrom(null);
     setDevKind(null);
+    setBuying(false);
     setDiscard(emptyBag());
     setTrade(previous => (previous?.counterOf && view.phase === 'build' ? previous : null));
   }, [view.selfId, view.phase]);
@@ -205,6 +211,12 @@ export default function GameTable({
       send({ type: 'move-ship', from: moveFrom, to: id });
       return setMode(null);
     }
+    // Tapping one of your movable ships picks it up, as the Move button would.
+    if (view.legal.shipMoves[id]) {
+      setSelected(null);
+      setModeState('move-ship');
+      return setMoveFrom(id);
+    }
     const choices: PlaceKind[] = [];
     if (mode !== 'ship' && view.legal.roads.includes(id)) choices.push('road');
     if (mode !== 'road' && view.legal.ships.includes(id)) choices.push('ship');
@@ -234,6 +246,16 @@ export default function GameTable({
     if (discarding)
       return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
     if (choosingGold) return <GoldPanel key={view.selfId} view={view} busy={busy} send={send} />;
+    if (buying && self)
+      return (
+        <DiscoveryPanel
+          view={view}
+          discoveries={self.discoveries}
+          busy={busy}
+          send={send}
+          close={() => setBuying(false)}
+        />
+      );
     if (devKind === 'year-of-plenty') return <PlentyPanel view={view} busy={busy} send={send} close={close} />;
     if (devKind === 'monopoly') return <MonopolyPanel view={view} busy={busy} send={send} close={close} />;
     if (!trade) return null;
@@ -262,6 +284,17 @@ export default function GameTable({
       <button className="button primary turn-action" disabled={blocked} onClick={() => send({ type: 'end-turn' })}>
         <span>End turn</span>
         <ArrowRight size={18} />
+      </button>
+    );
+  if (ownTurn && view.phase === 'eruption')
+    turnAction = (
+      <button
+        className="button turn-action volcano-roll"
+        disabled={blocked}
+        onClick={() => send({ type: 'roll-volcanoes' })}
+      >
+        <Flame size={19} />
+        <span>Roll volcanoes</span>
       </button>
     );
   if (ownTurn && view.phase === 'special-build')
@@ -318,6 +351,7 @@ export default function GameTable({
         home={() => (!spectator && isBotGame(view) ? setLeaving(true) : home())}
       />
       <PlayerPanel view={view} online={room.online} />
+      <ResourceFlights view={view} />
       <BoardViewport
         view={view}
         mode={view.phase === 'robber' ? 'robber' : mode}
@@ -331,6 +365,12 @@ export default function GameTable({
         onHex={hexId => send({ type: 'move-robber', hexId })}
       >
         <ProposalNotice view={view} busy={busy} send={send} />
+        {view.phase === 'eruption' && (
+          <div className="eruption-banner" role="alert">
+            <Flame size={20} />
+            Volcano eruption
+          </div>
+        )}
         {!trade?.counterOf && (
           <TradeNotice view={view} busy={busy} now={now} send={send} counter={offer => setTrade(counterDraft(offer))} />
         )}
@@ -387,7 +427,18 @@ export default function GameTable({
       </section>
       <div className="table-actions">
         {!spectator && self && (
-          <BuildBar view={view} self={self} blocked={blocked} mode={mode} setMode={setMode} send={send} />
+          <BuildBar
+            view={view}
+            self={self}
+            blocked={blocked}
+            mode={mode}
+            setMode={setMode}
+            send={send}
+            buyWithDiscoveries={() => {
+              setTrade(null);
+              setBuying(true);
+            }}
+          />
         )}
         {turnAction}
       </div>

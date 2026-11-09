@@ -33,14 +33,13 @@ export function Bundle({ bag, side }: { bag: TradeBag; side: 'get' | 'give' }) {
   );
 }
 
-/** "You get" (green, arrow down) or "You give" (red, arrow up), from the viewer's side of the trade. */
+/** What you get (green, arrow down) or give (red, arrow up), from the viewer's side of the trade. */
 function Side({ bag, side }: { bag: TradeBag; side: 'get' | 'give' }) {
   return (
-    <span className={`offer-side ${side}`}>
+    <span className={`offer-side ${side}`} aria-label={side === 'get' ? 'You get' : 'You give'}>
       <span className="offer-arrow" aria-hidden="true">
         {side === 'get' ? <ArrowDown size={17} /> : <ArrowUp size={17} />}
       </span>
-      <small>{side === 'get' ? 'You get' : 'You give'}</small>
       <Bundle bag={bag} side={side} />
     </span>
   );
@@ -66,7 +65,7 @@ const ANSWER_TEXT: Record<Answer, string> = {
   waiting: 'has not answered',
 };
 
-/** One square per recipient in their color: ?, ✓, ✗, or a counter. The offering player taps a ✓ to trade. */
+/** One chip per recipient in their color, with their name and ?, ✓, ✗, or a counter. The offering player taps a ✓ to trade. */
 function Answers({
   view,
   offer,
@@ -97,6 +96,7 @@ function Answers({
             onClick={() => send({ type: 'confirm-trade', offerId: offer.id, playerId: id })}
           >
             {ANSWER_ICON[answer]}
+            <span className="answer-name">{player.name}</span>
           </button>
         ) : (
           <span
@@ -108,6 +108,7 @@ function Answers({
             data-tip={label}
           >
             {ANSWER_ICON[answer]}
+            <span className="answer-name">{id === view.selfId ? 'You' : player.name}</span>
           </span>
         );
       })}
@@ -192,9 +193,10 @@ export function TradeNotice({
   counter: (offer: TradeOffer) => void;
 }) {
   const offer = view.tradeOffer;
-  if (!offer || view.role === 'spectator') return null;
+  if (!offer) return null;
   const mine = offer.fromId === view.selfId;
-  if (!mine && !offer.to.includes(view.selfId)) return null;
+  // Everyone sees the offer and the answers; only recipients answer it.
+  const asked = offer.to.includes(view.selfId) && view.role !== 'spectator';
   const name = (id: string) => view.players.find(p => p.id === id)?.name ?? 'Someone';
   const clock = view.pausedAt ?? now;
   const progress = Math.max(0, Math.min(1, (offer.expiresAt - clock) / (offer.expiresAt - offer.createdAt)));
@@ -208,11 +210,21 @@ export function TradeNotice({
         <span className="offer-from">
           {mine
             ? `Your offer${everyone ? '' : ` to ${offer.to.map(name).join(', ')}`}`
-            : `${name(offer.fromId)} offers`}
+            : `${name(offer.fromId)} offers${asked || everyone ? '' : ` to ${offer.to.map(name).join(', ')}`}`}
         </span>
         <div className="offer-exchange">
-          <Side bag={mine ? offer.want : offer.give} side="get" />
-          <Side bag={mine ? offer.give : offer.want} side="give" />
+          {mine || asked ? (
+            <>
+              <Side bag={mine ? offer.want : offer.give} side="get" />
+              <Side bag={mine ? offer.give : offer.want} side="give" />
+            </>
+          ) : (
+            <>
+              <Bundle bag={offer.give} side="give" />
+              <span className="offer-for">for</span>
+              <Bundle bag={offer.want} side="get" />
+            </>
+          )}
         </div>
         <Answers view={view} offer={offer} canConfirm={mine && !busy && !paused} send={send} />
         {mine && offer.acceptedBy.length > 0 && <span className="offer-from">Tap a ✓ to trade with that player.</span>}
@@ -258,7 +270,7 @@ export function TradeNotice({
             <X size={19} strokeWidth={3} />
           </button>
         </div>
-      ) : (
+      ) : !asked ? null : (
         <AnswerButtons
           view={view}
           offer={offer}

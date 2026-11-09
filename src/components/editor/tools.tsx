@@ -73,6 +73,7 @@ export const KIND_ORDER: DesignKind[] = [
   'volcano',
   'sea',
   'iceberg',
+  'fog',
 ];
 
 /** Short names for the terrain picker (the full names are tooltips). */
@@ -89,4 +90,5 @@ export const KIND_LABELS: Record<DesignKind, string> = {
   volcano: 'Volcano',
   sea: 'Sea',
   iceberg: 'Iceberg',
+  fog: 'Fog',
 };

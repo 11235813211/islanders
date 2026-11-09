@@ -1,4 +1,4 @@
-import { type DevelopmentType, RESOURCES, type TradeBag } from '../types';
+import { type DevelopmentType, type Player, RESOURCES, type ResourceBag, type TradeBag } from '../types';
 import {
   addBag,
   addLog,
@@ -49,22 +49,35 @@ function finishPlay(
   addLog(next, `${player.name} played ${card.replaceAll('-', ' ')}.`, { kind: 'development', playerId, card, gains });
 }
 
+/** Without a choice, discoveries pay first, covering the cards you are missing before the others. */
+export function defaultDiscoveries(player: Player): ResourceBag {
+  const covered = emptyBag();
+  let left = player.discoveries;
+  const order = [...RESOURCES].sort((a, b) => player.resources[a] - player.resources[b]);
+  for (const r of order)
+    if (BUILD_COSTS.development[r] && left > 0) {
+      covered[r] = 1;
+      left--;
+    }
+  return covered;
+}
+
 export const developmentHandlers: Pick<
   Handlers,
   'buy-development' | 'play-knight' | 'play-road-building' | 'play-monopoly' | 'play-plenty'
 > = {
-  'buy-development'({ next, player, playerId }) {
+  'buy-development'({ next, player, playerId }, action) {
     needPhase(next, 'build', 'special-build');
     requireRule(next.developmentDeck.length, 'The development deck is empty.');
-    // Jungle discoveries stand in for card costs first, one per resource, covering missing cards first.
     const cost = { ...BUILD_COSTS.development };
-    const order = [...RESOURCES].sort((a, b) => player.resources[a] - player.resources[b]);
-    for (const r of order)
-      if (cost[r] && player.discoveries > 0) {
-        cost[r]--;
-        player.discoveries--;
-      }
+    const covered = action.discoveries ?? defaultDiscoveries(player);
+    requireRule(
+      RESOURCES.every(r => covered[r] <= cost[r]) && resourceCount(covered) <= player.discoveries,
+      'Discoveries can pay for each of the card’s resources once.',
+    );
+    for (const r of RESOURCES) cost[r] -= covered[r];
     pay(next, player, cost);
+    player.discoveries -= resourceCount(covered);
     player.development.push({ ...next.developmentDeck.pop()!, boughtTurn: next.turn });
     addLog(next, `${player.name} bought a development card.`, { kind: 'build', playerId, piece: 'development' });
   },

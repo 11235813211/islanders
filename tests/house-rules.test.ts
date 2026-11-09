@@ -122,10 +122,15 @@ describe('discovery rules', () => {
 });
 
 describe('volcanoes and icebergs', () => {
-  it('no setup settlement may touch a volcano', () => {
-    const g = act(seaLobby(ISLE, 2), 'p0', { type: 'start' });
-    const volcano = hexOf(g, 'volcano');
-    expect(getView(g, 'p0').legal.settlements.some(id => volcano.vertexIds.includes(id))).toBe(false);
+  it('setup settlements may touch a volcano unless the room turns that off', () => {
+    const open = act(seaLobby(ISLE, 2), 'p0', { type: 'start' });
+    const volcano = hexOf(open, 'volcano');
+    expect(getView(open, 'p0').legal.settlements.some(id => volcano.vertexIds.includes(id))).toBe(true);
+    let g = seaLobby(ISLE, 2);
+    g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, volcanoStart: false } });
+    g = act(g, 'p0', { type: 'start' });
+    const closed = hexOf(g, 'volcano');
+    expect(getView(g, 'p0').legal.settlements.some(id => closed.vertexIds.includes(id))).toBe(false);
   });
 
   it('without the gold variant a volcano pays nothing; a city with no settlement left is lost', () => {
@@ -137,10 +142,12 @@ describe('volcanoes and icebergs', () => {
     // Die face 2 names corner ERUPTION_CORNER[1] (5). p1 has all five settlements on the board already.
     g.buildings[volcano.vertexIds[5]!] = { playerId: 'p1', kind: 'city' };
     for (let i = 0; i < 5; i++) g.buildings[`far-${i}`] = { playerId: 'p1', kind: 'settlement' };
-    const rolled = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2, 0.2));
+    const rolled = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2));
     expect(rolled.dice).toEqual([2, 2]);
     expect(rolled.pendingGold).toEqual({});
-    expect(rolled.buildings[volcano.vertexIds[5]!]).toBeUndefined();
+    expect(rolled.phase).toBe('eruption');
+    const erupted = act(rolled, 'p0', { type: 'roll-volcanoes' }, sequence(0.2));
+    expect(erupted.buildings[volcano.vertexIds[5]!]).toBeUndefined();
   });
 
   it('an iceberg showing the roll drifts and sinks a ship on the side the die names', () => {

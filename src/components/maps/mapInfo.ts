@@ -1,7 +1,6 @@
 import { ISLAND_ROWS, islandCells } from '../../../shared/board';
 import type { BoardDesign, BoardLibrary } from '../../../shared/maps';
 import { BASE_POOL } from '../../../shared/maps';
-import { closedTiles } from '../../../shared/maps/edit';
 
 /** "3–4", or "3" when the range is one number. */
 export const playerRange = (p: { min: number; max: number }) => (p.min === p.max ? `${p.min}` : `${p.min}–${p.max}`);
@@ -10,28 +9,6 @@ export const playerRange = (p: { min: number; max: number }) => (p.min === p.max
 export const playersMismatch = (design: { players: BoardDesign['players'] }, count: number) =>
   count < design.players.min || count > design.players.max;
 
-/** Plain-language rules for the special tiles and markers a map uses. */
-export function mapRules(design: BoardDesign): string[] {
-  const kinds = new Set(design.tiles.map(t => t.kind));
-  const pool = (kind: keyof BoardDesign['pool']) => kinds.has(kind) || (kinds.has('land') && !!design.pool[kind]);
-  const rules: string[] = [];
-  if (kinds.has('sea')) rules.push('Ships cost lumber and wool. Move one ship from the open end of a line each turn.');
-  if (pool('gold')) rules.push('Gold fields pay any resource you choose.');
-  if (pool('volcano'))
-    rules.push(
-      'Volcanoes pay like gold (a room setting). When one is rolled, a die names a corner: a city there drops to a settlement, a settlement is lost. No starting settlement may touch a volcano.',
-    );
-  if (pool('jungle')) rules.push('Jungles give discoveries. Each pays one resource of a development card.');
-  if (kinds.has('iceberg') || (kinds.has('sea') && !!design.pool.iceberg))
-    rules.push('When an iceberg’s number is rolled, a die names a side: a ship there sinks.');
-  if (!design.harbors.length) rules.push('Harbors are placed at random each game.');
-  if (design.tiles.some(t => t.bonus))
-    rules.push('The first settlement each player builds on a marked island earns its bonus points.');
-  if (closedTiles(design).size) rules.push('Starting settlements go only on islands outlined in yellow.');
-  return rules;
-}
-
-/** The standard island as a design, for its thumbnail. */
 /** A preview of the base game's island, as plain land (the layout is drawn at the start). */
 function baseIsland(large: boolean): BoardDesign {
   return {

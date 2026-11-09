@@ -1,6 +1,6 @@
 import { buildGraph, hexCenter, shuffled } from '../board';
 import { isLandTerrain, isProducing, isWater } from '../seafaring';
-import { type Board, type Harbor, RESOURCES, type Resource, type Terrain } from '../types';
+import { type Board, type GameState, type Harbor, RESOURCES, type Resource, type Terrain } from '../types';
 import {
   apportion,
   balancedNumbers,
@@ -19,6 +19,9 @@ import {
   type DesignHarbor,
   type DesignTile,
   type FillKind,
+  FOG_POOL,
+  type FogKind,
+  type Pool,
   SIDE_DIRECTIONS,
   tileKey,
 } from './types';
@@ -57,7 +60,50 @@ function linkGroups(design: BoardDesign): Map<string, LinkGroup> {
   return groups;
 }
 
-/** Fill random land: linked groups first (each a block of one terrain), then single tiles spread out. */
+/** A mix as a map of the kinds random land can become (icebergs are drawn on the sea instead). */
+function poolMap(pool: Pool | undefined): Map<FillKind, number> {
+  const map = new Map(
+    Object.entries({ ...(pool ?? BASE_POOL) }).filter(([kind, w]) => kind !== 'iceberg' && (w ?? 0) > 0),
+  ) as Map<FillKind, number>;
+  if (!map.size) for (const [k, w] of Object.entries(BASE_POOL)) map.set(k as FillKind, w!);
+  return map;
+}
+
+/**
+ * Which mix each tile draws from: '' for the board's, or the key of the island tile that carries
+ * an island's own mix (design.islandPools). Islands are connected land and random land.
+ */
+function mixGroups(design: BoardDesign): Map<string, string> {
+  const group = new Map<string, string>();
+  const own = design.islandPools ?? {};
+  const byKey = new Map(design.tiles.map(t => [tileKey(t.q, t.r), t]));
+  const isLand = (t: DesignTile | undefined) => !!t && t.kind !== 'sea' && t.kind !== 'iceberg' && t.kind !== 'fog';
+  const seen = new Set<string>();
+  for (const tile of design.tiles) {
+    const start = tileKey(tile.q, tile.r);
+    if (!isLand(tile) || seen.has(start)) continue;
+    const island: string[] = [];
+    const queue = [tile];
+    seen.add(start);
+    while (queue.length) {
+      const t = queue.pop()!;
+      island.push(tileKey(t.q, t.r));
+      for (const k of neighborKeys(t))
+        if (!seen.has(k) && isLand(byKey.get(k))) {
+          seen.add(k);
+          queue.push(byKey.get(k)!);
+        }
+    }
+    const anchor = island.find(k => own[k]) ?? '';
+    for (const k of island) group.set(k, anchor);
+  }
+  return group;
+}
+
+/**
+ * Fill random land: linked groups first (each a block of one terrain), then single tiles spread
+ * out. Islands with their own mix draw from it; everything else from the board's mix.
+ */
 function resolveTerrains(
   design: BoardDesign,
   random: () => number,
@@ -68,44 +114,59 @@ function resolveTerrains(
   for (const g of groups.values())
     if (g.fixed) for (const tile of g.tiles) terrains.set(tileKey(tile.q, tile.r), g.fixed);
 
-  const pool = new Map(
-    // Icebergs are drawn on sea tiles instead (see placeIcebergs).
-    Object.entries({ ...(design.pool ?? BASE_POOL) }).filter(
-      ([kind, w]) => kind !== 'sea' && kind !== 'iceberg' && (w ?? 0) > 0,
-    ),
-  ) as Map<FillKind, number>;
-  if (!pool.size) for (const [k, w] of Object.entries(BASE_POOL)) pool.set(k as FillKind, w!);
-  const fixedCounts = new Map<FillKind, number>();
-  for (const terrain of terrains.values())
-    if (pool.has(terrain as FillKind))
-      fixedCounts.set(terrain as FillKind, (fixedCounts.get(terrain as FillKind) ?? 0) + 1);
+  const mixOf = mixGroups(design);
+  const mixKey = (t: { q: number; r: number }) => mixOf.get(tileKey(t.q, t.r)) ?? '';
+  const pools = new Map<string, Map<FillKind, number>>([['', poolMap(design.pool)]]);
+  for (const key of new Set(mixOf.values())) if (key) pools.set(key, poolMap(design.islandPools![key]));
   const open = design.tiles.filter(t => t.kind === 'land' && !terrains.has(tileKey(t.q, t.r)));
-  const counts = new Map<FillKind, number>();
-  for (const kind of apportion(open.length, pool, fixedCounts, random)) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  const counts = new Map<string, Map<FillKind, number>>();
+  for (const [key, pool] of pools) {
+    const fixedCounts = new Map<FillKind, number>();
+    for (const tile of design.tiles) {
+      const terrain = terrains.get(tileKey(tile.q, tile.r));
+      if (terrain && mixKey(tile) === key && pool.has(terrain as FillKind))
+        fixedCounts.set(terrain as FillKind, (fixedCounts.get(terrain as FillKind) ?? 0) + 1);
+    }
+    const mine = new Map<FillKind, number>();
+    const size = open.filter(t => mixKey(t) === key).length;
+    for (const kind of apportion(size, pool, fixedCounts, random)) mine.set(kind, (mine.get(kind) ?? 0) + 1);
+    counts.set(key, mine);
+  }
 
   const links = new Map<string, Terrain>();
   for (const [link, g] of groups) if (g.fixed) links.set(link, g.fixed);
   const openGroups = [...groups].filter(([, g]) => !g.fixed).sort((a, b) => b[1].tiles.length - a[1].tiles.length);
   for (const [link, g] of openGroups) {
-    const size = g.tiles.filter(t => t.kind === 'land').length;
-    const allowed = [...counts.keys()].filter(
+    const members = g.tiles.filter(t => t.kind === 'land');
+    // A linked group draws from the mix of its first tile's island (or the board's).
+    const mix = counts.get(members[0] ? mixKey(members[0]) : '')!;
+    const allowed = [...mix.keys()].filter(
       k => !g.harbor || (RESOURCES.includes(k as Resource) && !design.harborExclude.includes(k as Resource)),
     );
     // A weighted draw by what the mix still has room for, so every kind can come up.
     const kind: FillKind =
-      weightedPick(allowed, k => Math.max(0, counts.get(k) ?? 0) + 0.25, random) ?? shuffled(RESOURCES, random)[0]!;
-    counts.set(kind, (counts.get(kind) ?? 0) - size);
+      weightedPick(allowed, k => Math.max(0, mix.get(k) ?? 0) + 0.25, random) ?? shuffled(RESOURCES, random)[0]!;
+    for (const tile of members) {
+      const own = counts.get(mixKey(tile))!;
+      own.set(kind, (own.get(kind) ?? 0) - 1);
+    }
     links.set(link, kind);
-    for (const tile of g.tiles) if (tile.kind === 'land') terrains.set(tileKey(tile.q, tile.r), kind);
+    for (const tile of members) terrains.set(tileKey(tile.q, tile.r), kind);
   }
 
   const singles = open.filter(t => !terrains.has(tileKey(t.q, t.r)));
-  const bag = [...counts].flatMap(([k, n]) => Array<FillKind>(Math.max(0, n)).fill(k));
-  const weighted = [...pool].flatMap(([k, w]) => Array<FillKind>(Math.max(1, Math.round(w))).fill(k));
-  while (bag.length < singles.length) bag.push(weighted[Math.floor(random() * weighted.length)]!);
+  const bags = new Map<string, FillKind[]>();
+  for (const [key, mix] of counts) {
+    const bag = [...mix].flatMap(([k, n]) => Array<FillKind>(Math.max(0, n)).fill(k));
+    const need = singles.filter(t => mixKey(t) === key).length;
+    const weighted = [...pools.get(key)!].flatMap(([k, w]) => Array<FillKind>(Math.max(1, Math.round(w))).fill(k));
+    while (bag.length < need) bag.push(weighted[Math.floor(random() * weighted.length)]!);
+    bags.set(key, bag);
+  }
   let best: { cost: number; kinds: FillKind[] } | null = null;
   for (let attempt = 0; attempt < 24 && singles.length; attempt++) {
-    const kinds = shuffled(bag, random).slice(0, singles.length);
+    const shuffledBags = new Map([...bags].map(([key, bag]) => [key, shuffled(bag, random)]));
+    const kinds = singles.map(t => shuffledBags.get(mixKey(t))!.pop()!);
     const layout = new Map<string, Cell & { kind: string }>();
     for (const tile of design.tiles) {
       const k = tileKey(tile.q, tile.r);
@@ -182,7 +243,7 @@ function markIslands(board: Board): void {
   const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));
   let island = 0;
   for (const start of board.hexes) {
-    if (isWater(start.terrain) || start.island !== undefined) continue;
+    if (!isLandTerrain(start.terrain) || start.island !== undefined) continue;
     island++;
     const queue = [start];
     start.island = island;
@@ -190,7 +251,7 @@ function markIslands(board: Board): void {
       const hex = queue.pop()!;
       for (const k of neighborKeys(hex)) {
         const next = byKey.get(k);
-        if (next && !isWater(next.terrain) && next.island === undefined) {
+        if (next && isLandTerrain(next.terrain) && next.island === undefined) {
           next.island = island;
           queue.push(next);
         }
@@ -255,7 +316,7 @@ function icebergNumbers(tiles: DesignTile[], terrains: Map<string, Terrain>, ran
 export function buildBoard(
   design: BoardDesign,
   random: () => number = Math.random,
-): { board: Board; robber: string; pirate: string | null } {
+): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
   const unique = { ...design, tiles };
   const { terrains, links } = resolveTerrains(unique, random);
@@ -325,5 +386,42 @@ export function buildBoard(
   const robber =
     robberHex && !isWater(robberHex.terrain) ? robberHex.id : (board.hexes.find(h => h.terrain === 'desert')?.id ?? '');
   const pirateHex = at(design.pirate);
-  return { board, robber, pirate: pirateHex?.terrain === 'sea' ? pirateHex.id : null };
+  const pirate = pirateHex?.terrain === 'sea' ? pirateHex.id : farthestSea(board);
+  return { board, robber, pirate, fog: drawFog(design, board, random) };
+}
+
+/**
+ * What lies under each fog tile, drawn now and kept hidden (the face-down stack): a balanced draw
+ * from the design's fog mix, and a number for any land that will produce.
+ */
+function drawFog(design: BoardDesign, board: Board, random: () => number): GameState['fog'] {
+  const hexes = board.hexes.filter(h => h.terrain === 'fog');
+  if (!hexes.length) return {};
+  const weights = new Map(
+    Object.entries(design.fogPool ?? FOG_POOL).filter(([, w]) => (w ?? 0) > 0) as [FogKind, number][],
+  );
+  if (!weights.size) for (const [k, w] of Object.entries(FOG_POOL)) weights.set(k as FogKind, w!);
+  const kinds = shuffled(apportion(hexes.length, weights, new Map(), random), random);
+  const producing = kinds.filter(k => isProducing(k)).length;
+  const numberWeights = new Map<number, number>();
+  for (const n of NUMBER_SET) numberWeights.set(n, (numberWeights.get(n) ?? 0) + 1);
+  const numbers = shuffled(apportion(producing, numberWeights, new Map(), random), random);
+  return Object.fromEntries(
+    hexes.map((hex, i) => {
+      const terrain = kinds[i]!;
+      return [hex.id, { terrain, number: isProducing(terrain) ? (numbers.pop() ?? null) : null }];
+    }),
+  );
+}
+
+/** Where the pirate starts when a map doesn't say: the open sea tile farthest from any land. */
+export function farthestSea(board: Board): string | null {
+  const land = board.hexes.filter(h => !isWater(h.terrain));
+  let best: { id: string; distance: number } | null = null;
+  for (const hex of board.hexes) {
+    if (hex.terrain !== 'sea') continue;
+    const distance = Math.min(...land.map(l => Math.hypot(l.x - hex.x, l.y - hex.y)));
+    if (!best || distance > best.distance + 0.01) best = { id: hex.id, distance };
+  }
+  return best?.id ?? null;
 }

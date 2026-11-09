@@ -8,8 +8,11 @@ export type Tradable = Resource | 'discovery';
 export type TradeBag = ResourceBag & { discovery?: number };
 /** How jungle discoveries behave. Defined with their labels in shared/settings.ts. */
 export type DiscoveryRule = 'kept' | 'tradable' | 'card';
-/** Tiles added for sea maps. Sea and icebergs are water; the rest are land. */
-export const SEA_TERRAINS = ['sea', 'gold', 'jungle', 'volcano', 'iceberg'] as const;
+/**
+ * Tiles added for sea maps. Sea and icebergs are water; fog is unexplored (its terrain is
+ * revealed when a road or ship reaches one of its corners); the rest are land.
+ */
+export const SEA_TERRAINS = ['sea', 'gold', 'jungle', 'volcano', 'iceberg', 'fog'] as const;
 export type SeaTerrain = (typeof SEA_TERRAINS)[number];
 export type BaseTerrain = Resource | 'desert';
 export type Terrain = BaseTerrain | SeaTerrain;
@@ -107,6 +110,8 @@ export type Phase =
   | 'robber'
   | 'steal'
   | 'gold'
+  /** Volcanoes showing the roll erupt: the roller rolls a die for each (after any gold choices). */
+  | 'eruption'
   | 'free-roads'
   | 'build'
   /** Five or six players: after each turn, the others may build in order (no trading). */
@@ -121,13 +126,31 @@ export type GameEvent =
   | { kind: 'build'; playerId: string; piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
   | { kind: 'player-trade'; fromId: string; toId: string; give: TradeBag; get: TradeBag }
-  | { kind: 'offer'; playerId: string }
+  | { kind: 'offer'; playerId: string; give: TradeBag; want: TradeBag; to?: string[] }
   | { kind: 'discard'; playerId: string; resources: TradeBag }
   | { kind: 'steal'; thiefId: string; victimId: string; resource: Tradable | null }
   | { kind: 'development'; playerId: string; card: DevelopmentType; gains: TradeBag | null }
   | { kind: 'gold'; playerId: string; resources: ResourceBag }
-  | { kind: 'eruption'; die: number; vertexId: string; playerId: string | null; damage: 'none' | 'city' | 'settlement' }
-  | { kind: 'iceberg'; die: number; edgeId: string; playerId: string | null }
+  | {
+      kind: 'eruption';
+      hexId: string;
+      die: number;
+      vertexId: string;
+      playerId: string | null;
+      damage: 'none' | 'city' | 'settlement';
+      /** The building the lava reached, before the damage. */
+      piece: 'settlement' | 'city' | null;
+    }
+  | {
+      kind: 'iceberg';
+      die: number;
+      edgeId: string;
+      playerId: string | null;
+      /** Where the iceberg was, and where it moved (null when land or the pirate stopped it). */
+      hexId: string;
+      toHexId: string | null;
+    }
+  | { kind: 'discover'; playerId: string; hexId: string; terrain: Terrain }
   | { kind: 'win'; playerId: string; points: number };
 export interface GameLog {
   id: number;
@@ -163,6 +186,14 @@ export interface GameSettings {
   discoveries: DiscoveryRule;
   /** Volcanoes pay a resource of each owner's choice before erupting (the gold variant). */
   volcanoGold: boolean;
+  /** Seafarers rules: ships and the pirate. On the standard island this adds a ring of sea. */
+  seafarers: boolean;
+  /** Setup settlements may touch a volcano. */
+  volcanoStart: boolean;
+  /** Eruption dice: plain random, or balanced (each volcano works through all six faces before repeating). */
+  volcanoDice: 'random' | 'balanced';
+  /** Which ships may move: the published rule (end of an open route) or any route end, even beside a settlement. */
+  shipMoving: 'open' | 'ends';
 }
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {
@@ -217,6 +248,8 @@ export interface UndoRecord {
     | 'testMode'
     | 'design'
     | 'map'
+    | 'volcanoDecks'
+    | 'fog'
   >;
 }
 export interface GameState {
@@ -249,6 +282,14 @@ export interface GameState {
   pendingDiscards: Record<string, number>;
   /** Players choosing resources from gold fields or volcanoes, and how many each. */
   pendingGold: Record<string, number>;
+  /** When gold choices are made for whoever hasn't chosen. */
+  goldDeadline: number | null;
+  /** Volcano hexes about to erupt (the eruption phase), or null. */
+  eruption: string[] | null;
+  /** Fog hex id → what it will turn out to be. Hidden, like the deck, until revealed. */
+  fog: Record<string, { terrain: Terrain; number: number | null }>;
+  /** Balanced volcano dice: faces left for each volcano. Hidden, like the deck. */
+  volcanoDecks: Record<string, number[]>;
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -350,6 +391,10 @@ export interface GameView {
   dice: [number, number] | null;
   pendingDiscards: Record<string, number>;
   pendingGold: Record<string, number>;
+  goldDeadline: number | null;
+  eruption: string[] | null;
+  /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
+  features: { sea: boolean; volcano: boolean };
   winnerId: string | null;
   log: GameLog[];
   selfId: string;
@@ -406,6 +451,7 @@ export type GameAction =
   | { type: 'choose-gold'; resources: ResourceBag }
   | { type: 'choose-map'; mapId: string }
   | { type: 'roll' }
+  | { type: 'roll-volcanoes' }
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
@@ -415,7 +461,8 @@ export type GameAction =
   | { type: 'discard'; resources: TradeBag }
   | { type: 'move-robber'; hexId: string }
   | { type: 'steal'; playerId: string }
-  | { type: 'buy-development' }
+  /** `discoveries`: which of the card's resources jungle discoveries pay for (default: missing ones first). */
+  | { type: 'buy-development'; discoveries?: ResourceBag }
   | { type: 'play-knight'; cardId: string }
   | { type: 'play-road-building'; cardId: string }
   | { type: 'play-monopoly'; cardId: string; resource: Tradable }

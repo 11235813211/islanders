@@ -1,5 +1,5 @@
 import { emptyBag } from '../engine/core';
-import { isRoadEdge, isShipEdge, terrainResource } from '../seafaring';
+import { isLandVertex, islandBonus, isRoadEdge, isShipEdge, terrainResource, vertexIsland } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 
 /**
@@ -101,57 +101,105 @@ export function spotValue(board: Board, vertexId: string, weights: ResourceBag, 
   return value;
 }
 
+type Link = 'road' | 'ship';
+export interface Path {
+  distance: number;
+  firstEdge: string | null;
+  /** Whether the first new piece is a road or a ship (a coast edge could take either). */
+  firstKind: Link | null;
+}
+
 /**
- * Cheapest new roads from this bot's network to every reachable corner.
- * Returns the distance (new roads needed) and the first road to build.
+ * Cheapest new roads and ships from this bot's network to every reachable corner. Roads continue
+ * roads and ships continue ships; they only meet at the bot's own settlement or city, and new
+ * ships never go beside the pirate.
  */
-export function roadPaths(board: Board): Map<string, { distance: number; firstEdge: string | null }> {
+export function roadPaths(board: Board): Map<string, Path> {
   const { view } = board;
   const self = view.selfId;
-  const result = new Map<string, { distance: number; firstEdge: string | null }>();
-  const queue: string[] = [];
+  const best = new Map<string, Path>();
+  const seen = new Map<string, number>();
+  const queue: { vertex: string; mode: Link; path: Path }[] = [];
+  const visit = (vertex: string, mode: Link, path: Path, front: boolean) => {
+    const key = `${vertex}|${mode}`;
+    if ((seen.get(key) ?? Infinity) <= path.distance) return;
+    seen.set(key, path.distance);
+    if (path.distance < (best.get(vertex)?.distance ?? Infinity)) best.set(vertex, path);
+    if (front) queue.unshift({ vertex, mode, path });
+    else queue.push({ vertex, mode, path });
+  };
+  const start: Path = { distance: 0, firstEdge: null, firstKind: null };
   for (const v of view.board.vertices) {
     const own = view.buildings[v.id]?.playerId === self;
-    const touchesRoad = !view.buildings[v.id] && v.edgeIds.some(id => view.roads[id] === self);
-    const touchesShip = !view.buildings[v.id] && v.edgeIds.some(id => view.ships[id] === self);
-    if (own || touchesRoad || touchesShip) {
-      result.set(v.id, { distance: 0, firstEdge: null });
-      queue.push(v.id);
-    }
+    if (own || (!view.buildings[v.id] && v.edgeIds.some(id => view.roads[id] === self)))
+      visit(v.id, 'road', start, true);
+    if (own || (!view.buildings[v.id] && v.edgeIds.some(id => view.ships[id] === self)))
+      visit(v.id, 'ship', start, true);
   }
-  // 0-1 BFS: existing own roads and ships cost nothing, open edges cost one road or ship.
+  const besidePirate = (edgeId: string) => {
+    const e = board.edge.get(edgeId)!;
+    return !!view.pirate && [e.a, e.b].every(v => board.vertex.get(v)!.hexIds.includes(view.pirate!));
+  };
+  // 0-1 BFS over (corner, kind of route arriving there).
   while (queue.length) {
-    const id = queue.shift()!;
-    const here = result.get(id)!;
-    if (view.buildings[id] && view.buildings[id].playerId !== self) continue;
-    for (const edgeId of board.vertex.get(id)!.edgeIds) {
-      const owner = view.roads[edgeId] ?? view.ships[edgeId];
-      if (owner && owner !== self) continue;
-      if (!owner && !isRoadEdge(view.board, edgeId) && !isShipEdge(view.board, edgeId)) continue;
+    const { vertex, mode, path } = queue.shift()!;
+    const building = view.buildings[vertex];
+    if (building && building.playerId !== self) continue;
+    const kinds: Link[] = building ? ['road', 'ship'] : [mode];
+    for (const edgeId of board.vertex.get(vertex)!.edgeIds) {
       const e = board.edge.get(edgeId)!;
-      const other = e.a === id ? e.b : e.a;
-      const cost = owner ? 0 : 1;
-      const distance = here.distance + cost;
-      if (distance < (result.get(other)?.distance ?? Infinity)) {
-        result.set(other, { distance, firstEdge: here.firstEdge ?? (cost ? edgeId : null) });
-        if (cost) queue.push(other);
-        else queue.unshift(other);
+      const other = e.a === vertex ? e.b : e.a;
+      for (const kind of kinds) {
+        const owner = kind === 'road' ? view.roads[edgeId] : view.ships[edgeId];
+        if (owner && owner !== self) continue;
+        if (!owner) {
+          if (view.roads[edgeId] || view.ships[edgeId]) continue;
+          if (kind === 'road' && !isRoadEdge(view.board, edgeId)) continue;
+          if (kind === 'ship' && (!view.seafaring || !isShipEdge(view.board, edgeId) || besidePirate(edgeId))) continue;
+        }
+        const cost = owner ? 0 : 1;
+        const first = path.firstEdge ?? (cost ? edgeId : null);
+        visit(
+          other,
+          kind,
+          { distance: path.distance + cost, firstEdge: first, firstKind: path.firstKind ?? (cost ? kind : null) },
+          !cost,
+        );
       }
     }
   }
-  return result;
+  return best;
 }
 
-/** Best place to expand toward: an open spot weighed against how many roads it needs. */
+/** Bonus points for settling here: an island this bot has no building on yet that carries a chip. */
+export function islandBonusAt(board: Board, vertexId: string): number {
+  const { view } = board;
+  const island = vertexIsland(view.board, vertexId);
+  if (island === null) return 0;
+  const bonus = islandBonus(view.board, island);
+  if (!bonus) return 0;
+  const settled = Object.entries(view.buildings).some(
+    ([v, b]) => b.playerId === view.selfId && vertexIsland(view.board, v) === island,
+  );
+  return settled ? 0 : bonus;
+}
+
+/** How far bots look for a new corner: further on sea maps, where islands lie across the water. */
+export const expansionReach = (view: GameView, near: number) => (view.seafaring ? near + 2 : near);
+
+/** Best place to expand toward: an open spot (plus any island bonus) weighed against the pieces it needs. */
 export function expansionTarget(
   board: Board,
   weights: ResourceBag,
   maxDistance = 4,
-): { vertexId: string; distance: number; firstEdge: string | null; value: number } | null {
-  let best: { vertexId: string; distance: number; firstEdge: string | null; value: number } | null = null;
+): ({ vertexId: string; value: number } & Path) | null {
+  let best: ({ vertexId: string; value: number } & Path) | null = null;
+  const reach = expansionReach(board.view, maxDistance);
   for (const [vertexId, path] of roadPaths(board)) {
-    if (path.distance === 0 || path.distance > maxDistance || !board.isOpenSpot(vertexId)) continue;
-    const value = spotValue(board, vertexId, weights) / (1 + path.distance ** 1.5 * 0.35);
+    if (path.distance === 0 || path.distance > reach || !board.isOpenSpot(vertexId)) continue;
+    if (!isLandVertex(board.view.board, vertexId)) continue;
+    const worth = spotValue(board, vertexId, weights) + islandBonusAt(board, vertexId) * 6;
+    const value = worth / (1 + path.distance ** 1.5 * 0.35);
     if (!best || value > best.value) best = { vertexId, ...path, value };
   }
   return best;
@@ -203,9 +251,15 @@ export function eventsThisTurn(view: GameView, kinds: string[]): number {
   ).length;
 }
 
-/** Build a road or ship on this edge, whichever is legal right now (road first). */
-export function linkAction(view: GameView, edgeId: string | null | undefined): GameAction | null {
+/** Build a road or ship on this edge, whichever is legal right now (`prefer` first, else road first). */
+export function linkAction(
+  view: GameView,
+  edgeId: string | null | undefined,
+  prefer: 'road' | 'ship' | null = null,
+): GameAction | null {
   if (!edgeId) return null;
+  if (prefer === 'ship' && view.legal.ships.includes(edgeId))
+    return { type: view.phase === 'setup-road' ? 'place-ship' : 'build-ship', edgeId };
   if (view.legal.roads.includes(edgeId))
     return { type: view.phase === 'setup-road' ? 'place-road' : 'build-road', edgeId };
   if (view.legal.ships.includes(edgeId))

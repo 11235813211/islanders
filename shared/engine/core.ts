@@ -1,4 +1,5 @@
 import type { BoardDesign } from '../maps/types';
+import { boardIndex } from '../seafaring';
 import { DISCOVERY_RULES } from '../settings';
 import {
   type GameAction,
@@ -47,6 +48,11 @@ export const emptyDiceCounts = (): Record<number, number> =>
 
 export const AUTO_ROLL_SECONDS = [0, 5, 10, 15, 30];
 export const MAX_PLAYERS = 6;
+/** Seconds everyone has to pick gold or volcano resources before a choice is made for them. */
+export const GOLD_SECONDS = 15;
+/** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
+export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
+  state.settings.seafarers !== false && boardIndex(state.board).seafaring;
 /** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
 export const isLargeGame = (players: number): boolean => players >= 5;
 /** Seconds each player gets in the special build phase (or the turn limit, if shorter). */

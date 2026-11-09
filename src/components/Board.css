@@ -185,3 +185,247 @@
 .board-bonus text {
   font-family: "DM Sans Variable", sans-serif;
 }
+
+/* An iceberg that drifted slides from its old tile to its new one; its die shows, then fades. */
+.iceberg-drift {
+  animation: iceberg-drift 1.8s cubic-bezier(0.45, 0, 0.25, 1) both;
+}
+@keyframes iceberg-drift {
+  0%,
+  25% {
+    transform: translate(var(--dx), var(--dy));
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+.drift-die {
+  animation: drift-die 4s ease-out both;
+  pointer-events: none;
+}
+.drift-die rect {
+  fill: #ffffffee;
+  stroke: #4d8fb0;
+  stroke-width: 2;
+}
+.drift-die text {
+  fill: #1d4f68;
+  font-size: 15px;
+  font-weight: 900;
+}
+@keyframes drift-die {
+  0% {
+    opacity: 0;
+    transform: translate(30px, -34px) scale(0.4) rotate(-90deg);
+  }
+  12%,
+  75% {
+    opacity: 1;
+    transform: translate(30px, -34px) scale(1) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(30px, -34px) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iceberg-drift,
+  .drift-die {
+    animation-duration: 0.01s;
+  }
+}
+
+/* Ships you may move this turn: tap to pick one up. */
+.board-ship-movable {
+  cursor: pointer;
+  pointer-events: all;
+}
+.board-ship-movable:hover,
+.board-ship-movable:focus-visible {
+  filter: drop-shadow(0 0 4px #fff7c2) drop-shadow(0 0 2px #fff7c2);
+  outline: none;
+}
+
+/* ---- Dice rolling in: see-through white dice, solid rounded edges and pips. ---- */
+.roll-die {
+  animation: roll-in 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.roll-die-face rect {
+  fill: #ffffff59;
+  stroke: #fffffff2;
+  stroke-width: 3;
+}
+.roll-die-face circle {
+  fill: #18303c;
+}
+@keyframes roll-in {
+  0% {
+    opacity: 0;
+    transform: translate(var(--sx), var(--sy)) rotate(var(--spin));
+  }
+  8% {
+    opacity: 1;
+  }
+  40% {
+    transform: translate(0, 0) rotate(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0);
+  }
+}
+
+/* ---- Volcanoes about to erupt: a red rim that shakes. ---- */
+.volcano-rim {
+  fill: #ff3b1f22;
+  stroke: #e42a12;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+.volcano-rumble {
+  animation: rumble 0.32s steps(2, end) infinite;
+}
+@keyframes rumble {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  25% {
+    transform: translate(-1.6px, 1px) rotate(-0.8deg);
+  }
+  50% {
+    transform: translate(1.4px, -1.2px) rotate(0.6deg);
+  }
+  75% {
+    transform: translate(-0.8px, -1.4px) rotate(0.9deg);
+  }
+  100% {
+    transform: translate(1.2px, 1.4px) rotate(-0.5deg);
+  }
+}
+
+/* ---- An eruption: red die lands, the corner lights up, a warning, the building sinks. ---- */
+.eruption-die {
+  animation: eruption-die 3.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.eruption-die-face rect {
+  fill: #d22b1c;
+  stroke: #ffd2c4;
+  stroke-width: 2;
+}
+.eruption-die-face circle {
+  fill: #fff;
+}
+@keyframes eruption-die {
+  0% {
+    opacity: 0;
+    transform: translate(var(--sx), var(--sy)) rotate(720deg);
+  }
+  6% {
+    opacity: 1;
+  }
+  26% {
+    transform: translate(0, 0) rotate(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.eruption-corner {
+  fill: none;
+  stroke: #ff2a12;
+  stroke-width: 5;
+  animation: eruption-corner 2.6s ease-out both;
+}
+@keyframes eruption-corner {
+  0% {
+    opacity: 0;
+    r: 4px;
+  }
+  15% {
+    opacity: 1;
+    r: 18px;
+  }
+  80% {
+    opacity: 1;
+    r: 16px;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.eruption-alert {
+  fill: #fff;
+  stroke: #c41b0c;
+  stroke-width: 5;
+  paint-order: stroke;
+  font-size: 30px;
+  font-weight: 900;
+  animation: eruption-alert 1.5s ease-out both;
+}
+@keyframes eruption-alert {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.5);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.eruption-sink {
+  animation: eruption-sink 1s ease-in both;
+}
+@keyframes eruption-sink {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(70px);
+  }
+}
+/* A city the lava reduced comes back up as a settlement. */
+.eruption-rise {
+  animation: eruption-rise 0.9s ease-out both;
+}
+@keyframes eruption-rise {
+  from {
+    opacity: 0;
+    translate: 0 40px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.eruption-die-face,
+.roll-die-face,
+.eruption-alert,
+.volcano-rumble,
+.eruption-rise {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .roll-die,
+  .eruption-die,
+  .eruption-corner,
+  .eruption-alert,
+  .eruption-sink,
+  .eruption-rise,
+  .volcano-rumble {
+    animation-duration: 0.01s;
+    animation-iteration-count: 1;
+  }
+}

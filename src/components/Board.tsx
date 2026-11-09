@@ -1,10 +1,12 @@
 import { type CSSProperties, type KeyboardEvent, useId } from 'react';
 import { playerColor } from '../../shared/colors';
-import type { GameView } from '../../shared/types';
+import type { GameLog, GameView } from '../../shared/types';
 import { ArtDefs, BuildingPiece, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
+import { useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
-import BoardScene from './BoardScene';
+import BoardScene, { type Drift } from './BoardScene';
+import BoardEffects, { risingSettlements } from './game/BoardEffects';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city';
@@ -70,6 +72,17 @@ function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void)
 /** Phases where pieces can be bought: your turn, or your slot in the special build phase. */
 const buildingPhase = (view: GameView) => view.phase === 'build' || view.phase === 'special-build';
 
+/** Icebergs that drifted on a roll this turn, since this screen opened. */
+function icebergDrifts(view: GameView, fresh: GameLog[]): Drift[] {
+  const drifts: Drift[] = [];
+  for (const entry of fresh) {
+    const event = entry.event;
+    if (event?.kind !== 'iceberg' || entry.turn !== view.turn) continue;
+    drifts.push({ id: entry.id, from: event.hexId, to: event.toHexId ?? event.hexId, die: event.die });
+  }
+  return drifts;
+}
+
 /** Edges to highlight for the current phase and mode. */
 function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null | undefined): string[] {
   const { legal } = view;
@@ -103,6 +116,8 @@ export default function Board({
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const frame = boardFrame(view.board.hexes);
+  const fresh = useFreshLog(view.log);
+  const rising = risingSettlements(fresh.filter(entry => entry.turn === view.turn));
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
   const edges = new Map(view.board.edges.map(edge => [edge.id, edge]));
   const playerName = (id: string) => view.players.find(player => player.id === id)?.name;
@@ -172,6 +187,7 @@ export default function Board({
             robber={view.robber}
             pirate={view.pirate}
             showClosed={view.phase === 'setup-settlement'}
+            drifts={icebergDrifts(view, fresh)}
           />
           {Object.entries(view.roads).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);
@@ -184,11 +200,18 @@ export default function Board({
           })}
           {Object.entries(view.ships).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);
+            // Your ships that may move this turn can be picked up straight from the board.
+            const movable = !disabled && mode !== 'move-ship' && !!view.legal.shipMoves[edgeId];
             return (
+              // biome-ignore lint/a11y/noStaticElementInteractions: role is set when the ship can be picked up.
               <g
                 key={edgeId}
-                className={`board-ship-piece${moveFrom === edgeId ? ' board-ship-moving' : ''}`}
-                aria-label={`${playerName(owner)}'s ship`}
+                className={`board-ship-piece${moveFrom === edgeId ? ' board-ship-moving' : ''}${movable ? ' board-ship-movable' : ''}`}
+                aria-label={movable ? `Move the ship at ${edgeId}` : `${playerName(owner)}'s ship`}
+                role={movable ? 'button' : undefined}
+                tabIndex={movable ? 0 : undefined}
+                onClick={movable ? () => onEdge(edgeId) : undefined}
+                onKeyDown={movable ? event => keyboardActivate(event, () => onEdge(edgeId)) : undefined}
               >
                 <title>{playerName(owner)}&apos;s ship</title>
                 <SEA.Ship from={a} to={b} color={color(owner)} />
@@ -274,8 +297,14 @@ export default function Board({
             .sort(([a], [b]) => vertices.get(a)!.y - vertices.get(b)!.y)
             .map(([vertexId, building]) => {
               const vertex = vertices.get(vertexId)!;
+              const rise = rising.get(vertexId);
               return (
-                <g key={vertexId} transform={`translate(${vertex.x} ${vertex.y - 3})`}>
+                <g
+                  key={vertexId}
+                  transform={`translate(${vertex.x} ${vertex.y - 3})`}
+                  className={rise === undefined ? undefined : 'eruption-rise'}
+                  style={rise === undefined ? undefined : { animationDelay: `${rise}s` }}
+                >
                   <title>
                     {playerName(building.playerId)}&apos;s {building.kind}
                   </title>
@@ -287,6 +316,7 @@ export default function Board({
                 </g>
               );
             })}
+          <BoardEffects view={view} fresh={fresh} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
           {[...vertexTargets].map(vertexId => {
             const vertex = vertices.get(vertexId)!;
             return (

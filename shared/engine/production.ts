@@ -1,3 +1,4 @@
+import { shuffled } from '../board';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type ResourceBag } from '../types';
 import { addLog, bumpStat, emptyBag, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
@@ -52,44 +53,67 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   return gains;
 }
 
-const CORNER_NAMES = ['1', '2', '3', '4', '5', '6'];
+/** Volcanoes showing `total` that will erupt. The robber keeps its volcano quiet. */
+export function eruptingVolcanoes(state: GameState, total: number): string[] {
+  return state.board.hexes
+    .filter(hex => hex.terrain === 'volcano' && hex.number === total && hex.id !== state.robber)
+    .map(hex => hex.id);
+}
+
+/** The eruption die for a volcano: random, or (balanced) the next face from its shuffled set of six. */
+export function volcanoDie(state: GameState, hexId: string, random: () => number): number {
+  if (state.settings.volcanoDice !== 'balanced') return Math.floor(random() * 6) + 1;
+  let faces = state.volcanoDecks[hexId] ?? [];
+  if (!faces.length) faces = shuffled([1, 2, 3, 4, 5, 6], random);
+  const [die, ...rest] = faces;
+  state.volcanoDecks[hexId] = rest;
+  return die!;
+}
 
 /**
- * Every volcano showing `total` erupts (after production, and even under the robber): a die picks a
- * corner; a city there drops to a settlement (or is lost when its owner has no settlement left to
- * put there) and a settlement is lost.
+ * One volcano erupts toward the corner the die names: a city there drops to a settlement (or is
+ * lost when its owner has no settlement left to put there), and a settlement is lost.
  */
-export function erupt(state: GameState, total: number, random: () => number): void {
-  for (const hex of state.board.hexes) {
-    if (hex.terrain !== 'volcano' || hex.number !== total) continue;
-    const die = Math.floor(random() * 6) + 1;
-    const vertexId = hex.vertexIds[ERUPTION_CORNER[die - 1]!]!;
-    const building = state.buildings[vertexId];
-    const owner = building ? state.players.find(p => p.id === building.playerId)! : null;
-    let damage: 'none' | 'city' | 'settlement' = 'none';
-    let text = `The volcano erupted toward corner ${CORNER_NAMES[die - 1]}. Nothing was there.`;
-    const stockLeft = owner && pieceCounts(state, owner.id).settlements < PIECE_LIMITS.settlements;
-    if (building?.kind === 'city' && stockLeft) {
-      building.kind = 'settlement';
-      damage = 'city';
-      text = `The volcano erupted toward corner ${die}: ${owner!.name}'s city was reduced to a settlement.`;
-    } else if (building) {
-      delete state.buildings[vertexId];
-      damage = 'settlement';
-      text = `The volcano erupted toward corner ${die}: ${owner!.name}'s settlement was destroyed.`;
-    }
-    addLog(state, text, { kind: 'eruption', die, vertexId, playerId: owner?.id ?? null, damage });
+export function eruptAt(state: GameState, hexId: string, die: number): void {
+  const hex = boardIndex(state.board).hex.get(hexId)!;
+  const vertexId = hex.vertexIds[ERUPTION_CORNER[die - 1]!]!;
+  const building = state.buildings[vertexId];
+  const owner = building ? state.players.find(p => p.id === building.playerId)! : null;
+  let damage: 'none' | 'city' | 'settlement' = 'none';
+  let text = `The volcano erupted toward corner ${die}. Nothing was there.`;
+  const stockLeft = owner && pieceCounts(state, owner.id).settlements < PIECE_LIMITS.settlements;
+  if (building?.kind === 'city' && stockLeft) {
+    building.kind = 'settlement';
+    damage = 'city';
+    text = `The volcano erupted toward corner ${die}: ${owner!.name}'s city was reduced to a settlement.`;
+  } else if (building) {
+    delete state.buildings[vertexId];
+    damage = 'settlement';
+    text = `The volcano erupted toward corner ${die}: ${owner!.name}'s ${building.kind} was destroyed.`;
   }
+  addLog(state, text, {
+    kind: 'eruption',
+    hexId,
+    die,
+    vertexId,
+    playerId: owner?.id ?? null,
+    damage,
+    piece: damage === 'city' ? 'city' : (building?.kind ?? null),
+  });
 }
 
 /** Die face (1–6) → the iceberg side it drifts toward: 1 is the upper-right side, then clockwise. */
 const ICEBERG_SIDES = [4, 5, 0, 1, 2, 3] as const;
 
-/** Every iceberg showing `total` drifts toward the side a die names, sinking a ship there. */
+/**
+ * Every iceberg showing `total` drifts (its die is rolled straight away): it moves one hex toward
+ * the side the die names when that hex is open sea (not land, another iceberg, the pirate, or off
+ * the map), and a ship on that side sinks either way.
+ */
 export function drift(state: GameState, total: number, random: () => number): void {
   const index = boardIndex(state.board);
-  for (const hex of state.board.hexes) {
-    if (hex.terrain !== 'iceberg' || hex.number !== total) continue;
+  const drifting = state.board.hexes.filter(hex => hex.terrain === 'iceberg' && hex.number === total);
+  for (const hex of drifting) {
     const die = Math.floor(random() * 6) + 1;
     const corner = ICEBERG_SIDES[die - 1]!;
     const [a, b] = [hex.vertexIds[corner]!, hex.vertexIds[(corner + 1) % 6]!];
@@ -98,13 +122,74 @@ export function drift(state: GameState, total: number, random: () => number): vo
       return edge.a === b || edge.b === b;
     })!;
     const owner = state.players.find(p => p.id === state.ships[edgeId]) ?? null;
-    if (owner) delete state.ships[edgeId];
+    if (owner) sinkShip(state, edgeId);
+    const across = index.edgeHexes.get(edgeId)!.find(h => h.id !== hex.id);
+    const moves = !!across && across.terrain === 'sea' && across.id !== state.pirate;
+    if (moves) {
+      across.terrain = 'iceberg';
+      across.number = hex.number;
+      hex.terrain = 'sea';
+      hex.number = null;
+    }
+    const where = moves ? 'drifted' : 'bumped';
     addLog(
       state,
       owner
-        ? `The iceberg drifted toward side ${die} and sank ${owner.name}'s ship.`
-        : `The iceberg drifted toward side ${die}. No ship was there.`,
-      { kind: 'iceberg', die, edgeId, playerId: owner?.id ?? null },
+        ? `The iceberg ${where} toward side ${die} and sank ${owner.name}'s ship.`
+        : `The iceberg ${where} toward side ${die}.`,
+      { kind: 'iceberg', die, edgeId, playerId: owner?.id ?? null, hexId: hex.id, toHexId: moves ? across.id : null },
     );
   }
+}
+
+/**
+ * Sink one ship. If that splits its owner's route, the ships beyond the gap slide back toward
+ * their settlement, so the ship that is lost is the far end of the route and none are stranded.
+ */
+export function sinkShip(state: GameState, edgeId: string): void {
+  const owner = state.ships[edgeId]!;
+  delete state.ships[edgeId];
+  const stranded = strandedShips(state, owner);
+  if (!stranded.size) return;
+  state.ships[edgeId] = owner;
+  const index = boardIndex(state.board);
+  // The far end: the stranded ship the most ship-steps from the gap.
+  const distance = new Map<string, number>([[edgeId, 0]]);
+  const queue = [edgeId];
+  while (queue.length) {
+    const id = queue.shift()!;
+    const edge = index.edge.get(id)!;
+    for (const v of [edge.a, edge.b])
+      for (const next of index.vertex.get(v)!.edgeIds)
+        if (state.ships[next] === owner && !distance.has(next)) {
+          distance.set(next, distance.get(id)! + 1);
+          queue.push(next);
+        }
+  }
+  const far = [...stranded].sort((x, y) => (distance.get(y) ?? 0) - (distance.get(x) ?? 0))[0]!;
+  delete state.ships[far];
+}
+
+/** A player's ships no longer joined (ship to ship) to one of their settlements or cities. */
+function strandedShips(state: GameState, playerId: string): Set<string> {
+  const index = boardIndex(state.board);
+  const mine = Object.keys(state.ships).filter(id => state.ships[id] === playerId);
+  const reached = new Set<string>();
+  const queue = mine.filter(id => {
+    const edge = index.edge.get(id)!;
+    return [edge.a, edge.b].some(v => state.buildings[v]?.playerId === playerId);
+  });
+  for (const id of queue) reached.add(id);
+  while (queue.length) {
+    const edge = index.edge.get(queue.shift()!)!;
+    for (const v of [edge.a, edge.b]) {
+      if (state.buildings[v] && state.buildings[v]!.playerId !== playerId) continue;
+      for (const next of index.vertex.get(v)!.edgeIds)
+        if (state.ships[next] === playerId && !reached.has(next)) {
+          reached.add(next);
+          queue.push(next);
+        }
+    }
+  }
+  return new Set(mine.filter(id => !reached.has(id)));
 }

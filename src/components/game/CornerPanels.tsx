@@ -16,8 +16,8 @@ import {
   withItem,
 } from './tradables';
 
-/** Header, body and footer shared by every corner panel. */
-function Panel({
+/** Header, body and footer shared by every corner panel (and the discovery purchase panel). */
+export function Panel({
   title,
   close,
   status,

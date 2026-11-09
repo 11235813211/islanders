@@ -1,4 +1,5 @@
 import { tradeRates } from '../rules';
+import { isBotGame } from '../settings';
 import { type GameState, type Player, RESOURCES, type TradeBag, type TradeOffer } from '../types';
 import {
   addBag,
@@ -57,6 +58,14 @@ function exchange(next: GameState, a: Player, b: Player, aGives: TradeBag, bGive
   bumpStat(next, a.id, 'trades');
   bumpStat(next, b.id, 'trades');
   next.tradeOffer = null;
+}
+
+/** In bot games an offer everyone turned down closes at once instead of waiting out its clock. */
+function closeIfRefused(next: GameState): void {
+  const offer = next.tradeOffer;
+  if (!offer || !offer.to.every(id => offer.declinedBy.includes(id))) return;
+  next.tradeOffer = null;
+  addLog(next, 'Nobody took the trade.');
 }
 
 /** Drop the offer if its author can no longer pay, and any answers whose authors can't. */
@@ -130,7 +139,20 @@ export const tradeHandlers: Pick<
       createdAt: now,
       expiresAt: now + next.settings.tradeSeconds * 1000,
     };
-    addLog(next, `${player.name} offered a trade.`, { kind: 'offer', playerId });
+    addLog(next, `${player.name} offered a trade.`, {
+      kind: 'offer',
+      playerId,
+      give: next.tradeOffer.give,
+      want: next.tradeOffer.want,
+      to: next.tradeOffer.to,
+    });
+    // Against bots, nobody waits on an answer that can only be no.
+    if (isBotGame(next)) {
+      const offer = next.tradeOffer;
+      for (const id of offer.to)
+        if (!canAfford(next.players.find(p => p.id === id)!, offer.want)) offer.declinedBy.push(id);
+      closeIfRefused(next);
+    }
   },
 
   /** A recipient proposes different terms. It replaces their earlier answer. */
@@ -206,6 +228,7 @@ export const tradeHandlers: Pick<
     requireRule(offer.to.includes(playerId), 'This offer was not sent to you.');
     clearAnswer(offer, playerId);
     offer.declinedBy.push(playerId);
+    if (isBotGame(next)) closeIfRefused(next);
   },
 
   'cancel-trade'({ next, player, playerId }, action) {

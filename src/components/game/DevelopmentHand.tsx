@@ -71,7 +71,7 @@ export default function DevelopmentHand({ view, open }: { view: GameView; open: 
         return (
           <CardGroup
             key={kind}
-            className={`cards-dev${index === 0 ? ' cards-dev-first' : ''}${ready ? ' cards-dev-ready' : ''}`}
+            className={`cards-dev cards-dev-${kind}${index === 0 ? ' cards-dev-first' : ''}${ready ? ' cards-dev-ready' : ''}`}
             style={groupTurn(index, kinds.length)}
             cards={stackCards(kind, count)}
             count={count}

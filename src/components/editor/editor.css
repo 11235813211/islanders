@@ -707,18 +707,13 @@
 .pool-presets {
   margin-bottom: 8px;
 }
-.pool-rich {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 10px;
+.island-mix {
+  margin-bottom: 4px;
   font-size: 13px;
   font-weight: 700;
 }
-.pool-rich select {
-  padding: 4px 6px;
-  font-size: 13px;
+.fog-heading {
+  margin-top: 14px;
 }
 .inspector-field .pool-row input {
   width: 46px;

@@ -81,6 +81,14 @@ const MIGRATIONS: Migration[] = [
   s => {
     if (s.tradeOffer) s.tradeOffer.acceptedBy ??= [];
   },
+  // 4 → 5: Seafarers as a room setting, timed gold choices, and the eruption phase.
+  s => {
+    s.settings = { ...s.settings, seafarers: !!s.design?.tiles.some((t: { kind: string }) => t.kind === 'sea') };
+    s.goldDeadline ??= null;
+    s.eruption ??= null;
+    s.volcanoDecks ??= {};
+    s.fog ??= {};
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

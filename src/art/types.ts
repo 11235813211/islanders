@@ -47,8 +47,8 @@ export interface Frame {
   height: number;
 }
 
-/** Tiles in `SeaArt.terrain`: the sea-map terrains plus `land`, the editor's not-yet-chosen land. */
-export type SeaTileKind = SeaTerrain | 'land';
+/** Tiles in `SeaArt.terrain`: the sea-map terrains (fog is separate) plus `land`, the editor's not-yet-chosen land. */
+export type SeaTileKind = Exclude<SeaTerrain, 'fog'> | 'land';
 
 /** Art for sea maps. Each tile lives in its own file in src/art/vN/sea so it is easy to tweak. */
 export interface SeaArt {
@@ -66,4 +66,6 @@ export interface SeaArt {
   BonusChip: (props: { points: number }) => ReactElement;
   /** A jungle discovery, for hands and logs. */
   DiscoveryIcon: (props: { size?: number }) => ReactElement;
+  /** An unexplored fog tile. Versions before v12 leave this out and borrow v12's. */
+  FogTile?: (props: { uid: string }) => ReactElement;
 }

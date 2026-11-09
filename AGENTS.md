@@ -6,12 +6,14 @@ Prioritize working gameplay, readable controls, and cross-device (especially pho
 
 Live site: https://play.islandersgame.workers.dev (Cloudflare Worker `play`, free plan; keep CPU per request small).
 
+Which published rules are in, which are room variations, and their tests: `docs/rules.md`. Update it with rule changes.
+
 ## Where things live
 
 - `shared/` runs on client and server.
   - `engine/`: the authoritative rules. `index.ts` is the public API (`applyAction`, `getView`, `advanceTime`, …); import from `shared/engine`, not its files. `apply.ts` dispatches actions to handlers in `lobby.ts`, `turn.ts`, `trade.ts`, `development.ts`, `social.ts`; `time.ts` runs deadlines and bots; `view.ts` is the only projection sent to clients; `migrations.ts` upgrades stored rooms.
   - 5–6 players: `isLargeGame` in `engine/core.ts` picks the 30-tile island (`board.ts`), 24-card bank, 34-card deck, and the special build phase (`'special-build'`, see `end-turn` in `engine/turn.ts`).
-  - `engine/sea.ts` (ships, gold choices) and `engine/production.ts` (rolls, gold, jungle, volcano eruptions) hold the sea-map rules; `seafaring.ts` is the shared land/sea geometry (which edges take roads or ships, islands).
+  - `engine/sea.ts` (ships, gold choices, rolling volcano dice), `engine/fog.ts` (revealing fog) and `engine/production.ts` (rolls, gold, jungle, volcano eruptions) hold the sea-map rules; `seafaring.ts` is the shared land/sea geometry (which edges take roads or ships, islands).
   - `maps/`: designed boards. `types.ts` (BoardDesign), `generate.ts` (design → Board with balanced random fills), `balance.ts`, `builtin.ts` (the maps that ship, drawn as token grids), `edit.ts` (board-editor edits, pure), `fill.ts` (the editor's fills, unfills, and links; linked pieces are always random), `validate.ts`, `library.ts`.
   - `actions.ts`: the one table of every action's fields, used by both server and engine.
   - `types.ts` (all state/view/action types), `settings.ts` (defaults and limits), `colors.ts` (seat palette), `guest-names.ts` (editable list), `rules.ts` (scoring helpers), `board.ts`.

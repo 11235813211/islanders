@@ -4,7 +4,7 @@ import { type BoardDesign, type BoardLibrary, boardExpansions, EXPANSIONS } from
 import CategoryHeader from './CategoryHeader';
 import DesignView from './DesignView';
 import MapThumbnail from './MapThumbnail';
-import { mapRules, moveBoard, playerRange, playersMismatch } from './mapInfo';
+import { moveBoard, playerRange, playersMismatch } from './mapInfo';
 import './maps.css';
 
 const COLORS = ['#1f7fa6', '#c4572b', '#3b8442', '#8a5bb8', '#b07c12', '#4f7684', '#c23a6b', '#2f9e8f'];
@@ -82,11 +82,6 @@ function MapDetail({
           </p>
         )}
         <p className="map-note">Tiles, numbers, and harbors marked “?” are drawn at random when the game starts.</p>
-        <ul className="map-rules">
-          {mapRules(design).map(rule => (
-            <li key={rule}>{rule}</li>
-          ))}
-        </ul>
         {canChoose && (
           <button type="button" className="button primary full" disabled={current} onClick={choose}>
             <Check size={18} />

@@ -39,6 +39,7 @@ export function chooseBotAction(view: GameView, options: BotOptions = {}): GameA
   }
   if (view.phase === 'gold') return goldChoice(view);
   if (view.phase === 'special-build') return specialBuild(view);
+  if (view.phase === 'eruption') return { type: 'roll-volcanoes' };
   if (offer && view.phase === 'build') {
     if (offer.fromId === view.selfId) return brain.review(view, offer);
     const answered = hasAnswered(offer, view.selfId);

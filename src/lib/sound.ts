@@ -2,11 +2,12 @@
 const STORAGE_KEY = 'islanders:sound';
 let context: AudioContext | null = null;
 
+/** Off until the player turns it on (the speaker button in the table toolbar). */
 export function soundEnabled(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) !== 'off';
+    return localStorage.getItem(STORAGE_KEY) === 'on';
   } catch {
-    return true;
+    return false;
   }
 }
 

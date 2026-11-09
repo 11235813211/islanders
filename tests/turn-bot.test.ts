@@ -214,3 +214,31 @@ it('the last opponent discard leaves robber movement to the active player', () =
   expect(g.turn).toBe(2);
   expect(conserved(g)).toBe(true);
 });
+
+it('a bot asks a person to trade only when one card short, and never repeats a turned-down offer', () => {
+  const g = settled(4);
+  g.phase = 'build';
+  g.turnIndex = 1;
+  for (const p of g.players.slice(1)) p.bot = 'advanced';
+  for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 };
+  // One ore short of a city, with spare wood to give.
+  grant(g, 'p1', { wheat: 2, ore: 2, wood: 3 });
+  const first = chooseBotAction(getView(g, 'p1'), { level: 'advanced' });
+  if (first.type === 'offer-trade') {
+    // The person said no; a few turns later nothing has changed, so the person isn't asked again.
+    g.log.push({
+      id: 999,
+      turn: g.turn,
+      text: 'Player 1 offered a trade.',
+      event: { kind: 'offer', playerId: 'p1', give: first.give, want: first.want, to: first.to },
+    });
+    g.turn += 4;
+    const again = chooseBotAction(getView(g, 'p1'), { level: 'advanced' });
+    if (again.type === 'offer-trade') expect(again.to).not.toContain('p0');
+  }
+  // Two cards short: people are not asked at all.
+  g.players[1]!.resources = { wood: 3, brick: 0, sheep: 0, wheat: 1, ore: 2 };
+  g.log = [];
+  const far = chooseBotAction(getView(g, 'p1'), { level: 'advanced' });
+  if (far.type === 'offer-trade') expect(far.to).not.toContain('p0');
+});

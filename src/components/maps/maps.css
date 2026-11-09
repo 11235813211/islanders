@@ -248,15 +248,6 @@
   margin: 0;
   font-weight: 800;
 }
-.map-rules {
-  margin: 0 0 18px;
-  padding-left: 18px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-.map-rules li {
-  margin-bottom: 6px;
-}
 .map-warning {
   display: flex;
   align-items: flex-start;

@@ -56,3 +56,63 @@ test('gold asks the owner to pick resources', async ({ page }) => {
   await expect.poll(() => game.state().phase).toBe('build');
   expect(game.errors).toEqual([]);
 });
+
+const FIRE = BUILTIN_BOARDS.find(b => b.id === 'fire-and-ice')!;
+
+test('an eruption: red rims and a banner, then the roller rolls the volcano dice', async ({ page }) => {
+  const g = seaSettled(FIRE, 3);
+  g.testMode = true;
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 120_000;
+  const volcano = g.board.hexes.find(h => h.terrain === 'volcano')!;
+  // A settlement on every corner a die can name, so the eruption hits something.
+  for (const v of volcano.vertexIds) if (!g.buildings[v]) g.buildings[v] = { playerId: 'p1', kind: 'city' };
+  Object.assign(g, { phase: 'eruption', eruption: [volcano.id], robber: '' });
+  const game = await mountGame(page, g);
+  await expect(page.getByRole('alert').filter({ hasText: 'Volcano eruption' })).toBeVisible();
+  await expect(page.locator('.volcano-rim')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/eruption-waiting.png' });
+  await page.getByRole('button', { name: 'Roll volcanoes' }).click();
+  await expect.poll(() => game.state().phase).toBe('build');
+  await expect(page.locator('.eruption-die')).toHaveCount(1);
+  await page.waitForTimeout(1300);
+  await page.screenshot({ path: 'test-results/eruption-roll.png' });
+  expect(game.errors).toEqual([]);
+});
+
+test('rolling shows see-through dice, and resources fly to who got them', async ({ page }) => {
+  const g = seaGame();
+  Object.assign(g, { phase: 'roll' });
+  const game = await mountGame(page, g);
+  await page.getByRole('button', { name: 'Roll dice' }).click();
+  await expect(page.locator('.roll-die')).toHaveCount(2);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: 'test-results/dice-roll.png' });
+  expect(game.errors).toEqual([]);
+});
+
+test('a movable ship is picked up by tapping it; trade offers show every answer by name', async ({ page }) => {
+  const g = seaGame();
+  const ships = getView(g, 'p0').legal.ships;
+  g.ships[ships[0]!] = 'p0';
+  g.shipsBuilt = [];
+  const game = await mountGame(page, g);
+  const movable = Object.keys(getView(game.state(), 'p0').legal.shipMoves);
+  test.skip(!movable.length, 'No ship can move on this seed');
+  await page
+    .getByRole('button', { name: `Move the ship at ${movable[0]}` })
+    .first()
+    .click();
+  await expect(page.getByText('Choose where the ship goes')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: /^Trade Lumber/ }).click();
+  const composer = page.getByRole('dialog', { name: 'Trade resources' });
+  await composer.getByRole('button', { name: 'Request one more Ore' }).click();
+  await composer.getByRole('button', { name: 'Offer to players' }).click();
+  await expect(page.locator('.offer-answer')).toHaveCount(2);
+  await expect(page.locator('.offer-answer').first()).toContainText('Player 1');
+  await expect(page.getByText('You give')).toHaveCount(0);
+  await page.locator('.trade-notice').screenshot({ path: 'test-results/trade-notice.png' });
+  expect(game.errors).toEqual([]);
+});
