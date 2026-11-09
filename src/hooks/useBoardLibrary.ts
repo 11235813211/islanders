@@ -16,12 +16,15 @@ export function publishLibrary(library: BoardLibrary): void {
 export function useBoardLibrary() {
   const [library, setLibrary] = useState<BoardLibrary | null>(cached);
   const [error, setError] = useState<string | null>(null);
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (): Promise<BoardLibrary | null> => {
     try {
-      publishLibrary(await apiRequest<BoardLibrary>('/api/boards'));
+      const fresh = await apiRequest<BoardLibrary>('/api/boards');
+      publishLibrary(fresh);
       setError(null);
+      return fresh;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load maps.');
+      return null;
     }
   }, []);
   useEffect(() => {

@@ -16,6 +16,8 @@ export interface DesignTile {
   kind: DesignKind;
   /** Fixed number token. Absent on a producing tile means a balanced random number. */
   number?: number;
+  /** Dot counts (1–5) a random number here may have; absent means any. */
+  pips?: number[];
   /** Tiles and harbors sharing a letter get the same resource. Only random land is linked. */
   link?: string;
   /** No setup settlement may touch this tile's island. */
@@ -47,7 +49,10 @@ export interface BoardDesign {
   /** Starting tiles. Robber defaults to a desert; the pirate starts off the board when unset. */
   robber: { q: number; r: number } | null;
   pirate: { q: number; r: number } | null;
-  /** Relative share of each terrain when filling random land. Missing or 0 means never. */
+  /**
+   * Relative share of each terrain when filling random land. Missing or 0 means never.
+   * `iceberg` is different: the percent of sea tiles that become icebergs.
+   */
   pool: Partial<Record<FillKind, number>>;
   /** Kinds random harbors never become (the editor shows the rest as what they can give). */
   harborExclude: (Resource | 'any')[];
@@ -56,8 +61,35 @@ export interface BoardDesign {
    * each way, so a board with set numbers plays differently with the same odds.
    */
   swapNumbers?: boolean;
+  /** 0–RICH_LEVELS: how much richer random numbers are on islands closed to setup (0 is the normal mix). */
+  richIslands?: number;
+  /** Expansions whose rules or pieces the board needs. Absent: Seafarers when it has sea (see boardExpansions). */
+  expansions?: Expansion[];
   updatedAt: number;
 }
+
+/** Expansions a board can say it needs, in the order the picker lists them. */
+export const EXPANSIONS = {
+  seafarers: 'Seafarers',
+  'cities-knights': 'Cities & Knights',
+  'traders-barbarians': 'Traders & Barbarians',
+  'explorers-pirates': 'Explorers & Pirates',
+  'five-six': '5–6 Players',
+} as const;
+export type Expansion = keyof typeof EXPANSIONS;
+
+/** The expansions a board needs: what its editor chose, or Seafarers for any board with sea. */
+export function boardExpansions(design: Pick<BoardDesign, 'expansions' | 'tiles'>): Expansion[] {
+  return design.expansions ?? (design.tiles.some(t => t.kind === 'sea') ? ['seafarers'] : []);
+}
+
+/** Random-land presets for the editor: shares per terrain (iceberg is a percent of sea). */
+export const POOL_PRESETS: Record<'base' | 'tropic' | 'polar' | 'all', Partial<Record<FillKind, number>>> = {
+  base: { wood: 4, sheep: 4, wheat: 4, brick: 3, ore: 3, desert: 1 },
+  tropic: { wood: 4, sheep: 3, wheat: 4, brick: 3, ore: 3, gold: 1, jungle: 2, volcano: 1 },
+  polar: { wood: 4, sheep: 4, wheat: 4, brick: 3, ore: 3, desert: 1, iceberg: 10 },
+  all: { wood: 4, sheep: 3, wheat: 4, brick: 3, ore: 3, desert: 1, gold: 1, jungle: 2, volcano: 1, iceberg: 8 },
+};
 
 export interface BoardCategory {
   id: string;

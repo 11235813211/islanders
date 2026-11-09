@@ -10,7 +10,7 @@ import {
   updateHarbor,
   updateTile,
 } from '../../../shared/maps/edit';
-import { setLinks } from '../../../shared/maps/fill';
+import { setGroupKind, setLinks } from '../../../shared/maps/fill';
 import { RESOURCES, type Resource } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import { RESOURCE_LABELS } from '../ResourceHand';
@@ -33,6 +33,53 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="inspector-label">{label}</span>
       {children}
     </div>
+  );
+}
+
+const isResource = (kind: string): kind is Resource => RESOURCES.includes(kind as Resource);
+
+/** A terrain for a tile. On a linked tile a resource (or random) sets the whole group; anything else unlinks it. */
+function pickTerrain(d: BoardDesign, tile: DesignTile, kind: DesignKind): BoardDesign {
+  if (tile.link && (kind === 'land' || isResource(kind)))
+    return setGroupKind(d, tile.link, kind === 'land' ? null : kind);
+  return paint(d, [tile], kind);
+}
+
+/** A kind for a harbor. On a linked harbor a 2:1 resource (or random) sets the whole group; 3:1 unlinks it. */
+function pickHarborKind(d: BoardDesign, harbor: DesignHarbor, kind: DesignHarbor['kind']): BoardDesign {
+  if (harbor.link && (kind === 'random' || isResource(kind)))
+    return setGroupKind(d, harbor.link, kind === 'random' ? null : kind);
+  return updateHarbor(d, harbor, { kind, link: undefined });
+}
+
+const DOTS = [1, 2, 3, 4, 5];
+const DOT_NUMBERS = ['2, 12', '3, 11', '4, 10', '5, 9', '6, 8'];
+
+/** Which dot counts (1–5) this tile's random number may have. All on means no limit. */
+function DotLimit({ tile, edit }: { tile: DesignTile; edit: Edit }) {
+  const allowed = tile.pips ?? DOTS;
+  const toggle = (dots: number) => {
+    const next = allowed.includes(dots) ? allowed.filter(d => d !== dots) : [...allowed, dots].sort();
+    if (!next.length) return;
+    edit(d => updateTile(d, tile.q, tile.r, { pips: next.length === DOTS.length ? undefined : next }));
+  };
+  return (
+    <fieldset className="dot-limit" aria-label="Random number may have">
+      <span className="chip-label">{tile.number === undefined ? 'Random may be' : 'If random'}</span>
+      {DOTS.map(dots => (
+        <button
+          key={dots}
+          type="button"
+          aria-pressed={allowed.includes(dots)}
+          aria-label={`${dots} dot${dots === 1 ? '' : 's'} (${DOT_NUMBERS[dots - 1]})`}
+          data-tip={`${DOT_NUMBERS[dots - 1]}`}
+          className={dots === 5 ? 'hot' : ''}
+          onClick={() => toggle(dots)}
+        >
+          {'•'.repeat(dots)}
+        </button>
+      ))}
+    </fieldset>
   );
 }
 
@@ -65,7 +112,7 @@ function TilePanel({
               type="button"
               aria-pressed={tile.kind === kind}
               title={TERRAIN[kind].name}
-              onClick={() => edit(d => paint(d, [{ q, r }], kind))}
+              onClick={() => edit(d => pickTerrain(d, tile, kind))}
             >
               <TileIcon kind={kind} size={30} />
               {KIND_LABELS[kind]}
@@ -74,7 +121,7 @@ function TilePanel({
         </div>
       </Field>
       {takesNumber(tile.kind) && (
-        <Field label="Number">
+        <Field label={tile.kind === 'iceberg' ? 'Drift number' : 'Number'}>
           <div className="number-grid" role="radiogroup" aria-label="Number">
             <button
               type="button"
@@ -97,12 +144,15 @@ function TilePanel({
               </button>
             ))}
           </div>
+          {tile.kind !== 'iceberg' && <DotLimit tile={tile} edit={edit} />}
         </Field>
       )}
       {land && (
         <Field label="Same resource as">
           <LinkPicker design={design} value={tile.link} change={link => edit(d => setLinks(d, [tile], [], link))} />
-          <p className="inspector-hint">Linked tiles are random land; the link picks their resource.</p>
+          <p className="inspector-hint">
+            Linked tiles and harbors share one resource: set it here, or leave them random to draw it each game.
+          </p>
         </Field>
       )}
       {land && (
@@ -191,7 +241,7 @@ function HarborPanel({
               type="button"
               role="radio"
               aria-checked={harbor.kind === kind}
-              onClick={() => edit(d => updateHarbor(d, harbor, { kind }))}
+              onClick={() => edit(d => pickHarborKind(d, harbor, kind))}
             >
               {harborLabel(kind)}
             </button>

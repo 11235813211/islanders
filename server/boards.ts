@@ -21,6 +21,14 @@ interface LibraryIndex {
 }
 
 const boardKey = (id: string) => `board:${id}`;
+const lockKey = (id: string) => `lock:${id}`;
+
+/** How long an editor's hold on a board lasts without a heartbeat (the editor renews it every 30 s). */
+export const BOARD_LOCK_MS = 90_000;
+interface BoardLock {
+  username: string;
+  until: number;
+}
 
 /** RPC results. Errors thrown across RPC lose their type, so failures come back as values (as in accounts.ts). */
 export type LibraryResult<T> = { ok: true; value: T } | { ok: false; status: number; error: string };
@@ -75,6 +83,33 @@ export class BoardLibraryStore extends DurableObject<Env> {
     if (gone.length) await this.ctx.storage.delete(gone);
   }
 
+  /** Who else holds an unexpired lock on this board, if anyone. */
+  private async otherHolder(id: string, username: string): Promise<string | null> {
+    const lock = await this.ctx.storage.get<BoardLock>(lockKey(id));
+    return lock && lock.until > Date.now() && lock.username !== username ? lock.username : null;
+  }
+
+  /**
+   * Take or renew this editor's hold on a board (`release` lets it go). While one editor holds a
+   * board, nobody else can save or delete it.
+   */
+  async lock(id: string, username: string, release = false): Promise<LibraryResult<null>> {
+    return this.serial(() =>
+      attempt(async () => {
+        const holder = await this.otherHolder(id, username);
+        if (holder) throw new ProtocolError(`${holder} is editing this board.`, 409);
+        if (release) await this.ctx.storage.delete(lockKey(id));
+        else await this.ctx.storage.put(lockKey(id), { username, until: Date.now() + BOARD_LOCK_MS });
+        return null;
+      }),
+    );
+  }
+
+  private async requireFree(id: string, username: string): Promise<void> {
+    const holder = await this.otherHolder(id, username);
+    if (holder) throw new ProtocolError(`${holder} is editing this board. Try again once they leave it.`, 409);
+  }
+
   async library(): Promise<BoardLibrary> {
     return this.serial(async () => {
       const { categories, boards } = mergeLibrary(await this.stored());
@@ -87,9 +122,10 @@ export class BoardLibraryStore extends DurableObject<Env> {
   }
 
   /** Create or replace one board, keeping its place in the list. */
-  async saveBoard(raw: unknown): Promise<LibraryResult<BoardDesign>> {
+  async saveBoard(raw: unknown, username: string): Promise<LibraryResult<BoardDesign>> {
     return this.serial(() =>
       attempt(async () => {
+        if (record(raw) && typeof raw.id === 'string') await this.requireFree(raw.id, username);
         const stored = await this.stored();
         const library = mergeLibrary(stored);
         const design = parseDesign(
@@ -109,13 +145,15 @@ export class BoardLibraryStore extends DurableObject<Env> {
     );
   }
 
-  async deleteBoard(id: string): Promise<LibraryResult<null>> {
+  async deleteBoard(id: string, username: string): Promise<LibraryResult<null>> {
     return this.serial(() =>
       attempt(async () => {
+        await this.requireFree(id, username);
         const stored = await this.stored();
         const library = mergeLibrary(stored);
         if (!library.boards.some(b => b.id === id)) throw new ProtocolError('That board does not exist.', 404);
         await this.write(stored, { ...library, boards: library.boards.filter(b => b.id !== id) });
+        await this.ctx.storage.delete(lockKey(id));
         return null;
       }),
     );

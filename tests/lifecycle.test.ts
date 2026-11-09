@@ -13,6 +13,7 @@ import {
   UNDO_GRACE_MS,
 } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
+import { hasAnswered } from '../shared/rules';
 import { EMPTY_ROOM_MS, emptyRoomMs, isBotGame, SAVED_BOT_GAME_HOURS } from '../shared/settings';
 import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
@@ -138,7 +139,7 @@ describe('bot scheduling', () => {
     });
     expect(pendingBotActor(offered)).toBe('p1');
     offered = advanceTime(offered, botDueAt(offered)!, seeded());
-    const answered = !offered.tradeOffer || offered.tradeOffer.declinedBy.includes('p1');
+    const answered = !offered.tradeOffer || hasAnswered(offered.tradeOffer, 'p1');
     expect(answered).toBe(true);
     expect(pendingBotActor(offered)).toBeNull();
   });

@@ -7,7 +7,9 @@ import { type Board, type Edge, type Hex, RESOURCES, type Resource, type Terrain
 
 export const isWater = (terrain: Terrain) => terrain === 'sea' || terrain === 'iceberg';
 export const isLandTerrain = (terrain: Terrain) => !isWater(terrain);
-/** Terrains that carry a number token. */
+/** Terrains that carry a number token: the producing ones, and icebergs (whose number makes them drift). */
+export const takesToken = (terrain: Terrain) => isProducing(terrain) || terrain === 'iceberg';
+/** Terrains that pay something when their number is rolled. */
 export const isProducing = (terrain: Terrain) =>
   RESOURCES.includes(terrain as Resource) || terrain === 'gold' || terrain === 'jungle' || terrain === 'volcano';
 /** Gold fields and volcanoes let each owner pick a resource. */
@@ -66,12 +68,11 @@ export function isRoadEdge(board: Board, edgeId: string): boolean {
     .some(h => isLandTerrain(h.terrain));
 }
 
-/** Ships sail along edges beside open sea, never beside an iceberg. */
+/** Ships sail along edges beside water. Icebergs are water too, but one that drifts sinks the ship beside it. */
 export function isShipEdge(board: Board, edgeId: string): boolean {
   const index = boardIndex(board);
   if (!index.seafaring) return false;
-  const hexes = index.edgeHexes.get(edgeId)!;
-  return hexes.some(h => h.terrain === 'sea') && !hexes.some(h => h.terrain === 'iceberg');
+  return index.edgeHexes.get(edgeId)!.some(h => isWater(h.terrain));
 }
 
 /** The island a corner belongs to, or null for open water. */

@@ -43,7 +43,8 @@ export default function EditorToolbar({
             key={t.tool}
             type="button"
             aria-pressed={tool === t.tool}
-            title={`${t.hint} (${t.key.toUpperCase()})`}
+            data-tip={`${t.hint} (${t.key.toUpperCase()})`}
+            className={t.tool === 'select' ? 'tip-start' : undefined}
             onClick={() => setTool(t.tool)}
           >
             {t.icon}

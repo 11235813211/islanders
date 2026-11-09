@@ -1,7 +1,23 @@
-import { BarChart3, Dices, Hash, House, Minus, Plus, Shield, Timer, Trophy } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  BarChart3,
+  Compass,
+  Dices,
+  Flame,
+  Hash,
+  House,
+  Landmark,
+  Minus,
+  Plus,
+  Shield,
+  Timer,
+  Trophy,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { VICTORY_POINT_RANGE } from '../../../shared/settings';
-import type { GameSettings, GameView } from '../../../shared/types';
+import { DISCOVERY_RULES, TRADE_SECONDS, VICTORY_POINT_RANGE } from '../../../shared/settings';
+import type { DiscoveryRule, GameSettings, GameView, Terrain } from '../../../shared/types';
+
+const hasTerrain = (view: GameView, terrain: Terrain) => view.board.hexes.some(h => h.terrain === terrain);
 
 /**
  * Lobby settings are data. To add a setting: add the field to GameSettings,
@@ -85,6 +101,28 @@ export const CATEGORIES: Category[] = [
         control: { kind: 'select', options: [7, 8, 9, 10, 12].map(n => ({ value: n, label: `${n} cards` })) },
       },
       {
+        key: 'discoveries',
+        label: 'Jungle discoveries',
+        hint: 'Kept safe is the published rule. Tradable: also traded and discarded on a 7. Like a card: also stolen and taken by Monopoly.',
+        icon: <Compass size={20} />,
+        when: view => view.jungle,
+        control: {
+          kind: 'select',
+          options: (Object.keys(DISCOVERY_RULES) as DiscoveryRule[]).map(value => ({
+            value,
+            label: DISCOVERY_RULES[value].label,
+          })),
+        },
+      },
+      {
+        key: 'volcanoGold',
+        label: 'Volcanoes pay',
+        hint: 'On: a volcano pays a resource of your choice, then erupts. Off: it only erupts.',
+        icon: <Flame size={20} />,
+        when: view => hasTerrain(view, 'volcano'),
+        control: { kind: 'toggle' },
+      },
+      {
         key: 'friendlyRobber',
         label: 'Friendly robber',
         hint: 'The robber skips players with 2 or fewer visible points.',
@@ -115,6 +153,13 @@ export const CATEGORIES: Category[] = [
         icon: <Timer size={20} />,
         control: { kind: 'seconds', min: 15, max: 900 },
       },
+      {
+        key: 'tradeSeconds',
+        label: 'Trade offers last',
+        hint: 'How long other players have to answer a trade offer.',
+        icon: <ArrowLeftRight size={20} />,
+        control: { kind: 'select', options: TRADE_SECONDS.map(n => ({ value: n, label: `${n} seconds` })) },
+      },
     ],
   },
   {
@@ -127,6 +172,13 @@ export const CATEGORIES: Category[] = [
         label: 'Dice results tracker',
         hint: 'Shows how often each number has been rolled.',
         icon: <BarChart3 size={20} />,
+        control: { kind: 'toggle' },
+      },
+      {
+        key: 'showBank',
+        label: 'Show bank cards',
+        hint: 'Everyone sees how many cards of each resource the bank has left.',
+        icon: <Landmark size={20} />,
         control: { kind: 'toggle' },
       },
     ],

@@ -1,16 +1,28 @@
 import { victoryPoints } from '../rules';
 import { boardIndex, isLandTerrain, isLandVertex, isRoadEdge, isShipEdge, otherEnd } from '../seafaring';
 import { type GameState, type LegalMoves, type Player, RESOURCES } from '../types';
-import { BUILD_COSTS, canAfford, getActivePlayerId, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
+import {
+  BUILD_COSTS,
+  canAfford,
+  discoveryRule,
+  getActivePlayerId,
+  PIECE_LIMITS,
+  pieceCounts,
+  resourceCount,
+} from './core';
 
-/** Open land corners at least two edges from any building; outside setup, touching your road or ship. */
+/**
+ * Open land corners at least two edges from any building; outside setup, touching your road or ship.
+ * Setup settlements stay off closed islands and away from volcanoes.
+ */
 export function settlementSites(state: GameState, playerId: string, setup: boolean): string[] {
   const index = boardIndex(state.board);
   return state.board.vertices
     .filter(vertex => {
       if (state.buildings[vertex.id] || !isLandVertex(state.board, vertex.id)) return false;
       if (vertex.edgeIds.some(id => state.buildings[otherEnd(index.edge.get(id)!, vertex.id)])) return false;
-      if (setup) return !vertex.hexIds.some(id => index.hex.get(id)!.noSetup);
+      if (setup)
+        return !vertex.hexIds.some(id => index.hex.get(id)!.noSetup || index.hex.get(id)!.terrain === 'volcano');
       return vertex.edgeIds.some(id => state.roads[id] === playerId || state.ships[id] === playerId);
     })
     .map(vertex => vertex.id);
@@ -92,8 +104,11 @@ export function stealTargets(state: GameState, playerId: string): string[] {
     for (const [edgeId, owner] of Object.entries(state.ships))
       if (index.edgeHexes.get(edgeId)!.includes(hex)) owners.add(owner);
   } else for (const id of hex.vertexIds) if (state.buildings[id]) owners.add(state.buildings[id].playerId);
+  const stealable = discoveryRule(state).stealable;
   return state.players
-    .filter(p => p.id !== playerId && owners.has(p.id) && resourceCount(p.resources) > 0)
+    .filter(
+      p => p.id !== playerId && owners.has(p.id) && resourceCount(p.resources) + (stealable ? p.discoveries : 0) > 0,
+    )
     .map(p => p.id);
 }
 

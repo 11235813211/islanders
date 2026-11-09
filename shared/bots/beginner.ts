@@ -135,6 +135,8 @@ export const beginner: Brain = {
   },
 
   review(view: GameView, offer: TradeOffer): GameAction {
+    const partner = offer.acceptedBy[0];
+    if (partner) return { type: 'confirm-trade', offerId: offer.id, playerId: partner };
     const good = offer.counters.find(counter => {
       const after = { ...view.hand };
       for (const r of RESOURCES) after[r] += counter.give[r] - counter.want[r];

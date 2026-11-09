@@ -75,3 +75,34 @@ for (const phone of PHONES) {
     await page.screenshot({ path: `test-results/phone-${phone.name}-chat.png` });
   });
 }
+
+test('trade offers read from each side, with answers in seat colors', async ({ page }) => {
+  const game = richGame();
+  game.settings.showBank = true;
+  const now = Date.now();
+  game.tradeOffer = {
+    id: 'trade-visual',
+    fromId: 'p0',
+    give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0 },
+    want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1 },
+    to: ['p1', 'p2', 'p3'],
+    acceptedBy: ['p1'],
+    declinedBy: ['p2'],
+    counters: [],
+    createdAt: now - 10_000,
+    expiresAt: now + 20_000,
+  };
+  game.players[1]!.resources.ore += 1;
+  game.bank.ore -= 1;
+  await mountGame(page, game);
+  await page.getByLabel('Follow current turn').uncheck();
+  const notice = page.getByRole('region', { name: 'Trade offer' });
+  await notice.screenshot({ path: 'test-results/visual-trade-offerer.png' });
+  await page.getByLabel('Play as', { exact: true }).selectOption('p3');
+  await notice.screenshot({ path: 'test-results/visual-trade-recipient.png' });
+  await page.getByLabel('Play as', { exact: true }).selectOption('p0');
+  await page.getByRole('button', { name: 'Withdraw offer' }).click();
+  await page.getByRole('button', { name: /^Trade Lumber/ }).click();
+  await page.getByRole('button', { name: 'Request one more Ore' }).click();
+  await page.locator('.board-viewport').screenshot({ path: 'test-results/visual-trade-composer.png' });
+});

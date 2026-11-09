@@ -192,12 +192,15 @@ test('resource click creates a compact timed offer, other seats accept, chat wor
   await page.getByLabel('Follow current turn').uncheck();
   await page.getByRole('button', { name: /^Trade Lumber/ }).click();
   await page.getByRole('button', { name: 'Request one more Ore' }).click();
-  await page.getByRole('button', { name: 'Send offer' }).click();
+  await page.getByRole('button', { name: 'Offer to players' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByLabel('Play as', { exact: true }).selectOption('p1');
   const notice = page.getByRole('region', { name: 'Trade offer' });
   await expect(notice).toBeVisible();
-  await expect(notice.getByRole('img', { name: 'Offer time remaining' })).toBeVisible();
+  // For a recipient the time left is the pie on the accept button.
+  const accept = notice.getByRole('button', { name: 'Accept trade', exact: true });
+  await expect(accept).toBeVisible();
+  expect(await accept.evaluate(el => (el as HTMLElement).style.getPropertyValue('--progress'))).toMatch(/deg$/);
   const banner = (await notice.boundingBox())!,
     board = (await page.locator('.board-viewport').boundingBox())!;
   expect(banner.y).toBeGreaterThanOrEqual(board.y);
@@ -206,8 +209,14 @@ test('resource click creates a compact timed offer, other seats accept, chat wor
   expect(board.x + board.width - (banner.x + banner.width)).toBeLessThan(24);
   const wood = game.state().players[1].resources.wood;
   await page.getByRole('button', { name: 'Accept trade', exact: true }).click();
+  await expect.poll(() => game.state().tradeOffer?.acceptedBy).toEqual(['p1']);
+  // The offer stays up for p1; p0 sees p1's check and taps it to trade.
+  await expect(notice.getByText(/Waiting for/)).toBeVisible();
+  await page.getByLabel('Play as', { exact: true }).selectOption('p0');
+  await page.getByRole('button', { name: 'Trade with Player 1' }).click();
   await expect.poll(() => game.state().tradeOffer).toBeNull();
   expect(game.state().players[1].resources.wood).toBe(wood + 1);
+  await page.getByLabel('Play as', { exact: true }).selectOption('p1');
   await page.getByLabel('Chat message').fill('Trading works!');
   await page.getByRole('button', { name: 'Send message' }).click();
   await expect(page.getByText('Trading works!', { exact: true })).toBeVisible();

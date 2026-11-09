@@ -57,13 +57,14 @@ const REVERSIBLE = new Set<GameAction['type']>([
   'build-settlement',
   'build-city',
   'trade',
-  'accept-trade',
+  'confirm-trade',
   'accept-counter',
   'end-turn',
 ]);
 /** Moves that neither create nor clear undo history. */
 const PASSIVE = new Set<GameAction['type']>([
   'offer-trade',
+  'accept-trade',
   'decline-trade',
   'cancel-trade',
   'counter-trade',

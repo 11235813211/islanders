@@ -393,6 +393,10 @@ function makeBrain(profile: Profile): Brain {
 
     review(view: GameView, offer: TradeOffer): GameAction {
       const p = new Planner(view, profile);
+      // Of those who said yes, trade with whoever is furthest from winning.
+      const points = (id: string) => view.players.find(pl => pl.id === id)?.publicPoints ?? 0;
+      const partner = [...offer.acceptedBy].sort((a, b) => points(a) - points(b))[0];
+      if (partner) return { type: 'confirm-trade', offerId: offer.id, playerId: partner };
       const good = offer.counters.find(c => p.tradeIsGood(c.fromId, c.give, c.want));
       return good
         ? { type: 'accept-counter', offerId: offer.id, counterId: good.id }

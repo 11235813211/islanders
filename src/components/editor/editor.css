@@ -2,7 +2,7 @@
    browser (maps.css). Built for a desktop first; on a phone the settings open as a drawer. */
 .board-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 372px;
   grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-areas:
     "bar bar"
@@ -11,6 +11,34 @@
   height: calc(100dvh - 72px);
   min-height: 520px;
   color: var(--ink);
+}
+.board-editor.inspector-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+.board-editor.inspector-collapsed .editor-inspector {
+  visibility: hidden;
+}
+/* Sits on the canvas's right edge, just left of the settings panel's top corner. */
+.inspector-toggle {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: -2px 1px 6px #0002;
+}
+.inspector-toggle:hover {
+  background: #edf7fa;
 }
 .editor-bar {
   grid-area: bar;
@@ -199,6 +227,51 @@
 .board-fields input[type="number"] {
   width: 58px;
 }
+.expansions-menu {
+  position: relative;
+}
+.expansions-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 260px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.expansions-button span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.expansions-button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expansions-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 4px;
+  width: 220px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px #173e5030;
+}
+.expansions-list .check-row {
+  gap: 7px;
+  font-size: 13.5px;
+}
 .brush-picker {
   position: relative;
   margin-left: 6px;
@@ -274,6 +347,9 @@
 }
 .editor-notice {
   grid-area: notice;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   padding: 6px 16px;
   background: #fff4d6;
@@ -411,7 +487,9 @@
 /* Settings */
 .editor-inspector {
   grid-area: inspector;
-  overflow: auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-left: 1px solid var(--line);
   background: var(--panel);
 }
@@ -514,6 +592,39 @@
   font-size: 15px;
   font-weight: 900;
 }
+.dot-limit {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 6px;
+}
+.dot-limit .chip-label {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.dot-limit button {
+  min-width: 26px;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  line-height: 1;
+  cursor: pointer;
+}
+.dot-limit button[aria-pressed="true"] {
+  border-color: var(--cyan);
+  background: #e3f4f8;
+  color: var(--ink);
+}
+.dot-limit button.hot[aria-pressed="true"] {
+  color: #b8513f;
+}
 .number-grid button.hot {
   color: #b8513f;
 }
@@ -560,8 +671,8 @@
 }
 .pool-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 12px;
 }
 .pool-row {
   display: flex;
@@ -569,15 +680,48 @@
   gap: 6px;
   font-size: 13px;
 }
-.pool-row span:nth-child(2) {
+.pool-row > span {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.pool-grid.single {
+  grid-template-columns: 1fr;
+  margin-top: 6px;
+}
+.pool-row.off > :not(input[type="checkbox"]) {
+  opacity: 0.45;
+}
+.pool-row input[type="number"] {
+  width: 46px;
+  flex: 0 0 auto;
+  padding: 3px 5px;
+  font-size: 13px;
+}
+.pool-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.pool-presets {
+  margin-bottom: 8px;
+}
+.pool-rich {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.pool-rich select {
+  padding: 4px 6px;
+  font-size: 13px;
+}
 .inspector-field .pool-row input {
-  width: 52px;
+  width: 46px;
   flex: 0 0 auto;
   padding: 3px 5px;
   font-size: 13px;
@@ -646,7 +790,7 @@
     grid-area: stage;
     z-index: 40;
     justify-self: end;
-    width: min(340px, 88vw);
+    width: min(372px, 88vw);
     min-height: 0;
     box-shadow: 0 0 30px #0004;
     transform: translateX(105%);
@@ -657,6 +801,12 @@
   }
   .editor-hint {
     display: none;
+  }
+  .inspector-toggle {
+    display: none;
+  }
+  .board-editor.inspector-collapsed {
+    grid-template-columns: minmax(0, 1fr);
   }
   .brush-menu {
     right: 0;

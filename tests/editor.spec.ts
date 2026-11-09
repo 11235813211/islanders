@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { hexCenter } from '../shared/board';
-import type { BoardDesign, BoardLibrary } from '../shared/maps';
+import { type BoardDesign, type BoardLibrary, BUILTIN_BOARDS } from '../shared/maps';
 import { origin, server } from './server-helpers';
 
 /** Register an account and store it in the browser, as signing in would. */
@@ -170,4 +170,41 @@ test('boards move between categories by drag and drop, and categories can be add
     data: { categories: before.categories, order: before.boards.map(b => ({ id: b.id, categoryId: b.categoryId })) },
   });
   expect(restore.status()).toBe(200);
+});
+
+test('the settings panel fits without sideways scrolling, folds away, and a board open elsewhere is read-only', async ({
+  page,
+  browser,
+}) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  const library = page.getByRole('dialog', { name: 'Boards' });
+  await expect(library.getByRole('button', { name: 'Home' })).toBeVisible();
+  await library.getByRole('button', { name: 'Edit Outer Isles' }).click();
+  const panel = page.getByRole('complementary', { name: 'Settings' });
+  await expect(panel.getByText('Random land mix')).toBeVisible();
+  // Select a random land tile so the tile panel (with its dot limits) shows too.
+  const land = BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!.tiles.find(t => t.kind === 'land')!;
+  // Below the number token: clicking the token itself raises the number.
+  const point = await cellPoint(page, land.q, land.r, 0, 32);
+  await page.mouse.click(point.x, point.y);
+  await expect(panel.getByRole('group', { name: 'Random number may have' })).toBeVisible();
+  const overflow = await panel.evaluate(el => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: 'test-results/editor-panel.png' });
+  await page.getByRole('button', { name: 'Hide settings panel' }).click();
+  await expect(panel).toBeHidden();
+  await page.getByRole('button', { name: 'Show settings panel' }).click();
+  await expect(panel).toBeVisible();
+
+  // A second editor opening the same board can look but not save.
+  const other = await browser.newPage();
+  await signIn(other);
+  await other.goto('/#editor');
+  await other.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();
+  await expect(other.getByText(/is editing this board/)).toBeVisible();
+  await other.close();
+  // Home leaves the editor (and lets the board go).
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Board editor' })).toBeVisible();
 });

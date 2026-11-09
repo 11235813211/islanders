@@ -1,5 +1,5 @@
 import { GUEST_NAMES } from './guest-names';
-import { type BotLevel, type GameSettings, type Phase, PIECE_STYLES } from './types';
+import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
 
 export const DEFAULT_SETTINGS: GameSettings = {
   autoRollSeconds: 10,
@@ -10,6 +10,43 @@ export const DEFAULT_SETTINGS: GameSettings = {
   discardLimit: 7,
   victoryPoints: 10,
   pieceStyle: 'classic',
+  tradeSeconds: 30,
+  showBank: false,
+  discoveries: 'kept',
+  volcanoGold: true,
+};
+/** Trade offer lengths the lobby offers. */
+export const TRADE_SECONDS = [15, 30, 45, 60, 90, 120] as const;
+
+/**
+ * Discovery rules: what jungle discoveries can do besides paying for development cards.
+ * `kept` is the published jungle rule.
+ */
+export const DISCOVERY_RULES: Record<
+  DiscoveryRule,
+  { label: string; hint: string; tradable: boolean; inHand: boolean; stealable: boolean }
+> = {
+  kept: {
+    label: 'Kept safe',
+    hint: 'Never stolen, traded, or discarded',
+    tradable: false,
+    inHand: false,
+    stealable: false,
+  },
+  tradable: {
+    label: 'Tradable',
+    hint: 'Traded, and counted toward discards on a 7; never stolen or taken by Monopoly',
+    tradable: true,
+    inHand: true,
+    stealable: false,
+  },
+  card: {
+    label: 'Like a card',
+    hint: 'Stolen, traded, discarded, and taken by Monopoly or Year of Plenty like a resource',
+    tradable: true,
+    inHand: true,
+    stealable: true,
+  },
 };
 export const VICTORY_POINT_RANGE = { min: 3, max: 20 } as const;
 
@@ -45,7 +82,11 @@ export function validSettings(
     (s.friendlyRobber === undefined || typeof s.friendlyRobber === 'boolean') &&
     (s.discardLimit === undefined || integerIn(s.discardLimit, 3, 20)) &&
     (s.victoryPoints === undefined || integerIn(s.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max)) &&
-    (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never))
+    (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never)) &&
+    (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
+    (s.showBank === undefined || typeof s.showBank === 'boolean') &&
+    (s.discoveries === undefined || Object.hasOwn(DISCOVERY_RULES, s.discoveries as string)) &&
+    (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean')
   );
 }
 

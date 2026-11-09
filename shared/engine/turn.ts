@@ -1,30 +1,41 @@
 import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
-import { type GameState, RESOURCES } from '../types';
+import { type GameState, RESOURCES, type Tradable } from '../types';
 import {
+  addBag,
   addLog,
   BUILD_COSTS,
+  bagCount,
   bumpStat,
+  canAfford,
+  discoveryRule,
+  emptyBag,
   type Handlers,
+  handSize,
+  holding,
   isLargeGame,
   needPhase,
   PIECE_LIMITS,
   pay,
   pieceCounts,
   requireRule,
-  resourceCount,
 } from './core';
 import { canSpecialBuild, legalMoves, roadSites, shipSites, stealTargets } from './legal';
-import { erupt, produce } from './production';
+import { drift, erupt, produce } from './production';
 
-/** Take one weighted-random card from the victim, then return to the phase the robber interrupted. */
+/**
+ * Take one weighted-random card (or, where the room allows it, a discovery) from the victim, then
+ * return to the phase the robber interrupted.
+ */
 export function stealResource(state: GameState, actorId: string, victimId: string, random: () => number): void {
   const player = state.players.find(p => p.id === actorId)!;
   const victim = state.players.find(p => p.id === victimId)!;
-  let index = Math.floor(random() * resourceCount(victim.resources));
-  for (const resource of RESOURCES) {
-    if (index < victim.resources[resource]) {
-      victim.resources[resource]--;
-      player.resources[resource]++;
+  const pool: Tradable[] = discoveryRule(state).stealable ? [...RESOURCES, 'discovery'] : [...RESOURCES];
+  let index = Math.floor(random() * pool.reduce((n, item) => n + holding(victim, item), 0));
+  for (const resource of pool) {
+    if (index < holding(victim, resource)) {
+      const one = { ...emptyBag(), [resource]: 1 };
+      addBag(victim, one, -1);
+      addBag(player, one);
       bumpStat(state, actorId, 'stolen');
       bumpStat(state, victimId, 'lost');
       addLog(state, `${player.name} took one resource from ${victim.name}.`, {
@@ -35,7 +46,7 @@ export function stealResource(state: GameState, actorId: string, victimId: strin
       });
       break;
     }
-    index -= victim.resources[resource];
+    index -= holding(victim, resource);
   }
   state.phase = state.resumePhase ?? 'build';
   state.resumePhase = null;
@@ -156,7 +167,7 @@ export const turnHandlers: Pick<
       next.pendingDiscards = {};
       next.stealHex = null;
       for (const candidate of next.players) {
-        const count = resourceCount(candidate.resources);
+        const count = handSize(next, candidate);
         if (count > next.settings.discardLimit) next.pendingDiscards[candidate.id] = Math.floor(count / 2);
       }
       next.phase = Object.keys(next.pendingDiscards).length ? 'discard' : 'robber';
@@ -165,6 +176,7 @@ export const turnHandlers: Pick<
       const gains = produce(next, total);
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains });
       erupt(next, total, random);
+      drift(next, total, random);
       next.phase = Object.keys(next.pendingGold).length ? 'gold' : 'build';
     }
   },
@@ -173,8 +185,14 @@ export const turnHandlers: Pick<
     needPhase(next, 'discard');
     const amount = next.pendingDiscards[playerId];
     requireRule(amount && amount > 0, 'You do not need to discard.');
-    requireRule(resourceCount(action.resources) === amount, `Choose exactly ${amount} resources to discard.`);
-    pay(next, player, action.resources);
+    requireRule(bagCount(action.resources) === amount, `Choose exactly ${amount} resources to discard.`);
+    requireRule(
+      !action.resources.discovery || discoveryRule(next).inHand,
+      'Discoveries are not discarded in this room.',
+    );
+    requireRule(canAfford(player, action.resources), 'You do not have enough resources.');
+    addBag(player, action.resources, -1);
+    for (const r of RESOURCES) next.bank[r] += action.resources[r];
     delete next.pendingDiscards[playerId];
     bumpStat(next, playerId, 'discarded', amount);
     if (!Object.keys(next.pendingDiscards).length) next.phase = 'robber';

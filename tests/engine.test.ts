@@ -793,7 +793,7 @@ describe('player trade offers', () => {
   const give = { ...emptyBag(), wood: 2 };
   const want = { ...emptyBag(), ore: 1 };
 
-  it('shows an offer to all seats and atomically exchanges resources outside the recipient’s turn', () => {
+  it('shows an offer to all seats; a yes waits for the proposer, who then trades with that player', () => {
     const state = tradingGame();
     const offered = applyAction(state, 'p0', { type: 'offer-trade', give, want });
     expect(offered.tradeOffer).toMatchObject({
@@ -801,11 +801,18 @@ describe('player trade offers', () => {
       fromId: 'p0',
       give,
       want,
+      acceptedBy: [],
       declinedBy: [],
     });
     expect(getView(offered, 'p1').tradeOffer).toEqual(offered.tradeOffer);
     expect(offered.players.map(player => player.resources)).toEqual(state.players.map(player => player.resources));
-    const accepted = applyAction(offered, 'p1', { type: 'accept-trade', offerId: offered.tradeOffer!.id });
+    const offerId = offered.tradeOffer!.id;
+    const yes = applyAction(offered, 'p1', { type: 'accept-trade', offerId });
+    expect(yes.tradeOffer!.acceptedBy).toEqual(['p1']);
+    expect(yes.players).toEqual(offered.players);
+    expect(() => applyAction(yes, 'p0', { type: 'confirm-trade', offerId, playerId: 'p2' })).toThrow(/not accepted/);
+    expect(() => applyAction(yes, 'p1', { type: 'confirm-trade', offerId, playerId: 'p1' })).toThrow(/turn/);
+    const accepted = applyAction(yes, 'p0', { type: 'confirm-trade', offerId, playerId: 'p1' });
     expect(accepted.players[0].resources).toEqual({ ...emptyBag(), wood: 2, brick: 1, ore: 1 });
     expect(accepted.players[1].resources).toEqual({ ...emptyBag(), wood: 2, ore: 2 });
     expect(accepted.bank).toEqual(state.bank);
@@ -852,10 +859,14 @@ describe('player trade offers', () => {
     const action = { type: 'accept-trade', offerId: offered.tradeOffer!.id } as const;
     const original = structuredClone(offered);
     expect(() => applyAction(offered, 'p0', action)).toThrow(/own trade/);
-    expect(() => applyAction(offered, 'p2', action)).toThrow(/Both players/);
+    expect(() => applyAction(offered, 'p2', action)).toThrow(/do not have/);
     expect(() => applyAction(offered, 'p1', { ...action, offerId: 'expired' })).toThrow(/no longer/);
     expect(offered).toEqual(original);
-    const accepted = applyAction(offered, 'p1', action);
+    const accepted = applyAction(applyAction(offered, 'p1', action), 'p0', {
+      type: 'confirm-trade',
+      offerId: action.offerId,
+      playerId: 'p1',
+    });
     expect(() => applyAction(accepted, 'p2', action)).toThrow(/no longer/);
     const replaced = applyAction(offered, 'p0', { type: 'offer-trade', give: { ...give, wood: 3 }, want });
     expect(replaced.tradeOffer!.id).not.toBe(action.offerId);
@@ -863,13 +874,16 @@ describe('player trade offers', () => {
     assertConserved(replaced);
   });
 
-  it('tracks declines independently, permits the proposer to cancel, and expires offers on end turn', () => {
+  it('tracks answers independently, lets a recipient change theirs, permits cancel, and expires on end turn', () => {
     const offered = applyAction(tradingGame(), 'p0', { type: 'offer-trade', give, want });
     const offerId = offered.tradeOffer!.id;
     const declined = applyAction(offered, 'p2', { type: 'decline-trade', offerId });
     expect(declined.tradeOffer!.declinedBy).toEqual(['p2']);
     expect(declined.players).toEqual(offered.players);
-    expect(() => applyAction(declined, 'p2', { type: 'decline-trade', offerId })).toThrow(/already declined/);
+    const yes = applyAction(declined, 'p1', { type: 'accept-trade', offerId });
+    const changed = applyAction(yes, 'p1', { type: 'decline-trade', offerId });
+    expect(changed.tradeOffer!.acceptedBy).toEqual([]);
+    expect(changed.tradeOffer!.declinedBy).toEqual(['p2', 'p1']);
     expect(() => applyAction(offered, 'p0', { type: 'decline-trade', offerId })).toThrow(/Cancel/);
     expect(() => applyAction(offered, 'p1', { type: 'cancel-trade', offerId })).toThrow(/turn/);
     expect(applyAction(declined, 'p0', { type: 'cancel-trade', offerId }).tradeOffer).toBeNull();
@@ -901,7 +915,9 @@ describe('player trade offers', () => {
     const state = tradingGame();
     for (let i = 0; i < 5; i++) state.buildings[`v${i}`] = { playerId: 'p1', kind: 'city' };
     const offered = applyAction(state, 'p0', { type: 'offer-trade', give, want });
-    const accepted = applyAction(offered, 'p1', { type: 'accept-trade', offerId: offered.tradeOffer!.id });
+    const offerId = offered.tradeOffer!.id;
+    const yes = applyAction(offered, 'p1', { type: 'accept-trade', offerId });
+    const accepted = applyAction(yes, 'p0', { type: 'confirm-trade', offerId, playerId: 'p1' });
     expect(accepted.phase).toBe('build');
     expect(accepted.winnerId).toBeNull();
   });

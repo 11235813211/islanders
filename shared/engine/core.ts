@@ -1,4 +1,5 @@
 import type { BoardDesign } from '../maps/types';
+import { DISCOVERY_RULES } from '../settings';
 import {
   type GameAction,
   type GameEvent,
@@ -7,6 +8,8 @@ import {
   type PlayerStats,
   RESOURCES,
   type ResourceBag,
+  type Tradable,
+  type TradeBag,
 } from '../types';
 
 /** Thrown for any rejected command. The message is shown to the player. */
@@ -23,6 +26,21 @@ export function requireRule(condition: unknown, message: string): asserts condit
 
 export const emptyBag = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
 export const resourceCount = (bag: ResourceBag): number => RESOURCES.reduce((sum, resource) => sum + bag[resource], 0);
+/** Cards plus discoveries in a trade or discard bag. */
+export const bagCount = (bag: TradeBag): number => resourceCount(bag) + (bag.discovery ?? 0);
+/** What this room lets jungle discoveries do (see DISCOVERY_RULES). */
+export const discoveryRule = (state: GameState) => DISCOVERY_RULES[state.settings.discoveries ?? 'kept'];
+/** Cards that count toward the discard limit on a 7. */
+export const handSize = (state: GameState, player: Player): number =>
+  resourceCount(player.resources) + (discoveryRule(state).inHand ? player.discoveries : 0);
+/** How many of `item` a player holds. */
+export const holding = (player: Player, item: Tradable): number =>
+  item === 'discovery' ? player.discoveries : player.resources[item];
+/** Add (or with a negative sign, remove) a bag to a player's hand. */
+export function addBag(player: Player, bag: TradeBag, sign: 1 | -1 = 1): void {
+  for (const r of RESOURCES) player.resources[r] += sign * bag[r];
+  player.discoveries += sign * (bag.discovery ?? 0);
+}
 export const emptyStats = (): PlayerStats => ({ gained: 0, stolen: 0, lost: 0, discarded: 0, trades: 0 });
 export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
@@ -39,7 +57,6 @@ export function bankFor(players: number): ResourceBag {
   const n = isLargeGame(players) ? 24 : 19;
   return { wood: n, brick: n, sheep: n, wheat: n, ore: n };
 }
-export const TRADE_OFFER_MS = 30_000;
 export const BUILD_COSTS: Record<'road' | 'ship' | 'settlement' | 'city' | 'development', ResourceBag> = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 },
   ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0 },
@@ -81,8 +98,11 @@ export function undoEndsTurn(state: GameState): boolean {
 export const isHuman = (player: Player): boolean => !player.bot;
 export const humanPlayers = (state: GameState): Player[] => state.players.filter(isHuman);
 
-export function canAfford(player: Player, cost: ResourceBag): boolean {
-  return RESOURCES.every(resource => player.resources[resource] >= cost[resource]);
+export function canAfford(player: Player, cost: TradeBag): boolean {
+  return (
+    RESOURCES.every(resource => player.resources[resource] >= cost[resource]) &&
+    player.discoveries >= (cost.discovery ?? 0)
+  );
 }
 
 export function pay(state: GameState, player: Player, cost: ResourceBag): void {

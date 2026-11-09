@@ -1,0 +1,173 @@
+/* Trade offers: each side from the viewer's view (green: you get, red: you give), one colored
+   square per recipient's answer, and the yes / no / counter buttons (yes carries the time left). */
+.trade-notice {
+  align-items: flex-start;
+}
+.offer-exchange {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.offer-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.offer-side small {
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.offer-arrow {
+  display: inline-grid;
+  place-items: center;
+}
+.offer-side.get .offer-arrow,
+.offer-side.get small {
+  color: #14892f;
+}
+.offer-side.give .offer-arrow,
+.offer-side.give small {
+  color: #ce352b;
+}
+.trade-chip.get {
+  outline: 2px solid #1c9a3c;
+  outline-offset: 1px;
+}
+.trade-chip.give {
+  outline: 2px solid #d43d31;
+  outline-offset: 1px;
+}
+.offer-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.offer-answer {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid #10202a33;
+  border-radius: 6px;
+  background: var(--player-color);
+  color: var(--player-ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+.offer-answer.waiting {
+  opacity: 0.75;
+}
+.offer-answer.no {
+  opacity: 0.6;
+}
+.offer-answer.confirm {
+  border-color: #1b8a5d;
+  box-shadow: 0 0 0 2px #1f9e6f66;
+  cursor: pointer;
+}
+.offer-answer.confirm:hover {
+  transform: translateY(-1px);
+}
+.answer-wait {
+  line-height: 1;
+}
+.offer-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.answer-button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid #10202a33;
+  border-radius: 9px;
+  color: #fff;
+  cursor: pointer;
+}
+.answer-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.answer-button svg {
+  filter: drop-shadow(0 1px 1px #0005);
+}
+/* The yes button's face is a pie of the time left: bright for what remains, shaded for what has passed. */
+.answer-button.yes {
+  background: conic-gradient(transparent var(--progress, 360deg), #0b3d2a80 0), #1f9e6f;
+  border-color: #1b8a5d;
+}
+.answer-button.no {
+  background: #c8473b;
+  border-color: #a8362c;
+}
+.answer-button.counter {
+  background: #2f7f9e;
+  border-color: #23667f;
+}
+.answer-button[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #163c50;
+}
+.offer-counter .offer-exchange {
+  align-items: center;
+}
+.offer-counter .answer-button {
+  margin-left: auto;
+}
+.discovery-count {
+  cursor: pointer;
+}
+.trade-composer > footer .button + .button {
+  margin-left: 4px;
+}
+.trade-composer > footer > span {
+  margin-right: auto;
+}
+@media (max-width: 720px), (max-height: 600px) {
+  .answer-button {
+    width: 34px;
+    height: 34px;
+  }
+  .offer-answer {
+    width: 21px;
+    height: 21px;
+  }
+}
+.bank-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.bank-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 5px;
+  border: 1px solid var(--card);
+  border-radius: 4px;
+  background: var(--card-light);
+  color: var(--card-dark);
+}
+.trade-card > strong.bank-badge {
+  background: #4f6b74;
+  border-color: #33494f;
+}
+.trade-selection.want .trade-card {
+  outline: 2px solid #1c9a3c;
+  outline-offset: 1px;
+}
+.trade-selection.give .trade-card {
+  outline: 2px solid #d43d31;
+  outline-offset: 1px;
+}

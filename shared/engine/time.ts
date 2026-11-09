@@ -1,4 +1,5 @@
 import { chooseBotAction } from '../bots';
+import { hasAnswered } from '../rules';
 import { DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
 import { applyAction } from './apply';
 import { addLog, GameError, getActivePlayerId, undoEndsTurn } from './core';
@@ -22,11 +23,11 @@ export function pendingBotActor(state: GameState): string | null {
   if (state.phase === 'gold') return Object.keys(state.pendingGold).find(id => isBot(state, id)) ?? null;
   const offer = state.tradeOffer;
   if (offer && state.phase === 'build') {
-    const answered = (id: string) => offer.declinedBy.includes(id) || offer.counters.some(c => c.fromId === id);
-    const responder = offer.to.find(id => isBot(state, id) && !answered(id));
+    const responder = offer.to.find(id => isBot(state, id) && !hasAnswered(offer, id));
     if (responder) return responder;
-    // A bot that made an offer waits until everyone has answered (or the offer expires).
-    if (isBot(state, offer.fromId)) return offer.to.every(answered) ? offer.fromId : null;
+    // A bot that made an offer trades as soon as someone says yes, or waits until everyone has answered.
+    if (isBot(state, offer.fromId))
+      return offer.acceptedBy.length || offer.to.every(id => hasAnswered(offer, id)) ? offer.fromId : null;
   }
   const active = getActivePlayerId(state);
   return active && isBot(state, active) ? active : null;

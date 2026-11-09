@@ -93,6 +93,7 @@ function map(
     harbors: autoHarbors(grid.tiles, options.harbors),
     pool: options.pool ?? { ...BASE_POOL },
     harborExclude: [],
+    expansions: ['seafarers', ...(options.players[1] >= 5 ? (['five-six'] as const) : [])],
     updatedAt: 0,
   };
 }

@@ -3,10 +3,18 @@
 import { ArrowDown, ArrowUp, Check, X } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { emptyBag, resourceCount } from '../../../shared/engine';
-import { type GameAction, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../../shared/types';
-import { ResourceIcon } from '../../art';
-import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
+import { type GameAction, type GameView, RESOURCES, type Tradable, type TradeBag } from '../../../shared/types';
 import { blockedReason, cardToPlay } from './DevelopmentHand';
+import {
+  bagHas,
+  bagTotal,
+  held,
+  TradableIcon,
+  tradableLabel,
+  tradableStyle,
+  tradablesFor,
+  withItem,
+} from './tradables';
 
 /** Header, body and footer shared by every corner panel. */
 function Panel({
@@ -48,6 +56,8 @@ function Panel({
   );
 }
 
+const ALL: Tradable[] = [...RESOURCES, 'discovery'];
+
 /** A row of chosen cards; tapping one takes it back out. */
 function Chosen({
   bag,
@@ -56,11 +66,11 @@ function Chosen({
   hint,
   remove,
 }: {
-  bag: ResourceBag;
+  bag: TradeBag;
   label: string;
   direction: 'in' | 'out';
   hint: string;
-  remove: (resource: Resource) => void;
+  remove: (item: Tradable) => void;
 }) {
   return (
     <div className={`trade-selection ${direction === 'in' ? 'want' : 'give'}`} role="group" aria-label={label}>
@@ -69,65 +79,72 @@ function Chosen({
         <small>{label}</small>
       </span>
       <div className="trade-selected-cards">
-        {RESOURCES.filter(r => bag[r] > 0).map(r => (
+        {ALL.filter(r => bagHas(bag, r) > 0).map(r => (
           <button
             key={r}
             className="trade-card"
-            style={cardStyle(r)}
-            aria-label={`Put back one ${RESOURCE_LABELS[r]}`}
+            style={tradableStyle(r)}
+            aria-label={`Put back one ${tradableLabel(r)}`}
             onClick={() => remove(r)}
           >
-            <ResourceIcon resource={r} size={26} />
-            <strong>{bag[r]}</strong>
+            <TradableIcon item={r} size={26} />
+            <strong>{bagHas(bag, r)}</strong>
           </button>
         ))}
-        {!resourceCount(bag) && <span className="trade-hint">{hint}</span>}
+        {!bagTotal(bag) && <span className="trade-hint">{hint}</span>}
       </div>
     </div>
   );
 }
 
-/** One button per resource, as in the trade panel's "receive" row. */
-function Palette({
+/** One button per item (resources, and discoveries where allowed), as in the trade panel's "receive" row. */
+export function Palette({
+  items,
   label,
   name,
   disabled,
   pressed,
+  count,
   pick,
 }: {
+  items: Tradable[];
   label: string;
-  name: (resource: Resource) => string;
-  disabled: (resource: Resource) => boolean;
-  pressed?: (resource: Resource) => boolean;
-  pick: (resource: Resource) => void;
+  name: (item: Tradable) => string;
+  disabled: (item: Tradable) => boolean;
+  pressed?: (item: Tradable) => boolean;
+  /** A small number on each card, such as how many the bank has left. */
+  count?: (item: Tradable) => number | null;
+  pick: (item: Tradable) => void;
 }) {
   return (
     <div className="trade-palette" role="group" aria-label={label}>
-      {RESOURCES.map(r => (
+      {items.map(r => (
         <button
           className="trade-card"
-          style={cardStyle(r)}
+          style={tradableStyle(r)}
           key={r}
           aria-label={name(r)}
           aria-pressed={pressed?.(r)}
           disabled={disabled(r)}
           onClick={() => pick(r)}
         >
-          <ResourceIcon resource={r} size={28} />
-          <span>{RESOURCE_LABELS[r]}</span>
+          <TradableIcon item={r} size={28} />
+          <span>{tradableLabel(r)}</span>
+          {count?.(r) != null && <strong className="bank-badge">{count(r)}</strong>}
         </button>
       ))}
     </div>
   );
 }
 
-const without = (bag: ResourceBag, r: Resource): ResourceBag => ({ ...bag, [r]: Math.max(0, bag[r] - 1) });
+const without = (bag: TradeBag, r: Tradable): TradeBag => withItem(bag, r, -1);
 
-/** Add one card from your hand to a discard, within what you hold and what you owe. */
-export function addDiscard(bag: ResourceBag, resource: Resource, view: GameView): ResourceBag {
+/** Add one card (or discovery, where it counts) from your hand to a discard, within what you hold and owe. */
+export function addDiscard(bag: TradeBag, item: Tradable, view: GameView): TradeBag {
   const owed = view.pendingDiscards[view.selfId] ?? 0;
-  if (bag[resource] >= view.hand[resource] || resourceCount(bag) >= owed) return bag;
-  return { ...bag, [resource]: bag[resource] + 1 };
+  if (!tradablesFor(view, 'discard').includes(item)) return bag;
+  if (bagHas(bag, item) >= held(view, item) || bagTotal(bag) >= owed) return bag;
+  return withItem(bag, item, 1);
 }
 
 /** On a 7: tap cards in your hand to set them aside, tap them here to keep them. */
@@ -139,13 +156,13 @@ export function DiscardPanel({
   send,
 }: {
   view: GameView;
-  bag: ResourceBag;
-  setBag: (bag: ResourceBag) => void;
+  bag: TradeBag;
+  setBag: (bag: TradeBag) => void;
   busy: boolean;
   send: (a: GameAction) => void;
 }) {
   const owed = view.pendingDiscards[view.selfId] ?? 0;
-  const count = resourceCount(bag);
+  const count = bagTotal(bag);
   return (
     <Panel
       title="Discard resources"
@@ -184,8 +201,8 @@ export function PlentyPanel({
   send: (a: GameAction) => void;
   close: () => void;
 }) {
-  const [bag, setBag] = useState(emptyBag);
-  const picked = resourceCount(bag);
+  const [bag, setBag] = useState<TradeBag>(emptyBag);
+  const picked = bagTotal(bag);
   const reason = blockedReason(view, 'year-of-plenty');
   return (
     <Panel
@@ -207,10 +224,12 @@ export function PlentyPanel({
       }
     >
       <Palette
+        items={tradablesFor(view, 'take')}
         label="Choose resources to take"
-        name={r => `Take one more ${RESOURCE_LABELS[r]}`}
-        disabled={r => busy || picked >= 2 || !view.bank[r]}
-        pick={r => setBag({ ...bag, [r]: bag[r] + 1 })}
+        name={r => `Take one more ${tradableLabel(r)}`}
+        disabled={r => busy || picked >= 2 || (r !== 'discovery' && !view.bank[r])}
+        count={r => (r === 'discovery' ? null : (view.bankCounts?.[r] ?? null))}
+        pick={r => setBag(withItem(bag, r, 1))}
       />
       <Chosen bag={bag} label="Take" direction="in" hint="Choose cards above" remove={r => setBag(without(bag, r))} />
     </Panel>
@@ -229,7 +248,7 @@ export function MonopolyPanel({
   send: (a: GameAction) => void;
   close: () => void;
 }) {
-  const [choice, setChoice] = useState<Resource | null>(null);
+  const [choice, setChoice] = useState<Tradable | null>(null);
   const reason = blockedReason(view, 'monopoly');
   return (
     <Panel
@@ -247,13 +266,14 @@ export function MonopolyPanel({
           }}
         >
           <Check size={18} />
-          {choice ? `Take all ${RESOURCE_LABELS[choice]}` : 'Choose a resource'}
+          {choice ? `Take all ${tradableLabel(choice)}` : 'Choose a resource'}
         </button>
       }
     >
       <Palette
+        items={tradablesFor(view, 'take')}
         label="Choose a resource"
-        name={r => RESOURCE_LABELS[r]}
+        name={tradableLabel}
         disabled={() => busy}
         pressed={r => choice === r}
         pick={setChoice}
@@ -283,10 +303,12 @@ export function GoldPanel({ view, busy, send }: { view: GameView; busy: boolean;
       }
     >
       <Palette
+        items={[...RESOURCES]}
         label="Choose resources from gold"
-        name={r => `Take one more ${RESOURCE_LABELS[r]}`}
-        disabled={r => busy || picked >= owed || !view.bank[r]}
-        pick={r => setBag({ ...bag, [r]: bag[r] + 1 })}
+        name={r => `Take one more ${tradableLabel(r)}`}
+        disabled={r => busy || picked >= owed || (r !== 'discovery' && !view.bank[r])}
+        count={r => (r === 'discovery' ? null : (view.bankCounts?.[r] ?? null))}
+        pick={r => setBag(withItem(bag, r, 1))}
       />
       <Chosen bag={bag} label="Take" direction="in" hint="Choose cards above" remove={r => setBag(without(bag, r))} />
     </Panel>

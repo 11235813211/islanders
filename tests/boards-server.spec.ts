@@ -53,6 +53,27 @@ test('anyone reads the board library; signed-in editors save, rearrange, and del
   expect((await read()).boards.map(b => b.id)).toEqual(before.boards.map(b => b.id));
 });
 
+test('one editor at a time: a board held by one account cannot be saved or deleted by another', async ({ request }) => {
+  const id = `lock-${Date.now().toString(36)}`;
+  const design = { ...structuredClone(BUILTIN_BOARDS[0]!), id, name: 'Lock test' };
+  const first = await registerAccount(request);
+  const second = await registerAccount(request);
+  const lock = (headers: Record<string, string>, method: 'post' | 'delete') =>
+    request[method](`${server}/api/boards/${id}/lock`, { headers });
+  expect((await lock(first, 'post')).status()).toBe(200);
+  // Renewing your own hold is fine; someone else is told who is editing.
+  expect((await lock(first, 'post')).status()).toBe(200);
+  const blocked = await lock(second, 'post');
+  expect(blocked.status()).toBe(409);
+  expect(((await blocked.json()) as { error: string }).error).toMatch(/is editing this board/);
+  expect((await request.put(`${server}/api/boards/${id}`, { headers: second, data: design })).status()).toBe(409);
+  expect((await request.put(`${server}/api/boards/${id}`, { headers: first, data: design })).status()).toBe(200);
+  expect((await request.delete(`${server}/api/boards/${id}`, { headers: second })).status()).toBe(409);
+  expect((await lock(first, 'delete')).status()).toBe(200);
+  expect((await lock(second, 'post')).status()).toBe(200);
+  expect((await request.delete(`${server}/api/boards/${id}`, { headers: second })).status()).toBe(200);
+});
+
 test('a room plays a library map: choose-map loads the design on the server', async ({ request }) => {
   const created = await postRoom(request, {
     headers: { Origin: 'http://127.0.0.1:5173' },

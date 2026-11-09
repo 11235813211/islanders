@@ -53,11 +53,13 @@ export function getView(state: GameState, selfId: string): GameView {
     robber: state.robber,
     pirate: state.pirate,
     // Exact bank counts reveal an opponent's hand by subtraction in a two-player
-    // game. Clients only need to know whether a bank trade can receive a card.
+    // game, so they are only sent when the room chooses to show them.
     bank: Object.fromEntries(RESOURCES.map(resource => [resource, state.bank[resource] > 0])) as Record<
       Resource,
       boolean
     >,
+    bankCounts: state.settings.showBank ? state.bank : null,
+    jungle: state.board.hexes.some(h => h.terrain === 'jungle'),
     activePlayerId: active,
     turnPlayerId: ['lobby', 'finished'].includes(state.phase) ? null : (state.players[state.turnIndex]?.id ?? null),
     turn: state.turn,

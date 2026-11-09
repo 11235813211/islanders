@@ -1,6 +1,6 @@
-import { ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
+import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type ResourceBag } from '../types';
-import { addLog, bumpStat, emptyBag, resourceCount } from './core';
+import { addLog, bumpStat, emptyBag, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
 
 /**
  * Pay out a roll. Resource tiles pay cards (if the bank can't cover everyone owed a resource,
@@ -13,6 +13,8 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   const finds: Record<string, number> = {};
   for (const hex of state.board.hexes) {
     if (hex.number !== total || hex.id === state.robber) continue;
+    // Without the gold variant a volcano only erupts.
+    if (hex.terrain === 'volcano' && state.settings.volcanoGold === false) continue;
     const resource = terrainResource(hex.terrain);
     for (const vertexId of hex.vertexIds) {
       const building = state.buildings[vertexId];
@@ -52,7 +54,11 @@ export function produce(state: GameState, total: number): Record<string, Resourc
 
 const CORNER_NAMES = ['1', '2', '3', '4', '5', '6'];
 
-/** Every volcano showing `total` erupts: a die picks a corner; a city there drops to a settlement and a settlement is lost. */
+/**
+ * Every volcano showing `total` erupts (after production, and even under the robber): a die picks a
+ * corner; a city there drops to a settlement (or is lost when its owner has no settlement left to
+ * put there) and a settlement is lost.
+ */
 export function erupt(state: GameState, total: number, random: () => number): void {
   for (const hex of state.board.hexes) {
     if (hex.terrain !== 'volcano' || hex.number !== total) continue;
@@ -62,7 +68,8 @@ export function erupt(state: GameState, total: number, random: () => number): vo
     const owner = building ? state.players.find(p => p.id === building.playerId)! : null;
     let damage: 'none' | 'city' | 'settlement' = 'none';
     let text = `The volcano erupted toward corner ${CORNER_NAMES[die - 1]}. Nothing was there.`;
-    if (building?.kind === 'city') {
+    const stockLeft = owner && pieceCounts(state, owner.id).settlements < PIECE_LIMITS.settlements;
+    if (building?.kind === 'city' && stockLeft) {
       building.kind = 'settlement';
       damage = 'city';
       text = `The volcano erupted toward corner ${die}: ${owner!.name}'s city was reduced to a settlement.`;
@@ -72,5 +79,32 @@ export function erupt(state: GameState, total: number, random: () => number): vo
       text = `The volcano erupted toward corner ${die}: ${owner!.name}'s settlement was destroyed.`;
     }
     addLog(state, text, { kind: 'eruption', die, vertexId, playerId: owner?.id ?? null, damage });
+  }
+}
+
+/** Die face (1–6) → the iceberg side it drifts toward: 1 is the upper-right side, then clockwise. */
+const ICEBERG_SIDES = [4, 5, 0, 1, 2, 3] as const;
+
+/** Every iceberg showing `total` drifts toward the side a die names, sinking a ship there. */
+export function drift(state: GameState, total: number, random: () => number): void {
+  const index = boardIndex(state.board);
+  for (const hex of state.board.hexes) {
+    if (hex.terrain !== 'iceberg' || hex.number !== total) continue;
+    const die = Math.floor(random() * 6) + 1;
+    const corner = ICEBERG_SIDES[die - 1]!;
+    const [a, b] = [hex.vertexIds[corner]!, hex.vertexIds[(corner + 1) % 6]!];
+    const edgeId = index.vertex.get(a)!.edgeIds.find(id => {
+      const edge = index.edge.get(id)!;
+      return edge.a === b || edge.b === b;
+    })!;
+    const owner = state.players.find(p => p.id === state.ships[edgeId]) ?? null;
+    if (owner) delete state.ships[edgeId];
+    addLog(
+      state,
+      owner
+        ? `The iceberg drifted toward side ${die} and sank ${owner.name}'s ship.`
+        : `The iceberg drifted toward side ${die}. No ship was there.`,
+      { kind: 'iceberg', die, edgeId, playerId: owner?.id ?? null },
+    );
   }
 }

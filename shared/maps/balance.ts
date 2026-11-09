@@ -105,49 +105,107 @@ function numberingCost(cells: (Cell & { terrain: string })[], numbers: Map<strin
   return cost;
 }
 
+/** A producing cell to number. `pips` limits a random number to these dot counts (1–5); `rich` marks a closed island. */
+export interface NumberCell extends Cell {
+  terrain: string;
+  pips?: number[];
+  rich?: boolean;
+}
+
+/** Most dots allowed by the "richer closed islands" setting: 0 is the normal mix, 4 is nearly all 6s and 8s. */
+export const RICH_LEVELS = 4;
+
+/** Number weights: the base mix, shifted toward 6 and 8 by `richness` (0–1). */
+function numberWeights(richness: number): Map<number, number> {
+  const weights = new Map<number, number>();
+  for (const n of NUMBER_SET) weights.set(n, (weights.get(n) ?? 0) + (1 - richness) / NUMBER_SET.length);
+  for (const n of [6, 8]) weights.set(n, weights.get(n)! + richness / 2);
+  return weights;
+}
+
 /**
- * Numbers for the `open` producing cells, keeping the base game's mix (counting `fixed`
- * numbers already on the board) and choosing the most even of several tries.
+ * Place `pool` on `cells` (mutating `numbers`): cells with a dot limit first, then reds apart from
+ * other reds, then the rest avoiding equal neighbors. A limited cell the pool can't serve gets a
+ * fitting number in place of one from the pool, so the count stays the same.
+ */
+function placeNumbers(cells: NumberCell[], pool: number[], numbers: Map<string, number>, random: () => number): void {
+  const left = shuffled(pool, random);
+  const near = (cell: Cell) => neighborKeys(cell).map(k => numbers.get(k));
+  const take = (n: number) => {
+    const i = left.indexOf(n);
+    left.splice(i >= 0 ? i : left.length - 1, 1);
+  };
+  const limited = shuffled(
+    cells.filter(c => c.pips?.length),
+    random,
+  ).sort((a, b) => a.pips!.length - b.pips!.length);
+  for (const cell of limited) {
+    const fits = (n: number) => cell.pips!.includes(pips(n));
+    const around = near(cell);
+    const choice =
+      left.find(n => fits(n) && !around.includes(n) && !(isRed(n) && around.some(m => isRed(m ?? 0)))) ??
+      left.find(fits) ??
+      shuffled(NUMBER_SET.filter(fits), random)[0];
+    if (choice === undefined) continue;
+    numbers.set(key(cell.q, cell.r), choice);
+    take(choice);
+  }
+  const free = shuffled(
+    cells.filter(c => !numbers.has(key(c.q, c.r))),
+    random,
+  );
+  const nearRed = (cell: Cell) => near(cell).some(m => isRed(m ?? 0));
+  for (const red of left.filter(isRed)) {
+    const spot =
+      free.find(c => !numbers.has(key(c.q, c.r)) && !nearRed(c)) ?? free.find(c => !numbers.has(key(c.q, c.r)));
+    if (!spot) break;
+    numbers.set(key(spot.q, spot.r), red);
+    take(red);
+  }
+  for (const cell of free) {
+    const k = key(cell.q, cell.r);
+    if (numbers.has(k) || !left.length) continue;
+    const around = near(cell);
+    const index = Math.max(
+      0,
+      left.findIndex(n => !around.includes(n)),
+    );
+    numbers.set(k, left.splice(index, 1)[0]!);
+  }
+}
+
+/**
+ * Numbers for the open producing cells, keeping the base game's mix (counting `fixed` numbers
+ * already on the board) and choosing the most even of several tries. With `richness` (0–1),
+ * cells marked `rich` draw from their own mix shifted toward 6 and 8, so the rest of the board
+ * keeps its full share of reds.
  */
 export function balancedNumbers(
-  producing: (Cell & { terrain: string })[],
+  producing: NumberCell[],
   fixed: Map<string, number>,
   random: () => number,
-  tries = 30,
+  { tries = 30, richness = 0 }: { tries?: number; richness?: number } = {},
 ): Map<string, number> {
-  const open = producing.filter(c => !fixed.has(key(c.q, c.r)));
-  const weights = new Map<number, number>();
-  for (const n of NUMBER_SET) weights.set(n, (weights.get(n) ?? 0) + 1);
-  const fixedCounts = new Map<number, number>();
-  for (const n of fixed.values()) fixedCounts.set(n, (fixedCounts.get(n) ?? 0) + 1);
-  const pool = apportion(open.length, weights, fixedCounts, random);
+  const isRich = (c: NumberCell) => richness > 0 && !!c.rich;
+  const groups = [producing.filter(c => !isRich(c)), producing.filter(isRich)].filter(g => g.length);
+  const pools = groups.map((group, i) => {
+    const open = group.filter(c => !fixed.has(key(c.q, c.r)));
+    const fixedCounts = new Map<number, number>();
+    for (const c of group) {
+      const n = fixed.get(key(c.q, c.r));
+      if (n !== undefined) fixedCounts.set(n, (fixedCounts.get(n) ?? 0) + 1);
+    }
+    const rich = i > 0 || group.some(isRich);
+    return { open, pool: apportion(open.length, numberWeights(rich ? richness : 0), fixedCounts, random) };
+  });
   let best: { cost: number; numbers: Map<string, number> } | null = null;
   for (let attempt = 0; attempt < tries; attempt++) {
     const numbers = new Map(fixed);
-    const cells = shuffled(open, random);
-    const reds = pool.filter(isRed);
-    const others = shuffled(
-      pool.filter(n => !isRed(n)),
-      random,
+    for (const { open, pool } of pools) placeNumbers(open, pool, numbers, random);
+    const cost = numberingCost(
+      producing.filter(c => !isRich(c)),
+      numbers,
     );
-    // Reds first, never touching another red when there is room for that.
-    const nearRed = (cell: Cell) => neighborKeys(cell).some(k => isRed(numbers.get(k) ?? 0));
-    for (const red of reds) {
-      const spot =
-        cells.find(c => !numbers.has(key(c.q, c.r)) && !nearRed(c)) ?? cells.find(c => !numbers.has(key(c.q, c.r)));
-      if (spot) numbers.set(key(spot.q, spot.r), red);
-    }
-    for (const cell of cells) {
-      const k = key(cell.q, cell.r);
-      if (numbers.has(k)) continue;
-      const near = neighborKeys(cell).map(n => numbers.get(n));
-      const index = Math.max(
-        0,
-        others.findIndex(n => !near.includes(n)),
-      );
-      numbers.set(k, others.splice(index, 1)[0]!);
-    }
-    const cost = numberingCost(producing, numbers);
     if (!best || cost < best.cost) best = { cost, numbers };
   }
   return best?.numbers ?? new Map(fixed);

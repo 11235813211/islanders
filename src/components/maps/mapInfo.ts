@@ -19,10 +19,12 @@ export function mapRules(design: BoardDesign): string[] {
   if (pool('gold')) rules.push('Gold fields pay any resource you choose.');
   if (pool('volcano'))
     rules.push(
-      'Volcanoes pay like gold. When one is rolled, a die names a corner: a city there drops to a settlement, a settlement is lost.',
+      'Volcanoes pay like gold (a room setting). When one is rolled, a die names a corner: a city there drops to a settlement, a settlement is lost. No starting settlement may touch a volcano.',
     );
   if (pool('jungle')) rules.push('Jungles give discoveries. Each pays one resource of a development card.');
-  if (pool('iceberg')) rules.push('Ships cannot sail beside icebergs.');
+  if (kinds.has('iceberg') || (kinds.has('sea') && !!design.pool.iceberg))
+    rules.push('When an iceberg’s number is rolled, a die names a side: a ship there sinks.');
+  if (!design.harbors.length) rules.push('Harbors are placed at random each game.');
   if (design.tiles.some(t => t.bonus))
     rules.push('The first settlement each player builds on a marked island earns its bonus points.');
   if (closedTiles(design).size) rules.push('Starting settlements go only on islands outlined in yellow.');
@@ -45,6 +47,7 @@ function baseIsland(large: boolean): BoardDesign {
     pirate: null,
     pool: { ...BASE_POOL },
     harborExclude: [],
+    expansions: large ? ['five-six'] : [],
     updatedAt: 0,
   };
 }

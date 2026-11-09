@@ -1,8 +1,27 @@
 import { buildGraph, hexCenter, shuffled } from '../board';
 import { isLandTerrain, isProducing, isWater } from '../seafaring';
 import { type Board, type Harbor, RESOURCES, type Resource, type Terrain } from '../types';
-import { apportion, balancedNumbers, type Cell, clumping, neighborKeys, swapEqualOdds } from './balance';
-import { BASE_POOL, type BoardDesign, type DesignTile, type FillKind, SIDE_DIRECTIONS, tileKey } from './types';
+import {
+  apportion,
+  balancedNumbers,
+  type Cell,
+  clumping,
+  NUMBER_SET,
+  neighborKeys,
+  RICH_LEVELS,
+  swapEqualOdds,
+} from './balance';
+import { closedTiles } from './edit';
+import { autoHarbors, harborTarget } from './harbors';
+import {
+  BASE_POOL,
+  type BoardDesign,
+  type DesignHarbor,
+  type DesignTile,
+  type FillKind,
+  SIDE_DIRECTIONS,
+  tileKey,
+} from './types';
 
 /** How far a harbor sign sits out from its edge, toward the sea tile. */
 const HARBOR_OFFSET = 38;
@@ -50,7 +69,10 @@ function resolveTerrains(
     if (g.fixed) for (const tile of g.tiles) terrains.set(tileKey(tile.q, tile.r), g.fixed);
 
   const pool = new Map(
-    Object.entries({ ...(design.pool ?? BASE_POOL) }).filter(([kind, w]) => kind !== 'sea' && (w ?? 0) > 0),
+    // Icebergs are drawn on sea tiles instead (see placeIcebergs).
+    Object.entries({ ...(design.pool ?? BASE_POOL) }).filter(
+      ([kind, w]) => kind !== 'sea' && kind !== 'iceberg' && (w ?? 0) > 0,
+    ),
   ) as Map<FillKind, number>;
   if (!pool.size) for (const [k, w] of Object.entries(BASE_POOL)) pool.set(k as FillKind, w!);
   const fixedCounts = new Map<FillKind, number>();
@@ -69,8 +91,9 @@ function resolveTerrains(
     const allowed = [...counts.keys()].filter(
       k => !g.harbor || (RESOURCES.includes(k as Resource) && !design.harborExclude.includes(k as Resource)),
     );
-    const ranked = shuffled(allowed, random).sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0));
-    const kind: FillKind = ranked[0] ?? shuffled(RESOURCES, random)[0]!;
+    // A weighted draw by what the mix still has room for, so every kind can come up.
+    const kind: FillKind =
+      weightedPick(allowed, k => Math.max(0, counts.get(k) ?? 0) + 0.25, random) ?? shuffled(RESOURCES, random)[0]!;
     counts.set(kind, (counts.get(kind) ?? 0) - size);
     links.set(link, kind);
     for (const tile of g.tiles) if (tile.kind === 'land') terrains.set(tileKey(tile.q, tile.r), kind);
@@ -99,6 +122,16 @@ function resolveTerrains(
     terrains.set(tileKey(t.q, t.r), best!.kinds[i]!);
   });
   return { terrains, links };
+}
+
+function weightedPick<K>(items: K[], weight: (item: K) => number, random: () => number): K | undefined {
+  const total = items.reduce((n, item) => n + weight(item), 0);
+  let at = random() * total;
+  for (const item of items) {
+    at -= weight(item);
+    if (at < 0) return item;
+  }
+  return items.at(-1);
 }
 
 /** Harbor resources: fixed ones stay, linked ones follow their group, the rest are a balanced draw. */
@@ -167,8 +200,57 @@ function markIslands(board: Board): void {
 }
 
 /**
- * A playable board from a design: random land and numbers filled (balanced), harbors placed,
- * islands numbered, and the robber and pirate starting tiles. A fresh draw on every call.
+ * Turn `pool.iceberg` percent of the open sea into icebergs, spread apart, never on the pirate's
+ * start or in front of a harbor.
+ */
+function placeIcebergs(
+  design: BoardDesign,
+  terrains: Map<string, Terrain>,
+  harbors: DesignHarbor[],
+  random: () => number,
+): void {
+  const percent = design.pool.iceberg ?? 0;
+  if (percent <= 0) return;
+  const blocked = new Set(
+    harbors.map(h => {
+      const [dq, dr] = SIDE_DIRECTIONS[h.side]!;
+      return tileKey(h.q + dq, h.r + dr);
+    }),
+  );
+  if (design.pirate) blocked.add(tileKey(design.pirate.q, design.pirate.r));
+  const sea = design.tiles.filter(t => terrains.get(tileKey(t.q, t.r)) === 'sea');
+  let count = Math.round((sea.length * Math.min(100, percent)) / 100);
+  const open = shuffled(
+    sea.filter(t => !blocked.has(tileKey(t.q, t.r))),
+    random,
+  );
+  const nearIce = (t: DesignTile) => neighborKeys(t).some(k => terrains.get(k) === 'iceberg');
+  for (const spread of [true, false])
+    for (const tile of open) {
+      if (count <= 0) return;
+      const k = tileKey(tile.q, tile.r);
+      if (terrains.get(k) !== 'sea' || (spread && nearIce(tile))) continue;
+      terrains.set(k, 'iceberg');
+      count--;
+    }
+}
+
+/** A number per iceberg: the one the design set, or a draw from the base mix. */
+function icebergNumbers(tiles: DesignTile[], terrains: Map<string, Terrain>, random: () => number) {
+  const numbers = new Map<string, number>();
+  for (const t of tiles) {
+    const k = tileKey(t.q, t.r);
+    if (terrains.get(k) !== 'iceberg') continue;
+    const set = t.kind === 'iceberg' && t.number && t.number !== 7 ? t.number : undefined;
+    numbers.set(k, set ?? NUMBER_SET[Math.floor(random() * NUMBER_SET.length)]!);
+  }
+  return numbers;
+}
+
+/**
+ * A playable board from a design: random land and numbers filled (balanced), harbors placed (at
+ * random spots when the design has none), icebergs drawn on the sea, islands numbered, and the
+ * robber and pirate starting tiles. A fresh draw on every call.
  */
 export function buildBoard(
   design: BoardDesign,
@@ -177,15 +259,30 @@ export function buildBoard(
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
   const unique = { ...design, tiles };
   const { terrains, links } = resolveTerrains(unique, random);
+  const harbors = design.harbors.length ? design.harbors : autoHarbors(tiles, harborTarget(unique), [], random);
+  const resolvedHarbors = resolveHarbors({ ...unique, harbors }, terrains, links, random);
+  placeIcebergs(unique, terrains, harbors, random);
+  const closed = closedTiles(unique);
   const producing = tiles
-    .map(t => ({ q: t.q, r: t.r, terrain: terrains.get(tileKey(t.q, t.r))! }))
+    .map(t => ({
+      q: t.q,
+      r: t.r,
+      terrain: terrains.get(tileKey(t.q, t.r))!,
+      pips: t.pips,
+      rich: closed.has(tileKey(t.q, t.r)),
+    }))
     .filter(c => isProducing(c.terrain));
   const fixed = new Map<string, number>();
   for (const t of tiles) {
     const valid = t.number && t.number >= 2 && t.number <= 12 && t.number !== 7;
     if (valid && isProducing(terrains.get(tileKey(t.q, t.r))!)) fixed.set(tileKey(t.q, t.r), t.number!);
   }
-  const numbers = balancedNumbers(producing, design.swapNumbers ? swapEqualOdds(fixed, random) : fixed, random);
+  const numbers = new Map([
+    ...balancedNumbers(producing, design.swapNumbers ? swapEqualOdds(fixed, random) : fixed, random, {
+      richness: (design.richIslands ?? 0) / RICH_LEVELS,
+    }),
+    ...icebergNumbers(tiles, terrains, random),
+  ]);
   const board = buildGraph(
     tiles.map(t => {
       const k = tileKey(t.q, t.r);
@@ -194,18 +291,18 @@ export function buildBoard(
   );
   markIslands(board);
   const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));
-  const closed = new Set<number>();
+  const closedIslands = new Set<number>();
   for (const t of tiles) {
     const hex = byKey.get(tileKey(t.q, t.r))!;
     if (hex.island === undefined) continue;
     if (t.bonus) hex.bonus = Math.min(3, Math.max(1, Math.round(t.bonus)));
-    if (t.noSetup) closed.add(hex.island);
+    if (t.noSetup) closedIslands.add(hex.island);
   }
-  for (const hex of board.hexes) if (hex.island !== undefined && closed.has(hex.island)) hex.noSetup = true;
+  for (const hex of board.hexes) if (hex.island !== undefined && closedIslands.has(hex.island)) hex.noSetup = true;
 
   const edgeId = new Map(board.edges.map(e => [[e.a, e.b].sort().join(':'), e.id]));
   const vertex = new Map(board.vertices.map(v => [v.id, v]));
-  board.harbors = resolveHarbors(unique, terrains, links, random).map((h, i): Harbor => {
+  board.harbors = resolvedHarbors.map((h, i): Harbor => {
     const hex = byKey.get(tileKey(h.q, h.r))!;
     const a = hex.vertexIds[h.side]!;
     const b = hex.vertexIds[(h.side + 1) % 6]!;

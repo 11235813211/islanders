@@ -1,9 +1,22 @@
-import { Eye, FlaskConical, LayoutGrid, Redo2, Save, Undo2, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FlaskConical,
+  LayoutGrid,
+  Lock,
+  Redo2,
+  Save,
+  Undo2,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
 import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
 import type { AccountSession } from '../../../shared/types';
 import { publishLibrary, useBoardLibrary } from '../../hooks/useBoardLibrary';
+import { useBoardLock } from '../../hooks/useBoardLock';
 import { useHistory } from '../../hooks/useHistory';
 import { deleteBoard, saveBoard, saveLayout } from '../../lib/boardsApi';
 import MapBrowser from '../maps/MapBrowser';
@@ -31,7 +44,7 @@ export default function BoardEditor({
   close: () => void;
   playtest: (mapId: string) => void;
 }) {
-  const { library: served, error: loadError } = useBoardLibrary();
+  const { library: served, error: loadError, reload } = useBoardLibrary();
   const [browsing, setBrowsing] = useState(true);
   /** The last fill pressed: pressing it again draws again from the same starting design. */
   const lastFill = useRef<{ key: string; base: BoardDesign; result: BoardDesign } | null>(null);
@@ -47,11 +60,23 @@ export default function BoardEditor({
   const [message, setMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [panel, setPanel] = useState<'inspector' | null>(null);
+  /** Desktop: the settings panel tucked away to give the canvas the full width. */
+  const [collapsed, setCollapsed] = useState(false);
   const [busy, setBusy] = useState(false);
   const dirty = !!design && JSON.stringify(design) !== saved.current;
+  // While another editor has this board open, it is read-only here. When they leave, load what they saved.
+  const lockedBy = useBoardLock(account, design?.id ?? null, async () => {
+    const fresh = await reload();
+    const board = fresh?.boards.find(b => b.id === design?.id);
+    if (board) load(board, true);
+    setMessage('The board is free. You can edit it now.');
+  });
+  const readOnly = !!lockedBy;
   const edit = useCallback(
-    (change: (d: BoardDesign) => BoardDesign, group?: string) => history.set(d => (d ? change(d) : d), group),
-    [history.set],
+    (change: (d: BoardDesign) => BoardDesign, group?: string) => {
+      if (!readOnly) history.set(d => (d ? change(d) : d), group);
+    },
+    [history.set, readOnly],
   );
 
   const load = (next: BoardDesign, savedAlready: boolean) => {
@@ -63,7 +88,7 @@ export default function BoardEditor({
     setBrowsing(false);
   };
   const refill: Refill = (key, fill) => {
-    if (!design) return;
+    if (!design || readOnly) return;
     const last = lastFill.current;
     const base = last && last.key === key && last.result === design ? last.base : design;
     const result = fill(base, Math.random);
@@ -102,7 +127,7 @@ export default function BoardEditor({
       : [...lib.boards, board],
   });
   async function save(board = design): Promise<boolean> {
-    if (!board || !library) return false;
+    if (!board || !library || readOnly) return false;
     const result = await run(() => saveBoard(account, board), `Saved ${board.name}.`);
     if (!result) return false;
     publishLibrary(replaceBoard(library, result));
@@ -112,6 +137,9 @@ export default function BoardEditor({
     return true;
   }
   const leaveUnsaved = () => !dirty || window.confirm('Discard unsaved changes to this board?');
+  const goHome = () => {
+    if (leaveUnsaved()) close();
+  };
   function open(id: string) {
     const board = library?.boards.find(b => b.id === id);
     if (!board) return;
@@ -196,6 +224,7 @@ export default function BoardEditor({
   });
 
   const active = TOOLS.find(t => t.tool === tool)!;
+  const backToBoard = () => setBrowsing(false);
   if (browsing || !design)
     return (
       <>
@@ -203,8 +232,9 @@ export default function BoardEditor({
           library={library}
           error={loadError}
           players={4}
-          close={() => (design ? setBrowsing(false) : close())}
+          close={design ? backToBoard : goHome}
           closeLabel={design ? 'Back to the board' : 'Close board editor'}
+          home={goHome}
           editing={{
             open,
             create: (kind, categoryId) => void create(kind, categoryId),
@@ -221,7 +251,7 @@ export default function BoardEditor({
       </>
     );
   return (
-    <main className={`board-editor${panel ? ` show-${panel}` : ''}`}>
+    <main className={`board-editor${panel ? ` show-${panel}` : ''}${collapsed ? ' inspector-collapsed' : ''}`}>
       <header className="editor-bar">
         <button type="button" className="text-button" aria-label="All boards" onClick={() => setBrowsing(true)}>
           <LayoutGrid size={18} />
@@ -273,13 +303,17 @@ export default function BoardEditor({
           <button
             type="button"
             className="button primary"
-            disabled={busy || !account || !dirty}
+            disabled={busy || !account || !dirty || readOnly}
             title={account ? 'Save (Ctrl/⌘ S)' : 'Sign in to save boards'}
             aria-label={dirty ? 'Save' : 'Saved'}
             onClick={() => void save()}
           >
             <Save size={17} />
             <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
+          </button>
+          <button type="button" className="button secondary" aria-label="Home" onClick={goHome}>
+            <ArrowLeft size={17} />
+            <span className="editor-label">Home</span>
           </button>
         </div>
         <EditorToolbar
@@ -296,6 +330,11 @@ export default function BoardEditor({
         />
       </header>
       {!account && <p className="editor-notice">Sign in to save boards. You can still draw and preview.</p>}
+      {lockedBy && (
+        <p className="editor-notice" role="status">
+          <Lock size={15} /> {lockedBy} You can look, but not change it, until they leave.
+        </p>
+      )}
       <section className="editor-stage">
         <EditorCanvas
           design={design}
@@ -307,6 +346,15 @@ export default function BoardEditor({
           edit={edit}
           fitKey={design.id}
         />
+        <button
+          type="button"
+          className="inspector-toggle"
+          aria-label={collapsed ? 'Show settings panel' : 'Hide settings panel'}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(c => !c)}
+        >
+          {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
         <p className="editor-hint">
           <strong>{active.label}:</strong> {active.hint}. Space-drag sea · Shift-drag land · Ctrl/⌘-drag{' '}
           {KIND_LABELS[brush].toLowerCase()} · Alt-drag delete · Click a number to raise it, Shift-click to lower

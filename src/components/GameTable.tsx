@@ -3,7 +3,7 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
 import { emptyBag } from '../../shared/engine';
 import { isBotGame } from '../../shared/settings';
-import type { DevelopmentType, GameView, Resource } from '../../shared/types';
+import type { DevelopmentType, GameView, Tradable, TradeBag } from '../../shared/types';
 import { SEA } from '../art';
 import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
@@ -19,10 +19,12 @@ import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
+import { TradeNotice } from './game/TradeNotice';
 import ResourceHand from './ResourceHand';
-import TradeComposer, { addTradeResource, counterDraft, type TradeDraft, TradeNotice } from './TradePanel';
+import TradeComposer, { addTradeResource, counterDraft, type TradeDraft } from './TradePanel';
 import './GameTable.css';
 import './game/game.css';
+import './game/trade.css';
 import './game/phone.css';
 
 function Dice({ dice }: { dice: [number, number] | null }) {
@@ -88,7 +90,7 @@ export default function GameTable({
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [trade, setTrade] = useState<TradeDraft | null>(null);
   const [devKind, setDevKind] = useState<DevelopmentType | null>(null);
-  const [discard, setDiscard] = useState(emptyBag);
+  const [discard, setDiscard] = useState<TradeBag>(emptyBag);
   const [endHidden, setEndHidden] = useState(false);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -215,7 +217,7 @@ export default function GameTable({
   const choosingGold = view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && !paused;
   const inCorner = (kind: DevelopmentType | null) => kind === 'year-of-plenty' || kind === 'monopoly';
   /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
-  function tapCard(resource: Resource) {
+  function tapCard(resource: Tradable) {
     if (discarding) return setDiscard(bag => addDiscard(bag, resource, view));
     if (view.phase === 'special-build') return; // building only: no trades
     setDevKind(kind => (inCorner(kind) ? null : kind));
@@ -368,15 +370,17 @@ export default function GameTable({
           <ResourceHand hand={view.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
             {!!self?.discoveries && (
-              <span
+              <button
+                type="button"
                 className="discovery-count"
-                role="img"
                 aria-label={`${self.discoveries} discoveries`}
-                title="Discoveries from jungles. Each pays one resource of a development card."
+                data-tip="Discoveries from jungles. Each pays one resource of a development card. Tap to trade or discard one, where the room allows it."
+                disabled={busy || paused}
+                onClick={() => tapCard('discovery')}
               >
                 <SEA.DiscoveryIcon size={22} />
                 {self.discoveries}
-              </span>
+              </button>
             )}
           </ResourceHand>
         )}

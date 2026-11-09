@@ -1,7 +1,15 @@
 import { isPlayerColor } from './colors';
-import { GameError } from './engine/core';
+import { GameError, MAX_PLAYERS } from './engine/core';
 import { validSettings } from './settings';
-import { BOT_LEVELS, type BotLevel, type GameAction, RESOURCES, type Resource, type ResourceBag } from './types';
+import {
+  BOT_LEVELS,
+  type BotLevel,
+  type GameAction,
+  RESOURCES,
+  type Resource,
+  type ResourceBag,
+  type TradeBag,
+} from './types';
 
 /**
  * The one place that defines every action's fields. The server uses it to parse
@@ -13,6 +21,9 @@ type Field =
   | 'id'
   | 'resource'
   | 'bag'
+  | 'tradeBag'
+  | 'tradable'
+  | 'count'
   | 'bool'
   | 'text'
   | 'color'
@@ -37,10 +48,11 @@ const SPEC = {
   'transfer-host': { playerId: 'id' },
   'add-bot': { level: 'botLevel' },
   'set-bot-level': { playerId: 'id', level: 'botLevel' },
-  'offer-trade': { give: 'bag', want: 'bag', to: 'players?' },
-  'counter-trade': { offerId: 'id', give: 'bag', want: 'bag' },
+  'offer-trade': { give: 'tradeBag', want: 'tradeBag', to: 'players?' },
+  'counter-trade': { offerId: 'id', give: 'tradeBag', want: 'tradeBag' },
   'accept-counter': { offerId: 'id', counterId: 'id' },
   'accept-trade': { offerId: 'id' },
+  'confirm-trade': { offerId: 'id', playerId: 'id' },
   'decline-trade': { offerId: 'id' },
   'cancel-trade': { offerId: 'id' },
   'place-settlement': { vertexId: 'id' },
@@ -53,14 +65,14 @@ const SPEC = {
   'move-ship': { from: 'id', to: 'id' },
   'choose-gold': { resources: 'bag' },
   'choose-map': { mapId: 'id' },
-  trade: { give: 'resource', receive: 'resource' },
-  discard: { resources: 'bag' },
+  trade: { give: 'resource', receive: 'resource', count: 'count?' },
+  discard: { resources: 'tradeBag' },
   'move-robber': { hexId: 'id' },
   steal: { playerId: 'id' },
   'play-knight': { cardId: 'id' },
   'play-road-building': { cardId: 'id' },
-  'play-monopoly': { cardId: 'id', resource: 'resource' },
-  'play-plenty': { cardId: 'id', resources: 'bag' },
+  'play-monopoly': { cardId: 'id', resource: 'tradable' },
+  'play-plenty': { cardId: 'id', resources: 'tradeBag' },
   chat: { text: 'text' },
   propose: { kind: 'proposalKind' },
   vote: { proposalId: 'id', accept: 'bool' },
@@ -78,6 +90,17 @@ export function isResourceBag(value: unknown): value is ResourceBag {
     record(value) &&
     Object.keys(value).length === RESOURCES.length &&
     RESOURCES.every(r => Number.isInteger(value[r]) && (value[r] as number) >= 0 && (value[r] as number) <= 19)
+  );
+}
+
+/** A resource bag that may also carry jungle discoveries (whether they may move is a room rule). */
+export function isTradeBag(value: unknown): value is TradeBag {
+  if (!record(value)) return false;
+  const { discovery, ...cards } = value;
+  return (
+    isResourceBag(cards) &&
+    (discovery === undefined ||
+      (Number.isInteger(discovery) && (discovery as number) >= 0 && (discovery as number) <= 99))
   );
 }
 
@@ -103,6 +126,17 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
       if (!isResourceBag(value))
         fail(`${bagLabel(type, key)} must be whole numbers from zero to nineteen for all five resources.`);
       return;
+    case 'tradeBag':
+      if (!isTradeBag(value))
+        fail(`${bagLabel(type, key)} must be whole numbers from zero to nineteen for all five resources.`);
+      return;
+    case 'tradable':
+      if (value !== 'discovery' && !RESOURCES.includes(value as Resource)) fail('Choose valid resources.');
+      return;
+    case 'count':
+      if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 19)
+        fail('Choose how many to trade.');
+      return;
     case 'bool':
       if (typeof value !== 'boolean') fail('Choose accept or reject.');
       return;
@@ -123,7 +157,7 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
       if (!validSettings(value)) fail('Choose valid room settings.');
       return;
     case 'players':
-      if (!Array.isArray(value) || value.length < 1 || value.length > 3 || !value.every(isIdentifier))
+      if (!Array.isArray(value) || value.length < 1 || value.length >= MAX_PLAYERS || !value.every(isIdentifier))
         fail('Choose who receives the offer.');
       return;
   }

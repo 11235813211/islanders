@@ -1,18 +1,28 @@
-import { ArrowDown, ArrowRight, ArrowUp, Check, Landmark, Repeat2, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Landmark, Users, X } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playerVars } from '../../shared/colors';
-import { emptyBag, resourceCount } from '../../shared/engine';
+import { emptyBag } from '../../shared/engine';
 import {
   type GameAction,
   type GameView,
   RESOURCES,
   type Resource,
-  type ResourceBag,
+  type Tradable,
+  type TradeBag,
   type TradeOffer,
 } from '../../shared/types';
-import { ResourceIcon } from '../art';
-import { cardStyle, RESOURCE_LABELS } from './ResourceHand';
+import { Palette } from './game/CornerPanels';
+import {
+  bagHas,
+  bagTotal,
+  held,
+  TradableIcon,
+  tradableLabel,
+  tradableStyle,
+  tradablesFor,
+  withItem,
+} from './game/tradables';
 
 export function GameDialog({ title, children, close }: { title: string; children: ReactNode; close: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -47,164 +57,53 @@ export function GameDialog({ title, children, close }: { title: string; children
     document.body,
   );
 }
-export function Bundle({ bag }: { bag: ResourceBag }) {
-  return (
-    <span className="trade-bundle">
-      {RESOURCES.filter(r => bag[r] > 0).map(r => (
-        <span
-          className="trade-chip"
-          style={cardStyle(r)}
-          key={r}
-          aria-label={`${bag[r]} ${RESOURCE_LABELS[r]}`}
-          title={`${bag[r]} ${RESOURCE_LABELS[r]}`}
-        >
-          <ResourceIcon resource={r} size={22} />
-          <strong>{bag[r]}</strong>
-        </span>
-      ))}
-    </span>
-  );
-}
-/** An open offer, as seen by its author or by a player it was sent to. */
-export function TradeNotice({
-  view,
-  busy,
-  now,
-  send,
-  counter,
-}: {
-  view: GameView;
-  busy: boolean;
-  now: number;
-  send: (a: GameAction) => void;
-  counter: (offer: TradeOffer) => void;
-}) {
-  const offer = view.tradeOffer;
-  if (!offer || view.role === 'spectator') return null;
-  const mine = offer.fromId === view.selfId;
-  if (!mine && (!offer.to.includes(view.selfId) || offer.declinedBy.includes(view.selfId))) return null;
-  const name = (id: string) => view.players.find(p => p.id === id)?.name ?? 'Someone';
-  const myCounter = offer.counters.find(c => c.fromId === view.selfId);
-  const affordable = RESOURCES.every(r => view.hand[r] >= offer.want[r]);
-  const clock = view.pausedAt ?? now;
-  const progress = Math.max(0, Math.min(1, (offer.expiresAt - clock) / (offer.expiresAt - offer.createdAt)));
-  if (!progress) return null;
-  const paused = view.pausedAt !== null;
-  const everyone = offer.to.length === view.players.length - 1;
-  return (
-    <div className="trade-notice" role="region" aria-label="Trade offer">
-      <span
-        className="offer-pie"
-        role="img"
-        aria-label="Offer time remaining"
-        style={{ '--progress': `${progress * 360}deg` } as CSSProperties}
-      />
-      <div className="offer-content">
-        <span className="offer-from">
-          {mine ? `You offer${everyone ? '' : ` ${offer.to.map(name).join(', ')}`}` : `${name(offer.fromId)} offers`}
-        </span>
-        <div className="offer-exchange">
-          <Bundle bag={offer.give} />
-          <ArrowRight size={18} />
-          <Bundle bag={offer.want} />
-          <small>{mine ? 'requested' : 'you give'}</small>
-        </div>
-        {mine &&
-          offer.counters.map(c => (
-            <div className="offer-counter" key={c.id}>
-              <span className="offer-from">{name(c.fromId)} counters</span>
-              <div className="offer-exchange">
-                <Bundle bag={c.give} />
-                <ArrowRight size={18} />
-                <Bundle bag={c.want} />
-                <button
-                  className="accept-trade"
-                  aria-label={`Accept ${name(c.fromId)}'s counter-offer`}
-                  disabled={busy || paused}
-                  onClick={() => send({ type: 'accept-counter', offerId: offer.id, counterId: c.id })}
-                >
-                  <Check size={17} />
-                  <span>Accept</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        {myCounter && <span className="offer-from">You countered. Waiting for an answer.</span>}
-      </div>
-      {mine ? (
-        <button
-          className="icon-button"
-          aria-label="Withdraw offer"
-          disabled={busy || paused}
-          onClick={() => send({ type: 'cancel-trade', offerId: offer.id })}
-        >
-          <X size={20} />
-        </button>
-      ) : (
-        <div className="offer-actions">
-          {!myCounter && (
-            <>
-              <button
-                className="accept-trade"
-                aria-label="Accept trade"
-                title={affordable ? 'Accept trade' : 'Not enough cards'}
-                disabled={busy || !affordable || paused}
-                onClick={() => send({ type: 'accept-trade', offerId: offer.id })}
-              >
-                <Check size={19} />
-                <span>Accept</span>
-              </button>
-              <button
-                className="icon-button"
-                aria-label="Counter-offer"
-                title="Propose different terms"
-                disabled={busy || paused}
-                onClick={() => counter(offer)}
-              >
-                <Repeat2 size={19} />
-              </button>
-            </>
-          )}
-          <button
-            className="icon-button"
-            aria-label="Decline trade"
-            disabled={busy || paused}
-            onClick={() => send({ type: 'decline-trade', offerId: offer.id })}
-          >
-            <X size={20} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export interface TradeDraft {
-  give: ResourceBag;
-  want: ResourceBag;
-  bank: boolean;
+  give: TradeBag;
+  want: TradeBag;
   /** Recipients of a player offer; null means everyone. */
   to: string[] | null;
   /** Set when this draft is a counter to another player's offer. */
   counterOf: string | null;
 }
 
-export function addTradeResource(draft: TradeDraft | null, resource: Resource, view: GameView): TradeDraft {
-  const next = draft ?? { give: emptyBag(), want: emptyBag(), bank: false, to: null, counterOf: null };
-  return {
-    ...next,
-    give: next.bank
-      ? { ...emptyBag(), [resource]: view.tradeRates[resource] }
-      : { ...next.give, [resource]: Math.min(view.hand[resource], next.give[resource] + 1) },
-    want: { ...next.want, [resource]: 0 },
-  };
+/** A card (or discovery) tapped in your hand goes into what you give. */
+export function addTradeResource(draft: TradeDraft | null, item: Tradable, view: GameView): TradeDraft {
+  const next = draft ?? { give: emptyBag(), want: emptyBag(), to: null, counterOf: null };
+  if (!tradablesFor(view, 'trade').includes(item)) return next;
+  const give = bagHas(next.give, item) < held(view, item) ? withItem(next.give, item, 1) : next.give;
+  return { ...next, give, want: { ...next.want, [item]: 0 } };
 }
 
 /** A counter starts from the offer reversed: give what they asked for, ask for what they offered. */
 export function counterDraft(offer: TradeOffer): TradeDraft {
-  return { give: { ...offer.want }, want: { ...offer.give }, bank: false, to: null, counterOf: offer.id };
+  return { give: { ...offer.want }, want: { ...offer.give }, to: null, counterOf: offer.id };
 }
 
+/**
+ * The bank trade this draft describes, if it is one: one kind given in a multiple of its harbor
+ * rate, for that many of one other kind the bank still has.
+ */
+export function bankTrade(
+  draft: TradeDraft,
+  view: GameView,
+): { give: Resource; receive: Resource; count: number } | null {
+  if (draft.give.discovery || draft.want.discovery) return null;
+  const gives = RESOURCES.filter(r => draft.give[r] > 0);
+  const gets = RESOURCES.filter(r => draft.want[r] > 0);
+  if (gives.length !== 1 || gets.length !== 1) return null;
+  const [give, receive] = [gives[0]!, gets[0]!];
+  const count = draft.want[receive];
+  const enough = view.bankCounts ? view.bankCounts[receive] >= count : view.bank[receive];
+  if (draft.give[give] !== count * view.tradeRates[give] || draft.give[give] > view.hand[give] || !enough) return null;
+  return { give, receive, count };
+}
+
+const ALL: Tradable[] = [...RESOURCES, 'discovery'];
+
+/**
+ * The trade panel: tap cards in your hand to give, cards here to receive, then send it to players
+ * (all, or the ones picked) or, when it matches your harbor rate, trade it with the bank.
+ */
 export default function TradeComposer({
   view,
   draft,
@@ -220,42 +119,31 @@ export default function TradeComposer({
   send: (a: GameAction) => void;
   close: () => void;
 }) {
-  const { give, want, bank, counterOf } = draft;
+  const { give, want, counterOf } = draft;
   const offer = view.tradeOffer;
   const countering = !!counterOf;
   const active = countering
     ? offer?.id === counterOf && view.phase === 'build' && view.pausedAt === null
     : view.phase === 'build' && view.activePlayerId === view.selfId && view.pausedAt === null;
-  const giveResource = RESOURCES.find(r => give[r] > 0);
-  const getResource = RESOURCES.find(r => want[r] > 0);
   const valid =
-    resourceCount(give) > 0 &&
-    resourceCount(want) > 0 &&
-    RESOURCES.every(r => give[r] <= view.hand[r] && !(give[r] && want[r]));
-  const bankValid =
-    valid &&
-    !!giveResource &&
-    !!getResource &&
-    give[giveResource] === view.tradeRates[giveResource] &&
-    view.bank[getResource];
+    bagTotal(give) > 0 &&
+    bagTotal(want) > 0 &&
+    ALL.every(r => bagHas(give, r) <= held(view, r) && !(bagHas(give, r) && bagHas(want, r)));
+  const bank = countering ? null : bankTrade(draft, view);
   const others = view.players.filter(p => p.id !== view.selfId);
   const recipients = draft.to ?? others.map(p => p.id);
-  function choosePartner(bank: boolean) {
-    setDraft({
-      ...draft,
-      bank,
-      give: bank ? { ...emptyBag(), ...(giveResource ? { [giveResource]: view.tradeRates[giveResource] } : {}) } : give,
-      want: bank ? { ...emptyBag(), ...(getResource ? { [getResource]: 1 } : {}) } : want,
-    });
-  }
   function toggleRecipient(id: string) {
     const next = recipients.includes(id) ? recipients.filter(r => r !== id) : [...recipients, id];
     setDraft({ ...draft, to: next.length === others.length ? null : next });
   }
-  function submit() {
+  function offerToPlayers() {
     if (countering) send({ type: 'counter-trade', offerId: counterOf!, give, want });
-    else if (bank) send({ type: 'trade', give: giveResource!, receive: getResource! });
     else send({ type: 'offer-trade', give, want, ...(draft.to ? { to: draft.to } : {}) });
+    close();
+  }
+  function tradeWithBank() {
+    if (!bank) return;
+    send({ type: 'trade', give: bank.give, receive: bank.receive, ...(bank.count > 1 ? { count: bank.count } : {}) });
     close();
   }
   const status = !active
@@ -265,9 +153,7 @@ export default function TradeComposer({
     : countering
       ? `Counter to ${view.players.find(p => p.id === offer?.fromId)?.name ?? 'the offer'}`
       : bank
-        ? giveResource
-          ? `${view.tradeRates[giveResource]}:1 · bank / harbor`
-          : 'Select a card to give'
+        ? `Bank: ${view.tradeRates[bank.give]}:1`
         : draft.to
           ? `Offer to ${recipients.length} of ${others.length}`
           : 'Offer to all players';
@@ -282,23 +168,11 @@ export default function TradeComposer({
     >
       <header>
         <strong>{countering ? 'Counter-offer' : 'Trade'}</strong>
-        {!countering && (
-          <div className="trade-partners">
-            <button aria-pressed={!bank} onClick={() => choosePartner(false)}>
-              <Users size={17} />
-              Players
-            </button>
-            <button aria-pressed={bank} onClick={() => choosePartner(true)}>
-              <Landmark size={17} />
-              Bank
-            </button>
-          </div>
-        )}
         <button className="icon-button" aria-label="Close trade" onClick={close}>
           <X size={18} />
         </button>
       </header>
-      {!bank && !countering && others.length > 1 && (
+      {!countering && others.length > 1 && (
         <div className="trade-recipients" role="group" aria-label="Send offer to">
           {others.map(p => (
             <button
@@ -314,28 +188,14 @@ export default function TradeComposer({
           ))}
         </div>
       )}
-      <div className="trade-palette" role="group" aria-label="Choose resources to receive">
-        {RESOURCES.map(r => (
-          <button
-            className="trade-card"
-            style={cardStyle(r)}
-            key={r}
-            aria-label={`Request one more ${RESOURCE_LABELS[r]}`}
-            title={`Receive ${RESOURCE_LABELS[r]}`}
-            disabled={busy || (bank && !view.bank[r]) || want[r] >= 19}
-            onClick={() =>
-              setDraft({
-                ...draft,
-                want: bank ? { ...emptyBag(), [r]: 1 } : { ...want, [r]: want[r] + 1 },
-                give: { ...give, [r]: 0 },
-              })
-            }
-          >
-            <ResourceIcon resource={r} size={28} />
-            <span>{RESOURCE_LABELS[r]}</span>
-          </button>
-        ))}
-      </div>
+      <Palette
+        items={tradablesFor(view, 'trade')}
+        label="Choose resources to receive"
+        name={r => `Request one more ${tradableLabel(r)}`}
+        disabled={r => busy || bagHas(want, r) >= 19}
+        count={r => (r === 'discovery' ? null : (view.bankCounts?.[r] ?? null))}
+        pick={r => setDraft({ ...draft, want: withItem(want, r, 1), give: { ...give, [r]: 0 } })}
+      />
       {(['want', 'give'] as const).map(row => (
         <div
           className={`trade-selection ${row}`}
@@ -348,19 +208,19 @@ export default function TradeComposer({
             <small>{row === 'want' ? 'Receive' : 'Give'}</small>
           </span>
           <div className="trade-selected-cards">
-            {RESOURCES.filter(r => draft[row][r] > 0).map(r => (
+            {ALL.filter(r => bagHas(draft[row], r) > 0).map(r => (
               <button
                 key={r}
                 className="trade-card"
-                style={cardStyle(r)}
-                aria-label={`Remove one ${RESOURCE_LABELS[r]} from ${row === 'want' ? 'receive' : 'give'}`}
-                onClick={() => setDraft({ ...draft, [row]: { ...draft[row], [r]: bank ? 0 : draft[row][r] - 1 } })}
+                style={tradableStyle(r)}
+                aria-label={`Remove one ${tradableLabel(r)} from ${row === 'want' ? 'receive' : 'give'}`}
+                onClick={() => setDraft({ ...draft, [row]: withItem(draft[row], r, -1) })}
               >
-                <ResourceIcon resource={r} size={26} />
-                <strong>{draft[row][r]}</strong>
+                <TradableIcon item={r} size={26} />
+                <strong>{bagHas(draft[row], r)}</strong>
               </button>
             ))}
-            {!resourceCount(draft[row]) && (
+            {!bagTotal(draft[row]) && (
               <span className="trade-hint">{row === 'want' ? 'Choose cards above' : 'Tap cards in your hand'}</span>
             )}
           </div>
@@ -368,13 +228,30 @@ export default function TradeComposer({
       ))}
       <footer>
         <span>{status}</span>
+        {!countering && (
+          <button
+            className="button secondary"
+            disabled={busy || !active || !bank}
+            data-tip={
+              bank
+                ? `Trade with the bank at ${view.tradeRates[bank.give]}:1`
+                : 'Give one kind at your harbor rate (4:1, 3:1, or 2:1) for one other kind'
+            }
+            onClick={tradeWithBank}
+          >
+            <Landmark size={17} />
+            Bank
+          </button>
+        )}
         <button
-          className="button primary"
-          disabled={busy || !active || !(bank && !countering ? bankValid : valid) || (!bank && !recipients.length)}
-          onClick={submit}
+          className="button primary tip-end"
+          disabled={busy || !active || !valid || (!countering && !recipients.length)}
+          aria-label={countering ? 'Send counter' : 'Offer to players'}
+          data-tip={countering ? 'Send these terms back' : 'Offer this trade to the chosen players'}
+          onClick={offerToPlayers}
         >
-          <Check size={18} />
-          {countering ? 'Send counter' : bank ? 'Exchange' : 'Send offer'}
+          {countering ? <Check size={18} /> : <Users size={17} />}
+          {countering ? 'Send counter' : 'Players'}
         </button>
       </footer>
     </section>

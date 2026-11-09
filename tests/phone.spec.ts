@@ -21,7 +21,7 @@ test('the game screen fits a phone: no sideways scroll, header hidden, controls 
   await page.getByRole('button', { name: /^Trade Lumber/ }).tap();
   const trade = page.getByRole('dialog', { name: 'Trade resources' });
   await trade.getByRole('button', { name: 'Request one more Ore' }).tap();
-  await expect(trade.getByRole('button', { name: 'Send offer' })).toBeInViewport();
+  await expect(trade.getByRole('button', { name: 'Offer to players' })).toBeInViewport();
   await trade.getByRole('button', { name: 'Close trade' }).tap();
   expect(game.errors).toEqual([]);
 });

@@ -862,3 +862,63 @@ a {
   border-color: #d69419;
   background: #fff6dc;
 }
+
+/* Hover hints: an element with data-tip shows a short explanation after the pointer rests on it. */
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 100;
+  width: max-content;
+  max-width: 230px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: #1d2b30;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.1s ease,
+    visibility 0s linear 0.1s;
+}
+[data-tip].tip-start::after {
+  left: 0;
+  transform: none;
+}
+[data-tip].tip-end::after {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+@media (hover: hover) {
+  [data-tip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transition:
+      opacity 0.15s ease 0.8s,
+      visibility 0s linear 0.8s;
+  }
+}
+
+/* Fieldsets used only to group buttons: no box of their own. */
+fieldset.offer-answers,
+fieldset.pool-presets,
+fieldset.dot-limit {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}

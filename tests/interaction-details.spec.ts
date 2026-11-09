@@ -86,21 +86,23 @@ test('trade stays beside the hand, collects hand clicks and supports bank exchan
     expect(box.x - board.x).toBeLessThan(10);
     expect(box.y + box.height).toBeLessThanOrEqual(board.y + board.height);
     expect(box.y).toBeGreaterThanOrEqual(board.y);
-    await expect(dialog.getByRole('button', { name: 'Send offer' })).toBeInViewport();
+    await expect(dialog.getByRole('button', { name: 'Offer to players' })).toBeInViewport();
     await page.screenshot({ path: `test-results/trading-${label}.png` });
   }
-  await dialog.getByRole('button', { name: 'Send offer' }).click();
+  await dialog.getByRole('button', { name: 'Offer to players' }).click();
   await expect.poll(() => game.state().tradeOffer?.give.wood).toBe(2);
   expect(game.state().tradeOffer?.give.brick).toBe(1);
   expect(game.state().tradeOffer?.want).toMatchObject({ ore: 1, wheat: 1 });
   await page.getByRole('button', { name: 'Withdraw offer' }).click();
-  await page.getByRole('button', { name: /^Trade Lumber/ }).click();
-  await dialog.getByRole('button', { name: 'Bank', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Request one more Ore' }).click();
+  // A bank trade is the same draft at your harbor rate: Bank stays off until it matches.
   const before = game.state().players[0].resources.wood,
     rate = getView(game.state(), 'p0').tradeRates.wood;
+  await page.getByRole('button', { name: /^Trade Lumber/ }).click();
+  await dialog.getByRole('button', { name: 'Request one more Ore' }).click();
+  if (rate > 1) await expect(dialog.getByRole('button', { name: 'Bank', exact: true })).toBeDisabled();
+  for (let i = 1; i < rate; i++) await page.getByRole('button', { name: /^Trade Lumber/ }).click();
   await expect(dialog.getByRole('button', { name: 'Remove one Lumber from give' })).toHaveText(String(rate));
-  await dialog.getByRole('button', { name: 'Exchange', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Bank', exact: true }).click();
   await expect.poll(() => game.state().players[0].resources.wood).toBe(before - rate);
   expect(game.errors).toEqual([]);
 });

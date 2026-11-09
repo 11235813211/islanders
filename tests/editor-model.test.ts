@@ -21,6 +21,7 @@ import {
   fillHarbors,
   fillLand,
   fillNumbers,
+  setGroupKind,
   setLinks,
   unfillHarbors,
   unfillLand,
@@ -154,7 +155,8 @@ describe('editing', () => {
 
 describe('repeatable fills', () => {
   it('places harbors in a new spread each time and fills their kinds with a balanced draw', async () => {
-    const { placeHarbors, harborTarget } = await import('../shared/maps/fill');
+    const { placeHarbors } = await import('../shared/maps/fill');
+    const { harborTarget } = await import('../shared/maps/harbors');
     const d = { ...newDesign('base', 'b', 'seafaring', 'Base'), harbors: [] };
     const spreads = new Set(
       [1, 2, 3, 4, 5].map(seed => JSON.stringify(placeHarbors(d, seeded(seed)).harbors.map(h => [h.q, h.r, h.side]))),
@@ -175,23 +177,30 @@ describe('repeatable fills', () => {
 });
 
 describe('links, unfills, and number swaps', () => {
-  it('only random pieces are linked: linking makes them random, setting a kind drops the link', () => {
+  it('a link group is random together or set to one resource together; painting a terrain unlinks', () => {
     let d = fillLand(base(), seeded(1));
     d = fillHarbors(d, seeded(2));
     const [h] = d.harbors;
     d = setLinks(d, [{ q: 0, r: 0 }], [h!], 'A');
     expect(d.tiles.find(t => t.q === 0 && t.r === 0)).toMatchObject({ kind: 'land', link: 'A' });
     expect(d.harbors[0]).toMatchObject({ kind: 'random', link: 'A' });
-    d = updateTile(d, 0, 0, { kind: 'ore' });
-    expect(d.tiles.find(t => t.q === 0 && t.r === 0)!.link).toBeUndefined();
-    d = paint(setLinks(d, [{ q: 0, r: 0 }], [], 'B'), [{ q: 0, r: 0 }], 'wheat');
-    expect(d.tiles.find(t => t.q === 0 && t.r === 0)!.link).toBeUndefined();
-    // Fills leave linked pieces random, and stored designs drop links on set pieces.
-    d = setLinks(d, [{ q: 1, r: 0 }], [], 'C');
-    expect(fillLand(d, seeded(3)).tiles.find(t => t.q === 1 && t.r === 0)!.kind).toBe('land');
-    const stored = { ...d, tiles: d.tiles.map(t => (t.q === 1 && t.r === 0 ? { ...t, kind: 'ore' as const } : t)) };
-    expect(parseDesign(stored, ['seafaring']).tiles.find(t => t.q === 1 && t.r === 0)!.link).toBeUndefined();
-    expect(setLinks(d, [{ q: 1, r: 0 }], [], null).tiles.find(t => t.q === 1 && t.r === 0)!.link).toBeUndefined();
+    // Setting the group's resource sets every member: the tile's terrain and the harbor's 2:1.
+    d = setGroupKind(d, 'A', 'wheat');
+    expect(d.tiles.find(t => t.q === 0 && t.r === 0)).toMatchObject({ kind: 'wheat', link: 'A' });
+    expect(d.harbors[0]).toMatchObject({ kind: 'wheat', link: 'A' });
+    // A new member takes the group's resource, and a stored design keeps the set group.
+    d = setLinks(d, [{ q: 1, r: 0 }], [], 'A');
+    expect(d.tiles.find(t => t.q === 1 && t.r === 0)).toMatchObject({ kind: 'wheat', link: 'A' });
+    expect(parseDesign(d, ['seafaring']).harbors[0]).toMatchObject({ kind: 'wheat', link: 'A' });
+    expect(buildBoard(d, seeded(5)).board.harbors.some(x => x.resource === 'wheat')).toBe(true);
+    // Painting a set terrain takes the tile out of the group; random land stays in it.
+    d = paint(d, [{ q: 1, r: 0 }], 'ore');
+    expect(d.tiles.find(t => t.q === 1 && t.r === 0)!.link).toBeUndefined();
+    d = setGroupKind(d, 'A', null);
+    expect(d.harbors[0]).toMatchObject({ kind: 'random', link: 'A' });
+    // Fills leave linked pieces alone; unlinking removes the letter.
+    expect(fillLand(d, seeded(3)).tiles.find(t => t.q === 0 && t.r === 0)!.kind).toBe('land');
+    expect(setLinks(d, [{ q: 0, r: 0 }], [], null).tiles.find(t => t.q === 0 && t.r === 0)!.link).toBeUndefined();
   });
 
   it('unfills land and harbor kinds, keeping numbers and harbor spots', () => {

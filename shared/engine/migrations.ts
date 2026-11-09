@@ -77,6 +77,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.specialBuilder ??= null;
   },
+  // 3 → 4: trade offers record who said yes; the offering player picks a partner.
+  s => {
+    if (s.tradeOffer) s.tradeOffer.acceptedBy ??= [];
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -15,7 +15,7 @@ test('a player counters an offer and the offerer accepts the counter', async ({ 
   await composer.getByRole('button', { name: 'Request one more Ore' }).click();
   await composer.getByRole('button', { name: 'Offer to Player 2' }).click();
   await composer.getByRole('button', { name: 'Offer to Player 3' }).click();
-  await composer.getByRole('button', { name: 'Send offer' }).click();
+  await composer.getByRole('button', { name: 'Offer to players' }).click();
   await expect.poll(() => game.state().tradeOffer?.to).toEqual(['p1']);
 
   // Player 1 asks for two Lumber instead.

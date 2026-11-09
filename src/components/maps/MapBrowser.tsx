@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowLeft, Check, Copy, Eye, Map as MapIcon, Plus, Trash2, Users, X } from 'lucide-react';
 import { type CSSProperties, type DragEvent, useEffect, useState } from 'react';
-import type { BoardDesign, BoardLibrary } from '../../../shared/maps';
+import { type BoardDesign, type BoardLibrary, boardExpansions, EXPANSIONS } from '../../../shared/maps';
 import CategoryHeader from './CategoryHeader';
 import DesignView from './DesignView';
 import MapThumbnail from './MapThumbnail';
@@ -16,6 +16,21 @@ export interface LibraryActions {
   duplicate: (id: string) => void;
   remove: (id: string) => void;
   changeLayout: (library: BoardLibrary) => void;
+}
+
+/** Small labels for the expansions a board needs. */
+export function ExpansionTags({ design }: { design: Pick<BoardDesign, 'expansions' | 'tiles'> }) {
+  const needs = boardExpansions(design);
+  if (!needs.length) return null;
+  return (
+    <span className="expansion-tags" title="Needs these expansions">
+      {needs.map(e => (
+        <span key={e} className={`expansion-tag expansion-${e}`}>
+          {EXPANSIONS[e]}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /** One map, large, with its rules. Read-only; the host can choose it from here. */
@@ -53,7 +68,12 @@ function MapDetail({
           <dt>Land tiles</dt>
           <dd>{land}</dd>
           <dt>Harbors</dt>
-          <dd>{design.harbors.length}</dd>
+          <dd>{design.harbors.length || 'Random'}</dd>
+          <dt>Needs</dt>
+          <dd>
+            <ExpansionTags design={design} />
+            {!boardExpansions(design).length && 'Base game only'}
+          </dd>
         </dl>
         {playersMismatch(design, players) && (
           <p className="map-warning" role="note">
@@ -92,6 +112,7 @@ export default function MapBrowser({
   choose = () => {},
   close,
   closeLabel = 'Close maps',
+  home,
   editing,
 }: {
   library: BoardLibrary | null;
@@ -103,6 +124,8 @@ export default function MapBrowser({
   choose?: (design: BoardDesign) => void;
   close: () => void;
   closeLabel?: string;
+  /** Shows a Home button that leaves this screen entirely (the editor's browser). */
+  home?: () => void;
   editing?: LibraryActions;
 }) {
   const [count, setCount] = useState<number | null>(editing ? null : Math.min(6, Math.max(2, players)));
@@ -153,9 +176,23 @@ export default function MapBrowser({
             </button>
           ))}
         </div>
-        <button type="button" className="icon-button" aria-label={closeLabel} onClick={close}>
-          <X />
-        </button>
+        {home ? (
+          <div className="map-picker-exit">
+            {close !== home && (
+              <button type="button" className="text-button" onClick={close}>
+                {closeLabel}
+              </button>
+            )}
+            <button type="button" className="button secondary" onClick={home}>
+              <ArrowLeft size={17} />
+              Home
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="icon-button" aria-label={closeLabel} onClick={close}>
+            <X />
+          </button>
+        )}
       </header>
       {open ? (
         <MapDetail
@@ -234,6 +271,7 @@ export default function MapBrowser({
                         >
                           <MapThumbnail tiles={board.tiles} />
                           <span className="map-card-name">{board.name}</span>
+                          <ExpansionTags design={board} />
                           <span className="map-card-meta">
                             <span>{playerRange(board.players)} players</span>
                             <span>{board.victoryPoints} points</span>

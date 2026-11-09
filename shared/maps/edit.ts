@@ -1,5 +1,5 @@
 import { HEX_RADIUS } from '../board';
-import { isProducing } from '../seafaring';
+import { takesToken } from '../seafaring';
 import type { Terrain } from '../types';
 import { neighborKeys } from './balance';
 import { autoHarbors } from './harbors';
@@ -21,7 +21,7 @@ import { DESIGN_LIMITS, LINK_LETTERS } from './validate';
 
 export const isLand = (kind: DesignKind) => kind !== 'sea' && kind !== 'iceberg';
 /** `land` will become a producing terrain most of the time, so it carries a number like one. */
-export const takesNumber = (kind: DesignKind) => kind === 'land' || isProducing(kind as Terrain);
+export const takesNumber = (kind: DesignKind) => kind === 'land' || takesToken(kind as Terrain);
 
 /** The axial cell under a board point (pixel → hex, rounded to the nearest cell). */
 export function cellAt(x: number, y: number): { q: number; r: number } {
@@ -73,7 +73,7 @@ export function newDesign(kind: 'blank' | 'base', id: string, categoryId: string
   };
 }
 
-/** Drop harbors, starts, and links that no longer fit the tiles. Only random pieces keep a link. */
+/** Drop harbors, starts, and links that no longer fit the tiles. Links stay on land and on non-3:1 harbors. */
 export function tidy(design: BoardDesign): BoardDesign {
   const byKey = new Map(design.tiles.map(t => [tileKey(t.q, t.r), t]));
   const harbors = design.harbors.filter(h => {
@@ -87,14 +87,12 @@ export function tidy(design: BoardDesign): BoardDesign {
   return {
     ...design,
     tiles: design.tiles.map(t => {
-      if (t.kind === 'land' || (isLand(t.kind) && !t.link)) return t;
-      const { link: _l, ...linkless } = t;
-      if (isLand(t.kind)) return linkless;
-      const { number: _n, noSetup: _s, bonus: _b, ...rest } = linkless;
-      return rest;
+      if (isLand(t.kind)) return t;
+      const { link: _l, number: _n, noSetup: _s, bonus: _b, pips: _p, ...rest } = t;
+      return t.kind === 'iceberg' && t.number ? { ...rest, number: t.number } : rest;
     }),
     harbors: harbors.map(h => {
-      if (h.kind === 'random' || !h.link) return h;
+      if (h.kind !== 'any' || !h.link) return h;
       const { link: _l, ...rest } = h;
       return rest;
     }),
@@ -119,8 +117,10 @@ export function paint(design: BoardDesign, cells: { q: number; r: number }[], br
       if (!tile && byKey.size < DESIGN_LIMITS.tiles) byKey.set(key, { q, r, kind: 'sea' });
     } else if (tile) {
       if (tile.kind !== brush) {
-        const kept = takesNumber(brush) ? tile : { q, r, link: tile.link };
-        byKey.set(key, { ...kept, q, r, kind: brush });
+        // Painting a set terrain takes a tile out of its link group; painting random land keeps it in.
+        const { link, ...unlinked } = tile;
+        const kept = takesNumber(brush) ? unlinked : { q, r };
+        byKey.set(key, { ...kept, q, r, kind: brush, ...(brush === 'land' && link ? { link } : {}) });
       }
     } else if (byKey.size < DESIGN_LIMITS.tiles) byKey.set(key, { q, r, kind: brush });
   }
@@ -136,6 +136,7 @@ export function updateTile(design: BoardDesign, q: number, r: number, patch: Par
       const next: DesignTile = { ...t, ...patch, q, r };
       for (const key of Object.keys(patch) as (keyof DesignTile)[]) if (patch[key] === undefined) delete next[key];
       if (!takesNumber(next.kind)) delete next.number;
+      if (!takesNumber(next.kind) || next.kind === 'iceberg') delete next.pips;
       return next;
     }),
   });

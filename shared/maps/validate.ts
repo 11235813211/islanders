@@ -1,9 +1,21 @@
 import { VICTORY_POINT_RANGE } from '../settings';
 import { RESOURCES, type Resource, SEA_TERRAINS, type Terrain } from '../types';
-import type { BoardCategory, BoardDesign, DesignHarbor, DesignKind, DesignTile, FillKind } from './types';
+import { RICH_LEVELS } from './balance';
+import {
+  type BoardCategory,
+  type BoardDesign,
+  type DesignHarbor,
+  type DesignKind,
+  type DesignTile,
+  EXPANSIONS,
+  type Expansion,
+  type FillKind,
+} from './types';
 
 /** Limits that keep a board small enough to send and to play within the server's CPU budget. */
 export const DESIGN_LIMITS = { tiles: 260, harbors: 60, coordinate: 24, categories: 24, boards: 120 } as const;
+/** Most of the sea that random icebergs may cover. */
+export const ICEBERG_MAX_PERCENT = 50;
 export const DESIGN_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const LINK_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -44,8 +56,13 @@ function parseTile(v: unknown): DesignTile {
     if (!int(t.number, 2, 12) || t.number === 7) fail('Numbers run from 2 to 12, without 7.');
     tile.number = t.number as number;
   }
+  if (t.pips !== undefined) {
+    if (!Array.isArray(t.pips) || !t.pips.every(p => int(p, 1, 5))) fail('Number limits are 1 to 5 dots.');
+    const pips = [...new Set(t.pips as number[])].sort();
+    if (pips.length && pips.length < 5) tile.pips = pips;
+  }
   const l = link(t.link);
-  if (l && tile.kind === 'land') tile.link = l;
+  if (l && tile.kind !== 'sea' && tile.kind !== 'iceberg') tile.link = l;
   if (t.noSetup === true) tile.noSetup = true;
   if (t.bonus !== undefined) {
     if (!int(t.bonus, 1, 3)) fail('Island bonuses are 1 to 3 points.');
@@ -67,7 +84,7 @@ function parseHarbor(v: unknown): DesignHarbor {
     kind: h.kind as DesignHarbor['kind'],
   };
   const l = link(h.link);
-  if (l && harbor.kind === 'random') harbor.link = l;
+  if (l && harbor.kind !== 'any') harbor.link = l;
   return harbor;
 }
 
@@ -97,7 +114,9 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   for (const [kind, weight] of Object.entries(value.pool as Record<string, unknown>)) {
     // Shares may use one decimal place (the editor steps by 0.1).
     const tenths = typeof weight === 'number' ? weight * 10 : Number.NaN;
-    if (
+    if (kind === 'iceberg') {
+      if (!int(weight, 0, ICEBERG_MAX_PERCENT)) fail(`Icebergs cover 0–${ICEBERG_MAX_PERCENT}% of the sea.`);
+    } else if (
       !FILL_KINDS.includes(kind as FillKind) ||
       !(tenths >= 0 && tenths <= 200) ||
       Math.abs(tenths - Math.round(tenths)) > 1e-6
@@ -109,6 +128,14 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
     fail('Invalid harbor exclusions.');
   if (value.swapNumbers !== undefined && typeof value.swapNumbers !== 'boolean') fail('Invalid number swap setting.');
+  if (value.richIslands !== undefined && !int(value.richIslands, 0, RICH_LEVELS))
+    fail('Invalid closed-island numbers.');
+  const expansions = value.expansions;
+  if (
+    expansions !== undefined &&
+    (!Array.isArray(expansions) || !expansions.every(e => Object.hasOwn(EXPANSIONS, e as string)))
+  )
+    fail('Unknown expansion.');
   return {
     id: value.id as string,
     name,
@@ -123,6 +150,8 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     pool,
     harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
     ...(value.swapNumbers ? { swapNumbers: true } : {}),
+    ...(value.richIslands ? { richIslands: value.richIslands as number } : {}),
+    ...(expansions ? { expansions: [...new Set(expansions as Expansion[])] } : {}),
     updatedAt: 0,
   };
 }

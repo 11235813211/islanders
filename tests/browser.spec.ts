@@ -88,7 +88,7 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   const want = RESOURCES.find(resource => resource !== give)!;
   await page.getByRole('button', { name: new RegExp(`^Trade ${labels[give]}`) }).click();
   await page.getByRole('button', { name: `Request one more ${labels[want]}` }).click();
-  await page.getByRole('button', { name: 'Send offer' }).click();
+  await page.getByRole('button', { name: 'Offer to players' }).click();
   await expect.poll(() => game.state()?.tradeOffer).toBeTruthy();
   await page.getByRole('button', { name: 'activity', exact: true }).click();
   await page.getByLabel('Play as', { exact: true }).selectOption(other.id);
@@ -97,6 +97,11 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await page.getByRole('button', { name: 'Decline trade', exact: true }).click();
   await expect.poll(() => game.state()?.tradeOffer?.declinedBy.includes(other.id)).toBe(true);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Declining keeps the offer on screen, so the answer can still change.
+  await expect(page.getByRole('button', { name: 'Decline trade', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.getByLabel('Play as', { exact: true }).selectOption(host);
   await page.getByRole('button', { name: 'Withdraw offer' }).click();
   await expect.poll(() => game.state()?.tradeOffer).toBeNull();

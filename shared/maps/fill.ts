@@ -1,12 +1,14 @@
-import { balancedNumbers } from './balance';
-import { isLand, takesNumber, tidy } from './edit';
+import { RESOURCES, type Resource } from '../types';
+import { balancedNumbers, NUMBER_SET, RICH_LEVELS } from './balance';
+import { closedTiles, isLand, takesNumber, tidy } from './edit';
 import { buildBoard, drawHarborKinds } from './generate';
-import { autoHarbors } from './harbors';
+import { autoHarbors, harborTarget } from './harbors';
 import { type BoardDesign, type DesignTile, tileKey } from './types';
 
 /**
- * The editor's fills and their undos. Fills make random pieces concrete with a balanced draw;
- * linked pieces stay random, since a link only means anything while the piece is random.
+ * The editor's fills and their undos, and link groups. Fills make random pieces concrete with a
+ * balanced draw and leave linked pieces alone: a link group is either random together or set to
+ * one resource together (see setGroupKind).
  */
 
 /** Turn every unlinked random land tile into the terrain a balanced draw gives it. */
@@ -23,20 +25,26 @@ export function fillLand(design: BoardDesign, random: () => number = Math.random
 
 /** Give every numbered tile without a number a balanced one (keeping the numbers already set). */
 export function fillNumbers(design: BoardDesign, random: () => number = Math.random): BoardDesign {
-  const producing = design.tiles.filter(t => takesNumber(t.kind)).map(t => ({ q: t.q, r: t.r, terrain: t.kind }));
-  const fixed = new Map(
-    design.tiles.filter(t => t.number !== undefined && takesNumber(t.kind)).map(t => [tileKey(t.q, t.r), t.number!]),
-  );
-  const numbers = balancedNumbers(producing, fixed, random);
+  const closed = closedTiles(design);
+  const numbered = design.tiles.filter(t => takesNumber(t.kind) && t.kind !== 'iceberg');
+  const producing = numbered.map(t => ({
+    q: t.q,
+    r: t.r,
+    terrain: t.kind,
+    pips: t.pips,
+    rich: closed.has(tileKey(t.q, t.r)),
+  }));
+  const fixed = new Map(numbered.filter(t => t.number !== undefined).map(t => [tileKey(t.q, t.r), t.number!]));
+  const numbers = balancedNumbers(producing, fixed, random, { richness: (design.richIslands ?? 0) / RICH_LEVELS });
+  const iceberg = () => NUMBER_SET[Math.floor(random() * NUMBER_SET.length)]!;
   return {
     ...design,
-    tiles: design.tiles.map(t => (takesNumber(t.kind) ? { ...t, number: numbers.get(tileKey(t.q, t.r)) } : t)),
+    tiles: design.tiles.map(t => {
+      if (t.kind === 'iceberg') return { ...t, number: t.number ?? iceberg() };
+      return takesNumber(t.kind) ? { ...t, number: numbers.get(tileKey(t.q, t.r)) } : t;
+    }),
   };
 }
-
-/** About one harbor per two land tiles, like the base game's 9 for 19. */
-export const harborTarget = (design: BoardDesign) =>
-  Math.max(3, Math.round(design.tiles.filter(t => isLand(t.kind)).length / 2.1));
 
 /** Add harbors spread around the coasts until the board has about its share (a new spread each call). */
 export function placeHarbors(design: BoardDesign, random: () => number = Math.random): BoardDesign {
@@ -82,9 +90,26 @@ export function unfillHarbors(design: BoardDesign): BoardDesign {
 /** Remove every harbor. */
 export const clearHarbors = (design: BoardDesign): BoardDesign => ({ ...design, harbors: [] });
 
+/** The resource a link group is set to, or null while it is random. */
+export function groupKind(design: BoardDesign, letter: string): Resource | null {
+  const tile = design.tiles.find(t => t.link === letter && RESOURCES.includes(t.kind as Resource));
+  if (tile) return tile.kind as Resource;
+  const harbor = design.harbors.find(h => h.link === letter && RESOURCES.includes(h.kind as Resource));
+  return harbor ? (harbor.kind as Resource) : null;
+}
+
+/** Set a whole link group to one resource (tiles get its terrain, harbors trade it 2:1), or make it random (null). */
+export function setGroupKind(design: BoardDesign, letter: string, resource: Resource | null): BoardDesign {
+  return tidy({
+    ...design,
+    tiles: design.tiles.map(t => (t.link === letter ? { ...t, kind: resource ?? 'land' } : t)),
+    harbors: design.harbors.map(h => (h.link === letter ? { ...h, kind: resource ?? 'random' } : h)),
+  });
+}
+
 /**
- * Link tiles and harbors to `letter` (null unlinks). Linked tiles become random land and linked
- * harbors random harbors, so the link alone decides their resource.
+ * Link tiles and harbors to `letter` (null unlinks). Linked pieces take the group's resource: the
+ * one it is set to, or random until the game draws one for the whole group.
  */
 export function setLinks(
   design: BoardDesign,
@@ -94,7 +119,8 @@ export function setLinks(
 ): BoardDesign {
   const tileKeys = new Set(tiles.map(t => tileKey(t.q, t.r)));
   const harborKeys = new Set(harbors.map(h => `${h.q},${h.r},${h.side}`));
-  return tidy({
+  const kind = letter ? groupKind(design, letter) : null;
+  const linked = tidy({
     ...design,
     tiles: design.tiles.map(t => {
       if (!tileKeys.has(tileKey(t.q, t.r)) || !isLand(t.kind)) return t;
@@ -107,4 +133,5 @@ export function setLinks(
       return letter ? { ...rest, kind: 'random', link: letter } : rest;
     }),
   });
+  return letter && kind ? setGroupKind(linked, letter, kind) : linked;
 }

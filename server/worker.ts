@@ -155,22 +155,31 @@ async function handleClientError(request: Request, env: Env, requester: string):
  * (the same accounts that may create solo test rooms).
  */
 async function handleBoards(url: URL, request: Request, env: Env): Promise<Response> {
+  // Board locks are per account; see BoardLibraryStore.lock.
   const library = libraryStub(env);
-  const match = /^\/api\/boards(?:\/([^/]+))?$/.exec(url.pathname)!;
+  const match = /^\/api\/boards(?:\/([^/]+)(\/lock)?)?$/.exec(url.pathname);
+  if (!match) throw new ProtocolError('Board not found.', 404);
   const id = match[1];
   if (request.method === 'GET' && !id) return json(structuredClone(await library.library()));
-  if (!canPlaytest(env, await accountFor(request, env, true)))
+  const identity = await accountFor(request, env, true);
+  if (!identity || !canPlaytest(env, identity))
     throw new ProtocolError('Board editing is not available on this account.', 403);
   const reply = <T>(result: LibraryResult<T>) =>
     result.ok ? json(structuredClone(result.value ?? { ok: true })) : json({ error: result.error }, result.status);
   if (request.method === 'PUT' && !id) return reply(await library.saveLayout(await readBody(request, MAX_BOARD_BYTES)));
   if (!id || !isIdentifier(id)) throw new ProtocolError('Board not found.', 404);
+  // An editor holds a board while it is open: POST takes or renews the hold, DELETE lets it go.
+  if (match[2]) {
+    if (request.method === 'POST') return reply(await library.lock(id, identity.username));
+    if (request.method === 'DELETE') return reply(await library.lock(id, identity.username, true));
+    throw new ProtocolError('Use POST or DELETE for a board lock.', 405);
+  }
   if (request.method === 'PUT') {
     const body = await readBody(request, MAX_BOARD_BYTES);
     if (!record(body) || body.id !== id) throw new ProtocolError('The board id does not match the address.');
-    return reply(await library.saveBoard(body));
+    return reply(await library.saveBoard(body, identity.username));
   }
-  if (request.method === 'DELETE') return reply(await library.deleteBoard(id));
+  if (request.method === 'DELETE') return reply(await library.deleteBoard(id, identity.username));
   throw new ProtocolError('Use GET, PUT, or DELETE for boards.', 405);
 }
 

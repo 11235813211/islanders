@@ -7,6 +7,10 @@ const MIN_SPACING = 75;
 
 const isLand = (tile: DesignTile | undefined) => !!tile && tile.kind !== 'sea' && tile.kind !== 'iceberg';
 
+/** About one harbor per two land tiles, like the base game's 9 for 19. */
+export const harborTarget = (design: { tiles: DesignTile[] }) =>
+  Math.max(3, Math.round(design.tiles.filter(isLand).length / 2.1));
+
 /** Every land edge that faces a sea tile, with its midpoint. */
 export function coastEdges(tiles: DesignTile[]): (DesignHarbor & { x: number; y: number })[] {
   const byKey = new Map(tiles.map(t => [tileKey(t.q, t.r), t]));

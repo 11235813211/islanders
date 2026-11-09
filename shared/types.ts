@@ -2,6 +2,12 @@ import type { BoardDesign } from './maps/types';
 export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
 export type Resource = (typeof RESOURCES)[number];
 export type ResourceBag = Record<Resource, number>;
+/** Jungle discoveries, when room rules let them move like cards (see DISCOVERY_RULES). */
+export type Tradable = Resource | 'discovery';
+/** Resources plus, where the room allows it, jungle discoveries. */
+export type TradeBag = ResourceBag & { discovery?: number };
+/** How jungle discoveries behave. Defined with their labels in shared/settings.ts. */
+export type DiscoveryRule = 'kept' | 'tradable' | 'card';
 /** Tiles added for sea maps. Sea and icebergs are water; the rest are land. */
 export const SEA_TERRAINS = ['sea', 'gold', 'jungle', 'volcano', 'iceberg'] as const;
 export type SeaTerrain = (typeof SEA_TERRAINS)[number];
@@ -114,13 +120,14 @@ export type GameEvent =
   | { kind: 'roll'; playerId: string; dice: [number, number]; gains: Record<string, ResourceBag> }
   | { kind: 'build'; playerId: string; piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
-  | { kind: 'player-trade'; fromId: string; toId: string; give: ResourceBag; get: ResourceBag }
+  | { kind: 'player-trade'; fromId: string; toId: string; give: TradeBag; get: TradeBag }
   | { kind: 'offer'; playerId: string }
-  | { kind: 'discard'; playerId: string; resources: ResourceBag }
-  | { kind: 'steal'; thiefId: string; victimId: string; resource: Resource | null }
-  | { kind: 'development'; playerId: string; card: DevelopmentType; gains: ResourceBag | null }
+  | { kind: 'discard'; playerId: string; resources: TradeBag }
+  | { kind: 'steal'; thiefId: string; victimId: string; resource: Tradable | null }
+  | { kind: 'development'; playerId: string; card: DevelopmentType; gains: TradeBag | null }
   | { kind: 'gold'; playerId: string; resources: ResourceBag }
   | { kind: 'eruption'; die: number; vertexId: string; playerId: string | null; damage: 'none' | 'city' | 'settlement' }
+  | { kind: 'iceberg'; die: number; edgeId: string; playerId: string | null }
   | { kind: 'win'; playerId: string; points: number };
 export interface GameLog {
   id: number;
@@ -148,21 +155,31 @@ export interface GameSettings {
   discardLimit: number;
   victoryPoints: number;
   pieceStyle: PieceStyle;
+  /** Seconds a trade offer stays open. */
+  tradeSeconds: number;
+  /** Everyone sees how many cards of each resource the bank has left. */
+  showBank: boolean;
+  /** How jungle discoveries behave (only matters on maps with a jungle). */
+  discoveries: DiscoveryRule;
+  /** Volcanoes pay a resource of each owner's choice before erupting (the gold variant). */
+  volcanoGold: boolean;
 }
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {
   id: string;
   fromId: string;
-  give: ResourceBag;
-  want: ResourceBag;
+  give: TradeBag;
+  want: TradeBag;
 }
 export interface TradeOffer {
   id: string;
   fromId: string;
-  give: ResourceBag;
-  want: ResourceBag;
+  give: TradeBag;
+  want: TradeBag;
   /** Players the offer was sent to. */
   to: string[];
+  /** Recipients who said yes; the offering player picks one of them to trade with. */
+  acceptedBy: string[];
   declinedBy: string[];
   counters: TradeCounter[];
   createdAt: number;
@@ -322,6 +339,10 @@ export interface GameView {
   robber: string;
   pirate: string | null;
   bank: Record<Resource, boolean>;
+  /** Cards left of each resource, when the room shows them (settings.showBank). */
+  bankCounts: ResourceBag | null;
+  /** The map has a jungle, so discovery rules matter. */
+  jungle: boolean;
   activePlayerId: string | null;
   /** Whose turn it is; differs from activePlayerId during setup and the special build phase. */
   turnPlayerId: string | null;
@@ -369,10 +390,12 @@ export type GameAction =
   | { type: 'add-bot'; level: BotLevel }
   | { type: 'set-bot-level'; playerId: string; level: BotLevel }
   | { type: 'play-again' }
-  | { type: 'offer-trade'; give: ResourceBag; want: ResourceBag; to?: string[] }
-  | { type: 'counter-trade'; offerId: string; give: ResourceBag; want: ResourceBag }
+  | { type: 'offer-trade'; give: TradeBag; want: TradeBag; to?: string[] }
+  | { type: 'counter-trade'; offerId: string; give: TradeBag; want: TradeBag }
   | { type: 'accept-counter'; offerId: string; counterId: string }
   | { type: 'accept-trade'; offerId: string }
+  /** The offering player trades with one of the recipients who accepted. */
+  | { type: 'confirm-trade'; offerId: string; playerId: string }
   | { type: 'decline-trade'; offerId: string }
   | { type: 'cancel-trade'; offerId: string }
   | { type: 'place-settlement'; vertexId: string }
@@ -386,16 +409,17 @@ export type GameAction =
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
-  | { type: 'trade'; give: Resource; receive: Resource }
+  /** Bank or harbor trade: `count` times the rate of `give` for `count` of `receive`. */
+  | { type: 'trade'; give: Resource; receive: Resource; count?: number }
   | { type: 'end-turn' }
-  | { type: 'discard'; resources: ResourceBag }
+  | { type: 'discard'; resources: TradeBag }
   | { type: 'move-robber'; hexId: string }
   | { type: 'steal'; playerId: string }
   | { type: 'buy-development' }
   | { type: 'play-knight'; cardId: string }
   | { type: 'play-road-building'; cardId: string }
-  | { type: 'play-monopoly'; cardId: string; resource: Resource }
-  | { type: 'play-plenty'; cardId: string; resources: ResourceBag }
+  | { type: 'play-monopoly'; cardId: string; resource: Tradable }
+  | { type: 'play-plenty'; cardId: string; resources: TradeBag }
   | { type: 'finish-free-roads' }
   | { type: 'chat'; text: string }
   | { type: 'propose'; kind: Proposal['kind'] }

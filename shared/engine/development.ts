@@ -1,7 +1,10 @@
-import { type DevelopmentType, RESOURCES, type ResourceBag } from '../types';
+import { type DevelopmentType, RESOURCES, type TradeBag } from '../types';
 import {
+  addBag,
   addLog,
   BUILD_COSTS,
+  bagCount,
+  discoveryRule,
   emptyBag,
   type Handlers,
   needPhase,
@@ -37,7 +40,7 @@ function finishPlay(
   ctx: Parameters<Handlers['play-knight']>[0],
   index: number,
   type: PlayAction,
-  gains: ResourceBag | null,
+  gains: TradeBag | null,
 ) {
   const { next, player, playerId } = ctx;
   player.development.splice(index, 1);
@@ -90,33 +93,43 @@ export const developmentHandlers: Pick<
 
   'play-monopoly'(ctx, action) {
     const { next, player, playerId } = ctx;
+    const resource = action.resource;
+    requireRule(
+      resource !== 'discovery' || discoveryRule(next).stealable,
+      'Monopoly cannot take discoveries in this room.',
+    );
     const index = takeCard(ctx, action.type, action.cardId);
-    const gains = emptyBag();
+    const gains: TradeBag = emptyBag();
     for (const other of next.players) {
       if (other.id === playerId) continue;
-      gains[action.resource] += other.resources[action.resource];
-      player.resources[action.resource] += other.resources[action.resource];
-      other.resources[action.resource] = 0;
+      const taken: TradeBag = {
+        ...emptyBag(),
+        [resource]: resource === 'discovery' ? other.discoveries : other.resources[resource],
+      };
+      addBag(other, taken, -1);
+      addBag(player, taken);
+      gains[resource] = (gains[resource] ?? 0) + (taken[resource] ?? 0);
     }
     finishPlay(ctx, index, action.type, gains);
   },
 
   'play-plenty'(ctx, action) {
     const { next, player } = ctx;
+    const finds = action.resources.discovery ?? 0;
+    requireRule(!finds || discoveryRule(next).stealable, 'Year of Plenty cannot take discoveries in this room.');
     const index = takeCard(ctx, action.type, action.cardId);
-    const available = resourceCount(next.bank);
+    // Discoveries come from the jungle, not the bank, so they never run out.
+    const available = resourceCount(next.bank) + (discoveryRule(next).stealable ? 2 : 0);
     requireRule(
-      available > 0 && resourceCount(action.resources) === Math.min(2, available),
+      available > 0 && bagCount(action.resources) === Math.min(2, available),
       'Choose two available resources, or all remaining cards if only one is left.',
     );
     requireRule(
       RESOURCES.every(r => next.bank[r] >= action.resources[r]),
       'The bank does not have those resources.',
     );
-    for (const r of RESOURCES) {
-      next.bank[r] -= action.resources[r];
-      player.resources[r] += action.resources[r];
-    }
+    for (const r of RESOURCES) next.bank[r] -= action.resources[r];
+    addBag(player, action.resources);
     finishPlay(ctx, index, action.type, action.resources);
   },
 };

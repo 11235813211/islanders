@@ -1,6 +1,6 @@
 import type { BoardDesign, BoardLibrary } from '../../shared/maps';
 import type { AccountSession } from '../../shared/types';
-import { apiRequest } from './api';
+import { API, apiRequest, authHeaders } from './api';
 
 /** Save one board (create or replace). Board editors only. */
 export const saveBoard = (account: AccountSession | null, design: BoardDesign) =>
@@ -26,3 +26,16 @@ export const saveLayout = (account: AccountSession | null, library: BoardLibrary
     },
     account,
   );
+
+/** Take or renew this account's hold on a board, so nobody else edits it meanwhile. */
+export const lockBoard = (account: AccountSession | null, id: string) =>
+  apiRequest<{ ok: true }>(`/api/boards/${encodeURIComponent(id)}/lock`, { method: 'POST' }, account);
+
+/** Let go of a board. `keepalive` lets it finish while the page closes. */
+export function releaseBoard(account: AccountSession | null, id: string): void {
+  void fetch(`${API}/api/boards/${encodeURIComponent(id)}/lock`, {
+    method: 'DELETE',
+    headers: authHeaders(account),
+    keepalive: true,
+  }).catch(() => undefined);
+}

@@ -1,5 +1,12 @@
 import { shuffled } from './board';
-import { type DevelopmentCard, type DevelopmentType, type GameState, RESOURCES, type Resource } from './types';
+import {
+  type DevelopmentCard,
+  type DevelopmentType,
+  type GameState,
+  RESOURCES,
+  type Resource,
+  type TradeOffer,
+} from './types';
 
 /** The shuffled development deck: 25 cards, or 34 for five and six players. */
 export function developmentDeck(random: () => number, large = false): DevelopmentCard[] {
@@ -72,4 +79,13 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
     : 0;
   const awards = (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
   return structures + cards + awards + (state.bonusPoints?.[playerId] ?? 0);
+}
+
+/** Has this recipient answered the offer (yes, no, or a counter)? */
+export function hasAnswered(offer: TradeOffer, playerId: string): boolean {
+  return (
+    offer.acceptedBy.includes(playerId) ||
+    offer.declinedBy.includes(playerId) ||
+    offer.counters.some(c => c.fromId === playerId)
+  );
 }
