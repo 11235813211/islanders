@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   Check,
-  ClipboardPaste,
   Eye,
   FlaskConical,
   Hexagon,
@@ -11,13 +10,10 @@ import {
   Shield,
   Swords,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import type { AccountRoomStatus } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
 import { parseJoinInput } from '../hooks/useRoom';
-import { runningAsApp } from '../lib/installedApp';
-
-/** In the home-screen app, invites arrive by copy and paste (links open in the browser), so offer a Paste button. */
-const canPaste = () => runningAsApp() && typeof navigator.clipboard?.readText === 'function';
 
 function roomStatusLabel(room: AccountRoomStatus): string {
   if (room.phase === 'lobby') return 'In the lobby';
@@ -52,6 +48,26 @@ export default function HomeScreen({
   /** Open the board editor (shown with the solo playtest, to the same accounts). */
   openEditor: () => void;
 }) {
+  /** A pasted whole invite link joins straight away; a spectator link only fills the box (it shows "Watch"). */
+  const pasteInvite = (text: string): boolean => {
+    const input = parseJoinInput(text);
+    if (input.spectate === null || !input.code) return false;
+    setCode(input.code);
+    setSpectate(input.spectate);
+    if (!input.spectate && !loading) enter('join', input.code);
+    return true;
+  };
+  // ⌘V / Ctrl+V anywhere on the home screen (not while typing in another field).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-bound when what a join needs changes.
+  useEffect(() => {
+    const paste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+      if (pasteInvite(event.clipboardData?.getData('text') ?? '')) event.preventDefault();
+    };
+    document.addEventListener('paste', paste);
+    return () => document.removeEventListener('paste', paste);
+  }, [loading, name]);
   return (
     <main className={`home-layout${canPlaytest ? '' : ' single'}`}>
       <section className="home-heading">
@@ -102,6 +118,9 @@ export default function HomeScreen({
             value={code}
             autoCapitalize="characters"
             autoComplete="off"
+            onPaste={e => {
+              if (pasteInvite(e.clipboardData.getData('text'))) e.preventDefault();
+            }}
             onChange={e => {
               const input = parseJoinInput(e.target.value);
               setCode(input.code);
@@ -111,26 +130,6 @@ export default function HomeScreen({
             minLength={5}
             required
           />
-          {canPaste() && (
-            <button
-              type="button"
-              className="button secondary"
-              disabled={loading}
-              onClick={() =>
-                void navigator.clipboard.readText().then(
-                  text => {
-                    const input = parseJoinInput(text);
-                    setCode(input.code);
-                    if (input.spectate !== null) setSpectate(input.spectate);
-                  },
-                  () => {},
-                )
-              }
-            >
-              <ClipboardPaste size={18} />
-              Paste
-            </button>
-          )}
           <button className="button secondary" disabled={loading || !code.trim()}>
             {spectate ? 'Watch' : 'Join'}
             <ArrowRight size={20} />
