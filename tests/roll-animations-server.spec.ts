@@ -40,8 +40,23 @@ test('in a real room, every roll tumbles through the middle and every iceberg dr
     await page.goto(`/#room=${session.roomId}`);
     await expect(page.getByRole('button', { name: 'Start game' })).toBeVisible();
     await page.evaluate(() => {
-      const seen = new Map<Element, Seen & { at: number }>();
+      // Timing comes from each animation's fixed start on the document timeline and the exact
+      // moment its element leaves (a DOM observer), so a busy page skipping frames can't skew it.
+      const now = () => Number(document.timeline.currentTime ?? 0);
+      const seen = new Map<Element, Seen & { at: number; start: number; done: boolean; removedAt: number | null }>();
       (window as unknown as { seen: typeof seen }).seen = seen;
+      document.addEventListener(
+        'animationend',
+        event => {
+          const entry = seen.get(event.target as Element);
+          if (entry) entry.done = true;
+        },
+        true,
+      );
+      new MutationObserver(() => {
+        for (const [element, entry] of seen)
+          if (!element.isConnected && entry.removedAt === null) entry.removedAt = now();
+      }).observe(document.body, { childList: true, subtree: true });
       const sample = () => {
         for (const [selector, kind] of [
           ['.board-dice.rolling', 'dice'],
@@ -49,7 +64,7 @@ test('in a real room, every roll tumbles through the middle and every iceberg dr
         ] as const)
           for (const element of document.querySelectorAll(selector)) {
             const animation = element.getAnimations()[0];
-            if (!animation) continue;
+            if (!animation || animation.startTime === null) continue;
             const time = Number(animation.currentTime ?? 0);
             const duration = Number(animation.effect?.getComputedTiming().endTime ?? 0);
             const entry = seen.get(element) ?? {
@@ -60,6 +75,9 @@ test('in a real room, every roll tumbles through the middle and every iceberg dr
               attached: true,
               closest: Number.POSITIVE_INFINITY,
               at: 0,
+              start: Number(animation.startTime),
+              done: false,
+              removedAt: null,
             };
             if (kind === 'dice') {
               const box = element.getBoundingClientRect();
@@ -72,10 +90,15 @@ test('in a real room, every roll tumbles through the middle and every iceberg dr
             }
             if (time + 50 < entry.at) entry.restarted = true;
             entry.at = time;
-            entry.reached = Math.max(entry.reached, animation.playState === 'finished' ? duration : time);
             seen.set(element, entry);
           }
-        for (const [element, entry] of seen) entry.attached = element.isConnected;
+        for (const [element, entry] of seen) {
+          entry.attached = element.isConnected;
+          // How far it really got: all of it, or up to the moment it was taken off the page.
+          entry.reached = entry.done
+            ? entry.duration
+            : Math.min(entry.duration, (entry.removedAt ?? now()) - entry.start);
+        }
         requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);

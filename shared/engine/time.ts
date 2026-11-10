@@ -7,13 +7,17 @@ import { getView } from './view';
 
 /** How long a bot "thinks" before each move, so people can follow along. */
 export const BOT_THINK_MS = 450;
-/** Extra wait before a bot starts its turn after a person ends theirs, so that person can undo. */
-export const UNDO_GRACE_MS = 2500;
+/**
+ * Extra wait before a bot starts its turn after a person ends theirs, so that person can undo. It
+ * also lets the person's roll finish tumbling (2.6 s) on a slow device before the bot rolls, even
+ * when they end their turn straight after rolling.
+ */
+export const UNDO_GRACE_MS = 3500;
 /**
  * Extra wait after a bot's roll (with its icebergs and eruptions) before its next move, so the
  * dice, drifting icebergs, and cards flying out play out before it builds or ends its turn.
  */
-export const ROLL_SHOW_MS = 2600;
+export const ROLL_SHOW_MS = 3000;
 /** Safety valve: a bot that has done this much in one turn ends it. */
 const MAX_BOT_STEPS_PER_TURN = 30;
 
