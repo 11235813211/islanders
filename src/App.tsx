@@ -7,9 +7,11 @@ import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
 import InviteDialog, { type InviteKind } from './components/InviteDialog';
+import OpenInAppBanner from './components/OpenInAppBanner';
 import RoomLobby from './components/RoomLobby';
 import { useAccount } from './hooks/useAccount';
 import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
+import { rememberApp } from './lib/installedApp';
 
 declare const __LAN_ORIGIN__: string;
 
@@ -22,6 +24,10 @@ function App() {
   const [code, setCode] = useState(roomFromLocation);
   const [inviteCode, setInviteCode] = useState(roomFromLocation);
   const attemptedInvite = useRef('');
+  /** This tab joined from an invite link (so it may offer to move to the home-screen app). */
+  const [invited, setInvited] = useState(false);
+  /** What to say once this tab has left the room for the home-screen app. */
+  const afterLeave = useRef<string | null>(null);
   const entryRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +61,18 @@ function App() {
     const key = `${inviteCode}:${account.account?.username ?? 'guest'}`;
     if (!inviteCode || session || attemptedInvite.current === key) return;
     attemptedInvite.current = key;
+    setInvited(true);
     void enter('join', inviteCode, true);
   }, [inviteCode, session, account.account?.username]);
+  // Running as the home-screen app: remember it, so Android's browser can offer to switch to it.
+  useEffect(rememberApp, []);
   // Left, removed, or the room closed: go home and say why.
   // biome-ignore lint/correctness/useExhaustiveDependencies: react only to the room ending.
   useEffect(() => {
     if (!room.left) return;
     home();
-    setNotice(room.left);
+    setNotice(afterLeave.current ?? room.left);
+    afterLeave.current = null;
   }, [room.left]);
 
   async function enter(kind: 'create' | 'join' | 'test', roomCode = code, directInvite = false, mapId?: string) {
@@ -110,6 +120,7 @@ function App() {
     setEditing(false);
     entryRequest.current++;
     attemptedInvite.current = '';
+    setInvited(false);
     setInviteCode('');
     setLoading(false);
     setSession(null);
@@ -151,6 +162,19 @@ function App() {
     }
     url.hash = `room=${view?.roomId ?? ''}${kind === 'spectator' ? '&spectate=1' : ''}`;
     return url.href;
+  }
+  /** Copy the invite and give up this tab's seat, so the player joins from the home-screen app instead. */
+  async function moveToApp() {
+    if (!view) return;
+    const link = inviteUrl(view.role === 'spectator' ? 'spectator' : 'player');
+    try {
+      await navigator.clipboard.writeText(link);
+      afterLeave.current = 'Invite copied. Open Islanders from your home screen and paste it into the join box.';
+    } catch {
+      afterLeave.current = `Open Islanders from your home screen and join with code ${view.roomId}.`;
+    }
+    setInvited(false);
+    send({ type: 'leave' });
   }
   /** Home from the header. Leaving a game against bots first asks whether to save it or end it. */
   function goHome() {
@@ -286,6 +310,9 @@ function App() {
   return (
     <div className={`app ${hasGame ? 'app-game' : ''}`}>
       {header}
+      {invited && view && (view.phase === 'lobby' || view.role === 'spectator') && (
+        <OpenInAppBanner moveToApp={() => void moveToApp()} />
+      )}
       {screen}
       {(message || notice) && (
         <div className={`toast${message ? '' : ' toast-info'}`} role={message ? 'alert' : 'status'}>

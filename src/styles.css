@@ -657,6 +657,35 @@ a {
   padding: 11px;
   font-size: 14px;
 }
+/* Invite opened in a phone's browser: offer to continue in the home-screen app (OpenInAppBanner). */
+.open-in-app {
+  position: fixed;
+  z-index: 190;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 6px 6px 6px 12px;
+  border: 1px solid #84c7d6;
+  border-radius: 10px;
+  background: #fffdf6;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 24px #16506c40;
+}
+.open-in-app > svg {
+  color: #0a89b2;
+}
+.open-in-app .button {
+  min-height: 34px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
 .toast {
   position: fixed;
   z-index: 200;

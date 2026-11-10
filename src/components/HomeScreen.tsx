@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Check,
+  ClipboardPaste,
   Eye,
   FlaskConical,
   Hexagon,
@@ -13,6 +14,10 @@ import {
 import type { AccountRoomStatus } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
 import { parseJoinInput } from '../hooks/useRoom';
+import { runningAsApp } from '../lib/installedApp';
+
+/** In the home-screen app, invites arrive by copy and paste (links open in the browser), so offer a Paste button. */
+const canPaste = () => runningAsApp() && typeof navigator.clipboard?.readText === 'function';
 
 function roomStatusLabel(room: AccountRoomStatus): string {
   if (room.phase === 'lobby') return 'In the lobby';
@@ -106,6 +111,26 @@ export default function HomeScreen({
             minLength={5}
             required
           />
+          {canPaste() && (
+            <button
+              type="button"
+              className="button secondary"
+              disabled={loading}
+              onClick={() =>
+                void navigator.clipboard.readText().then(
+                  text => {
+                    const input = parseJoinInput(text);
+                    setCode(input.code);
+                    if (input.spectate !== null) setSpectate(input.spectate);
+                  },
+                  () => {},
+                )
+              }
+            >
+              <ClipboardPaste size={18} />
+              Paste
+            </button>
+          )}
           <button className="button secondary" disabled={loading || !code.trim()}>
             {spectate ? 'Watch' : 'Join'}
             <ArrowRight size={20} />
