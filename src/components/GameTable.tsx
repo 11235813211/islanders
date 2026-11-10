@@ -18,7 +18,7 @@ import EndGame from './game/EndGame';
 import LeaveDialog from './game/LeaveDialog';
 import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
-import ResourceFlights, { type Airborne } from './game/ResourceFlights';
+import ResourceFlights, { useLandedView } from './game/ResourceFlights';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import { TradeNotice } from './game/TradeNotice';
@@ -28,19 +28,6 @@ import './GameTable.css';
 import './game/game.css';
 import './game/trade.css';
 import './game/phone.css';
-
-/** The view as hands should show it: cards still flying to a player aren't counted until they land. */
-function landed(view: GameView, airborne: Airborne[]): GameView {
-  if (!airborne.length) return view;
-  const hand = { ...view.hand };
-  for (const card of airborne)
-    if (card.playerId === view.selfId) hand[card.resource] = Math.max(0, hand[card.resource] - 1);
-  const players = view.players.map(p => ({
-    ...p,
-    resourceCount: Math.max(0, p.resourceCount - airborne.filter(a => a.playerId === p.id).length),
-  }));
-  return { ...view, hand, players };
-}
 
 /**
  * The special build button for this seat: `ask` while another player's turn is on and you haven't
@@ -116,8 +103,8 @@ export default function GameTable({
   const [discard, setDiscard] = useState<TradeBag>(emptyBag);
   const [endHidden, setEndHidden] = useState(false);
   const [buying, setBuying] = useState(false);
-  /** Cards still flying to their owners (counted once they land). */
-  const [airborne, setAirborne] = useState<Airborne[]>([]);
+  /** Hands and counts without the cards still flying to their owners. */
+  const { shown, flights } = useLandedView(view);
   /** Where the robber or pirate was just put, before confirming. */
   const [robberPick, setRobberPick] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
@@ -396,8 +383,8 @@ export default function GameTable({
         leave={() => setLeaving(true)}
         home={() => (!spectator && isBotGame(view) ? setLeaving(true) : home())}
       />
-      <PlayerPanel view={landed(view, airborne)} online={room.online} />
-      <ResourceFlights view={view} setAirborne={setAirborne} />
+      <PlayerPanel view={shown} online={room.online} />
+      <ResourceFlights view={view} {...flights} />
       <BoardViewport
         view={view}
         mode={view.phase === 'robber' ? 'robber' : mode}
@@ -457,13 +444,7 @@ export default function GameTable({
             Watching · hands stay private
           </p>
         ) : (
-          <ResourceHand
-            hand={landed(view, airborne).hand}
-            playerName={self?.name}
-            compact
-            onSelect={tapCard}
-            disabled={busy || paused}
-          >
+          <ResourceHand hand={shown.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
             {!!self?.discoveries && (
               <button

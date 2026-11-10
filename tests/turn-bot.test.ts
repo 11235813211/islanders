@@ -95,6 +95,8 @@ describe('server-side turn completion', () => {
       const random = seeded(seed);
       let g = applyAction(makeLobby(seed % 2 ? 3 : 4), 'p0', { type: 'start' }, random, now);
       g.settings.friendlyRobber = seed % 2 === 0;
+      // Bot seats play out their timed turns (a person's timed turn only gets its forced choices).
+      for (const p of g.players) p.bot = 'advanced';
       for (let step = 0; step < 250 && g.phase !== 'finished'; step++) {
         const before = [g.turn, g.setupIndex];
         g = advanceTime(g, g.turnDeadline!, random);
@@ -106,6 +108,38 @@ describe('server-side turn completion', () => {
     }
     expect(winners).toBe(6);
   }, 30_000);
+  it('a person who runs out of time gets only the forced choices: nothing is built, bought, or played', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      let g = settled();
+      clearHands(g);
+      g.turnDeadline = now;
+      g.rollDeadline = null;
+      grant(g, 'p0', { wood: 5, brick: 5, sheep: 5, wheat: 5, ore: 5 });
+      g.players[0]!.development.push({ id: 'knight-1', kind: 'knight', boughtTurn: 0 });
+      const pieces = { roads: { ...g.roads }, buildings: { ...g.buildings } };
+      g = advanceTime(g, now + 1, seeded(seed));
+      expect(g.log.some(entry => entry.event?.kind === 'roll')).toBe(true);
+      expect(g.log.some(entry => entry.text === 'Player 0 ran out of time.')).toBe(true);
+      expect(g.turnIndex).toBe(1);
+      expect(g.roads).toEqual(pieces.roads);
+      expect(g.buildings).toEqual(pieces.buildings);
+      expect(g.players[0]!.development).toHaveLength(1);
+      expect(g.pendingDiscards).toEqual({});
+      expect(conserved(g)).toBe(true);
+    }
+  });
+  it('a bot seat whose turn times out still plays it', () => {
+    let g = settled();
+    clearHands(g);
+    g.players[0]!.bot = 'advanced';
+    g.phase = 'build';
+    g.turnDeadline = now;
+    grant(g, 'p0', { wood: 4, brick: 4 });
+    const roads = Object.keys(g.roads).length;
+    g = advanceTime(g, now + 1, seeded());
+    expect(Object.keys(g.roads).length).toBeGreaterThan(roads);
+    expect(g.turnIndex).toBe(1);
+  });
   it('chooses the same action regardless of hidden opponent cards', () => {
     const g = settled();
     g.phase = 'build';

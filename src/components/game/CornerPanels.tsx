@@ -3,7 +3,14 @@
 import { ArrowDown, ArrowUp, Check, X } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { emptyBag, resourceCount } from '../../../shared/engine';
-import { type GameAction, type GameView, RESOURCES, type Tradable, type TradeBag } from '../../../shared/types';
+import {
+  type GameAction,
+  type GameView,
+  RESOURCES,
+  type Resource,
+  type Tradable,
+  type TradeBag,
+} from '../../../shared/types';
 import { blockedReason, cardToPlay } from './DevelopmentHand';
 import {
   bagHas,
@@ -285,8 +292,11 @@ export function MonopolyPanel({
 /** Gold fields and volcanoes: pick the resources you are owed (everyone owed picks at once). */
 export function GoldPanel({ view, busy, send }: { view: GameView; busy: boolean; send: (a: GameAction) => void }) {
   const [bag, setBag] = useState(emptyBag);
-  const owed = view.pendingGold[view.selfId] ?? 0;
+  // The engine pays no more than the bank holds (exact counts are known only when the room shows them).
+  const stock = view.bankCounts;
+  const owed = Math.min(view.pendingGold[view.selfId] ?? 0, stock ? resourceCount(stock) : Number.POSITIVE_INFINITY);
   const picked = resourceCount(bag);
+  const outOf = (r: Resource) => (stock ? bag[r] >= stock[r] : !view.bank[r]);
   return (
     <Panel
       title="Gold"
@@ -306,7 +316,7 @@ export function GoldPanel({ view, busy, send }: { view: GameView; busy: boolean;
         items={[...RESOURCES]}
         label="Choose resources from gold"
         name={r => `Take one more ${tradableLabel(r)}`}
-        disabled={r => busy || picked >= owed || (r !== 'discovery' && !view.bank[r])}
+        disabled={r => busy || picked >= owed || (r !== 'discovery' && outOf(r))}
         count={r => (r === 'discovery' ? null : (view.bankCounts?.[r] ?? null))}
         pick={r => setBag(withItem(bag, r, 1))}
       />

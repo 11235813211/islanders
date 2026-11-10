@@ -13,6 +13,9 @@
   --panel: #fffdf6;
   --gold: #f8bd3f;
   --cyan: #087da4;
+  /* Volcano warnings: orange-red lava, kept apart from the red seat (#d42f2a). */
+  --lava: #ff5a12;
+  --lava-dark: #d9430a;
 }
 * {
   box-sizing: border-box;

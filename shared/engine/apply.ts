@@ -71,6 +71,8 @@ const PASSIVE = new Set<GameAction['type']>([
   'decline-trade',
   'cancel-trade',
   'counter-trade',
+  // Another player asking to build after this turn mustn't take the active player's undo away.
+  'request-special-build',
   'leave',
   'transfer-host',
 ]);

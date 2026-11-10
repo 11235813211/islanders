@@ -28,7 +28,9 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
               <KnightIcon />
               <span className="sr-only">Knights</span>
             </th>
-            <th title="Victory points">VP</th>
+            <th className="points-goal" title={`Victory points (${view.settings.victoryPoints} to win)`}>
+              VP: {view.settings.victoryPoints}
+            </th>
           </tr>
         </thead>
         <tbody>

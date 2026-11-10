@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
 import type { Board, Hex } from '../../shared/types';
 import { type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, Tile } from '../art';
+import { hexPoints } from '../lib/geometry';
 import IslandRims, { rimTiles } from './IslandRims';
 
 /** An iceberg's last drift, for its slide-in (see icebergDrifts in Board.tsx). `from` = `to` when it was blocked. */
@@ -10,6 +11,21 @@ export interface Drift {
   from: string;
   to: string;
   die: number;
+}
+
+/**
+ * A volcano shaking with its lava rim: on and on while it waits to erupt, or (with `delay`, in
+ * seconds) a short quake when its eruption wrecks a building.
+ */
+export interface Rumble {
+  hexId: string;
+  delay?: number;
+}
+
+function rumbleProps(rumble: Rumble | undefined): { className?: string; style?: CSSProperties } {
+  if (!rumble) return {};
+  if (rumble.delay === undefined) return { className: 'volcano-rumble' };
+  return { className: 'volcano-quake', style: { animationDelay: `${rumble.delay}s` } };
 }
 
 /** A stable small integer per tile, so repeated sea tiles vary their waves. */
@@ -27,6 +43,7 @@ export default function BoardScene({
   pirate = null,
   showClosed = false,
   drifts = [],
+  rumbles = [],
   children,
 }: {
   uid: string;
@@ -38,6 +55,8 @@ export default function BoardScene({
   showClosed?: boolean;
   /** Icebergs that just drifted: they slide in from where they were, showing their die. */
   drifts?: Drift[];
+  /** Volcanoes shaking: the tile and its rim move together, under roads and buildings. */
+  rumbles?: Rumble[];
   children?: ReactNode;
 }) {
   const seaMap = board.hexes.some(h => h.terrain === 'sea');
@@ -79,29 +98,31 @@ export default function BoardScene({
       {seaMap && <SEA.IslandBase uid={uid} hexes={land} />}
       {land.map(hex => (
         <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
-          <Tile uid={uid} terrain={hex.terrain} />
-          {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
-          {!!hex.bonus && <SEA.BonusChip points={hex.bonus} />}
-          {robber === hex.id && (
-            <g className="piece-drop">
-              <Robber />
-            </g>
-          )}
+          <g {...rumbleProps(rumbles.find(r => r.hexId === hex.id))}>
+            <Tile uid={uid} terrain={hex.terrain} />
+            {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
+            {!!hex.bonus && <SEA.BonusChip points={hex.bonus} />}
+            {robber === hex.id && (
+              <g className="piece-drop">
+                <Robber />
+              </g>
+            )}
+          </g>
         </g>
       ))}
+      {rumbles.map(rumble => {
+        const hex = board.hexes.find(h => h.id === rumble.hexId);
+        if (!hex) return null;
+        const { className, style } = rumbleProps(rumble);
+        return (
+          <g key={`rim-${hex.id}`} transform={`translate(${hex.x} ${hex.y})`} aria-hidden="true">
+            <polygon points={hexPoints(56)} className={`volcano-rim ${className}`} style={style} />
+          </g>
+        );
+      })}
       {showClosed && seaMap && (
         <IslandRims tiles={rimTiles(board.hexes.map(h => ({ ...h, land: isLandTerrain(h.terrain) })))} />
       )}
-      {/* Corners the map rules out for starting settlements. */}
-      {showClosed &&
-        board.vertices
-          .filter(v => v.noSetup)
-          .map(v => (
-            <g key={v.id} className="board-nostart" transform={`translate(${v.x} ${v.y})`} aria-hidden="true">
-              <circle r="8" />
-              <path d="M-5-5 5 5" />
-            </g>
-          ))}
       {pirate &&
         board.hexes
           .filter(hex => hex.id === pirate)

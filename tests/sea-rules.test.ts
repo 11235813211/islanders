@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, getActivePlayerId, getView, normalizeGame } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { longestRoad, victoryPoints } from '../shared/rules';
-import { ERUPTION_CORNER, isShipEdge } from '../shared/seafaring';
+import { ERUPTION_CORNER, isRoadEdge, isShipEdge } from '../shared/seafaring';
 import type { GameAction, GameState, Terrain } from '../shared/types';
 import { playBotGame } from './bot-harness';
 import { conserved, edgeBetween, grant, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
@@ -209,6 +209,18 @@ describe('gold, volcanoes, and jungles', () => {
     expect(g.phase).toBe('build');
   });
 
+  it('a volcano nobody lives beside stays quiet', () => {
+    let g = building(g => {
+      const volcano = hexOf(g, 'volcano');
+      for (const id of volcano.vertexIds) delete g.buildings[id];
+    });
+    g.phase = 'roll';
+    g = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2)); // 2 + 2, the volcano's number
+    expect(g.eruption).toBeNull();
+    expect(g.phase).toBe('build');
+    expect(g.log.some(l => l.event?.kind === 'eruption')).toBe(false);
+  });
+
   it('jungles give discoveries that pay for development cards', () => {
     let g = building(g => {
       g.buildings[hexOf(g, 'jungle').vertexIds[1]!] = { playerId: 'p0', kind: 'city' };
@@ -237,6 +249,27 @@ describe('islands and the trade route', () => {
     expect(next.bonusPoints.p0).toBe(2);
     expect(victoryPoints(next, 'p0')).toBe(before + 3);
     expect(getView(next, 'p1').players[0]!.publicPoints).toBe(3);
+  });
+
+  it("a road can't start from the end of a ship", () => {
+    const g = building();
+    const terrain = new Map(g.board.hexes.map(h => [h.id, h.terrain]));
+    // A shore corner of the forest between two land tiles: its land–land edge only takes a road.
+    const tip = g.board.vertices.find(
+      v =>
+        v.hexIds.length === 3 &&
+        v.hexIds.filter(id => terrain.get(id) === 'sea').length === 1 &&
+        v.hexIds.some(id => terrain.get(id) === 'wood'),
+    )!;
+    const roadEdge = tip.edgeIds.find(id => isRoadEdge(g.board, id) && !isShipEdge(g.board, id))!;
+    const shipEdge = tip.edgeIds.find(id => isShipEdge(g.board, id))!;
+    const edge = g.board.edges.find(e => e.id === shipEdge)!;
+    g.buildings[edge.a === tip.id ? edge.b : edge.a] = { playerId: 'p0', kind: 'settlement' };
+    g.ships[shipEdge] = 'p0';
+    grant(g, 'p0', { wood: 1, brick: 1 });
+    expect(getView(g, 'p0').legal.roads).not.toContain(roadEdge);
+    g.buildings[tip.id] = { playerId: 'p0', kind: 'settlement' };
+    expect(getView(g, 'p0').legal.roads).toContain(roadEdge);
   });
 
   it('roads and ships join only at their owner’s settlement', () => {

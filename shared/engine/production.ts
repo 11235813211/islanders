@@ -53,10 +53,14 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   return gains;
 }
 
-/** Volcanoes showing `total` that will erupt. The robber keeps its volcano quiet. */
+/**
+ * Volcanoes showing `total` that will erupt. The robber keeps its volcano quiet, and so does having
+ * no settlement or city on its corners (it pays nobody and has nothing to wreck).
+ */
 export function eruptingVolcanoes(state: GameState, total: number): string[] {
   return state.board.hexes
     .filter(hex => hex.terrain === 'volcano' && hex.number === total && hex.id !== state.robber)
+    .filter(hex => hex.vertexIds.some(id => state.buildings[id]))
     .map(hex => hex.id);
 }
 

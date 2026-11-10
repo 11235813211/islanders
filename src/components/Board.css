@@ -302,15 +302,35 @@
   }
 }
 
-/* ---- Volcanoes about to erupt: a red rim that shakes. ---- */
+/* ---- Volcanoes about to erupt (or that just wrecked a building): the tile and a lava rim shake. ---- */
 .volcano-rim {
-  fill: #ff3b1f22;
-  stroke: #e42a12;
+  fill: none;
+  stroke: var(--lava);
   stroke-width: 5;
   stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px #ffb33a);
+  pointer-events: none;
 }
 .volcano-rumble {
   animation: rumble 0.32s steps(2, end) infinite;
+}
+.volcano-quake {
+  animation: rumble 0.32s steps(2, end) 8 both;
+}
+.volcano-rim.volcano-quake {
+  animation:
+    rumble 0.32s steps(2, end) 8 both,
+    quake-rim 2.56s linear both;
+}
+@keyframes quake-rim {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  6%,
+  88% {
+    opacity: 1;
+  }
 }
 @keyframes rumble {
   0% {
@@ -335,7 +355,7 @@
   animation: eruption-die 3.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 .eruption-die-face rect {
-  fill: #d22b1c;
+  fill: var(--lava-dark);
   stroke: #ffd2c4;
   stroke-width: 2;
 }
@@ -363,7 +383,7 @@
 }
 .eruption-corner {
   fill: none;
-  stroke: #ff2a12;
+  stroke: var(--lava);
   stroke-width: 5;
   animation: eruption-corner 2.6s ease-out both;
 }
@@ -386,7 +406,7 @@
 }
 .eruption-alert {
   fill: #fff;
-  stroke: #c41b0c;
+  stroke: var(--lava-dark);
   stroke-width: 5;
   paint-order: stroke;
   font-size: 30px;
@@ -435,6 +455,7 @@
 .eruption-die-face,
 .eruption-alert,
 .volcano-rumble,
+.volcano-quake,
 .eruption-rise {
   transform-box: fill-box;
   transform-origin: center;
@@ -447,25 +468,11 @@
   .eruption-alert,
   .eruption-sink,
   .eruption-rise,
-  .volcano-rumble {
+  .volcano-rumble,
+  .volcano-quake {
     animation-duration: 0.01s;
     animation-iteration-count: 1;
   }
-}
-
-/* Corners where no starting settlement may go (shown during setup). */
-.board-nostart {
-  pointer-events: none;
-}
-.board-nostart circle {
-  fill: #ffffffd9;
-  stroke: #c8321f;
-  stroke-width: 2.4;
-}
-.board-nostart path {
-  stroke: #c8321f;
-  stroke-width: 2.4;
-  stroke-linecap: round;
 }
 
 /* The robber or pirate drops onto its new tile. */

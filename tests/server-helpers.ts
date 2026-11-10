@@ -1,9 +1,22 @@
-import { type APIRequestContext, type APIResponse, expect } from '@playwright/test';
+import { type APIRequestContext, type APIResponse, expect, type Page } from '@playwright/test';
 import WebSocket from 'ws';
 import type { GameAction, GameView, ServerMessage, Session } from '../shared/types';
 
 export const server = 'http://127.0.0.1:8787';
 export const origin = 'http://127.0.0.1:5173';
+
+/** Register an account and store it in the browser, as signing in would. */
+export async function signIn(page: Page) {
+  const username = `editor_${Date.now().toString(36)}`;
+  const response = await page.request.post(`${server}/api/accounts/register`, {
+    headers: { Origin: origin },
+    data: { username, password: 'Testing-only-password-492!' },
+  });
+  expect(response.status()).toBe(201);
+  const session = await response.json();
+  await page.addInitScript(value => localStorage.setItem('islanders-account', value), JSON.stringify(session));
+  return { Origin: origin, Authorization: `Bearer ${username}:${session.token}` };
+}
 
 export class PlayerConnection {
   readonly socket: WebSocket;

@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { type BoardDesign, type BoardVersion, BUILTIN_BOARDS, VERSION_FIELDS } from '../shared/maps';
+import { server, signIn } from './server-helpers';
 
 test('the host picks a map from the picker; it shows in the lobby with its points and a player warning', async ({
   page,
@@ -73,3 +75,43 @@ test('on a sea map a real game lets a player place a ship in setup', async ({ pa
   else await page.getByRole('button', { name: /Confirm/ }).click();
   await expect(page.locator('.board-ship-piece')).toHaveCount(1);
 });
+
+test('a map with layouts for other player counts shows one at a time, with arrows and its own Use button', async ({
+  page,
+}) => {
+  const headers = await signIn(page);
+  const base = BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!;
+  const id = 'layout-test';
+  const design: BoardDesign = {
+    ...base,
+    id,
+    name: 'Layout test',
+    players: { min: 5, max: 6 },
+    versions: [{ ...pickVersion(base), players: { min: 2, max: 2 }, tiles: base.tiles.slice(0, -6) }],
+  };
+  expect((await page.request.put(`${server}/api/boards/${id}`, { headers, data: design })).ok()).toBe(true);
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Create room' }).click();
+    await page.getByRole('radio', { name: 'Choose map' }).click();
+    const picker = page.getByRole('dialog', { name: 'Maps' });
+    // Player counts read fewest first, even though the 2 player layout was added second.
+    await expect(picker.locator('.map-card', { hasText: 'Layout test' })).toContainText('2, 5–6 players');
+    await picker.getByRole('button', { name: 'View Layout test' }).click();
+    // One person in the room: the 2 player layout shows first.
+    await expect(picker.locator('.map-layout-players')).toHaveText('2 players');
+    await expect(picker.getByRole('button', { name: 'Previous layout' })).toBeDisabled();
+    await expect(picker.getByRole('button', { name: 'Use this 2 player map' })).toBeVisible();
+    await picker.getByRole('button', { name: 'Next layout' }).click();
+    await expect(picker.locator('.map-layout-players')).toHaveText('5–6 players');
+    await expect(picker.getByRole('button', { name: 'Use this 5–6 player map' })).toBeVisible();
+    await page.screenshot({ path: 'test-results/map-layouts.png' });
+  } finally {
+    await page.request.delete(`${server}/api/boards/${id}`, { headers });
+  }
+});
+
+/** A version made of the fields a version replaces, copied from a board. */
+function pickVersion(design: BoardDesign): BoardVersion {
+  return Object.fromEntries(VERSION_FIELDS.map(field => [field, design[field]])) as BoardVersion;
+}

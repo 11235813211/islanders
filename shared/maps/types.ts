@@ -108,9 +108,15 @@ export function designFor(design: BoardDesign, players: number): BoardDesign {
   return version ? { ...design, ...version } : design;
 }
 
-/** Every player count the board (or one of its versions) is made for. */
+/** Every player count the board (or one of its versions) is made for, fewest players first. */
 export function playerRanges(design: Pick<BoardDesign, 'players' | 'versions'>): { min: number; max: number }[] {
-  return [design.players, ...(design.versions ?? []).map(v => v.players)];
+  return [design.players, ...(design.versions ?? []).map(v => v.players)].sort((a, b) => a.min - b.min);
+}
+
+/** The board and each of its versions as a whole design to show or play, fewest players first. */
+export function layoutsOf(design: BoardDesign): BoardDesign[] {
+  const versions = (design.versions ?? []).map(version => ({ ...design, ...version }));
+  return [design, ...versions].sort((a, b) => a.players.min - b.players.min);
 }
 
 /** Expansions a board can say it needs, in the order the picker lists them. */

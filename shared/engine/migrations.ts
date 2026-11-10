@@ -92,6 +92,12 @@ const MIGRATIONS: Migration[] = [
     s.specialQueue ??= [];
     s.specialAsked ??= [];
   },
+  // 5 → 6: fields added to the step above after it shipped (rooms already at 5 missed them).
+  s => {
+    s.robberDeadline ??= null;
+    s.specialQueue ??= [];
+    s.specialAsked ??= [];
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

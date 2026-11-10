@@ -59,7 +59,9 @@ test('gold asks the owner to pick resources', async ({ page }) => {
 
 const FIRE = BUILTIN_BOARDS.find(b => b.id === 'fire-and-ice')!;
 
-test('an eruption: red rims and a banner, then the roller rolls the volcano dice', async ({ page }) => {
+test('an eruption: the volcano shakes under a banner on the board, then the roller rolls the volcano dice', async ({
+  page,
+}) => {
   const g = seaSettled(FIRE, 3);
   g.testMode = true;
   g.rollDeadline = null;
@@ -69,12 +71,30 @@ test('an eruption: red rims and a banner, then the roller rolls the volcano dice
   for (const v of volcano.vertexIds) if (!g.buildings[v]) g.buildings[v] = { playerId: 'p1', kind: 'city' };
   Object.assign(g, { phase: 'eruption', eruption: [volcano.id], robber: '' });
   const game = await mountGame(page, g);
-  await expect(page.getByRole('alert').filter({ hasText: 'Volcano eruption' })).toBeVisible();
-  await expect(page.locator('.volcano-rim')).toHaveCount(1);
+  const banner = page.getByRole('alert').filter({ hasText: 'Volcano eruption' });
+  await expect(banner).toBeVisible();
+  // The banner belongs to the board, not the whole window.
+  const inside = (await banner.boundingBox())!;
+  const board = (await page.locator('.board-viewport').boundingBox())!;
+  expect(inside.y).toBeGreaterThanOrEqual(board.y);
+  expect(inside.x).toBeGreaterThanOrEqual(board.x);
+  expect(inside.x + inside.width).toBeLessThanOrEqual(board.x + board.width);
+  // The tile and its rim shake together (two shaking groups), drawn before any building.
+  await expect(page.locator('.volcano-rumble')).toHaveCount(2);
+  await expect(page.locator('.volcano-rumble .terrain-art')).toHaveCount(1);
+  const underRoads = await page.evaluate(() => {
+    const rim = document.querySelector('.volcano-rim');
+    const road = document.querySelector('.board-road');
+    return !!rim && !!road && !!(rim.compareDocumentPosition(road) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(underRoads).toBe(true);
   await page.screenshot({ path: 'test-results/eruption-waiting.png' });
   await page.getByRole('button', { name: 'Roll volcanoes' }).click();
   await expect.poll(() => game.state().phase).toBe('build');
   await expect(page.locator('.eruption-die')).toHaveCount(1);
+  // Every corner had a city, so the eruption wrecked one: the volcano quakes again.
+  await expect(page.locator('.volcano-rumble')).toHaveCount(0);
+  await expect(page.locator('.volcano-quake')).toHaveCount(2);
   await page.waitForTimeout(1300);
   await page.screenshot({ path: 'test-results/eruption-roll.png' });
   expect(game.errors).toEqual([]);

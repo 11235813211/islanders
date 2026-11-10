@@ -96,7 +96,8 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     );
     const stale = await host.waitMessage(message => message.type === 'error' && message.id === second.id, second.after);
     expect(accepted.type === 'state' && accepted.state.version).toBe(setupVersion + 1);
-    expect(stale.type === 'error' && stale.message).toContain('changed');
+    // The engine turns the duplicate away (the settlement is placed, so setup moved on).
+    expect(stale.type).toBe('error');
     expect(Object.keys(host.state.buildings)).toHaveLength(1);
     await guest.waitState(setupVersion + 1);
 

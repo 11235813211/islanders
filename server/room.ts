@@ -67,6 +67,12 @@ const MAX_MESSAGES_PER_MINUTE = 90;
 const IDLE_GRACE_MS = 60_000;
 /** Close code the client treats as "you're no longer in this room". */
 const LEFT_ROOM = 4000;
+/**
+ * Moves whose meaning depends on the exact state the player saw: an undo proposal names the latest
+ * move. Every other move is checked by the engine against the current state, so a bot or another
+ * player acting first (a gold pick, a chat, a special build request) doesn't bounce it.
+ */
+const NEEDS_SEEN_STATE = new Set<GameAction['type']>(['propose']);
 /** Lobby actions act for the connected person, not the solo-test seat they're viewing. */
 const SELF_ACTIONS = new Set<GameAction['type']>([
   'switch-role',
@@ -475,7 +481,7 @@ export class GameRoom extends DurableObject<Env> {
           this.broadcast();
           room = this.requireRoom();
         }
-        if (message.version !== room.game.version && !['chat', 'vote'].includes(message.action.type)) {
+        if (message.version !== room.game.version && NEEDS_SEEN_STATE.has(message.action.type)) {
           this.send(socket, {
             type: 'error',
             id: message.id,

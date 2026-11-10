@@ -1,9 +1,8 @@
 import { AlertTriangle, ArrowLeft, Check, Copy, Eye, Map as MapIcon, Plus, Trash2, Users, X } from 'lucide-react';
 import { type CSSProperties, type DragEvent, useEffect, useState } from 'react';
-import { type BoardDesign, type BoardLibrary, boardExpansions, designFor, EXPANSIONS } from '../../../shared/maps';
+import { type BoardDesign, type BoardLibrary, designFor } from '../../../shared/maps';
 import CategoryHeader from './CategoryHeader';
-import DesignView from './DesignView';
-import FogSummary from './FogSummary';
+import MapDetail, { ExpansionTags } from './MapDetail';
 import MapThumbnail from './MapThumbnail';
 import { moveBoard, playersLabel, playersMismatch } from './mapInfo';
 import './maps.css';
@@ -17,82 +16,6 @@ export interface LibraryActions {
   duplicate: (id: string) => void;
   remove: (id: string) => void;
   changeLayout: (library: BoardLibrary) => void;
-}
-
-/** Small labels for the expansions a board needs. */
-export function ExpansionTags({ design }: { design: Pick<BoardDesign, 'expansions' | 'tiles'> }) {
-  const needs = boardExpansions(design);
-  if (!needs.length) return null;
-  return (
-    <span className="expansion-tags" title="Needs these expansions">
-      {needs.map(e => (
-        <span key={e} className={`expansion-tag expansion-${e}`}>
-          {EXPANSIONS[e]}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/** One map, large, with its rules. Read-only; the host can choose it from here. */
-function MapDetail({
-  design,
-  players,
-  canChoose,
-  current,
-  choose,
-  back,
-}: {
-  design: BoardDesign;
-  players: number;
-  canChoose: boolean;
-  current: boolean;
-  choose: () => void;
-  back: () => void;
-}) {
-  const land = design.tiles.filter(t => t.kind !== 'sea' && t.kind !== 'iceberg').length;
-  return (
-    <div className="map-detail">
-      <DesignView design={design} />
-      <aside className="map-info">
-        <button type="button" className="text-button" onClick={back}>
-          <ArrowLeft size={17} />
-          All maps
-        </button>
-        <h3>{design.name}</h3>
-        {design.description && <p>{design.description}</p>}
-        <dl>
-          <dt>Players</dt>
-          <dd>{playersLabel(design)}</dd>
-          <dt>Points to win</dt>
-          <dd>{design.victoryPoints}</dd>
-          <dt>Land tiles</dt>
-          <dd>{land}</dd>
-          <dt>Harbors</dt>
-          <dd>{design.harbors.length || 'Random'}</dd>
-          <dt>Needs</dt>
-          <dd>
-            <ExpansionTags design={design} />
-            {!boardExpansions(design).length && 'Base game only'}
-          </dd>
-        </dl>
-        {playersMismatch(design, players) && (
-          <p className="map-warning" role="note">
-            <AlertTriangle size={17} />
-            Made for {playersLabel(design)} players. This room has {players}.
-          </p>
-        )}
-        <p className="map-note">Tiles, numbers, and harbors marked “?” are drawn at random when the game starts.</p>
-        <FogSummary design={designFor(design, players)} />
-        {canChoose && (
-          <button type="button" className="button primary full" disabled={current} onClick={choose}>
-            <Check size={18} />
-            {current ? 'This room’s map' : 'Use this map'}
-          </button>
-        )}
-      </aside>
-    </div>
-  );
 }
 
 /**
@@ -266,7 +189,7 @@ export default function MapBrowser({
                           aria-label={`${editing ? 'Edit' : 'View'} ${board.name}`}
                           onClick={() => view(board)}
                         >
-                          <MapThumbnail tiles={board.tiles} />
+                          <MapThumbnail tiles={(count === null ? board : designFor(board, count)).tiles} />
                           <span className="map-card-name">{board.name}</span>
                           <ExpansionTags design={board} />
                           <span className="map-card-meta">

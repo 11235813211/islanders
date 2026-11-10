@@ -112,6 +112,8 @@ describe('eruptions', () => {
 
   it('the volcano dice roll themselves after the auto-roll wait', () => {
     let g = building(g => {
+      // Someone lives beside the volcano, so it erupts.
+      g.buildings[hexOf(g, 'volcano').vertexIds[0]!] = { playerId: 'p1', kind: 'settlement' };
       g.phase = 'roll';
     });
     g = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2));

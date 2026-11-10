@@ -1,6 +1,6 @@
 import { chooseBotAction } from '../bots';
 import { hasAnswered } from '../rules';
-import { DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
+import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
 import { applyAction } from './apply';
 import { addLog, GameError, getActivePlayerId, undoEndsTurn } from './core';
 import { getView } from './view';
@@ -124,7 +124,37 @@ function chooseGoldForAll(state: GameState, now: number, random: () => number): 
   return next;
 }
 
-/** Finish exactly one expired turn (or setup placement), including every forced choice. */
+/**
+ * A person ran out of time: only the choices the game can't go on without are made for them
+ * (setup placements, the roll, discards, the robber, a steal, gold, volcano dice), as an Advanced
+ * bot would. Nothing is built, bought, traded, or played; Road Building just stops.
+ */
+function forcedChoice(state: GameState, id: string, level: BotLevel): GameAction | null {
+  switch (state.phase) {
+    case 'roll':
+      return { type: 'roll' };
+    case 'eruption':
+      return { type: 'roll-volcanoes' };
+    case 'free-roads':
+      return { type: 'finish-free-roads' };
+    case 'build':
+      return null;
+    default:
+      return chooseBotAction(getView(state, id), { level, allowOffers: false });
+  }
+}
+
+/** Who must act next during an expired turn: someone discarding or choosing gold, else the active seat. */
+function nextChooser(state: GameState): string {
+  if (state.phase === 'discard') return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0)!;
+  if (state.phase === 'gold') return Object.keys(state.pendingGold)[0]!;
+  return getActivePlayerId(state)!;
+}
+
+/**
+ * Finish exactly one expired turn (or setup placement). A bot seat plays the rest of its turn; for
+ * a person only the forced choices are made (see forcedChoice), then the turn ends.
+ */
 function finishTimedTurn(state: GameState, now: number, random: () => number): GameState {
   // A special builder who runs out of time just passes; nobody builds for them.
   if (state.phase === 'special-build') {
@@ -138,24 +168,22 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
   const turn = state.turn;
   const setupIndex = state.setupIndex;
   const active = next.players.find(p => p.id === getActivePlayerId(next))!;
-  if (!active.bot) addLog(next, `${active.name} ran out of time. A bot is finishing the turn.`);
+  if (!active.bot) addLog(next, `${active.name} ran out of time.`);
   for (let step = 0; step < 40; step++) {
     if (next.phase === 'finished' || next.phase === 'special-build') break;
     if (next.turn !== turn || next.setupIndex !== setupIndex) break;
-    const id =
-      next.phase === 'discard'
-        ? Object.keys(next.pendingDiscards).find(id => next.pendingDiscards[id]! > 0)!
-        : next.phase === 'gold'
-          ? Object.keys(next.pendingGold)[0]!
-          : getActivePlayerId(next)!;
+    const id = nextChooser(next);
     const view = getView(next, id);
-    const choices = [
-      () => chooseBotAction(view, { level: DEFAULT_BOT_LEVEL, builds, allowOffers: false }),
-      () => chooseBotAction(view, { level: 'beginner', builds: 99 }),
-    ];
+    const choices: (() => GameAction | null)[] = active.bot
+      ? [
+          () => chooseBotAction(view, { level: DEFAULT_BOT_LEVEL, builds, allowOffers: false }),
+          () => chooseBotAction(view, { level: 'beginner', builds: 99 }),
+        ]
+      : [() => forcedChoice(next, id, DEFAULT_BOT_LEVEL), () => forcedChoice(next, id, 'beginner')];
     let applied: GameAction | null = null;
     for (const choose of choices) {
       const action = choose();
+      if (!action) continue;
       try {
         next = applyAction(next, id, action, random, now);
         applied = action;

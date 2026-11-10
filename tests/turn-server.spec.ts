@@ -37,3 +37,31 @@ test('durable turn alarms place setup pieces and complete a normal turn without 
     friend.dispose();
   }
 });
+
+test("a move sent after another player's move still counts", async ({ request }) => {
+  const h = await join(request, 'Stale host'),
+    f = await join(request, 'Stale friend', h.roomId);
+  const host = new PlayerConnection(h.roomId),
+    friend = new PlayerConnection(h.roomId);
+  try {
+    await host.authenticate(h);
+    await friend.authenticate(f);
+    const seen = host.state.version;
+    // The friend acts first (as a bot picking gold would), so the host's move carries an old version.
+    await friend.action({ type: 'chat', text: 'hello' });
+    await host.waitState(seen + 1);
+    const { id, after } = host.send(
+      { type: 'configure', settings: { autoRollSeconds: 0, trackDice: true, turnSeconds: 15 } },
+      seen,
+    );
+    const reply = await host.waitMessage(
+      item => item.type === 'error' || (item.type === 'state' && item.acknowledgedId === id),
+      after,
+    );
+    expect(reply.type === 'error' ? reply.message : 'accepted').toBe('accepted');
+    expect(host.state.settings.autoRollSeconds).toBe(0);
+  } finally {
+    host.dispose();
+    friend.dispose();
+  }
+});

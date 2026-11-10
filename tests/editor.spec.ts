@@ -1,20 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { hexCenter } from '../shared/board';
 import { type BoardDesign, type BoardLibrary, BUILTIN_BOARDS } from '../shared/maps';
-import { origin, server } from './server-helpers';
-
-/** Register an account and store it in the browser, as signing in would. */
-async function signIn(page: Page) {
-  const username = `editor_${Date.now().toString(36)}`;
-  const response = await page.request.post(`${server}/api/accounts/register`, {
-    headers: { Origin: origin },
-    data: { username, password: 'Testing-only-password-492!' },
-  });
-  expect(response.status()).toBe(201);
-  const session = await response.json();
-  await page.addInitScript(value => localStorage.setItem('islanders-account', value), JSON.stringify(session));
-  return { Origin: origin, Authorization: `Bearer ${username}:${session.token}` };
-}
+import { server, signIn } from './server-helpers';
 
 /** Screen point of the center of cell (q, r) on the editor canvas, plus an offset in board units. */
 async function cellPoint(page: Page, q: number, r: number, dx = 0, dy = 0) {

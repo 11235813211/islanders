@@ -170,6 +170,42 @@
   grid-template-columns: minmax(0, 1fr) 320px;
   min-height: 0;
 }
+/* The map with its player count (top left) and, for maps with several layouts, arrows (top middle). */
+.map-detail-view {
+  position: relative;
+  min-height: 0;
+  display: grid;
+}
+.map-layout-players {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: #fffdf6;
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: 0 2px 8px #0b3e5733;
+  pointer-events: none;
+}
+.map-layout-switch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: #fffdf6;
+  box-shadow: 0 2px 8px #0b3e5733;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+}
+.map-layout-switch .icon-button:disabled {
+  opacity: 0.3;
+}
 .map-preview {
   position: relative;
   min-height: 0;

@@ -97,22 +97,67 @@ const LANDS = 1.15;
 /** A card still in the air: its owner's hand and card count don't show it yet. */
 export type Airborne = Pick<Flight, 'id' | 'playerId' | 'resource'>;
 
+/** Every card a roll or gold choice in this entry paid out, whether or not it gets a flight. */
+function cardsIn(entry: GameLog): Airborne[] {
+  const event = entry.event;
+  const bags =
+    event?.kind === 'roll'
+      ? Object.entries(event.gains)
+      : event?.kind === 'gold'
+        ? [[event.playerId, event.resources] as const]
+        : [];
+  return bags.flatMap(([playerId, bag]) =>
+    RESOURCES.flatMap(resource =>
+      Array.from({ length: bag[resource] }, (_, i) => ({
+        id: `${entry.id}-${playerId}-${resource}-${i}`,
+        playerId,
+        resource,
+      })),
+    ),
+  );
+}
+
+/** The view as hands should show it: cards still flying to a player aren't counted until they land. */
+function landed(view: GameView, airborne: Airborne[]): GameView {
+  if (!airborne.length) return view;
+  const hand = { ...view.hand };
+  for (const card of airborne)
+    if (card.playerId === view.selfId) hand[card.resource] = Math.max(0, hand[card.resource] - 1);
+  const players = view.players.map(p => ({
+    ...p,
+    resourceCount: Math.max(0, p.resourceCount - airborne.filter(a => a.playerId === p.id).length),
+  }));
+  return { ...view, hand, players };
+}
+
+/**
+ * The view for hands and the scoreboard, plus the props ResourceFlights needs. Cards from log
+ * entries ResourceFlights hasn't launched yet already count as airborne, so a new card never shows
+ * in the hand for a frame and then vanishes when its flight starts.
+ */
+export function useLandedView(view: GameView): { shown: GameView; flights: FlightProps } {
+  const [airborne, setAirborne] = useState<Airborne[]>([]);
+  const [launched, setLaunched] = useState(() => view.log.at(-1)?.id ?? 0);
+  const waiting = view.log.filter(entry => entry.id > launched).flatMap(cardsIn);
+  return { shown: landed(view, [...airborne, ...waiting]), flights: { setAirborne, setLaunched } };
+}
+
+interface FlightProps {
+  setAirborne: (update: (airborne: Airborne[]) => Airborne[]) => void;
+  /** The newest log entry whose flights have started. */
+  setLaunched: (id: number) => void;
+}
+
 /**
  * Resource cards flying from the tiles that paid them to whoever received them, so everyone sees
  * who got what. `setAirborne` hears which cards are still in the air, so hands count them on landing.
  */
-export default function ResourceFlights({
-  view,
-  setAirborne,
-}: {
-  view: GameView;
-  setAirborne: (update: (airborne: Airborne[]) => Airborne[]) => void;
-}) {
+export default function ResourceFlights({ view, setAirborne, setLaunched }: { view: GameView } & FlightProps) {
   const fresh = useFreshLog(view.log);
   const [flights, setFlights] = useState<Flight[]>([]);
   const played = useRef(new Set<number>());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const latest = fresh.at(-1)?.id ?? 0;
+  const latest = view.log.at(-1)?.id ?? 0;
   // biome-ignore lint/correctness/useExhaustiveDependencies: new log entries are what start flights.
   useLayoutEffect(() => {
     const next: Flight[] = [];
@@ -121,6 +166,8 @@ export default function ResourceFlights({
       played.current.add(entry.id);
       next.push(...flightsFor(entry, view));
     }
+    // In the same render as the flights: cards that got no flight (tile off screen) show at once.
+    setLaunched(latest);
     if (!next.length) return;
     const ids = new Set(next.map(f => f.id));
     setFlights(current => [...current, ...next]);

@@ -1,10 +1,10 @@
-// Animations drawn on the board: volcanoes about to erupt, and each eruption
-// (a red die tumbling onto the volcano, the corner it names, and the building there sinking).
+// Animations drawn on the board for each eruption: a die tumbling onto the volcano, the corner it
+// names, and the building there sinking. The shaking volcano itself is drawn by BoardScene.
 import type { CSSProperties } from 'react';
 import { ERUPTION_CORNER } from '../../../shared/seafaring';
 import type { GameEvent, GameLog, GameView, Vertex } from '../../../shared/types';
 import { BuildingPiece, type Frame } from '../../art';
-import { hexPoints } from '../../lib/geometry';
+import type { Rumble } from '../BoardScene';
 
 type Eruption = Extract<GameEvent, { kind: 'eruption' }>;
 /** Seconds between one volcano's die and the next. */
@@ -62,25 +62,6 @@ function offBoard(seed: number, frame: Frame): { x: number; y: number } {
   const angle = ((seed * 137.5) % 360) * (Math.PI / 180);
   const reach = Math.max(frame.width, frame.height) * 0.75;
   return { x: Math.cos(angle) * reach, y: Math.sin(angle) * reach };
-}
-
-/** Volcanoes about to erupt: a red rim, shaking. */
-function Rumbling({ view }: { view: GameView }) {
-  return (
-    <>
-      {(view.eruption ?? []).map(id => {
-        const hex = view.board.hexes.find(h => h.id === id);
-        if (!hex) return null;
-        return (
-          <g key={id} transform={`translate(${hex.x} ${hex.y})`} aria-hidden="true">
-            <g className="volcano-rumble">
-              <polygon points={hexPoints(56)} className="volcano-rim" />
-            </g>
-          </g>
-        );
-      })}
-    </>
-  );
 }
 
 /** One eruption, played `index` steps after the first: die, corner, warning, and the building sinking. */
@@ -159,6 +140,18 @@ export function risingSettlements(fresh: GameLog[]): Map<string, number> {
   return rising;
 }
 
+/**
+ * Volcanoes to shake: every volcano waiting to erupt, and each one whose eruption just wrecked a
+ * building (a short quake as its die lands).
+ */
+export function volcanoRumbles(view: GameView, fresh: GameLog[]): Rumble[] {
+  const waiting = (view.eruption ?? []).map(hexId => ({ hexId }));
+  const quakes = eruptionsToShow(fresh.filter(entry => entry.turn === view.turn)).flatMap(({ event }, index) =>
+    event.damage === 'none' ? [] : [{ hexId: event.hexId, delay: index * ERUPTION_STEP + 0.9 }],
+  );
+  return [...waiting, ...quakes];
+}
+
 /** Everything animated on the board for moves made since this screen opened. */
 export default function BoardEffects({
   view,
@@ -178,7 +171,6 @@ export default function BoardEffects({
   const eruptions = eruptionsToShow(fresh).filter(({ entry }) => entry.turn === view.turn);
   return (
     <g className="board-effects" pointerEvents="none">
-      <Rumbling view={view} />
       {eruptions.map(({ entry, event }, index) => (
         <EruptionStep
           key={entry.id}

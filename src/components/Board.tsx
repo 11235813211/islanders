@@ -7,7 +7,7 @@ import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import BoardScene, { type Drift } from './BoardScene';
 import BoardDice from './game/BoardDice';
-import BoardEffects, { risingSettlements } from './game/BoardEffects';
+import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city';
@@ -195,6 +195,7 @@ export default function Board({
             pirate={picked?.terrain === 'sea' ? picked.id : view.pirate}
             showClosed={view.phase === 'setup-settlement'}
             drifts={icebergDrifts(view, fresh)}
+            rumbles={volcanoRumbles(view, fresh)}
           />
           {Object.entries(view.roads).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);

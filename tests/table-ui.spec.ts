@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
-import { grant, richGame } from './fixtures';
+import { applyAction } from '../shared/engine';
+import { grant, richGame, seeded, settled, TEST_NOW } from './fixtures';
 import { mountGame } from './ui-harness';
 
 async function fits(page: Page) {
@@ -299,4 +300,38 @@ test('discarding picks cards by tapping the hand and puts them back by tapping t
     initial.players[0]!.resources.wheat - 1,
   ]);
   expect(game.errors).toEqual([]);
+});
+
+test('cards from a roll fly into the hand without first popping in and out', async ({ page }) => {
+  const g = settled();
+  g.testMode = true;
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 120_000;
+  // The harness rolls with seeded(): put that total on a resource tile beside one of p0's settlements.
+  const preview = applyAction(g, 'p0', { type: 'roll' }, seeded(), TEST_NOW);
+  const total = preview.dice![0] + preview.dice![1];
+  test.skip(total === 7, 'This seed rolls a seven');
+  const home = Object.keys(g.buildings).find(v => g.buildings[v]!.playerId === 'p0')!;
+  const hex = g.board.hexes.find(h => h.vertexIds.includes(home) && h.terrain !== 'desert' && h.id !== g.robber)!;
+  hex.number = total;
+  await mountGame(page, g);
+  // Watch every frame: a card that pops in and out would show up as a spent (leaving) card.
+  await page.evaluate(() => {
+    const seen = { spent: 0, most: 0 };
+    (window as unknown as { seen: typeof seen }).seen = seen;
+    const sample = () => {
+      seen.spent += document.querySelectorAll('.table-hand .cards-spent').length;
+      seen.most = Math.max(seen.most, document.querySelectorAll('.table-hand .cards-physical').length);
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  const before = await page.locator('.table-hand .cards-physical').count();
+  await page.getByRole('button', { name: 'Roll dice' }).click();
+  await expect(page.locator('.resource-flight').first()).toBeAttached();
+  await expect
+    .poll(() => page.locator('.table-hand .cards-physical').count(), { timeout: 5000 })
+    .toBeGreaterThan(before);
+  const seen = await page.evaluate(() => (window as unknown as { seen: { spent: number } }).seen);
+  expect(seen.spent).toBe(0);
 });

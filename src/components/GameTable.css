@@ -138,6 +138,9 @@
   height: 25px;
   padding: 2px;
 }
+.player-table thead .points-goal {
+  white-space: nowrap;
+}
 .player-table th:first-child {
   width: 36%;
   text-align: left;
@@ -1621,43 +1624,38 @@
 
 /* The roller's red button during an eruption. */
 .button.volcano-roll {
-  border-color: #9e1d10;
-  background: #d22b1c;
+  border-color: #9a3006;
+  background: var(--lava-dark);
   color: #fff;
-  box-shadow: 0 2px 0 #8e1a0f;
+  box-shadow: 0 2px 0 #8a2a04;
 }
 .button.volcano-roll:hover:not(:disabled) {
-  background: #e23b2a;
+  background: var(--lava);
 }
-/* Everyone sees this while volcanoes wait to erupt. */
+/* Everyone sees this while volcanoes wait to erupt, at the top of the board (in .board-notices). */
 .eruption-banner {
-  position: fixed;
-  z-index: 80;
-  top: 10px;
-  left: 50%;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 18px;
-  border: 2px solid #ffd1c4;
+  border: 2px solid #ffd9b8;
   border-radius: 999px;
-  background: #c8200f;
+  background: var(--lava-dark);
   color: #fff;
   font-size: 17px;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  box-shadow: 0 6px 20px #8e1a0f80;
-  transform: translateX(-50%);
+  box-shadow: 0 6px 20px #8a2a0480;
   animation: eruption-flash 0.8s steps(2, jump-none) infinite;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 @keyframes eruption-flash {
   from {
-    background: #c8200f;
+    background: var(--lava-dark);
   }
   to {
-    background: #ff4a1c;
+    background: var(--lava);
   }
 }
 @media (prefers-reduced-motion: reduce) {
