@@ -2,7 +2,7 @@ import { type CSSProperties, type KeyboardEvent, useId } from 'react';
 import { playerColor } from '../../shared/colors';
 import type { GameLog, GameView } from '../../shared/types';
 import { ArtDefs, BuildingPiece, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
-import { useFreshLog } from '../hooks/useFreshLog';
+import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import BoardScene, { type Drift } from './BoardScene';
@@ -76,12 +76,12 @@ function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void)
 /** Phases where pieces can be bought: your turn, or your slot in the special build phase. */
 const buildingPhase = (view: GameView) => view.phase === 'build' || view.phase === 'special-build';
 
-/** Icebergs that drifted on a roll this turn, since this screen opened. */
-function icebergDrifts(view: GameView, fresh: GameLog[]): Drift[] {
+/** Icebergs that drifted on the latest roll (see sinceLatestRoll). */
+function icebergDrifts(rolled: GameLog[]): Drift[] {
   const drifts: Drift[] = [];
-  for (const entry of fresh) {
+  for (const entry of rolled) {
     const event = entry.event;
-    if (event?.kind !== 'iceberg' || entry.turn !== view.turn) continue;
+    if (event?.kind !== 'iceberg') continue;
     drifts.push({ id: entry.id, from: event.hexId, to: event.toHexId ?? event.hexId, die: event.die });
   }
   return drifts;
@@ -130,7 +130,8 @@ export default function Board({
   const picked = robberPick ? view.board.hexes.find(h => h.id === robberPick) : undefined;
   const frame = boardFrame(view.board.hexes);
   const fresh = useFreshLog(view.log);
-  const rising = risingSettlements(fresh.filter(entry => entry.turn === view.turn));
+  const rolled = sinceLatestRoll(fresh);
+  const rising = risingSettlements(rolled);
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
   const edges = new Map(view.board.edges.map(edge => [edge.id, edge]));
   const playerName = (id: string) => view.players.find(player => player.id === id)?.name;
@@ -200,8 +201,8 @@ export default function Board({
             robber={picked && picked.terrain !== 'sea' ? picked.id : view.robber}
             pirate={picked?.terrain === 'sea' ? picked.id : view.pirate}
             showClosed={view.phase === 'setup-settlement'}
-            drifts={icebergDrifts(view, fresh)}
-            rumbles={volcanoRumbles(view, fresh)}
+            drifts={icebergDrifts(rolled)}
+            rumbles={volcanoRumbles(view, rolled)}
           />
           {Object.entries(view.roads).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);
@@ -330,7 +331,7 @@ export default function Board({
                 </g>
               );
             })}
-          <BoardEffects view={view} fresh={fresh} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
+          <BoardEffects view={view} rolled={rolled} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
           {[...vertexTargets].map(vertexId => {
             const vertex = vertices.get(vertexId)!;
             return (

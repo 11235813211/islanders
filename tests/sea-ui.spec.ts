@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { getView } from '../shared/engine';
+import { applyAction, getView } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
-import { grant, seaSettled } from './fixtures';
+import { grant, seaSettled, seeded, TEST_NOW } from './fixtures';
 import { mountGame } from './ui-harness';
 
 const OUTER_ISLES = BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!;
@@ -170,5 +170,28 @@ test('the robber previews where it was put; cancel puts it back, confirm moves i
     .click();
   await page.getByRole('button', { name: 'Confirm robber' }).click();
   await expect.poll(() => game.state().robber).not.toBe(before);
+  expect(game.errors).toEqual([]);
+});
+
+test('a roll that moves an iceberg plays out in full even when the turn ends straight away', async ({ page }) => {
+  const g = seaSettled(FIRE, 3);
+  Object.assign(g, { testMode: true, phase: 'roll', rollDeadline: null, turnDeadline: Date.now() + 120_000 });
+  // The harness rolls with seeded(): give an iceberg that number, and nothing else (no gold or eruption).
+  const preview = applyAction(g, 'p0', { type: 'roll' }, seeded(), TEST_NOW);
+  const total = preview.dice![0] + preview.dice![1];
+  test.skip(total === 7, 'This seed rolls a seven');
+  for (const hex of g.board.hexes) if (hex.number === total) hex.number = total === 12 ? 2 : 12;
+  g.board.hexes.find(h => h.terrain === 'iceberg')!.number = total;
+  const game = await mountGame(page, g);
+  await page.getByRole('button', { name: 'Roll dice' }).click();
+  await page.getByRole('button', { name: 'End turn' }).click();
+  await expect.poll(() => game.state().turnIndex).toBe(1);
+  // The turn is over (no dice in the state), but the roll and the drift keep playing.
+  await expect(page.locator('.board-dice.rolling')).toBeVisible();
+  await expect(page.locator('.iceberg-drift')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/iceberg-roll-after-turn.png' });
+  // Once the dice have landed, they clear for the next turn.
+  await expect(page.locator('.board-dice')).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator('.iceberg-drift')).toHaveCount(1);
   expect(game.errors).toEqual([]);
 });

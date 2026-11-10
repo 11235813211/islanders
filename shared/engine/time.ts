@@ -9,6 +9,11 @@ import { getView } from './view';
 export const BOT_THINK_MS = 450;
 /** Extra wait before a bot starts its turn after a person ends theirs, so that person can undo. */
 export const UNDO_GRACE_MS = 2500;
+/**
+ * Extra wait after a bot's roll (with its icebergs and eruptions) before its next move, so the
+ * dice, drifting icebergs, and cards flying out play out before it builds or ends its turn.
+ */
+export const ROLL_SHOW_MS = 2600;
 /** Safety valve: a bot that has done this much in one turn ends it. */
 const MAX_BOT_STEPS_PER_TURN = 30;
 
@@ -36,6 +41,10 @@ export function pendingBotActor(state: GameState): string | null {
 /** True right after a person ended their turn, while they can still undo it. */
 const endTurnUndoable = (state: GameState) => undoEndsTurn(state) && !isBot(state, state.undo!.actorId);
 
+/** The active bot's own roll (or the icebergs and eruptions it set off) is the latest move. */
+const justRolled = (state: GameState, actor: string) =>
+  getActivePlayerId(state) === actor && ['roll', 'iceberg', 'eruption'].includes(state.log.at(-1)?.event?.kind ?? '');
+
 /** When the next bot move is due, or null. */
 export function botDueAt(state: GameState): number | null {
   const actor = pendingBotActor(state);
@@ -43,7 +52,8 @@ export function botDueAt(state: GameState): number | null {
   // Answering someone else's trade offer needs no show of thinking.
   const answering = state.tradeOffer?.to.includes(actor) && state.tradeOffer.fromId !== actor;
   if (answering) return state.updatedAt;
-  return state.updatedAt + BOT_THINK_MS + (endTurnUndoable(state) ? UNDO_GRACE_MS : 0);
+  const grace = endTurnUndoable(state) ? UNDO_GRACE_MS : justRolled(state, actor) ? ROLL_SHOW_MS : 0;
+  return state.updatedAt + BOT_THINK_MS + grace;
 }
 
 function botStepsThisTurn(state: GameState, id: string): number {

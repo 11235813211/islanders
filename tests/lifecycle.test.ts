@@ -10,6 +10,7 @@ import {
   idlePause,
   idleResume,
   pendingBotActor,
+  ROLL_SHOW_MS,
   UNDO_GRACE_MS,
 } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
@@ -113,6 +114,18 @@ describe('bot scheduling', () => {
     expect(getActivePlayerId(g)).toBe('p0');
     expect(g.phase).toBe('build');
     expect(botDueAt(g)).toBeNull();
+  });
+
+  it('a bot waits for its roll to play out before its next move', () => {
+    let g = settled(2);
+    g.players[1]!.bot = 'beginner';
+    Object.assign(g, { turnIndex: 1, phase: 'roll', rollDeadline: null });
+    g = advanceTime(g, botDueAt(g)!, seeded());
+    expect(g.log.at(-1)?.event?.kind).toMatch(/roll|iceberg|eruption/);
+    // Not a seven on this seed: the bot builds or ends its turn next.
+    expect(g.phase).toBe('build');
+    expect(botDueAt(g)).toBe(g.updatedAt + BOT_THINK_MS + ROLL_SHOW_MS);
+    expect(advanceTime(g, g.updatedAt + BOT_THINK_MS, seeded())).toBe(g);
   });
 
   it('undoes at once in a solo test room, where one person holds every seat', () => {

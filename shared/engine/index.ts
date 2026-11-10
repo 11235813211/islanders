@@ -14,5 +14,5 @@ export {
 export { addPlayer, addSpectator, createGame } from './lobby';
 export { normalizeGame, SCHEMA_VERSION } from './migrations';
 export { idlePause, idleResume } from './social';
-export { advanceTime, BOT_THINK_MS, botDueAt, pendingBotActor, UNDO_GRACE_MS } from './time';
+export { advanceTime, BOT_THINK_MS, botDueAt, pendingBotActor, ROLL_SHOW_MS, UNDO_GRACE_MS } from './time';
 export { getView } from './view';

@@ -127,14 +127,14 @@ function EruptionStep({
 }
 
 /** Eruptions from the latest volcano roll, in order. */
-export function eruptionsToShow(fresh: GameLog[]): { entry: GameLog; event: Eruption }[] {
-  return fresh.flatMap(entry => (entry.event?.kind === 'eruption' ? [{ entry, event: entry.event }] : []));
+export function eruptionsToShow(rolled: GameLog[]): { entry: GameLog; event: Eruption }[] {
+  return rolled.flatMap(entry => (entry.event?.kind === 'eruption' ? [{ entry, event: entry.event }] : []));
 }
 
 /** When a city that an eruption reduced should rise again as a settlement (seconds), by corner. */
-export function risingSettlements(fresh: GameLog[]): Map<string, number> {
+export function risingSettlements(rolled: GameLog[]): Map<string, number> {
   const rising = new Map<string, number>();
-  eruptionsToShow(fresh).forEach(({ event }, index) => {
+  eruptionsToShow(rolled).forEach(({ event }, index) => {
     if (event.damage === 'city') rising.set(event.vertexId, index * ERUPTION_STEP + 2.4);
   });
   return rising;
@@ -144,9 +144,9 @@ export function risingSettlements(fresh: GameLog[]): Map<string, number> {
  * Volcanoes to shake: every volcano waiting to erupt, and each one whose eruption just wrecked a
  * building (a short quake as its die lands).
  */
-export function volcanoRumbles(view: GameView, fresh: GameLog[]): Rumble[] {
+export function volcanoRumbles(view: GameView, rolled: GameLog[]): Rumble[] {
   const waiting = (view.eruption ?? []).map(hexId => ({ hexId }));
-  const quakes = eruptionsToShow(fresh.filter(entry => entry.turn === view.turn)).flatMap(({ event }, index) =>
+  const quakes = eruptionsToShow(rolled).flatMap(({ event }, index) =>
     event.damage === 'none' ? [] : [{ hexId: event.hexId, delay: index * ERUPTION_STEP + 0.9 }],
   );
   return [...waiting, ...quakes];
@@ -155,20 +155,21 @@ export function volcanoRumbles(view: GameView, fresh: GameLog[]): Rumble[] {
 /** Everything animated on the board for moves made since this screen opened. */
 export default function BoardEffects({
   view,
-  fresh,
+  rolled,
   vertices,
   frame,
   uid,
   playerColor,
 }: {
   view: GameView;
-  fresh: GameLog[];
+  /** Log entries from the latest roll on. */
+  rolled: GameLog[];
   vertices: Map<string, Vertex>;
   frame: Frame;
   uid: string;
   playerColor: (id: string) => string;
 }) {
-  const eruptions = eruptionsToShow(fresh).filter(({ entry }) => entry.turn === view.turn);
+  const eruptions = eruptionsToShow(rolled);
   return (
     <g className="board-effects" pointerEvents="none">
       {eruptions.map(({ entry, event }, index) => (
