@@ -1,9 +1,18 @@
-import { ArrowRight, Check, Eye, FlaskConical, Hexagon, LoaderCircle, Plus, Sailboat, Shield } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  Eye,
+  FlaskConical,
+  Hexagon,
+  LoaderCircle,
+  Plus,
+  Sailboat,
+  Shield,
+  Swords,
+} from 'lucide-react';
 import type { AccountRoomStatus } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
 import { parseJoinInput } from '../hooks/useRoom';
-import HomeIsland from './HomeIsland';
-import './HomeScreen.css';
 
 function roomStatusLabel(room: AccountRoomStatus): string {
   if (room.phase === 'lobby') return 'In the lobby';
@@ -41,11 +50,11 @@ export default function HomeScreen({
   return (
     <main className={`home-layout${canPlaytest ? '' : ' single'}`}>
       <section className="home-heading">
-        <div>
-          <h1>Islanders</h1>
-          <p>Create a room, or join one with a code.</p>
-        </div>
-        <HomeIsland />
+        <span className="section-kicker">
+          <Swords size={18} /> MULTIPLAYER STRATEGY
+        </span>
+        <h1>Play Islanders</h1>
+        <p>Create a room, or join one with a code.</p>
       </section>
       <section className="panel home-play-panel">
         <div className="section-heading">

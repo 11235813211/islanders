@@ -23,7 +23,7 @@ function observe(page: Page) {
 test('solo lobby, large board, seat switching, mobile and tablet layouts', async ({ page }) => {
   const game = observe(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Islanders', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
   await expect(page.locator('.board-svg')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Create solo test room' }).click();
@@ -162,7 +162,7 @@ test('username sign-in resumes the same room on another device and signs out', a
     await expect.poll(() => b.state()?.selfId).toBe(a.state()?.selfId);
     await expect(phone.locator('.lobby-player')).toHaveCount(3);
     await phone.getByRole('button', { name: 'Sign out' }).click();
-    await expect(phone.getByRole('heading', { name: 'Islanders', exact: true })).toBeVisible();
+    await expect(phone.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
     await expect(host.locator('.connection-pill')).toHaveText('Connected');
     expect(a.errors.concat(b.errors)).toEqual([]);
   } finally {

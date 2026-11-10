@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Islanders",
   "short_name": "Islanders",
-  "description": "A strategy board game for 2–4 players.",
+  "description": "A strategy board game for 2–6 players.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

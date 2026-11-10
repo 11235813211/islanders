@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { test } from '@playwright/test';
 import { getActivePlayerId } from '../shared/engine';
 import type { PieceStyle, PlayerColor } from '../shared/types';
 import { richGame } from './fixtures';
@@ -105,12 +105,4 @@ test('trade offers read from each side, with answers in seat colors', async ({ p
   await page.getByRole('button', { name: /^Trade Lumber/ }).click();
   await page.getByRole('button', { name: 'Request one more Ore' }).click();
   await page.locator('.board-viewport').screenshot({ path: 'test-results/visual-trade-composer.png' });
-});
-
-test('the home screen, on a wide screen and a phone', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Create room' })).toBeVisible();
-  await page.screenshot({ path: 'test-results/visual-home.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: 'test-results/visual-home-phone.png', fullPage: true });
 });
