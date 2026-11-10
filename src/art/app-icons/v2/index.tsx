@@ -1,7 +1,9 @@
 import { PLAYER_COLORS } from '../../../../shared/colors';
-import type { BaseTerrain } from '../../../../shared/types';
 import { hexPoints } from '../../../lib/geometry';
-import { ArtDefs, BuildingPiece, HexTile, Road } from '../../index';
+import { art, GroundTile } from '../../v13';
+import { BrickHills, ForestTrees, WheatStalks } from '../../v13/terrain-features';
+
+const { ArtDefs, BuildingPiece, Road } = art;
 
 export interface AppIconOptions {
   size?: number;
@@ -11,10 +13,16 @@ export interface AppIconOptions {
 
 const UID = 'app-icon';
 const HALF_WIDTH = Math.sqrt(3) * 30;
-const TILES: { terrain: BaseTerrain; x: number; y: number }[] = [
+const GROUND_DEPTH = 0.62;
+const HORIZON = 200;
+const SUN_RADIUS = 118;
+// The visible sun fills three quarters of the sky; its chord defines the reflection at the horizon.
+const SUN_Y = HORIZON / 4 + SUN_RADIUS;
+const SUN_HALF_WIDTH = Math.sqrt(SUN_RADIUS ** 2 - (HORIZON - SUN_Y) ** 2);
+const TILES: { terrain: 'wood' | 'wheat' | 'brick'; x: number; y: number }[] = [
   { terrain: 'wood', x: -HALF_WIDTH, y: -30 },
-  { terrain: 'wheat', x: HALF_WIDTH, y: -30 },
-  { terrain: 'brick', x: 0, y: 60 },
+  { terrain: 'brick', x: HALF_WIDTH, y: -30 },
+  { terrain: 'wheat', x: 0, y: 60 },
 ];
 
 function SunsetDefs() {
@@ -46,6 +54,10 @@ function SunsetDefs() {
       <clipPath id={`${UID}-corners`}>
         <rect width="512" height="512" rx="112" />
       </clipPath>
+      <clipPath id={`${UID}-hills`}>
+        {/* The near edge clips into the ground while the ridge rises above the far edge. */}
+        <path d={`M-49.5-90H49.5V${28.6 * GROUND_DEPTH}L0 ${57.2 * GROUND_DEPTH}L-49.5 ${28.6 * GROUND_DEPTH}Z`} />
+      </clipPath>
     </>
   );
 }
@@ -53,12 +65,15 @@ function SunsetDefs() {
 function Sunset() {
   return (
     <>
-      <path d="M0 0H512V228H0Z" fill={`url(#${UID}-sky)`} />
-      <circle cx="256" cy="209" r="190" fill={`url(#${UID}-glow)`} />
-      <circle cx="256" cy="205" r="90" fill={`url(#${UID}-sun)`} />
-      <path d="M0 228H512V512H0Z" fill={`url(#${UID}-water)`} />
-      <path d="M0 228H512" stroke="#f7d2a3" strokeWidth="2" opacity=".55" />
-      <path d="M221 230H291L362 494H150Z" fill={`url(#${UID}-reflection)`} />
+      <path d={`M0 0H512V${HORIZON}H0Z`} fill={`url(#${UID}-sky)`} />
+      <circle cx="256" cy={SUN_Y} r="210" fill={`url(#${UID}-glow)`} />
+      <circle cx="256" cy={SUN_Y} r={SUN_RADIUS} fill={`url(#${UID}-sun)`} />
+      <path d={`M0 ${HORIZON}H512V512H0Z`} fill={`url(#${UID}-water)`} />
+      <path
+        d={`M${256 - SUN_HALF_WIDTH} ${HORIZON}H${256 + SUN_HALF_WIDTH}L412 512H100Z`}
+        fill={`url(#${UID}-reflection)`}
+      />
+      <path d={`M0 ${HORIZON}H512`} stroke="#f7d2a3" strokeWidth="2" opacity=".55" />
       <g fill="none" stroke="#c5dcd6" strokeLinecap="round">
         <path d="M28 284Q57 279 86 284M421 266Q445 262 478 266" strokeWidth="2.5" opacity=".35" />
         <path d="M34 365Q64 370 91 364M402 350Q436 345 475 350" strokeWidth="3" opacity=".32" />
@@ -78,7 +93,7 @@ function IslandGround() {
       </g>
       {TILES.map(({ terrain, x, y }) => (
         <g key={terrain} transform={`translate(${x} ${y})`}>
-          <HexTile uid={UID} terrain={terrain} />
+          <GroundTile uid={UID} terrain={terrain} />
         </g>
       ))}
       <Road from={{ x: 0, y: 0 }} to={{ x: HALF_WIDTH, y: 30 }} color={PLAYER_COLORS.red.fill} />
@@ -86,11 +101,31 @@ function IslandGround() {
   );
 }
 
+function IslandFeatures() {
+  return (
+    <>
+      <g transform={`translate(${-HALF_WIDTH} ${-30 * GROUND_DEPTH})`}>
+        <ForestTrees depth={GROUND_DEPTH} />
+      </g>
+      <g transform={`translate(${HALF_WIDTH} ${-30 * GROUND_DEPTH})`} clipPath={`url(#${UID}-hills)`}>
+        <g transform="translate(0 -8)">
+          <BrickHills />
+        </g>
+      </g>
+      <g transform={`translate(0 ${60 * GROUND_DEPTH})`}>
+        <WheatStalks depth={GROUND_DEPTH} />
+      </g>
+    </>
+  );
+}
+
 /** The install icon puts the game's real tiles and pieces on an island beneath a colorful sunset. */
 export function AppIcon({ size, rounded = false, maskable = false }: AppIconOptions) {
   // The smaller island leaves room for circular launcher crops while the backdrop stays full bleed.
-  const scale = maskable ? 1.32 : 1.55;
-  const centerY = maskable ? 318 : 335;
+  // The regular icon adds a tighter crop to the 15% enlargement; the maskable one keeps its safe margin.
+  const scale = maskable ? 1.65 : 1.55 * 1.15 * (512 / 480);
+  const waterGap = maskable ? 5.8 : 7.2;
+  const centerY = HORIZON + waterGap + 95 * scale * GROUND_DEPTH;
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width={size} height={size}>
       <defs>
@@ -100,10 +135,11 @@ export function AppIcon({ size, rounded = false, maskable = false }: AppIconOpti
       <g clipPath={rounded ? `url(#${UID}-corners)` : undefined}>
         <Sunset />
         <g transform={`translate(256 ${centerY}) scale(${scale})`}>
-          {/* Only the ground tilts into the ocean plane; the settlement stands upright on it. */}
-          <g transform="scale(1 .58)">
+          {/* Ground positions are projected separately from upright trees, stalks, hills and the house. */}
+          <g transform={`scale(1 ${GROUND_DEPTH})`}>
             <IslandGround />
           </g>
+          <IslandFeatures />
           <g transform="translate(0 -3) scale(1.41)">
             <BuildingPiece color={PLAYER_COLORS.red.fill} city={false} />
           </g>

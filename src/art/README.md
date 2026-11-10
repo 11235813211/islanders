@@ -20,6 +20,8 @@ import from `src/art` and never draw art themselves.
   `v11/` drops the iceberg tile's pale tint, so its water matches the sea tiles around it.
   `v12/` adds the fog tile (`sea/fog.tsx`; older versions borrow it), draws ships a tenth smaller
   without the dashed wake, and draws classic settlements and cities a tenth larger.
+  `v13/` separates forest, wheat, and clay features from their ground so the icon can draw them
+  upright on a tilted island. The game tiles retain the same illustrations as v12.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Compare piece art side by side: `npx playwright test tests/art-compare.spec.ts` writes
@@ -44,3 +46,6 @@ The home-screen icons and favicon are composed separately, one folder per versio
 (`v1/` also keeps the icons it rendered), using the active art version's real tiles and pieces.
 `app-icon.tsx` picks the active icon version, like `index.ts` does for the art. Run `npm run icons` to regenerate `public/icons/*.png` and
 `public/favicon.svg`; `tests/install.spec.ts` reviews them at home-screen sizes and with launcher crops.
+The saved `app-icons/v1/` includes the previous source, favicon, and all four PNGs. The active `v2/`
+uses a tighter crop, upright terrain from v13, wheat in front, and a reflection matched to the sun's
+width at the horizon. To restore the saved design, point `app-icon.tsx` at `./app-icons/v1` and regenerate.
