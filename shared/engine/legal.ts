@@ -76,16 +76,16 @@ export function shipSites(state: GameState, playerId: string, setup: boolean, mo
 }
 
 /**
- * A ship at the end of its line: one of its corners has no other of your ships. The published rule
- * (`open`) also needs that corner free of your buildings, so a route closed by settlements stays put.
+ * The last ship of an open route: one of its corners has neither your building nor another of
+ * your ships (a route closed by settlements at both ends stays put). It may move anywhere a new
+ * ship could go, beside any of your settlements or ships.
  */
 function movableEnd(state: GameState, playerId: string, edgeId: string): boolean {
   const index = boardIndex(state.board);
   const edge = index.edge.get(edgeId)!;
-  const published = state.settings.shipMoving === 'open';
   return [edge.a, edge.b].some(
     id =>
-      (!published || state.buildings[id]?.playerId !== playerId) &&
+      state.buildings[id]?.playerId !== playerId &&
       !index.vertex.get(id)!.edgeIds.some(other => other !== edgeId && state.ships[other] === playerId),
   );
 }
@@ -124,12 +124,20 @@ export function stealTargets(state: GameState, playerId: string): string[] {
 /** Land hexes for the robber and, on sea maps, open sea for the pirate. */
 function robberHexes(state: GameState, selfId: string): string[] {
   const index = boardIndex(state.board);
+  // Friendly robber: nobody with 2 or fewer visible points is robbed or blocked. On the sea that
+  // means any tile touching an end of their ship, where the pirate would stop them building on.
+  const shipEnds = new Map<string, string[]>();
+  for (const [edgeId, owner] of Object.entries(state.ships)) {
+    const edge = index.edge.get(edgeId)!;
+    for (const v of [edge.a, edge.b]) shipEnds.set(v, [...(shipEnds.get(v) ?? []), owner]);
+  }
   const protectedHex = (hexId: string) => {
     if (!state.settings.friendlyRobber) return false;
-    const owners = index.hex
-      .get(hexId)!
-      .vertexIds.map(id => state.buildings[id]?.playerId)
-      .filter((id): id is string => !!id);
+    const hex = index.hex.get(hexId)!;
+    const owners = hex.vertexIds.flatMap(id => [
+      ...(state.buildings[id] ? [state.buildings[id]!.playerId] : []),
+      ...(hex.terrain === 'sea' ? (shipEnds.get(id) ?? []) : []),
+    ]);
     return owners.some(id => id !== selfId && victoryPoints(state, id, false) <= 2);
   };
   return state.board.hexes

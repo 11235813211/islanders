@@ -471,13 +471,6 @@
   white-space: nowrap;
   flex: 1;
 }
-.compact-dice {
-  display: flex;
-  gap: 1px;
-  font-size: 31px;
-  line-height: 1;
-  color: #315c6e;
-}
 .turn-clock {
   display: inline-flex;
   align-items: center;
@@ -913,9 +906,6 @@
     gap: 6px;
     font-size: 11px;
   }
-  .compact-dice {
-    font-size: 26px;
-  }
   .turn-clock {
     font-size: 12px;
     gap: 3px;
@@ -1101,9 +1091,6 @@
   .table-turn {
     font-size: 11px;
     gap: 6px;
-  }
-  .compact-dice {
-    font-size: 24px;
   }
   .table-hand {
     padding: 0 10%;
@@ -1684,16 +1671,20 @@
 }
 .resource-flight {
   position: absolute;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  margin: -19px 0 0 -19px;
-  border: 2px solid #fff;
-  border-radius: 9px;
-  background: #fffdf4;
-  box-shadow: 0 4px 12px #0f2f3f55;
-  animation: resource-flight 1.2s cubic-bezier(0.5, 0, 0.3, 1) both;
+  width: 52px;
+  height: 74px;
+  margin: -37px 0 0 -26px;
+  animation: resource-flight 1.3s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+/* The same card as in the hand (Cards.css), drawn on its own. */
+.flight-card {
+  display: block;
+  height: 100%;
+  padding: 3px;
+  border: 1px solid var(--card-dark);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 5px 12px #0f2f3f66;
 }
 @keyframes resource-flight {
   0% {

@@ -11,7 +11,7 @@ import {
   RICH_LEVELS,
   swapEqualOdds,
 } from './balance';
-import { closedTiles } from './edit';
+import { closedTiles, fogMayBeSea } from './edit';
 import { autoHarbors, harborTarget } from './harbors';
 import {
   BASE_POOL,
@@ -294,7 +294,9 @@ function resolveHarbors(
     const [dq, dr] = SIDE_DIRECTIONS[h.side] ?? [0, 0];
     const across = terrains.get(tileKey(h.q + dq, h.r + dr));
     const edge = [tileKey(h.q, h.r), tileKey(h.q + dq, h.r + dr)].sort().join('|');
-    if (!land || isWater(land) || (across && !isWater(across)) || seen.has(edge)) return false;
+    // A harbor on fog only stands when the fog can't turn out to be sea (the editor enforces this too).
+    const onFog = land === 'fog' && fogMayBeSea(design);
+    if (!land || isWater(land) || onFog || (across && !isWater(across)) || seen.has(edge)) return false;
     seen.add(edge);
     return true;
   });

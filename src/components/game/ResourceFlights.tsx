@@ -2,11 +2,13 @@ import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { paysChoice } from '../../../shared/seafaring';
 import { type GameLog, type GameView, type Hex, RESOURCES, type Resource } from '../../../shared/types';
-import { ResourceIcon } from '../../art';
+import { ResourceArt, ResourceIcon } from '../../art';
 import { useFreshLog } from '../../hooks/useFreshLog';
+import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 
 interface Flight {
   id: string;
+  playerId: string;
   resource: Resource;
   from: { x: number; y: number };
   to: { x: number; y: number };
@@ -59,6 +61,7 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
       if (!start) continue;
       flights.push({
         id: `${entry.id}-${playerId}-${resource}-${i}`,
+        playerId,
         resource,
         from: start,
         to,
@@ -88,8 +91,23 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
   return flights;
 }
 
-/** Cards flying from the tiles that paid them to whoever received them, so everyone sees who got what. */
-export default function ResourceFlights({ view }: { view: GameView }) {
+/** Seconds into its flight when a card reaches the hand (see the resource-flight animation). */
+const LANDS = 1.15;
+
+/** A card still in the air: its owner's hand and card count don't show it yet. */
+export type Airborne = Pick<Flight, 'id' | 'playerId' | 'resource'>;
+
+/**
+ * Resource cards flying from the tiles that paid them to whoever received them, so everyone sees
+ * who got what. `setAirborne` hears which cards are still in the air, so hands count them on landing.
+ */
+export default function ResourceFlights({
+  view,
+  setAirborne,
+}: {
+  view: GameView;
+  setAirborne: (update: (airborne: Airborne[]) => Airborne[]) => void;
+}) {
   const fresh = useFreshLog(view.log);
   const [flights, setFlights] = useState<Flight[]>([]);
   const played = useRef(new Set<number>());
@@ -106,6 +124,11 @@ export default function ResourceFlights({ view }: { view: GameView }) {
     if (!next.length) return;
     const ids = new Set(next.map(f => f.id));
     setFlights(current => [...current, ...next]);
+    setAirborne(current => [...current, ...next.map(({ id, playerId, resource }) => ({ id, playerId, resource }))]);
+    for (const f of next)
+      timers.current.push(
+        setTimeout(() => setAirborne(current => current.filter(a => a.id !== f.id)), (f.delay + LANDS) * 1000),
+      );
     timers.current.push(setTimeout(() => setFlights(current => current.filter(f => !ids.has(f.id))), 4000));
   }, [latest]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -126,7 +149,15 @@ export default function ResourceFlights({ view }: { view: GameView }) {
             } as CSSProperties
           }
         >
-          <ResourceIcon resource={f.resource} size={30} />
+          <span className="flight-card" style={cardStyle(f.resource)}>
+            <span className="cards-face">
+              <span className="cards-corner">
+                <ResourceIcon resource={f.resource} size={12} />
+              </span>
+              <ResourceArt resource={f.resource} />
+              <span className="cards-card-label">{RESOURCE_LABELS[f.resource]}</span>
+            </span>
+          </span>
         </span>
       ))}
     </div>,

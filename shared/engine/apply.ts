@@ -8,6 +8,7 @@ import {
   GOLD_SECONDS,
   getActivePlayerId,
   type Handlers,
+  ROBBER_SECONDS,
   requireRule,
   SPECIAL_BUILD_SECONDS,
 } from './core';
@@ -150,6 +151,8 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   } else if (!rolling(next.phase)) next.rollDeadline = null;
   if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + GOLD_SECONDS * 1000;
   else if (next.phase !== 'gold') next.goldDeadline = null;
+  if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + ROBBER_SECONDS * 1000;
+  else if (next.phase !== 'robber') next.robberDeadline = null;
   const newSeat =
     action.type === 'start' ||
     next.setupIndex !== state.setupIndex ||

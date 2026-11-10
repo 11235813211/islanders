@@ -8,7 +8,7 @@ import {
   type Pool,
   tileKey,
 } from '../../../shared/maps';
-import { designWarnings, islandOf } from '../../../shared/maps/edit';
+import { designWarnings, islandOf, tidy } from '../../../shared/maps/edit';
 import { FOG_POOL_KINDS, ICEBERG_MAX_PERCENT, POOL_KINDS } from '../../../shared/maps/validate';
 import { TileIcon } from './BrushPicker';
 import type { EditorSelection } from './EditorCanvas';
@@ -196,7 +196,8 @@ export default function BoardSettings({
                 kind={kind}
                 value={fog[kind] ?? 0}
                 whole={design.fogExact}
-                set={n => edit(d => ({ ...d, fogPool: { ...(d.fogPool ?? FOG_POOL), [kind]: n } }), 'fog-pool')}
+                // tidy drops harbors on fog once the fog may turn out to be sea.
+                set={n => edit(d => tidy({ ...d, fogPool: { ...(d.fogPool ?? FOG_POOL), [kind]: n } }), 'fog-pool')}
               />
             ))}
           </div>

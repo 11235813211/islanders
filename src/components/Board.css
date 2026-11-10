@@ -246,36 +246,59 @@
   outline: none;
 }
 
-/* ---- Dice rolling in: see-through white dice, solid rounded edges and pips. ---- */
-.roll-die {
-  animation: roll-in 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+/* ---- The dice: resting in the board's bottom-right corner, or tumbling in on a new roll. ---- */
+.board-dice {
+  position: absolute;
+  z-index: 3;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
 }
-.roll-die-face rect {
-  fill: #ffffff59;
-  stroke: #fffffff2;
-  stroke-width: 3;
+.board-die {
+  width: 46px;
+  height: 46px;
+  filter: drop-shadow(0 3px 4px #0b2e3d55);
 }
-.roll-die-face circle {
+.board-die-face rect {
+  fill: #fffdf6;
+  stroke: #d9d2c0;
+  stroke-width: 2.5;
+}
+.board-die-face circle {
   fill: #18303c;
 }
-@keyframes roll-in {
+.board-dice.rolling {
+  animation: dice-roll 2.6s cubic-bezier(0.25, 0.7, 0.3, 1) both;
+}
+.board-dice.rolling .board-die {
+  animation: die-spin 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes dice-roll {
   0% {
     opacity: 0;
-    transform: translate(var(--sx), var(--sy)) rotate(var(--spin));
+    transform: translate(var(--sx), var(--sy)) scale(1.5);
   }
   8% {
     opacity: 1;
   }
-  40% {
-    transform: translate(0, 0) rotate(0);
-  }
-  80% {
-    opacity: 1;
-    transform: translate(0, 0) rotate(0);
+  38%,
+  68% {
+    transform: translate(var(--cx), var(--cy)) scale(1.5);
   }
   100% {
-    opacity: 0;
-    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+@keyframes die-spin {
+  0% {
+    transform: rotate(var(--spin));
+  }
+  38%,
+  100% {
+    transform: rotate(0);
   }
 }
 
@@ -410,7 +433,6 @@
   }
 }
 .eruption-die-face,
-.roll-die-face,
 .eruption-alert,
 .volcano-rumble,
 .eruption-rise {
@@ -418,7 +440,8 @@
   transform-origin: center;
 }
 @media (prefers-reduced-motion: reduce) {
-  .roll-die,
+  .board-dice.rolling,
+  .board-dice.rolling .board-die,
   .eruption-die,
   .eruption-corner,
   .eruption-alert,
@@ -443,4 +466,24 @@
   stroke: #c8321f;
   stroke-width: 2.4;
   stroke-linecap: round;
+}
+
+/* The robber or pirate drops onto its new tile. */
+.piece-drop {
+  animation: piece-drop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes piece-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piece-drop {
+    animation: none;
+  }
 }

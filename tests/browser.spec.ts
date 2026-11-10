@@ -68,6 +68,7 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
       .getByRole('button', { name: /^Move robber to/ })
       .first()
       .click();
+    await page.getByRole('button', { name: 'Confirm robber' }).click();
     await expect.poll(() => game.state()?.phase).not.toBe('robber');
     if (game.state()?.phase === 'steal')
       await page

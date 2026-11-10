@@ -82,7 +82,11 @@ export default function BoardScene({
           <Tile uid={uid} terrain={hex.terrain} />
           {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
           {!!hex.bonus && <SEA.BonusChip points={hex.bonus} />}
-          {robber === hex.id && <Robber />}
+          {robber === hex.id && (
+            <g className="piece-drop">
+              <Robber />
+            </g>
+          )}
         </g>
       ))}
       {showClosed && seaMap && (
@@ -103,7 +107,9 @@ export default function BoardScene({
           .filter(hex => hex.id === pirate)
           .map(hex => (
             <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
-              <SEA.Pirate />
+              <g className="piece-drop">
+                <SEA.Pirate />
+              </g>
             </g>
           ))}
       {board.harbors.map(port => (

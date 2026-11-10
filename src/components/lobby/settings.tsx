@@ -9,7 +9,6 @@ import {
   Landmark,
   Minus,
   Mountain,
-  Move,
   Plus,
   Sailboat,
   Shield,
@@ -64,20 +63,6 @@ export const CATEGORIES: Category[] = [
           !on && view.features.sea
             ? 'This map is made for Seafarers. Without it there are no ships or pirate, so other islands can’t be reached. Turn Seafarers off anyway?'
             : null,
-      },
-      {
-        key: 'shipMoving',
-        label: 'Moving ships',
-        hint: 'Published rule: only the last ship of an open route moves. Any route end: a ship next to your settlement may move too.',
-        icon: <Move size={20} />,
-        when: view => view.settings.seafarers,
-        control: {
-          kind: 'select',
-          options: [
-            { value: 'ends', label: 'Any route end' },
-            { value: 'open', label: 'Published rule' },
-          ],
-        },
       },
       {
         key: 'volcanoStart',

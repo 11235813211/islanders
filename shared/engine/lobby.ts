@@ -91,6 +91,7 @@ export function createGame(
     pendingDiscards: {},
     pendingGold: {},
     goldDeadline: null,
+    robberDeadline: null,
     eruption: null,
     volcanoDecks: {},
     fog: {},

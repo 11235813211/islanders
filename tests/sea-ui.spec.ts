@@ -80,14 +80,23 @@ test('an eruption: red rims and a banner, then the roller rolls the volcano dice
   expect(game.errors).toEqual([]);
 });
 
-test('rolling shows see-through dice, and resources fly to who got them', async ({ page }) => {
+test('a roll tumbles the dice into the middle, then they rest in the corner showing the roll', async ({ page }) => {
   const g = seaGame();
   Object.assign(g, { phase: 'roll' });
   const game = await mountGame(page, g);
   await page.getByRole('button', { name: 'Roll dice' }).click();
-  await expect(page.locator('.roll-die')).toHaveCount(2);
-  await page.waitForTimeout(900);
+  const dice = page.locator('.board-dice');
+  await expect(dice).toHaveClass(/rolling/);
+  await page.waitForTimeout(1300);
   await page.screenshot({ path: 'test-results/dice-roll.png' });
+  await page.waitForTimeout(1600);
+  const [a, b] = game.state().dice!;
+  await expect(dice).toHaveAttribute('aria-label', `Dice: ${a} and ${b}, total ${a + b}`);
+  const box = (await dice.boundingBox())!;
+  const board = (await page.locator('.board-frame').boundingBox())!;
+  expect(box.x + box.width).toBeGreaterThan(board.x + board.width - 40);
+  expect(box.y + box.height).toBeGreaterThan(board.y + board.height - 40);
+  await page.screenshot({ path: 'test-results/dice-rest.png' });
   expect(game.errors).toEqual([]);
 });
 
@@ -114,5 +123,29 @@ test('a movable ship is picked up by tapping it; trade offers show every answer 
   await expect(page.locator('.offer-answer').first()).toContainText('Player 1');
   await expect(page.getByText('You give')).toHaveCount(0);
   await page.locator('.trade-notice').screenshot({ path: 'test-results/trade-notice.png' });
+  expect(game.errors).toEqual([]);
+});
+
+test('the robber previews where it was put; cancel puts it back, confirm moves it', async ({ page }) => {
+  const g = seaGame();
+  g.phase = 'robber';
+  g.robberDeadline = Date.now() + 15_000;
+  const game = await mountGame(page, g);
+  const before = game.state().robber;
+  await expect(page.getByText(/Move the robber or pirate · \d+s/)).toBeVisible();
+  await page
+    .getByRole('button', { name: /^Move robber to/ })
+    .first()
+    .click();
+  await page.screenshot({ path: 'test-results/robber-confirm.png' });
+  await page.getByRole('button', { name: 'Cancel robber' }).click();
+  await expect(page.getByRole('button', { name: 'Confirm robber' })).toHaveCount(0);
+  expect(game.state().robber).toBe(before);
+  await page
+    .getByRole('button', { name: /^Move robber to/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Confirm robber' }).click();
+  await expect.poll(() => game.state().robber).not.toBe(before);
   expect(game.errors).toEqual([]);
 });

@@ -101,6 +101,10 @@ export function advanceTime(state: GameState, now: number, random: () => number 
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll-volcanoes' }, random, now);
     if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
       return chooseGoldForAll(next, now, random);
+    if (next.phase === 'robber' && next.robberDeadline !== null && next.robberDeadline <= now) {
+      const id = getActivePlayerId(next)!;
+      return applyAction(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+    }
   }
   if (changed) {
     next.version++;

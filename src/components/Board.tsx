@@ -6,6 +6,7 @@ import { useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import BoardScene, { type Drift } from './BoardScene';
+import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements } from './game/BoardEffects';
 import './Board.css';
 
@@ -30,6 +31,9 @@ export interface BoardProps {
   onConfirm?: (kind: PlaceKind) => void;
   /** While moving a ship: the ship being moved, once picked. */
   moveFrom?: string | null;
+  /** The tile the robber or pirate was just moved to, waiting for confirm or cancel. */
+  robberPick?: string | null;
+  onRobberConfirm?: (confirm: boolean) => void;
 }
 
 /**
@@ -113,8 +117,11 @@ export default function Board({
   selected,
   onConfirm,
   moveFrom,
+  robberPick = null,
+  onRobberConfirm,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
+  const picked = robberPick ? view.board.hexes.find(h => h.id === robberPick) : undefined;
   const frame = boardFrame(view.board.hexes);
   const fresh = useFreshLog(view.log);
   const rising = risingSettlements(fresh.filter(entry => entry.turn === view.turn));
@@ -184,8 +191,8 @@ export default function Board({
             uid={uid}
             board={view.board}
             frame={frame}
-            robber={view.robber}
-            pirate={view.pirate}
+            robber={picked && picked.terrain !== 'sea' ? picked.id : view.robber}
+            pirate={picked?.terrain === 'sea' ? picked.id : view.pirate}
             showClosed={view.phase === 'setup-settlement'}
             drifts={icebergDrifts(view, fresh)}
           />
@@ -336,6 +343,9 @@ export default function Board({
               </g>
             );
           })}
+          {picked && onRobberConfirm && (
+            <RobberConfirm at={picked} pirate={picked.terrain === 'sea'} onConfirm={onRobberConfirm} />
+          )}
           {selected && selectedPoint && (
             <ConfirmCard
               at={selectedPoint}
@@ -348,6 +358,7 @@ export default function Board({
           <SeaDecorations frame={frame} />
         </g>
       </svg>
+      <BoardDice view={view} />
       {showHint && (
         <div className="board-placement-hint" role="status">
           <span />
@@ -355,6 +366,46 @@ export default function Board({
         </div>
       )}
     </div>
+  );
+}
+
+/** Confirm or cancel, just above where the robber or pirate was put. */
+function RobberConfirm({
+  at,
+  pirate,
+  onConfirm,
+}: {
+  at: { x: number; y: number };
+  pirate: boolean;
+  onConfirm: (confirm: boolean) => void;
+}) {
+  const piece = pirate ? 'pirate' : 'robber';
+  return (
+    <g className="map-confirm robber-confirm" transform={`translate(${at.x} ${at.y - 62})`}>
+      <path d="M-46 18H-6L0 26 6 18H46V-20H-46Z" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+      {[true, false].map(yes => (
+        // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
+        <g
+          key={String(yes)}
+          transform={`translate(${yes ? -22 : 22} 0)`}
+          role="button"
+          tabIndex={0}
+          aria-label={yes ? `Confirm ${piece}` : `Cancel ${piece}`}
+          onClick={event => {
+            event.stopPropagation();
+            onConfirm(yes);
+          }}
+          onKeyDown={event => keyboardActivate(event, () => onConfirm(yes))}
+        >
+          <circle r="14" fill={yes ? '#198144' : '#c8473b'} />
+          {yes ? (
+            <path d="m-6 0 4 4 8-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+          ) : (
+            <path d="M-5-5 5 5M5-5-5 5" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+          )}
+        </g>
+      ))}
+    </g>
   );
 }
 

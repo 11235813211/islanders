@@ -2,7 +2,7 @@ import { generateHarbors } from '../board';
 import { firstFreeColor, isPlayerColor } from '../colors';
 import { developmentDeck, updateAwards } from '../rules';
 import { DEFAULT_SETTINGS } from '../settings';
-import type { GameState } from '../types';
+import type { GameSettings, GameState } from '../types';
 import { AUTO_ROLL_SECONDS, emptyDiceCounts, emptyStats } from './core';
 
 /**
@@ -85,6 +85,7 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.settings = { ...s.settings, seafarers: !!s.design?.tiles.some((t: { kind: string }) => t.kind === 'sea') };
     s.goldDeadline ??= null;
+    s.robberDeadline ??= null;
     s.eruption ??= null;
     s.volcanoDecks ??= {};
     s.fog ??= {};
@@ -107,9 +108,13 @@ export function normalizeGame(state: GameState, now = Date.now(), random: () => 
 
 /** Checks that run on every load: settings within range, dice counts, and the roll clock. */
 function repair(next: GameState, now: number): void {
+  // Settings that no longer exist are dropped, so a later change still validates.
+  const known = Object.fromEntries(
+    Object.entries(next.settings ?? {}).filter(([key]) => Object.hasOwn(DEFAULT_SETTINGS, key)),
+  ) as Partial<GameSettings>;
   next.settings = {
     ...DEFAULT_SETTINGS,
-    ...next.settings,
+    ...known,
     autoRollSeconds: AUTO_ROLL_SECONDS.includes(next.settings?.autoRollSeconds)
       ? next.settings.autoRollSeconds
       : DEFAULT_SETTINGS.autoRollSeconds,

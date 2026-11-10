@@ -194,8 +194,6 @@ export interface GameSettings {
   volcanoStart: boolean;
   /** Eruption dice: plain random, or balanced (each volcano works through all six faces before repeating). */
   volcanoDice: 'random' | 'balanced';
-  /** Which ships may move: the published rule (end of an open route) or any route end, even beside a settlement. */
-  shipMoving: 'open' | 'ends';
 }
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {
@@ -286,6 +284,8 @@ export interface GameState {
   pendingGold: Record<string, number>;
   /** When gold choices are made for whoever hasn't chosen. */
   goldDeadline: number | null;
+  /** When the robber (or pirate) is placed for a player who hasn't moved it. */
+  robberDeadline: number | null;
   /** Volcano hexes about to erupt (the eruption phase), or null. */
   eruption: string[] | null;
   /** Fog hex id → what it will turn out to be. Hidden, like the deck, until revealed. */
@@ -398,6 +398,7 @@ export interface GameView {
   pendingDiscards: Record<string, number>;
   pendingGold: Record<string, number>;
   goldDeadline: number | null;
+  robberDeadline: number | null;
   eruption: string[] | null;
   specialQueue: string[];
   specialAsked: string[];

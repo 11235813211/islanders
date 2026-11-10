@@ -2,7 +2,7 @@ import { GUEST_NAMES } from './guest-names';
 import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
 
 export const DEFAULT_SETTINGS: GameSettings = {
-  autoRollSeconds: 10,
+  autoRollSeconds: 5,
   trackDice: true,
   numberLayout: 'ordered',
   turnSeconds: 120,
@@ -17,7 +17,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
   seafarers: false,
   volcanoStart: true,
   volcanoDice: 'random',
-  shipMoving: 'ends',
 };
 /** Trade offer lengths the lobby offers. */
 export const TRADE_SECONDS = [15, 30, 45, 60, 90, 120] as const;
@@ -93,8 +92,7 @@ export function validSettings(
     (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&
     (s.seafarers === undefined || typeof s.seafarers === 'boolean') &&
     (s.volcanoStart === undefined || typeof s.volcanoStart === 'boolean') &&
-    (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string)) &&
-    (s.shipMoving === undefined || ['open', 'ends'].includes(s.shipMoving as string))
+    (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string))
   );
 }
 

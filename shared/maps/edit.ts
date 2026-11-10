@@ -78,11 +78,11 @@ export function newDesign(kind: 'blank' | 'base', id: string, categoryId: string
 /** Drop harbors, starts, and links that no longer fit the tiles. Links stay on land and on non-3:1 harbors. */
 export function tidy(design: BoardDesign): BoardDesign {
   const byKey = new Map(design.tiles.map(t => [tileKey(t.q, t.r), t]));
+  const harborLand = holdsHarbor(design);
   const harbors = design.harbors.filter(h => {
     const land = byKey.get(tileKey(h.q, h.r));
     const [dq, dr] = SIDE_DIRECTIONS[h.side]!;
-    const across = byKey.get(tileKey(h.q + dq, h.r + dr));
-    return !!land && isLand(land.kind) && (!across || !isLand(across.kind));
+    return !!land && harborLand(land.kind) && faces(byKey.get(tileKey(h.q + dq, h.r + dr)));
   });
   const robber = design.robber && isLand(byKey.get(tileKey(design.robber.q, design.robber.r))?.kind ?? 'sea');
   const pirate = design.pirate && byKey.get(tileKey(design.pirate.q, design.pirate.r))?.kind === 'sea';
@@ -253,11 +253,27 @@ export function harborEdge(
   const [dq, dr] = SIDE_DIRECTIONS[side]!;
   const here = byKey.get(tileKey(q, r));
   const there = byKey.get(tileKey(q + dq, r + dr));
-  if (here && isLand(here.kind) && (!there || !isLand(there.kind))) return { q, r, side };
-  if (there && isLand(there.kind) && (!here || !isLand(here.kind)))
-    return { q: q + dq, r: r + dr, side: (side + 3) % 6 };
+  const harborLand = holdsHarbor(design);
+  if (here && harborLand(here.kind) && faces(there)) return { q, r, side };
+  if (there && harborLand(there.kind) && faces(here)) return { q: q + dq, r: r + dr, side: (side + 3) % 6 };
   return null;
 }
+
+/** A harbor faces open water or the map's edge (never fog, which may turn out to be land). */
+const faces = (tile: DesignTile | undefined) => !tile || tile.kind === 'sea' || tile.kind === 'iceberg';
+
+/** Fog that may turn out to be sea. */
+export const fogMayBeSea = (design: BoardDesign) =>
+  design.tiles.some(t => t.kind === 'fog') && ((design.fogPool ?? FOG_POOL).sea ?? 0) > 0;
+
+/**
+ * Tiles a harbor may sit on: land, and fog only when the fog can't turn out to be sea (placed by
+ * hand; random harbors never go on fog).
+ */
+export const holdsHarbor = (design: BoardDesign) => {
+  const fog = !fogMayBeSea(design);
+  return (kind: DesignKind) => isLand(kind) || (fog && kind === 'fog');
+};
 
 const sameEdge = (a: { q: number; r: number; side: number }, b: { q: number; r: number; side: number }) =>
   a.q === b.q && a.r === b.r && a.side === b.side;

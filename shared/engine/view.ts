@@ -85,6 +85,7 @@ export function getView(state: GameState, selfId: string): GameView {
     pendingDiscards: state.pendingDiscards,
     pendingGold: state.pendingGold,
     goldDeadline: state.goldDeadline,
+    robberDeadline: state.robberDeadline,
     eruption: state.eruption,
     specialQueue: state.specialQueue,
     specialAsked: state.specialAsked,

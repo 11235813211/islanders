@@ -5,7 +5,9 @@ import { SIDE_DIRECTIONS, tileKey } from './types';
 /** Harbors closer than this (board units, edge midpoint to midpoint) would crowd one corner. */
 const MIN_SPACING = 75;
 
-const isLand = (tile: DesignTile | undefined) => !!tile && tile.kind !== 'sea' && tile.kind !== 'iceberg';
+/** Land for random harbors: fog is left out (it may turn out to be sea). */
+const isLand = (tile: DesignTile | undefined) =>
+  !!tile && tile.kind !== 'sea' && tile.kind !== 'iceberg' && tile.kind !== 'fog';
 
 /** About one harbor per two land tiles, like the base game's 9 for 19. */
 export const harborTarget = (design: { tiles: DesignTile[] }) =>

@@ -18,7 +18,7 @@ import EndGame from './game/EndGame';
 import LeaveDialog from './game/LeaveDialog';
 import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
-import ResourceFlights from './game/ResourceFlights';
+import ResourceFlights, { type Airborne } from './game/ResourceFlights';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import { TradeNotice } from './game/TradeNotice';
@@ -29,12 +29,17 @@ import './game/game.css';
 import './game/trade.css';
 import './game/phone.css';
 
-function Dice({ dice }: { dice: [number, number] | null }) {
-  return (
-    <span className="compact-dice" role="img" aria-label={dice ? `Dice total ${dice[0] + dice[1]}` : 'Not rolled'}>
-      {dice ? dice.map((n, i) => <span key={i}>{['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][n]}</span>) : <Dices size={25} />}
-    </span>
-  );
+/** The view as hands should show it: cards still flying to a player aren't counted until they land. */
+function landed(view: GameView, airborne: Airborne[]): GameView {
+  if (!airborne.length) return view;
+  const hand = { ...view.hand };
+  for (const card of airborne)
+    if (card.playerId === view.selfId) hand[card.resource] = Math.max(0, hand[card.resource] - 1);
+  const players = view.players.map(p => ({
+    ...p,
+    resourceCount: Math.max(0, p.resourceCount - airborne.filter(a => a.playerId === p.id).length),
+  }));
+  return { ...view, hand, players };
 }
 
 /**
@@ -49,7 +54,7 @@ function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
   return view.specialAsked.includes(view.selfId) ? null : 'ask';
 }
 
-function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null): string {
+function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null, robberIn: number | null): string {
   const active = view.players.find(p => p.id === view.activePlayerId);
   if (view.pausedAt !== null) return 'Game paused';
   switch (view.phase) {
@@ -66,7 +71,9 @@ function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null)
     case 'roll':
       return `Roll dice${rollIn === null ? '' : ` · auto ${rollIn}s`}`;
     case 'robber':
-      return 'Moving robber…';
+      return ownTurn
+        ? `Move the robber${view.seafaring ? ' or pirate' : ''}${robberIn === null ? '' : ` · ${robberIn}s`}`
+        : 'Moving robber…';
     case 'steal':
       return 'Choosing a player…';
     case 'discard':
@@ -109,6 +116,10 @@ export default function GameTable({
   const [discard, setDiscard] = useState<TradeBag>(emptyBag);
   const [endHidden, setEndHidden] = useState(false);
   const [buying, setBuying] = useState(false);
+  /** Cards still flying to their owners (counted once they land). */
+  const [airborne, setAirborne] = useState<Airborne[]>([]);
+  /** Where the robber or pirate was just put, before confirming. */
+  const [robberPick, setRobberPick] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [panel, setPanel] = useState<PanelTab | null>(() => (matchMedia('(min-width: 721px)').matches ? 'chat' : null));
@@ -158,6 +169,7 @@ export default function GameTable({
     setMoveFrom(null);
     setDevKind(null);
     setBuying(false);
+    setRobberPick(null);
     setDiscard(emptyBag());
     setTrade(previous => (previous?.counterOf && view.phase === 'build' ? previous : null));
   }, [view.selfId, view.phase]);
@@ -196,6 +208,7 @@ export default function GameTable({
 
   const clock = view.pausedAt ?? now;
   const remaining = view.turnDeadline === null ? 0 : Math.max(0, Math.ceil((view.turnDeadline - clock) / 1000));
+  const robberIn = view.robberDeadline === null ? null : Math.max(0, Math.ceil((view.robberDeadline - clock) / 1000));
   const rollIn = view.rollDeadline === null ? null : Math.max(0, Math.ceil((view.rollDeadline - clock) / 1000));
 
   function place(kind: PlaceKind, id: string) {
@@ -383,8 +396,8 @@ export default function GameTable({
         leave={() => setLeaving(true)}
         home={() => (!spectator && isBotGame(view) ? setLeaving(true) : home())}
       />
-      <PlayerPanel view={view} online={room.online} />
-      <ResourceFlights view={view} />
+      <PlayerPanel view={landed(view, airborne)} online={room.online} />
+      <ResourceFlights view={view} setAirborne={setAirborne} />
       <BoardViewport
         view={view}
         mode={view.phase === 'robber' ? 'robber' : mode}
@@ -395,7 +408,12 @@ export default function GameTable({
         onVertex={pickVertex}
         onEdge={pickEdge}
         corner={cornerPanel()}
-        onHex={hexId => send({ type: 'move-robber', hexId })}
+        onHex={setRobberPick}
+        robberPick={robberPick}
+        onRobberConfirm={confirm => {
+          if (confirm && robberPick) send({ type: 'move-robber', hexId: robberPick });
+          setRobberPick(null);
+        }}
       >
         <ProposalNotice view={view} busy={busy} send={send} />
         {view.phase === 'eruption' && (
@@ -421,9 +439,8 @@ export default function GameTable({
           {spectator ? 'Spectating' : ownTurn ? 'Your turn' : active?.name}
         </span>
         <span className="turn-instruction" role="status">
-          {instructionFor(view, ownTurn, rollIn)}
+          {instructionFor(view, ownTurn, rollIn, robberIn)}
         </span>
-        <Dice dice={view.dice} />
         <span
           className={`turn-clock ${view.turnExpired ? 'expired' : ''}`}
           role="timer"
@@ -440,7 +457,13 @@ export default function GameTable({
             Watching · hands stay private
           </p>
         ) : (
-          <ResourceHand hand={view.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
+          <ResourceHand
+            hand={landed(view, airborne).hand}
+            playerName={self?.name}
+            compact
+            onSelect={tapCard}
+            disabled={busy || paused}
+          >
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
             {!!self?.discoveries && (
               <button

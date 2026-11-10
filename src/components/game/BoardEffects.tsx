@@ -1,4 +1,4 @@
-// Animations drawn on the board: the dice rolling in, volcanoes about to erupt, and each eruption
+// Animations drawn on the board: volcanoes about to erupt, and each eruption
 // (a red die tumbling onto the volcano, the corner it names, and the building there sinking).
 import type { CSSProperties } from 'react';
 import { ERUPTION_CORNER } from '../../../shared/seafaring';
@@ -62,35 +62,6 @@ function offBoard(seed: number, frame: Frame): { x: number; y: number } {
   const angle = ((seed * 137.5) % 360) * (Math.PI / 180);
   const reach = Math.max(frame.width, frame.height) * 0.75;
   return { x: Math.cos(angle) * reach, y: Math.sin(angle) * reach };
-}
-
-/** The two dice tumble in from off the board, settle in the middle, then fade. */
-function RollDice({ entry, frame }: { entry: GameLog; frame: Frame }) {
-  if (entry.event?.kind !== 'roll') return null;
-  const center = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 };
-  const from = offBoard(entry.id, frame);
-  return (
-    <g key={entry.id} className="roll-dice" transform={`translate(${center.x} ${center.y})`} aria-hidden="true">
-      {entry.event.dice.map((value, i) => (
-        <g
-          key={i}
-          className="roll-die"
-          style={
-            {
-              '--sx': `${from.x + i * 30}px`,
-              '--sy': `${from.y - i * 20}px`,
-              '--spin': `${(i ? -1 : 1) * 620}deg`,
-              animationDelay: `${i * 0.08}s`,
-            } as CSSProperties
-          }
-        >
-          <g transform={`translate(${i ? 40 : -40} 0)`}>
-            <DieFace value={value} size={66} className="roll-die-face" />
-          </g>
-        </g>
-      ))}
-    </g>
-  );
 }
 
 /** Volcanoes about to erupt: a red rim, shaking. */
@@ -204,7 +175,6 @@ export default function BoardEffects({
   uid: string;
   playerColor: (id: string) => string;
 }) {
-  const roll = fresh.filter(e => e.event?.kind === 'roll').at(-1);
   const eruptions = eruptionsToShow(fresh).filter(({ entry }) => entry.turn === view.turn);
   return (
     <g className="board-effects" pointerEvents="none">
@@ -222,7 +192,6 @@ export default function BoardEffects({
           color={playerColor}
         />
       ))}
-      {roll && roll.turn === view.turn && <RollDice key={roll.id} entry={roll} frame={frame} />}
     </g>
   );
 }

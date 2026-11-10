@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTime, applyAction, getView } from '../shared/engine';
+import { advanceTime, applyAction, getView, normalizeGame } from '../shared/engine';
+import type { BoardDesign } from '../shared/maps';
 import { longestRoad } from '../shared/rules';
 import { boardIndex, isShipEdge } from '../shared/seafaring';
 import type { GameAction, GameState, Terrain } from '../shared/types';
@@ -135,27 +136,70 @@ describe('eruptions', () => {
   });
 });
 
-describe('ships and discoveries', () => {
-  /** p0 owns two settlements joined by one ship on the coast between them. */
-  function closedRoute(shipMoving: 'open' | 'ends') {
-    return building(
+describe('friendly robber at sea', () => {
+  it("the pirate may not go next to a low-score player's ship, even touching just one end of it", () => {
+    const g = building(
       g => {
-        const a = corner(g, 0, 1, 2);
-        const b = corner(g, 0, 1, 1);
-        g.buildings[a] = { playerId: 'p0', kind: 'settlement' };
-        g.buildings[b] = { playerId: 'p0', kind: 'settlement' };
-        g.ships[edgeBetween(g, a, b)] = 'p0';
+        const index = boardIndex(g.board);
+        const home = corner(g, 0, 1, 2);
+        g.buildings[home] = { playerId: 'p1', kind: 'settlement' };
+        const ship = index.vertex.get(home)!.edgeIds.find(id => isShipEdge(g.board, id))!;
+        g.ships[ship] = 'p1';
+        g.phase = 'robber';
       },
-      { shipMoving },
+      { friendlyRobber: true },
     );
-  }
+    const index = boardIndex(g.board);
+    const ship = Object.keys(g.ships)[0]!;
+    const ends = [index.edge.get(ship)!.a, index.edge.get(ship)!.b];
+    const near = g.board.hexes.filter(h => h.terrain === 'sea' && h.vertexIds.some(v => ends.includes(v)));
+    expect(near.length).toBeGreaterThan(1);
+    const allowed = getView(g, 'p0').legal.robberHexes;
+    for (const hex of near) expect(allowed).not.toContain(hex.id);
+    expect(allowed.some(id => index.hex.get(id)!.terrain === 'sea')).toBe(true);
+  });
 
-  it('by default a ship between two settlements may move; the published rule keeps it put', () => {
-    const ends = closedRoute('ends');
-    const ship = Object.keys(ends.ships)[0]!;
-    expect(isShipEdge(ends.board, ship)).toBe(true);
-    expect(getView(ends, 'p0').legal.shipMoves[ship]?.length).toBeGreaterThan(0);
-    expect(getView(closedRoute('open'), 'p0').legal.shipMoves).toEqual({});
+  it('a robber not placed in 15 seconds is placed for the player', () => {
+    let g = building(g => {
+      g.phase = 'roll';
+    });
+    g = act(g, 'p0', { type: 'roll' }, sequence(0.5, 0.4)); // 4 + 3 = 7
+    expect(g.phase).toBe('robber');
+    expect(g.robberDeadline).toBe(TEST_NOW + 15_000);
+    expect(advanceTime(g, TEST_NOW + 15_000, seeded()).phase).not.toBe('robber');
+  });
+});
+
+describe('ships and discoveries', () => {
+  it('a ship between two of your settlements stays put (only the end of an open route moves)', () => {
+    const g = building(g => {
+      const a = corner(g, 0, 1, 2);
+      const b = corner(g, 0, 1, 1);
+      g.buildings[a] = { playerId: 'p0', kind: 'settlement' };
+      g.buildings[b] = { playerId: 'p0', kind: 'settlement' };
+      g.ships[edgeBetween(g, a, b)] = 'p0';
+    });
+    expect(getView(g, 'p0').legal.shipMoves).toEqual({});
+    const old = { ...g, settings: { ...g.settings, shipMoving: 'ends' } } as GameState;
+    expect(Object.hasOwn(normalizeGame(old, TEST_NOW).settings, 'shipMoving')).toBe(false);
+  });
+
+  it('a ship at the end of a route can move next to another of your settlements, far away', () => {
+    const g = building(g => {
+      const index = boardIndex(g.board);
+      const home = corner(g, 0, 1, 2);
+      g.buildings[home] = { playerId: 'p0', kind: 'settlement' };
+      const out = index.vertex.get(home)!.edgeIds.find(id => isShipEdge(g.board, id))!;
+      g.ships[out] = 'p0';
+      // Settlement B on the far wheat island.
+      const far = hexOf(g, 'wheat');
+      g.buildings[far.vertexIds[0]!] = { playerId: 'p0', kind: 'settlement' };
+    });
+    const ship = Object.keys(g.ships)[0]!;
+    const targets = getView(g, 'p0').legal.shipMoves[ship] ?? [];
+    const farCorners = new Set(hexOf(g, 'wheat').vertexIds);
+    const index = boardIndex(g.board);
+    expect(targets.some(id => [index.edge.get(id)!.a, index.edge.get(id)!.b].some(v => farCorners.has(v)))).toBe(true);
   });
 
   it('discoveries pay for the cards the buyer picks', () => {
@@ -297,6 +341,33 @@ describe('fog', () => {
     expect(g.players[0]!.resources.wheat).toBe(before + 1);
     expect(g.undo).toBeNull();
     expect(g.log.some(e => e.event?.kind === 'discover')).toBe(true);
+  });
+});
+
+describe('harbors and fog', () => {
+  const FOGGY = testDesign(['~ ~ ~ ~ ~ ~', ' ~ w6 b5 ~ ~ ~', '~ s9 o10 ~ ~ ~', ' ~ ~ ~ ~ ~ ~']);
+  /** The design with the tile east of the brick tile turned to fog. */
+  function withFog(fogPool: BoardDesign['fogPool']): BoardDesign {
+    const design = structuredClone(FOGGY);
+    const brick = design.tiles.find(t => t.kind === 'brick')!;
+    design.tiles.find(t => t.q === brick.q + 1 && t.r === brick.r)!.kind = 'fog';
+    return { ...design, fogPool };
+  }
+
+  it('random harbors never go on or face fog; by hand only when the fog cannot be sea', async () => {
+    const { placeHarbors } = await import('../shared/maps/fill');
+    const { harborEdge, tidy } = await import('../shared/maps/edit');
+    const seaFog = withFog({ sea: 1, wheat: 1 });
+    const fog = seaFog.tiles.find(t => t.kind === 'fog')!;
+    const placed = placeHarbors(seaFog, seeded(2));
+    for (const h of placed.harbors) expect(h.q === fog.q && h.r === fog.r).toBe(false);
+    // A fog side facing the sea (side 5 points east): only allowed with no sea in the fog mix.
+    expect(harborEdge(seaFog, fog.q, fog.r, 5)).toBeNull();
+    const landFog = withFog({ wheat: 1, ore: 1 });
+    expect(harborEdge(landFog, fog.q, fog.r, 5)).toEqual({ q: fog.q, r: fog.r, side: 5 });
+    const withHarbor = { ...landFog, harbors: [{ q: fog.q, r: fog.r, side: 5, kind: 'random' as const }] };
+    expect(tidy(withHarbor).harbors).toHaveLength(1);
+    expect(tidy({ ...withHarbor, fogPool: { sea: 1, wheat: 1 } }).harbors).toHaveLength(0);
   });
 });
 
