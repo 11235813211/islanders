@@ -40,4 +40,6 @@ Edit the new folder, keeping older folders untouched.
 
 Change the import in `index.ts` from `./vN` to an older folder, then run `npm run check`.
 
-The favicon (`public/favicon.svg`) is separate from these versions.
+The home-screen icons and favicon are composed separately in `app-icon.tsx`, using the active
+version's real tiles and pieces. Run `npm run icons` to regenerate `public/icons/*.png` and
+`public/favicon.svg`; `tests/install.spec.ts` reviews them at home-screen sizes and with launcher crops.

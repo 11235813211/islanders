@@ -23,7 +23,7 @@
     "art:new": "node scripts/new-art-version.mjs",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.ts"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
