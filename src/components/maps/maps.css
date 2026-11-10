@@ -197,15 +197,19 @@
   height: 100%;
   user-select: none;
 }
+/* Only the buttons take taps: the box must not cover the board (it would swallow clicks on tiles). */
 .pan-zoom .zoom-controls {
   position: absolute;
   right: 12px;
   bottom: 12px;
+  left: auto;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 .pan-zoom .zoom-controls button {
+  pointer-events: auto;
   display: grid;
   place-items: center;
   width: 36px;

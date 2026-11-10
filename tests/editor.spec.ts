@@ -241,3 +241,56 @@ test('the settings panel fits without sideways scrolling, folds away, and a boar
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Board editor' })).toBeVisible();
 });
+
+test('tapping a number on a volcano, an iceberg, or any tile raises it', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Fire and Ice' }).click();
+  const board = BUILTIN_BOARDS.find(b => b.id === 'fire-and-ice')!;
+  for (const kind of ['volcano', 'iceberg', 'land'] as const) {
+    const tile = board.tiles.find(t => t.kind === kind)!;
+    // Number tokens sit just below each tile's center.
+    const token = await cellPoint(page, tile.q, tile.r, 0, 8);
+    const before = await page.locator('.editor-token').evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
+    await page.mouse.click(token.x, token.y);
+    const after = await page.locator('.editor-token').evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
+    expect(after, `${kind} number changes on tap`).not.toEqual(before);
+  }
+});
+
+test('numbers on tiles painted in the editor can be tapped too', async ({ page }) => {
+  const headers = await signIn(page);
+  const stale = ((await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary).boards.filter(
+    b => b.name === 'New board',
+  );
+  for (const board of stale) await page.request.delete(`${server}/api/boards/${board.id}`, { headers });
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'New blank board' }).first().click();
+  await expect(page.getByLabel('Board name')).toHaveValue('New board');
+  await drag(
+    page,
+    [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+    ],
+    'Shift',
+  );
+  for (const [i, kind] of (['Volcano', 'Iceberg', 'Gold'] as const).entries()) {
+    const center = await cellPoint(page, i, 0, 0, -32);
+    await page.mouse.click(center.x, center.y);
+    await page
+      .getByRole('complementary', { name: 'Settings' })
+      .getByRole('button', { name: kind, exact: true })
+      .click();
+    const token = await cellPoint(page, i, 0, 0, 8);
+    const labels = () => page.locator('.editor-token').evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
+    const before = await labels();
+    await page.mouse.click(token.x, token.y);
+    await expect.poll(labels, { message: `${kind} number changes on tap` }).not.toEqual(before);
+  }
+  // The zoom buttons' box stays small, so it never covers tiles along the bottom of the canvas.
+  const zoom = (await page.locator('.editor-canvas .zoom-controls').boundingBox())!;
+  expect(zoom.width).toBeLessThan(80);
+  await page.screenshot({ path: 'test-results/editor-painted-numbers.png' });
+});

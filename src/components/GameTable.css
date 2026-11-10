@@ -294,6 +294,10 @@
   gap: 3px;
   z-index: 8;
   touch-action: manipulation;
+  pointer-events: none;
+}
+.zoom-controls > * {
+  pointer-events: auto;
 }
 .zoom-controls button {
   border: 1px solid #1c799c;

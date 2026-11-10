@@ -72,3 +72,22 @@ test('the board editor fits a phone, with its settings as a drawer', async ({ pa
   await page.getByRole('button', { name: 'Show settings' }).tap();
   await expect(page.getByRole('heading', { name: 'Random land mix' })).toBeInViewport();
 });
+
+test('tapping a number token in the editor raises it on a phone', async ({ page }) => {
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Fire and Ice' }).tap();
+  const tokens = page.locator('.editor-token');
+  await expect(tokens.first()).toBeVisible();
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).tap();
+  const viewport = page.viewportSize()!;
+  // A token in view and clear of the zoom buttons on the left.
+  const boxes = await tokens.evaluateAll(els => els.map(e => e.getBoundingClientRect().toJSON() as DOMRect));
+  const spot = boxes
+    .map(b => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 }))
+    .find(p => p.x > 90 && p.x < viewport.width - 20 && p.y > 0 && p.y < viewport.height - 20);
+  expect(spot, 'a number token is in view').toBeTruthy();
+  const labels = () => tokens.evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
+  const before = await labels();
+  await page.touchscreen.tap(spot!.x, spot!.y);
+  await expect.poll(labels, { message: 'the number changes on tap' }).not.toEqual(before);
+});

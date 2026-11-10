@@ -388,15 +388,19 @@
   width: 100%;
   height: 100%;
 }
+/* Only the buttons take taps: the box must not cover the board (it would swallow clicks on tiles). */
 .editor-canvas .zoom-controls {
   position: absolute;
   right: 12px;
   bottom: 12px;
+  left: auto;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 .editor-canvas .zoom-controls button {
+  pointer-events: auto;
   display: grid;
   place-items: center;
   width: 36px;
