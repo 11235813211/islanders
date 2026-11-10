@@ -1,7 +1,7 @@
-import { PLAYER_COLORS } from '../../shared/colors';
-import type { BaseTerrain } from '../../shared/types';
-import { hexPoints } from '../lib/geometry';
-import { ArtDefs, BuildingPiece, HexTile, Road } from './index';
+import { PLAYER_COLORS } from '../../../../shared/colors';
+import type { BaseTerrain } from '../../../../shared/types';
+import { hexPoints } from '../../../lib/geometry';
+import { ArtDefs, BuildingPiece, HexTile, Road } from '../../index';
 
 export interface AppIconOptions {
   size?: number;

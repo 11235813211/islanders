@@ -1,5 +1,6 @@
 import { type APIRequestContext, type APIResponse, expect, type Page } from '@playwright/test';
 import WebSocket from 'ws';
+import { chooseBotAction } from '../shared/bots';
 import type { GameAction, GameView, ServerMessage, Session } from '../shared/types';
 
 export const server = 'http://127.0.0.1:8787';
@@ -90,9 +91,37 @@ export class PlayerConnection {
     return message.state;
   }
 
+  /**
+   * Play this seat straight away, as a quick bot would, whenever it has to act (so a test never
+   * waits out the turn clock for it): roll, end the turn without building, discard, move the
+   * robber, pick gold, and turn down trade offers.
+   */
+  autoPlay() {
+    let answered = -1;
+    this.socket.on('message', () => {
+      const view = this.messages.at(-1)?.type === 'state' ? this.state : null;
+      if (!view || view.version === answered || !mustAct(view)) return;
+      answered = view.version;
+      const offer = view.tradeOffer;
+      if (offer?.to.includes(view.selfId) && !offer.declinedBy.includes(view.selfId))
+        this.send({ type: 'decline-trade', offerId: offer.id });
+      else this.send(chooseBotAction(view, { level: 'beginner', builds: 99, allowOffers: false }));
+    });
+  }
+
   dispose() {
     this.socket.close();
   }
+}
+
+/** Whether this seat has something to do now (its turn, a discard, gold, or an offer to answer). */
+function mustAct(view: GameView): boolean {
+  if (view.role !== 'player' || view.phase === 'lobby' || view.phase === 'finished') return false;
+  const offer = view.tradeOffer;
+  if (offer?.to.includes(view.selfId) && !offer.declinedBy.includes(view.selfId)) return true;
+  if (view.phase === 'discard') return (view.pendingDiscards[view.selfId] ?? 0) > 0;
+  if (view.phase === 'gold') return (view.pendingGold[view.selfId] ?? 0) > 0;
+  return view.activePlayerId === view.selfId;
 }
 
 /** POST /api/rooms, waiting out the shared per-IP room-creation limit (12 a minute) that the whole suite shares. */

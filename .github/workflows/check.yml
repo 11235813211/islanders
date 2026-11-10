@@ -23,9 +23,14 @@ jobs:
       - uses: ./.github/actions/setup
       - run: npm run check
 
+  # Browser tests, split across two runners that run at the same time.
   browsers:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -41,10 +46,10 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       - if: steps.browser-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium webkit
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: browser-test-results
+          name: browser-test-results-${{ matrix.shard }}
           path: test-results/
           retention-days: 7

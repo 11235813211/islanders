@@ -24,7 +24,7 @@ test('in a real room, every roll tumbles through the middle and every iceberg dr
   page,
   request,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   const session = await join(request, 'Watcher');
   const host = new PlayerConnection(session.roomId);
   try {
@@ -80,10 +80,10 @@ test('in a real room, every roll tumbles through the middle and every iceberg dr
       };
       requestAnimationFrame(sample);
     });
+    // The watcher's seat plays itself at once, so the test only waits on the bots and real alarms.
+    host.autoPlay();
     await host.action({ type: 'start' });
-
-    // Setup (the watcher's placements time out), then bot turns and the watcher's timed turns.
-    await expect.poll(() => host.state.turn, { timeout: 120_000, intervals: [1000] }).toBeGreaterThanOrEqual(7);
+    await expect.poll(() => host.state.turn, { timeout: 90_000, intervals: [500] }).toBeGreaterThanOrEqual(7);
     await page.waitForTimeout(4500);
     const seen = await page.evaluate(() =>
       [...(window as unknown as { seen: Map<Element, Seen> }).seen.values()].map(

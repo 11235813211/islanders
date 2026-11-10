@@ -36,7 +36,8 @@ Which published rules are in, which are room variations, and their tests: `docs/
 - `npm test`: rules, bots, and protocol unit tests (seconds). Run first after any `shared/` or `server/protocol.ts` change.
 - `npx playwright test tests/<file>.spec.ts`: browser and real-server tests (starts wrangler and Vite). Run the relevant file, not the whole suite, while iterating.
 - `npx playwright test --project=iphone`: phone checks (`tests/phone.spec.ts`).
-- Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`. Sea tiles and pieces: `tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
+- Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`. It and `art-compare.spec.ts` only take screenshots, so CI skips them (`playwright.config.ts`); CI splits the rest across two runners.
+- Server tests that need a seat to keep playing can call `PlayerConnection.autoPlay()` (`tests/server-helpers.ts`) instead of waiting out turn clocks. Sea tiles and pieces: `tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
 - Bot strength: `GAMES=240 npx vitest run tests/bots.test.ts -t report` (about a minute). Run it after changing bot logic; Advanced should beat Intermediate, which should beat Beginner.
 - `npm run check` (lint, unit tests, build) must pass before you say you're done. Report failures honestly.
 
