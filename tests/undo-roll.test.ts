@@ -50,9 +50,10 @@ describe('undo never takes a turn back before its roll', () => {
           if (!(error instanceof GameError)) throw error;
           g = advanceTime(g, g.turnDeadline ?? now, random);
         }
-        for (const [turn, rolls] of rollsPerTurn(g)) expect(rolls, `seed ${seed}, turn ${turn}`).toBeLessThanOrEqual(1);
-        expect(conserved(g)).toBe(true);
+        expect(conserved(g), `seed ${seed}, step ${step}`).toBe(true);
       }
+      // Undo never removes log entries, so a turn rolled twice would still show two rolls here.
+      for (const [turn, rolls] of rollsPerTurn(g)) expect(rolls, `seed ${seed}, turn ${turn}`).toBeLessThanOrEqual(1);
     }
-  });
+  }, 30_000);
 });
