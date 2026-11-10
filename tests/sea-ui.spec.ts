@@ -120,7 +120,9 @@ test('a roll tumbles the dice into the middle, then they rest in the corner show
   expect(game.errors).toEqual([]);
 });
 
-test('a movable ship is picked up by tapping it; trade offers show every answer by name', async ({ page }) => {
+test('a movable ship is picked up by tapping it; trade offers show every answer as a seat-color chip', async ({
+  page,
+}) => {
   const g = seaGame();
   const ships = getView(g, 'p0').legal.ships;
   g.ships[ships[0]!] = 'p0';
@@ -140,7 +142,8 @@ test('a movable ship is picked up by tapping it; trade offers show every answer 
   await composer.getByRole('button', { name: 'Request one more Ore' }).click();
   await composer.getByRole('button', { name: 'Offer to players' }).click();
   await expect(page.locator('.offer-answer')).toHaveCount(2);
-  await expect(page.locator('.offer-answer').first()).toContainText('Player 1');
+  // Just the seat color and ?, with the name only in the label (keeps the notice compact).
+  await expect(page.getByRole('img', { name: 'Player 1 has not answered' })).toHaveText('?');
   await expect(page.getByText('You give')).toHaveCount(0);
   await page.locator('.trade-notice').screenshot({ path: 'test-results/trade-notice.png' });
   expect(game.errors).toEqual([]);

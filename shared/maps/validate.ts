@@ -132,7 +132,6 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
       islandPools[key] = parsePool(mix, FILL_KINDS) as Pool;
     }
   }
-  const fogPool = value.fogPool === undefined ? undefined : parsePool(value.fogPool, FOG_KINDS);
   const exclude = value.harborExclude;
   if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
     fail('Invalid harbor exclusions.');
@@ -168,8 +167,6 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     ...layout,
     pool,
     ...(Object.keys(islandPools).length ? { islandPools } : {}),
-    ...(fogPool ? { fogPool } : {}),
-    ...(value.fogExact === true ? { fogExact: true } : {}),
     harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
     ...(value.swapNumbers ? { swapNumbers: true } : {}),
     ...(value.richIslands ? { richIslands: value.richIslands as number } : {}),
@@ -208,6 +205,8 @@ function parseLayout(value: Record<string, unknown>): BoardVersion {
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),
     ...((noStart as string[]).length ? { noStart: [...new Set(noStart as string[])] } : {}),
+    ...(value.fogPool === undefined ? {} : { fogPool: parsePool(value.fogPool, FOG_KINDS) }),
+    ...(typeof value.fogExact === 'boolean' ? { fogExact: value.fogExact } : {}),
   };
 }
 

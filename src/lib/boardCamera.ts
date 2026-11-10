@@ -52,6 +52,35 @@ export function cameraViewBox(camera: Camera, frame: Frame = BASE_FRAME): string
   const cy = frame.y + frame.height / 2 + camera.y;
   return `${cx - w / 2} ${cy - h / 2} ${w} ${h}`;
 }
+/**
+ * A CSS transform that makes an SVG drawn for camera `drawn` show camera `shown` instead, without
+ * redrawing it (the SVG's box is `box`; its viewBox keeps the frame's shape, so the fit scale is the
+ * same for every camera). Gestures move the board this way, which phones do cheaply, and the SVG is
+ * redrawn for the new camera once the gesture ends.
+ */
+export function cameraTransform(
+  drawn: Camera,
+  shown: Camera,
+  frame: Frame,
+  box: { width: number; height: number },
+): string {
+  const scale = Math.min(box.width / frame.width, box.height / frame.height) * shown.zoom;
+  const x = scale * (drawn.x - shown.x);
+  const y = scale * (drawn.y - shown.y);
+  return `translate(${x}px, ${y}px) scale(${shown.zoom / drawn.zoom})`;
+}
+
+/** Show `shown` on an SVG drawn for `drawn` (see cameraTransform); nothing when they match. */
+export function previewCamera(svg: SVGSVGElement | null, drawn: Camera, shown: Camera, frame: Frame): void {
+  const box = svg?.parentElement;
+  if (!svg || !box) return;
+  const same = drawn.x === shown.x && drawn.y === shown.y && drawn.zoom === shown.zoom;
+  svg.style.transform = same
+    ? ''
+    : cameraTransform(drawn, shown, frame, { width: box.clientWidth, height: box.clientHeight });
+  svg.style.willChange = same ? '' : 'transform';
+}
+
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Pan and zoom so the board point under `from` ends up under `to`, scaled by `factor`. */

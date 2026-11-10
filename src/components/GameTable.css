@@ -283,6 +283,12 @@
   overflow: hidden;
   border-radius: 0;
 }
+/* During a gesture the drawing is moved by a transform (see previewCamera); painting past the SVG's
+   box keeps the board's edges filled in while it is dragged. The frame still clips it. */
+.board-viewport .board-svg {
+  overflow: visible;
+  transform-origin: 50% 50%;
+}
 .terrain-art {
   filter: saturate(1.65) contrast(1.04);
 }
@@ -614,13 +620,10 @@
   box-shadow: none !important;
   font-size: 14px;
 }
-.spectator-hand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #406a7c;
-  margin: 0;
-  font-size: 14px;
+/* Spectators have no hand or build bar: on a wide screen the board takes those rows. */
+.game-table.spectating {
+  grid-template-areas: "toolbar toolbar" "board players" "board chat" "turn chat" "board chat" "board chat";
+  grid-template-rows: 30px auto minmax(0, 1fr) 38px 0 0;
 }
 .chat-panel {
   grid-area: chat;

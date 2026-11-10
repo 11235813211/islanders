@@ -23,7 +23,7 @@ function observe(page: Page) {
 test('solo lobby, large board, seat switching, mobile and tablet layouts', async ({ page }) => {
   const game = observe(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Islanders', exact: true })).toBeVisible();
   await expect(page.locator('.board-svg')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Create solo test room' }).click();
@@ -162,7 +162,7 @@ test('username sign-in resumes the same room on another device and signs out', a
     await expect.poll(() => b.state()?.selfId).toBe(a.state()?.selfId);
     await expect(phone.locator('.lobby-player')).toHaveCount(3);
     await phone.getByRole('button', { name: 'Sign out' }).click();
-    await expect(phone.getByRole('heading', { name: 'Play Islanders' })).toBeVisible();
+    await expect(phone.getByRole('heading', { name: 'Islanders', exact: true })).toBeVisible();
     await expect(host.locator('.connection-pill')).toHaveText('Connected');
     expect(a.errors.concat(b.errors)).toEqual([]);
   } finally {
@@ -192,10 +192,12 @@ test('a phone can join by pasting a spectator link and chat without receiving pl
     await expect(watcher.getByLabel('Join as a spectator')).toBeChecked();
     await watcher.getByRole('button', { name: 'Watch', exact: true }).click();
     await expect.poll(() => b.state()?.role).toBe('spectator');
-    await expect(watcher.getByText('Watching · hands stay private')).toBeVisible();
+    // No hand for a spectator: the chat stands in its place, already open.
+    await expect(watcher.getByRole('region', { name: 'Your hand' })).toHaveCount(0);
+    await expect(watcher.getByLabel('Chat message')).toBeVisible();
     await expect(watcher.getByRole('button', { name: /^Build road at/ })).toHaveCount(0);
     await expect(watcher.getByRole('button', { name: 'Propose pause', exact: true })).toHaveCount(0);
-    await watcher.getByRole('button', { name: 'Open chat' }).click();
+    await watcher.screenshot({ path: 'test-results/spectator-phone.png' });
     await watcher.getByLabel('Chat message').fill('Hello from my phone');
     await watcher.getByRole('button', { name: 'Send message' }).click();
     await expect.poll(() => a.state()?.chat.at(-1)?.text).toBe('Hello from my phone');

@@ -1,4 +1,4 @@
-import { ArrowRight, Clock3, Dices, Eye, Flame, Hammer, Trophy, Undo2 } from 'lucide-react';
+import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
 import { emptyBag, isLargeGame } from '../../shared/engine';
@@ -40,6 +40,9 @@ function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
   if (view.specialQueue.includes(view.selfId)) return 'waiting';
   return view.specialAsked.includes(view.selfId) ? null : 'ask';
 }
+
+/** The phone layouts (see phone.css): portrait phones, and landscape screens with little height. */
+const PHONE_LAYOUT = '(max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px)';
 
 /** Whole seconds until a deadline (never below 0), or null when there is none. */
 const secondsUntil = (deadline: number | null, clock: number) =>
@@ -119,7 +122,10 @@ export default function GameTable({
   const [robberPick, setRobberPick] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
-  const [panel, setPanel] = useState<PanelTab | null>(() => (matchMedia('(min-width: 721px)').matches ? 'chat' : null));
+  // Players on phones start with the chat closed; spectators always have it open (it stands in for a hand).
+  const [panel, setPanel] = useState<PanelTab | null>(() =>
+    view.role === 'spectator' || !matchMedia(PHONE_LAYOUT).matches ? 'chat' : null,
+  );
   const busy = room.pending || room.connection !== 'online';
   const ownTurn = view.activePlayerId === view.selfId;
   const spectator = view.role === 'spectator';
@@ -139,15 +145,16 @@ export default function GameTable({
     const id = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(id);
   }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-checked when someone becomes a spectator.
   useEffect(() => {
-    const portrait = matchMedia('(max-width: 720px) and (orientation: portrait)');
+    const phone = matchMedia(PHONE_LAYOUT);
     const collapse = () => {
-      if (portrait.matches) setPanel(null);
+      if (phone.matches && !spectator) setPanel(null);
     };
     collapse();
-    portrait.addEventListener('change', collapse);
-    return () => portrait.removeEventListener('change', collapse);
-  }, []);
+    phone.addEventListener('change', collapse);
+    return () => phone.removeEventListener('change', collapse);
+  }, [spectator]);
   // Solo test rooms: switch to whichever seat needs to act.
   useEffect(() => {
     if (!view.testMode || spectator || !follow || busy || view.proposal || view.tradeOffer || paused) return;
@@ -386,7 +393,10 @@ export default function GameTable({
     );
 
   return (
-    <main className="game-table" style={playerVars(self?.color, 'self') as CSSProperties}>
+    <main
+      className={`game-table${spectator ? ' spectating' : ''}`}
+      style={playerVars(self?.color, 'self') as CSSProperties}
+    >
       <TableToolbar
         view={view}
         connection={room.connection}
@@ -454,13 +464,9 @@ export default function GameTable({
           {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
         </span>
       </div>
-      <section className="table-hand" aria-label="Your hand">
-        {spectator ? (
-          <p className="spectator-hand">
-            <Eye size={20} />
-            Watching · hands stay private
-          </p>
-        ) : (
+      {/* Spectators have no hand: the chat takes its place (see .spectating). */}
+      {!spectator && (
+        <section className="table-hand" aria-label="Your hand">
           <ResourceHand hand={shown.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
             {!!self?.discoveries && (
@@ -477,8 +483,8 @@ export default function GameTable({
               </button>
             )}
           </ResourceHand>
-        )}
-      </section>
+        </section>
+      )}
       <div className="table-actions">
         {!spectator && self && (
           <BuildBar

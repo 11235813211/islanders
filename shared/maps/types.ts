@@ -53,7 +53,18 @@ export type LinkRule = { kind: 'in'; links: string[]; terrains: FillKind[] } | {
 export type CornerKey = string;
 
 /** What a board's version for some player counts replaces; everything else is shared. */
-export const VERSION_FIELDS = ['players', 'victoryPoints', 'tiles', 'harbors', 'robber', 'pirate', 'noStart'] as const;
+export const VERSION_FIELDS = [
+  'players',
+  'victoryPoints',
+  'tiles',
+  'harbors',
+  'robber',
+  'pirate',
+  'noStart',
+  // Each layout has its own fog tiles, so its own mix (versions saved before this share the board's).
+  'fogPool',
+  'fogExact',
+] as const;
 export type BoardVersion = Pick<BoardDesign, (typeof VERSION_FIELDS)[number]>;
 
 export interface BoardDesign {
@@ -85,7 +96,7 @@ export interface BoardDesign {
   islandPools?: Record<string, Pool>;
   /** What fog tiles may turn out to be, as shares (default FOG_POOL). */
   fogPool?: Partial<Record<FogKind, number>>;
-  /** The fog mix is exact counts (e.g. exactly 2 gold), not shares. */
+  /** The fog mix is exact counts (e.g. exactly 2 gold), not shares. False is kept, so a version can turn it off. */
   fogExact?: boolean;
   /** 0–RICH_LEVELS: how much richer random numbers are on islands closed to setup (0 is the normal mix). */
   richIslands?: number;

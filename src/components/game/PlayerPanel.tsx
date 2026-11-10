@@ -1,15 +1,51 @@
-import { Bot, Route } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { Bot, ChevronDown, ChevronUp, Route } from 'lucide-react';
+import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { type GameView, RESOURCES } from '../../../shared/types';
 import { ResourceIcon } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
 
-/** Scoreboard: one row per seat, its name on a block of the seat's color. */
+const FOLDED_KEY = 'islanders:scoreboard-folded';
+
+/** Whether this viewer folded the scoreboard (portrait phones), remembered in this browser. */
+function useFolded(): [boolean, (folded: boolean) => void] {
+  const [folded, setFolded] = useState(() => {
+    try {
+      return localStorage.getItem(FOLDED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const set = (next: boolean) => {
+    setFolded(next);
+    try {
+      localStorage.setItem(FOLDED_KEY, next ? '1' : '0');
+    } catch {
+      /* Storage may be disabled. */
+    }
+  };
+  return [folded, set];
+}
+
+/**
+ * Scoreboard: one row per seat, its name on a block of the seat's color. On a portrait phone it
+ * folds (button at its top left) to one line of seat colors and points, giving the board the room.
+ */
 export default function PlayerPanel({ view, online }: { view: GameView; online: string[] }) {
+  const [folded, setFolded] = useFolded();
   return (
-    <section className="player-panel" aria-label="Player scoreboard">
+    <section className={`player-panel${folded ? ' folded' : ''}`} aria-label="Player scoreboard">
+      <button
+        type="button"
+        className="players-fold icon-button"
+        aria-expanded={!folded}
+        aria-label={folded ? 'Show the scoreboard' : 'Fold the scoreboard'}
+        onClick={() => setFolded(!folded)}
+      >
+        {folded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+      </button>
+      <FoldedScores view={view} />
       <table className="player-table">
         <thead>
           <tr>
@@ -95,6 +131,25 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
       </table>
       <BankCounts view={view} />
     </section>
+  );
+}
+
+/** The folded scoreboard: each seat's color with its points; the seat whose turn it is is ringed. */
+function FoldedScores({ view }: { view: GameView }) {
+  return (
+    <ol className="players-strip" aria-label="Points">
+      {view.players.map(p => (
+        <li
+          key={p.id}
+          className={view.activePlayerId === p.id ? 'active' : undefined}
+          data-player-id={p.id}
+          style={playerVars(p.color) as CSSProperties}
+          aria-label={`${p.name}: ${p.publicPoints} points`}
+        >
+          {p.publicPoints}
+        </li>
+      ))}
+    </ol>
   );
 }
 

@@ -1,6 +1,13 @@
 import { Maximize, Minus, Plus } from 'lucide-react';
-import { type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
-import { boardFrame, type Camera, cameraGesture, cameraViewBox, initialCamera, type Point } from '../lib/boardCamera';
+import {
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import { boardFrame, type Camera, cameraGesture, initialCamera, type Point, previewCamera } from '../lib/boardCamera';
 import Board, { type BoardProps } from './Board';
 
 const center = (points: Point[]) => ({
@@ -15,9 +22,9 @@ const TAP_SLOP = 6;
 const WHEEL_SETTLE_MS = 150;
 
 /**
- * Pan and zoom wrapper around the board. During a gesture the SVG viewBox is written
- * straight to the DOM once per frame (re-rendering the whole board per finger move is
- * too slow on phones); React state catches up when the gesture ends.
+ * Pan and zoom wrapper around the board. During a gesture the drawn board is only moved with a CSS
+ * transform once per frame (redrawing the illustrated SVG per finger move is too slow on phones);
+ * React state, and the SVG's viewBox, catch up once when the gesture ends.
  */
 export default function BoardViewport({
   children,
@@ -36,15 +43,24 @@ export default function BoardViewport({
   const frame = useRef(boardFrame(props.view.board.hexes));
   frame.current = boardFrame(props.view.board.hexes);
 
-  /** Show a camera now without re-rendering the board. */
+  /** The camera the board SVG is drawn for; gestures show other cameras by moving that drawing. */
+  const drawn = useRef(camera);
+  const svg = () => root.current?.querySelector<SVGSVGElement>('.board-svg') ?? null;
+  // A committed camera is drawn for real (new viewBox), so the gesture's transform comes off.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: svg() reads a ref; only a new camera matters.
+  useLayoutEffect(() => {
+    drawn.current = camera;
+    previewCamera(svg(), camera, camera, frame.current);
+  }, [camera]);
+
+  /** Show a camera now without re-rendering the board: the drawing moves, and is redrawn on commit. */
   const preview = (next: Camera) => {
     current.current = next;
     if (animationFrame.current) return;
     animationFrame.current = requestAnimationFrame(() => {
       animationFrame.current = 0;
-      const element = root.current;
-      element?.querySelector('.board-svg')?.setAttribute('viewBox', cameraViewBox(current.current, frame.current));
-      element?.setAttribute('data-zoom', current.current.zoom.toFixed(2));
+      previewCamera(svg(), drawn.current, current.current, frame.current);
+      root.current?.setAttribute('data-zoom', current.current.zoom.toFixed(2));
     });
   };
   const commit = () => {

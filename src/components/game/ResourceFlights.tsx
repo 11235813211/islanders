@@ -33,8 +33,9 @@ function onScreen(x: number, y: number): { x: number; y: number } | null {
 /** Where a player's cards go: your hand, or their row in the players panel (top right). */
 function destination(view: GameView, playerId: string): { x: number; y: number } {
   const selector = playerId === view.selfId ? '.table-hand' : `[data-player-id="${playerId}"]`;
-  const rect = document.querySelector(selector)?.getBoundingClientRect();
-  if (rect?.width) return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  // The first one on screen: the scoreboard row, or its chip when the scoreboard is folded.
+  const rect = [...document.querySelectorAll(selector)].map(e => e.getBoundingClientRect()).find(r => r.width);
+  if (rect) return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   return { x: window.innerWidth - 40, y: 40 };
 }
 

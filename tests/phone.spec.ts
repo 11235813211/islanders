@@ -103,3 +103,55 @@ test('the bank strip fits under the scoreboard on a phone, and the controls stil
   expect(end.y + end.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   await page.screenshot({ path: 'test-results/phone-bank.png' });
 });
+
+test('portrait phone: the turn line sits beside the hand, chat covers the scoreboard, and the scoreboard folds', async ({
+  page,
+}) => {
+  const game = await mountGame(page, richGame());
+  const hand = (await page.locator('.table-hand').boundingBox())!;
+  const turn = (await page.locator('.table-turn').boundingBox())!;
+  expect(turn.x).toBeGreaterThanOrEqual(hand.x + hand.width - 1);
+  expect(Math.abs(turn.y - hand.y)).toBeLessThan(2);
+  await page.screenshot({ path: 'test-results/phone-portrait-hand.png' });
+
+  // Chat opens over the scoreboard, starting where it starts.
+  await page.getByRole('button', { name: 'Open chat' }).tap();
+  const chat = (await page.locator('.chat-panel').boundingBox())!;
+  const scores = (await page.locator('.player-panel').boundingBox())!;
+  expect(Math.abs(chat.y - scores.y)).toBeLessThan(2);
+  await page.screenshot({ path: 'test-results/phone-portrait-chat.png' });
+  await page.getByRole('button', { name: 'Open chat' }).tap();
+
+  // Fold the scoreboard: one line of points, and the board grows into the space.
+  const board = (await page.locator('.board-viewport').boundingBox())!;
+  await page.getByRole('button', { name: 'Fold the scoreboard' }).tap();
+  await expect(page.getByRole('list', { name: 'Points' })).toBeVisible();
+  await expect(page.locator('.player-table')).toBeHidden();
+  const taller = (await page.locator('.board-viewport').boundingBox())!;
+  expect(taller.height).toBeGreaterThan(board.height + 60);
+  await page.screenshot({ path: 'test-results/phone-portrait-folded.png' });
+  // Remembered in this browser; unfolds again.
+  expect(await page.evaluate(() => localStorage.getItem('islanders:scoreboard-folded'))).toBe('1');
+  await page.getByRole('button', { name: 'Show the scoreboard' }).tap();
+  await expect(page.locator('.player-table')).toBeVisible();
+  expect(game.errors).toEqual([]);
+});
+
+test('landscape phone: chat, activity, and dice open over the right column with room to use them', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const g = richGame();
+  for (let i = 4; i < 6; i++) g.players.push({ ...structuredClone(g.players[1]!), id: `p${i}`, name: `Player ${i}` });
+  const game = await mountGame(page, g);
+  const panel = page.getByRole('region', { name: 'Room conversation' });
+  // Closed at first, so the scoreboard and hand show; opening it covers the right column.
+  await expect(page.getByLabel('Chat message')).toBeHidden();
+  await page.getByRole('button', { name: 'Open chat' }).tap();
+  expect((await panel.boundingBox())!.height).toBeGreaterThan(250);
+  await expect(page.getByLabel('Chat message')).toBeInViewport();
+  await panel.getByRole('button', { name: /activity/i }).tap();
+  await expect(panel.locator('.activity-list')).toBeVisible();
+  await panel.getByRole('button', { name: /dice/i }).tap();
+  await expect(panel.getByRole('img', { name: 'Dice results histogram' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/phone-landscape-chat.png' });
+  expect(game.errors).toEqual([]);
+});

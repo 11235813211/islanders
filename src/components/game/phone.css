@@ -75,3 +75,195 @@
     min-width: 96px;
   }
 }
+
+/* The scoreboard's fold button and folded strip are for portrait phones only. */
+.players-fold,
+.players-strip {
+  display: none;
+}
+
+/*
+ * Portrait phones: the board gets the height. Smaller hand cards with the turn line in a narrow
+ * column beside them, chat opening over the scoreboard (not the board), and a scoreboard that folds
+ * to one line of seat colors and points.
+ */
+@media (max-width: 720px) and (orientation: portrait) {
+  .game-table {
+    grid-template-columns: minmax(0, 1fr) 100px;
+    grid-template-rows: 30px auto minmax(0, 1fr) 60px 39px;
+    grid-template-areas: "toolbar toolbar" "players players" "board board" "hand turn" "actions actions";
+  }
+
+  /* Hand: shorter cards (their height is fixed so they fit the 60px row), packed closer. */
+  .table-hand {
+    --hand-card-height: 42px;
+    padding: 1px 4px;
+    gap: 6px;
+  }
+  .table-hand .cards-resource-groups {
+    padding: 2px 0 0;
+  }
+  .cards-resource-group {
+    width: 34px;
+    max-width: none;
+  }
+  .cards-count {
+    font-size: 13px;
+    line-height: 17px;
+    min-width: 18px;
+  }
+
+  /* Turn line beside the hand: whose turn and the clock, then what's happening. */
+  .table-turn {
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 2px 4px;
+    padding: 3px 5px;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+  .turn-owner {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .turn-owner.has-color {
+    padding: 1px 4px;
+  }
+  .turn-clock {
+    font-size: 11px;
+  }
+  .turn-clock svg {
+    display: none;
+  }
+  .turn-instruction {
+    order: 3;
+    flex: 1 0 100%;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* Chat opens over the scoreboard (and only then the top of the board). */
+  .chat-panel {
+    grid-area: 2 / 1 / 4 / -1;
+    align-self: start;
+    margin: 0;
+  }
+
+  /* The fold button sits at the scoreboard's top left. */
+  .player-panel {
+    position: relative;
+  }
+  .players-fold,
+  .players-fold:hover,
+  .players-fold:active {
+    background: transparent;
+  }
+  .players-fold {
+    display: grid;
+    -webkit-tap-highlight-color: transparent;
+    position: absolute;
+    z-index: 1;
+    top: 1px;
+    left: 2px;
+    width: 26px;
+    height: 22px;
+    padding: 0;
+    color: #52717d;
+  }
+  .player-table thead th:first-child {
+    padding-left: 30px;
+  }
+  .player-panel.folded .players-fold {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .player-panel.folded .player-table,
+  .player-panel.folded .bank-counts {
+    display: none;
+  }
+  .player-panel.folded .players-strip {
+    display: flex;
+    gap: 5px;
+    margin: 0;
+    padding: 1px 0 1px 30px;
+    list-style: none;
+  }
+  .players-strip li {
+    flex: 1;
+    max-width: 52px;
+    height: 20px;
+    border-radius: 5px;
+    background: var(--player-color);
+    color: var(--player-ink);
+    box-shadow: inset 0 0 0 1px #10202a26;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 20px;
+    text-align: center;
+  }
+  .players-strip li.active {
+    outline: 2px solid #e6a823;
+    outline-offset: 1px;
+  }
+}
+
+/* Landscape phones: an open chat, activity, or dice panel covers the whole right column (under the scoreboard there is too little room). */
+@media (orientation: landscape) and (max-height: 600px) {
+  .chat-panel.is-open {
+    grid-area: 2 / 2 / 5 / 3;
+    z-index: 20;
+    box-shadow: 0 5px 20px #16506c33;
+  }
+}
+
+/* Spectators: the chat, always there, takes the hand's place on phones. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .game-table.spectating {
+    grid-template-rows: 30px auto minmax(0, 1fr) 30px 190px;
+    grid-template-areas: "toolbar toolbar" "players players" "board board" "turn turn" "chat chat";
+  }
+  .game-table.spectating .chat-panel {
+    grid-area: chat;
+    align-self: stretch;
+    height: auto;
+    box-shadow: none;
+  }
+  .game-table.spectating .chat-panel:not(.is-open) {
+    display: flex;
+    align-self: end;
+  }
+  .game-table.spectating .table-actions {
+    display: none;
+  }
+  /* The turn line has the full width again: one row. */
+  .game-table.spectating .table-turn {
+    flex-wrap: nowrap;
+  }
+  .game-table.spectating .turn-owner {
+    flex: 0 1 auto;
+  }
+  .game-table.spectating .turn-instruction {
+    order: 0;
+    flex: 1;
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: left;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .game-table.spectating {
+    grid-template-areas: "toolbar toolbar" "board players" "board chat" "board chat" "turn chat";
+  }
+  .game-table.spectating .chat-panel {
+    grid-area: chat;
+    box-shadow: none;
+  }
+  .game-table.spectating .table-actions {
+    display: none;
+  }
+}

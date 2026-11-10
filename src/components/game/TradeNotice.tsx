@@ -65,7 +65,10 @@ const ANSWER_TEXT: Record<Answer, string> = {
   waiting: 'has not answered',
 };
 
-/** One chip per recipient in their color, with their name and ?, ✓, ✗, or a counter. The offering player taps a ✓ to trade. */
+/**
+ * One small chip per recipient in their seat color with ?, ✓, ✗, or a counter (names only in the
+ * label and tooltip, to keep the notice compact). The offering player taps a ✓ to trade.
+ */
 function Answers({
   view,
   offer,
@@ -96,7 +99,6 @@ function Answers({
             onClick={() => send({ type: 'confirm-trade', offerId: offer.id, playerId: id })}
           >
             {ANSWER_ICON[answer]}
-            <span className="answer-name">{player.name}</span>
           </button>
         ) : (
           <span
@@ -108,7 +110,6 @@ function Answers({
             data-tip={label}
           >
             {ANSWER_ICON[answer]}
-            <span className="answer-name">{id === view.selfId ? 'You' : player.name}</span>
           </span>
         );
       })}

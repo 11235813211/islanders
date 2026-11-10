@@ -6,6 +6,7 @@ import { noStartPoints, toggleNoStart } from '../shared/maps/edit';
 import { setNotLinks } from '../shared/maps/fill';
 import type { BoardDesign } from '../shared/maps/types';
 import type { GameState } from '../shared/types';
+import { fogOutlook } from '../src/components/maps/FogSummary';
 import { makeLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /** Link rules, "Not A", no-start corners, versions for other player counts, and number richness. */
@@ -145,6 +146,55 @@ describe('versions for other player counts', () => {
       ],
       layout: null,
     });
+  });
+});
+
+describe('fog in each layout', () => {
+  /** Land tiles of a grid, all but the first turned to fog. */
+  const fogged = (rows: string[]) =>
+    testDesign(rows).tiles.map((t, i, all) =>
+      t.kind === 'land' && all.findIndex(x => x.kind === 'land') !== i ? { ...t, kind: 'fog' as const } : t,
+    );
+  /** Two fog tiles in the main layout; four in the 5–6 player version, which has its own mix. */
+  const design = (): BoardDesign => {
+    const base = testDesign(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ ~ ~ ~ ~'], {
+      players: { min: 3, max: 4 },
+      fogExact: true,
+      fogPool: { gold: 2 },
+    });
+    return {
+      ...base,
+      tiles: fogged(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ ~ ~ ~ ~']),
+      versions: [
+        {
+          players: { min: 5, max: 6 },
+          victoryPoints: 13,
+          tiles: fogged(['~ ~ ~ ~ ~ ~ ~', ' ~ L L L L L ~', '~ ~ ~ ~ ~ ~ ~']),
+          harbors: [],
+          robber: null,
+          pirate: null,
+          fogPool: { sea: 4 },
+          fogExact: false,
+        },
+      ],
+    };
+  };
+
+  it('a version keeps its own fog mix through saving, and the game draws from it', () => {
+    const parsed = parseDesign(design(), ['seafaring']);
+    expect(parsed.versions?.[0]).toMatchObject({ fogPool: { sea: 4 }, fogExact: false });
+    const small = Object.values(buildBoard(designFor(parsed, 3), seeded()).fog).map(f => f.terrain);
+    const large = Object.values(buildBoard(designFor(parsed, 5), seeded()).fog).map(f => f.terrain);
+    expect(small).toEqual(['gold', 'gold']);
+    expect(large).toEqual(['sea', 'sea', 'sea', 'sea']);
+  });
+
+  it('the map view says "exactly" only when the counts fill that layout\'s fog tiles', () => {
+    const d = design();
+    expect(fogOutlook(designFor(d, 3))).toMatchObject({ total: 2, exact: true, kinds: [['gold', 2]] });
+    // The same exact stack of 2 dealt over 4 fog tiles is no longer "exactly 2".
+    const shared: BoardDesign = { ...d, versions: [{ ...d.versions![0]!, fogPool: { gold: 2 }, fogExact: true }] };
+    expect(fogOutlook(designFor(shared, 5))).toMatchObject({ total: 4, exact: false });
   });
 });
 

@@ -172,13 +172,13 @@ export default function BoardSettings({
               checked={!!design.fogExact}
               onChange={e =>
                 edit(d => {
-                  const { fogExact: _old, ...rest } = d;
-                  if (!e.target.checked) return rest;
+                  // False is kept (not dropped) so a version can differ from the main layout.
+                  if (!e.target.checked) return { ...d, fogExact: false };
                   // Whole counts from here on.
                   const counts = Object.fromEntries(
                     Object.entries(d.fogPool ?? FOG_POOL).map(([k, n]) => [k, Math.round(n ?? 0)]),
                   );
-                  return { ...rest, fogExact: true, fogPool: counts };
+                  return { ...d, fogExact: true, fogPool: counts };
                 })
               }
             />
