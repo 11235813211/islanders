@@ -37,8 +37,9 @@ export default function BoardDice({ view }: { view: GameView }) {
     const cy = frame.clientHeight / 2 - (own.offsetTop + own.offsetHeight / 2);
     setPath({ id: roll.id, cx, cy, sx: cx + Math.cos(angle) * reach, sy: cy + Math.sin(angle) * reach });
   }, [roll?.id]);
-  // Only a path measured for this roll animates it (never the last roll's, for a frame).
-  const tumble = path && path.id === roll?.id ? path : null;
+  // Only a path measured for this roll animates it (never the last roll's, for a frame), and only
+  // until it has landed: dice that come back (an undone end of turn) rest, they don't roll again.
+  const tumble = path && path.id === roll?.id && settled !== roll.id ? path : null;
   if (!dice) return null;
   const [a, b] = dice;
   const style = tumble

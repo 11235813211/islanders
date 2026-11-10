@@ -39,6 +39,11 @@ test('the home screen and lobby fit a phone', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Game settings' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+  // The map card's Maps button stays inside the card.
+  const card = (await page.locator('.mode-card').boundingBox())!;
+  const maps = (await page.locator('.mode-card').getByRole('button', { name: 'Maps' }).boundingBox())!;
+  expect(maps.x + maps.width).toBeLessThanOrEqual(card.x + card.width);
+  await page.locator('.mode-card').screenshot({ path: 'test-results/phone-map-card.png' });
   await page.screenshot({ path: 'test-results/iphone-lobby.png', fullPage: true });
 });
 
@@ -94,7 +99,7 @@ test('tapping a number token in the editor raises it on a phone', async ({ page 
 
 test('the bank strip fits under the scoreboard on a phone, and the controls still fit', async ({ page }) => {
   const g = richGame();
-  g.settings.showBank = true;
+  g.settings.showBank = 'always';
   await mountGame(page, g);
   await expect(page.getByRole('group', { name: 'Cards left in the bank' })).toBeInViewport();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -154,4 +159,12 @@ test('landscape phone: chat, activity, and dice open over the right column with 
   await expect(panel.getByRole('img', { name: 'Dice results histogram' })).toBeVisible();
   await page.screenshot({ path: 'test-results/phone-landscape-chat.png' });
   expect(game.errors).toEqual([]);
+});
+
+test('the scoreboard fold button sits in the header row, clear of the first name', async ({ page }) => {
+  await mountGame(page, richGame());
+  const fold = (await page.getByRole('button', { name: 'Fold the scoreboard' }).boundingBox())!;
+  const firstName = (await page.locator('.player-table tbody .player-name').first().boundingBox())!;
+  expect(fold.y + fold.height).toBeLessThanOrEqual(firstName.y);
+  await page.locator('.player-panel').screenshot({ path: 'test-results/phone-scoreboard.png' });
 });

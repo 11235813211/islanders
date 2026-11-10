@@ -9,6 +9,7 @@ import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
+import BankFlights from './game/BankFlights';
 import BuildBar from './game/BuildBar';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
@@ -412,6 +413,7 @@ export default function GameTable({
       />
       <PlayerPanel view={shown} online={room.online} />
       <ResourceFlights view={view} {...flights} />
+      <BankFlights view={view} />
       <BoardViewport
         view={view}
         mode={view.phase === 'robber' ? 'robber' : mode}

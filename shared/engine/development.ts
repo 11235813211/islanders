@@ -79,7 +79,12 @@ export const developmentHandlers: Pick<
     pay(next, player, cost);
     player.discoveries -= resourceCount(covered);
     player.development.push({ ...next.developmentDeck.pop()!, boughtTurn: next.turn });
-    addLog(next, `${player.name} bought a development card.`, { kind: 'build', playerId, piece: 'development' });
+    addLog(next, `${player.name} bought a development card.`, {
+      kind: 'build',
+      playerId,
+      piece: 'development',
+      paid: cost,
+    });
   },
 
   'play-knight'(ctx, action) {

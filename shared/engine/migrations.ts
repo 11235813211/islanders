@@ -109,6 +109,11 @@ const MIGRATIONS: Migration[] = [
         layout: null,
       };
   },
+  // 7 → 8: "show bank cards" became auto / always / never (auto, the old default, hides them with two players).
+  s => {
+    const old = s.settings?.showBank as unknown;
+    if (typeof old === 'boolean') s.settings.showBank = old ? 'always' : 'auto';
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

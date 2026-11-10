@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, emptyBag, getView } from '../shared/engine';
+import { applyAction, emptyBag, getView, normalizeGame } from '../shared/engine';
 import { buildBoard, tileKey } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
 import { fillNumbers } from '../shared/maps/fill';
@@ -167,11 +167,29 @@ describe('volcanoes and icebergs', () => {
 });
 
 describe('room options', () => {
-  it('shows bank counts only when the room asks', () => {
-    const g = settled(3);
-    expect(getView(g, 'p0').bankCounts).toBeNull();
-    g.settings.showBank = true;
-    expect(getView(g, 'p0').bankCounts).toEqual(g.bank);
+  it('shows bank counts by default except with two players, where they would give a hand away', () => {
+    const three = settled(3);
+    expect(getView(three, 'p0').bankCounts).toEqual(three.bank);
+    const two = settled(2);
+    expect(getView(two, 'p0').bankCounts).toBeNull();
+    two.settings.showBank = 'always';
+    expect(getView(two, 'p0').bankCounts).toEqual(two.bank);
+    three.settings.showBank = 'never';
+    expect(getView(three, 'p0').bankCounts).toBeNull();
+  });
+
+  it('rooms saved with the old on/off bank setting load as always or the new default', () => {
+    for (const [old, now] of [
+      [true, 'always'],
+      [false, 'auto'],
+    ] as const) {
+      const g = structuredClone(settled(2)) as unknown as Record<string, unknown> & {
+        settings: Record<string, unknown>;
+      };
+      g.settings.showBank = old;
+      g.schemaVersion = 7;
+      expect(normalizeGame(g as unknown as GameState).settings.showBank).toBe(now);
+    }
   });
 
   it('trades several bank rounds at once', () => {

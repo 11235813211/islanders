@@ -78,7 +78,7 @@ for (const phone of PHONES) {
 
 test('trade offers read from each side, with answers in seat colors', async ({ page }) => {
   const game = richGame();
-  game.settings.showBank = true;
+  game.settings.showBank = 'always';
   const now = Date.now();
   game.tradeOffer = {
     id: 'trade-visual',

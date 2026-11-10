@@ -1,10 +1,9 @@
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { paysChoice } from '../../../shared/seafaring';
 import { type GameLog, type GameView, type Hex, RESOURCES, type Resource } from '../../../shared/types';
-import { ResourceArt, ResourceIcon } from '../../art';
 import { useFreshLog } from '../../hooks/useFreshLog';
-import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
+import { FlyingCard, playerSpot, ResourceFace } from './flights';
 
 interface Flight {
   id: string;
@@ -30,15 +29,6 @@ function onScreen(x: number, y: number): { x: number; y: number } | null {
   return { x: p.x, y: p.y };
 }
 
-/** Where a player's cards go: your hand, or their row in the players panel (top right). */
-function destination(view: GameView, playerId: string): { x: number; y: number } {
-  const selector = playerId === view.selfId ? '.table-hand' : `[data-player-id="${playerId}"]`;
-  // The first one on screen: the scoreboard row, or its chip when the scoreboard is folded.
-  const rect = [...document.querySelectorAll(selector)].map(e => e.getBoundingClientRect()).find(r => r.width);
-  if (rect) return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  return { x: window.innerWidth - 40, y: 40 };
-}
-
 /** Tiles that paid this player on a roll of `total` (resource tiles of `resource`, or gold and volcanoes). */
 function sources(view: GameView, playerId: string, total: number | null, pays: (hex: Hex) => boolean): Hex[] {
   return view.board.hexes.filter(
@@ -55,7 +45,7 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
   const event = entry.event;
   const flights: Flight[] = [];
   const add = (playerId: string, resource: Resource, count: number, from: Hex[], delay: number) => {
-    const to = destination(view, playerId);
+    const to = playerSpot(view, playerId);
     for (let i = 0; i < count; i++) {
       const hex = from[i % Math.max(1, from.length)];
       const start = hex ? onScreen(hex.x, hex.y) : null;
@@ -184,29 +174,9 @@ export default function ResourceFlights({ view, setAirborne, setLaunched }: { vi
   return createPortal(
     <div className="resource-flights" aria-hidden="true">
       {flights.map(f => (
-        <span
-          key={f.id}
-          className="resource-flight"
-          style={
-            {
-              left: f.from.x,
-              top: f.from.y,
-              '--fx': `${f.to.x - f.from.x}px`,
-              '--fy': `${f.to.y - f.from.y}px`,
-              animationDelay: `${f.delay}s`,
-            } as CSSProperties
-          }
-        >
-          <span className="flight-card" style={cardStyle(f.resource)}>
-            <span className="cards-face">
-              <span className="cards-corner">
-                <ResourceIcon resource={f.resource} size={12} />
-              </span>
-              <ResourceArt resource={f.resource} />
-              <span className="cards-card-label">{RESOURCE_LABELS[f.resource]}</span>
-            </span>
-          </span>
-        </span>
+        <FlyingCard key={f.id} from={f.from} to={f.to} delay={f.delay}>
+          <ResourceFace resource={f.resource} />
+        </FlyingCard>
       ))}
     </div>,
     document.body,

@@ -198,3 +198,24 @@ test('a roll that moves an iceberg plays out in full even when the turn ends str
   await expect(page.locator('.iceberg-drift')).toHaveCount(1);
   expect(game.errors).toEqual([]);
 });
+
+test('undoing an end of turn brings the dice back at rest: the roll does not play again', async ({ page }) => {
+  const g = seaGame();
+  Object.assign(g, { phase: 'roll' });
+  const game = await mountGame(page, g);
+  await page.getByLabel('Follow current turn').uncheck();
+  await page.getByRole('button', { name: 'Roll dice' }).click();
+  await expect(page.locator('.board-dice.rolling')).toBeVisible();
+  await expect(page.locator('.board-dice.rolling')).toHaveCount(0, { timeout: 5000 });
+  const hand = { ...game.state().players[0]!.resources };
+  await page.getByRole('button', { name: 'End turn' }).click();
+  await expect.poll(() => game.state().turnIndex).toBe(1);
+  await page.getByRole('button', { name: 'Undo end turn' }).click();
+  await expect.poll(() => game.state().turnIndex).toBe(0);
+  // The dice are back, resting in the corner, and nothing was paid again.
+  await expect(page.locator('.board-dice')).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.board-dice.rolling')).toHaveCount(0);
+  expect(game.state().players[0]!.resources).toEqual(hand);
+  expect(game.errors).toEqual([]);
+});

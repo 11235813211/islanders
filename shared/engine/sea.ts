@@ -34,10 +34,11 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
         legalMoves(next, playerId).ships.includes(action.edgeId),
         'Choose open sea next to your settlement or ship, away from the pirate, and make sure you can pay.',
       );
-      if (next.phase !== 'free-roads') pay(next, player, BUILD_COSTS.ship);
+      const paid = next.phase === 'free-roads' ? undefined : BUILD_COSTS.ship;
+      if (paid) pay(next, player, paid);
       next.ships[action.edgeId] = playerId;
       next.shipsBuilt.push(action.edgeId);
-      addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship' });
+      addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship', ...(paid && { paid }) });
       if (next.phase === 'free-roads') afterFreePiece(next, playerId);
       revealFog(next, action.edgeId, playerId);
     },

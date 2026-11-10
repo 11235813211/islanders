@@ -11,7 +11,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   victoryPoints: 10,
   pieceStyle: 'classic',
   tradeSeconds: 30,
-  showBank: false,
+  showBank: 'auto',
   discoveries: 'kept',
   volcanoGold: true,
   seafarers: false,
@@ -19,6 +19,12 @@ export const DEFAULT_SETTINGS: GameSettings = {
   volcanoDice: 'random',
   routeLinks: 'anywhere',
 };
+/** Whether the bank's card counts are shown at a table of `players` (see BankDisplay). */
+export function bankShown(settings: Pick<GameSettings, 'showBank'>, players: number): boolean {
+  if (settings.showBank === 'always') return true;
+  return settings.showBank === 'auto' && players > 2;
+}
+
 /** Trade offer lengths the lobby offers. */
 export const TRADE_SECONDS = [15, 30, 45, 60, 90, 120] as const;
 
@@ -88,7 +94,7 @@ export function validSettings(
     (s.victoryPoints === undefined || integerIn(s.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max)) &&
     (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never)) &&
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
-    (s.showBank === undefined || typeof s.showBank === 'boolean') &&
+    (s.showBank === undefined || ['auto', 'always', 'never'].includes(s.showBank as string)) &&
     (s.discoveries === undefined || Object.hasOwn(DISCOVERY_RULES, s.discoveries as string)) &&
     (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&
     (s.seafarers === undefined || typeof s.seafarers === 'boolean') &&

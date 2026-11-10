@@ -1719,6 +1719,12 @@
   background: var(--card);
   box-shadow: 0 5px 12px #0f2f3f66;
 }
+/* A development card's back (purple, like the dev card in the hand) on its way to its buyer. */
+.flight-card.flight-development {
+  border-color: #685198;
+  background:
+    radial-gradient(circle at 50% 45%, #f1eaff 0 16%, transparent 17%), linear-gradient(160deg, #a78fd6, #6c4fae);
+}
 @keyframes resource-flight {
   0% {
     opacity: 0;

@@ -348,7 +348,7 @@ test('without Seafarers the robber hint names only the robber', async ({ page })
 
 test('when the room shows the bank, everyone sees its cards under the scoreboard', async ({ page }) => {
   const g = richGame();
-  g.settings.showBank = true;
+  g.settings.showBank = 'always';
   await mountGame(page, g);
   const bank = page.locator('.player-panel').getByRole('group', { name: 'Cards left in the bank' });
   await expect(bank).toBeVisible();
@@ -357,6 +357,46 @@ test('when the room shows the bank, everyone sees its cards under the scoreboard
 });
 
 test('without the bank shown, there is no bank strip', async ({ page }) => {
-  await mountGame(page, richGame());
+  const g = richGame();
+  g.settings.showBank = 'never';
+  await mountGame(page, g);
   await expect(page.getByRole('group', { name: 'Cards left in the bank' })).toHaveCount(0);
+});
+
+test('spending flies the cards to the bank, and a bought development card flies to its buyer', async ({ page }) => {
+  const g = richGame();
+  g.settings.showBank = 'always';
+  const game = await mountGame(page, g);
+  await page.getByLabel('Follow current turn').uncheck();
+  const devCards = game.state().players[0]!.development.length;
+  await page.getByRole('button', { name: 'Buy development card' }).click();
+  await expect.poll(() => game.state().players[0]!.development.length).toBe(devCards + 1);
+  // Sheep, wheat, and ore go to the bank; a card back comes back to the hand.
+  await expect(page.locator('.bank-flights .resource-flight')).toHaveCount(4);
+  await expect(page.locator('.bank-flights .flight-development')).toHaveCount(1);
+  const bank = (await page.locator('.bank-counts').boundingBox())!;
+  const hand = (await page.locator('.table-hand').boundingBox())!;
+  const paidTarget = await page
+    .locator('.bank-flights .resource-flight')
+    .first()
+    .evaluate(e => {
+      const style = getComputedStyle(e);
+      return {
+        x: parseFloat(style.left) + parseFloat(style.getPropertyValue('--fx')),
+        y: parseFloat(style.top) + parseFloat(style.getPropertyValue('--fy')),
+      };
+    });
+  expect(Math.abs(paidTarget.x - (bank.x + bank.width / 2))).toBeLessThan(2);
+  expect(paidTarget.y).toBeLessThan(hand.y);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'test-results/bank-flights.png' });
+  // The flights clear away.
+  await expect(page.locator('.bank-flights')).toHaveCount(0, { timeout: 5000 });
+  expect(game.errors).toEqual([]);
+});
+
+test('on a wide screen the scoreboard has no fold button', async ({ page }) => {
+  await mountGame(page, richGame());
+  await expect(page.locator('.player-table')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fold the scoreboard' })).toBeHidden();
 });

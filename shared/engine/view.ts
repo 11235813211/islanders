@@ -1,5 +1,6 @@
 import { boardExpansions, FOG_POOL, type Pool } from '../maps/types';
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
+import { bankShown } from '../settings';
 import { type GameState, type GameView, RESOURCES, type Resource } from '../types';
 import {
   emptyBag,
@@ -71,12 +72,12 @@ export function getView(state: GameState, selfId: string): GameView {
     robber: state.robber,
     pirate: state.pirate,
     // Exact bank counts reveal an opponent's hand by subtraction in a two-player
-    // game, so they are only sent when the room chooses to show them.
+    // game, so by default they are sent only with three or more players (bankShown).
     bank: Object.fromEntries(RESOURCES.map(resource => [resource, state.bank[resource] > 0])) as Record<
       Resource,
       boolean
     >,
-    bankCounts: state.settings.showBank ? state.bank : null,
+    bankCounts: bankShown(state.settings, state.players.length) ? state.bank : null,
     jungle: state.board.hexes.some(h => h.terrain === 'jungle'),
     activePlayerId: active,
     turnPlayerId: ['lobby', 'finished'].includes(state.phase) ? null : (state.players[state.turnIndex]?.id ?? null),

@@ -263,10 +263,10 @@ export default {
         await checkLimit(env.CONNECTION_LIMITER, `boards:${requester}`);
         response = await handleBoards(url, request, env);
       } else {
-        await checkLimit(
-          url.pathname === '/api/rooms' ? env.ROOM_CREATION_LIMITER : env.CONNECTION_LIMITER,
-          `http:${requester}`,
-        );
+        // Locally every request shares one address, so the browser suite would trip the strict room
+        // limit; dev mode (never production, see wrangler.jsonc) uses the general one instead.
+        const creating = url.pathname === '/api/rooms' && env.DEV_MODE !== 'true';
+        await checkLimit(creating ? env.ROOM_CREATION_LIMITER : env.CONNECTION_LIMITER, `http:${requester}`);
         response = await handleRooms(url, request, env);
       }
     } catch (error) {

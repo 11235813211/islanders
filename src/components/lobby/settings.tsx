@@ -234,9 +234,16 @@ export const CATEGORIES: Category[] = [
       {
         key: 'showBank',
         label: 'Show bank cards',
-        hint: 'Everyone sees how many cards of each resource the bank has left.',
+        hint: 'Everyone sees how many cards of each resource the bank has left. With two players the counts give away the other player’s hand.',
         icon: <Landmark size={20} />,
-        control: { kind: 'toggle' },
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'auto', label: 'Except 2 players' },
+            { value: 'always', label: 'Always' },
+            { value: 'never', label: 'Never' },
+          ],
+        },
       },
     ],
   },

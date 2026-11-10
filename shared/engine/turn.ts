@@ -251,9 +251,10 @@ export const turnHandlers: Pick<
       legalMoves(next, playerId).roads.includes(action.edgeId),
       'Choose a connected, open road and make sure you can pay its cost.',
     );
-    if (next.phase !== 'free-roads') pay(next, player, BUILD_COSTS.road);
+    const paid = next.phase === 'free-roads' ? undefined : BUILD_COSTS.road;
+    if (paid) pay(next, player, paid);
     next.roads[action.edgeId] = playerId;
-    addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
+    addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road', ...(paid && { paid }) });
     if (next.phase === 'free-roads') afterFreePiece(next, playerId);
     revealFog(next, action.edgeId, playerId);
   },
@@ -266,7 +267,12 @@ export const turnHandlers: Pick<
     );
     pay(next, player, BUILD_COSTS.settlement);
     next.buildings[action.vertexId] = { playerId, kind: 'settlement' };
-    addLog(next, `${player.name} founded a settlement.`, { kind: 'build', playerId, piece: 'settlement' });
+    addLog(next, `${player.name} founded a settlement.`, {
+      kind: 'build',
+      playerId,
+      piece: 'settlement',
+      paid: BUILD_COSTS.settlement,
+    });
     visitIsland(next, playerId, action.vertexId, false);
   },
 
@@ -278,7 +284,12 @@ export const turnHandlers: Pick<
     );
     pay(next, player, BUILD_COSTS.city);
     next.buildings[action.vertexId] = { playerId, kind: 'city' };
-    addLog(next, `${player.name} upgraded a settlement to a city.`, { kind: 'build', playerId, piece: 'city' });
+    addLog(next, `${player.name} upgraded a settlement to a city.`, {
+      kind: 'build',
+      playerId,
+      piece: 'city',
+      paid: BUILD_COSTS.city,
+    });
   },
 
   'finish-free-roads'({ next, player }) {

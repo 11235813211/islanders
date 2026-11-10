@@ -42,6 +42,17 @@
 }
 .mode-card > div {
   flex: 1;
+  min-width: 0;
+}
+/* Narrow phones: the Maps button takes its own row instead of running past the card's edge. */
+@media (max-width: 480px) {
+  .mode-card {
+    flex-wrap: wrap;
+  }
+  .mode-card > .button {
+    flex: 1 0 100%;
+    justify-content: center;
+  }
 }
 .mode-check {
   display: grid;

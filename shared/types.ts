@@ -125,7 +125,13 @@ export type Phase =
  */
 export type GameEvent =
   | { kind: 'roll'; playerId: string; dice: [number, number]; gains: Record<string, ResourceBag> }
-  | { kind: 'build'; playerId: string; piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' }
+  /** `paid`: the cards that went to the bank for it (absent when it was free: setup, Road Building). */
+  | {
+      kind: 'build';
+      playerId: string;
+      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development';
+      paid?: ResourceBag;
+    }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
   | { kind: 'player-trade'; fromId: string; toId: string; give: TradeBag; get: TradeBag }
   | { kind: 'offer'; playerId: string; give: TradeBag; want: TradeBag; to?: string[] }
@@ -171,6 +177,11 @@ export interface ChatMessage {
 export const PIECE_STYLES = ['classic', 'chalet'] as const;
 /** How settlements and cities are drawn. Purely visual; the rules are the same. */
 export type PieceStyle = (typeof PIECE_STYLES)[number];
+/**
+ * Whether everyone sees the bank's card counts. `auto` (the default) shows them except with two
+ * players, where the counts would reveal the other player's hand by subtraction.
+ */
+export type BankDisplay = 'auto' | 'always' | 'never';
 export interface GameSettings {
   autoRollSeconds: number;
   trackDice: boolean;
@@ -183,7 +194,7 @@ export interface GameSettings {
   /** Seconds a trade offer stays open. */
   tradeSeconds: number;
   /** Everyone sees how many cards of each resource the bank has left. */
-  showBank: boolean;
+  showBank: BankDisplay;
   /** How jungle discoveries behave (only matters on maps with a jungle). */
   discoveries: DiscoveryRule;
   /** Volcanoes pay a resource of each owner's choice before erupting (the gold variant). */
