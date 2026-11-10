@@ -10,13 +10,13 @@ import {
   updateHarbor,
   updateTile,
 } from '../../../shared/maps/edit';
-import { setGroupKind, setLinks } from '../../../shared/maps/fill';
+import { setGroupKind } from '../../../shared/maps/fill';
 import { RESOURCES, type Resource } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import { RESOURCE_LABELS } from '../ResourceHand';
 import { TileIcon } from './BrushPicker';
 import type { EditorSelection } from './EditorCanvas';
-import LinkPicker from './LinkPicker';
+import LinkPicker, { applyLink, linkChoice } from './LinkPicker';
 import { KIND_LABELS, KIND_ORDER } from './tools';
 
 const NUMBERS = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
@@ -139,9 +139,14 @@ function TilePanel({ design, tile, edit }: { design: BoardDesign; tile: DesignTi
       )}
       {land && (
         <Field label="Same resource as">
-          <LinkPicker design={design} value={tile.link} change={link => edit(d => setLinks(d, [tile], [], link))} />
+          <LinkPicker
+            design={design}
+            value={linkChoice(tile)}
+            change={choice => edit(d => applyLink(d, [tile], [], choice))}
+          />
           <p className="inspector-hint">
-            Linked tiles and harbors share one resource: set it here, or leave them random to draw it each game.
+            Linked tiles and harbors share one resource: set it here, or leave them random to draw it each game. “Not”
+            gives any resource but that letter’s.
           </p>
         </Field>
       )}
@@ -228,7 +233,11 @@ function HarborPanel({
         </div>
       </Field>
       <Field label="Same resource as">
-        <LinkPicker design={design} value={harbor.link} change={link => edit(d => setLinks(d, [], [harbor], link))} />
+        <LinkPicker
+          design={design}
+          value={linkChoice(harbor)}
+          change={choice => edit(d => applyLink(d, [], [harbor], choice))}
+        />
       </Field>
       <button
         type="button"

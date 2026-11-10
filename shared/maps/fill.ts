@@ -124,14 +124,41 @@ export function setLinks(
     ...design,
     tiles: design.tiles.map(t => {
       if (!tileKeys.has(tileKey(t.q, t.r)) || !isLand(t.kind)) return t;
-      const { link: _l, ...rest } = t;
+      const { link: _l, notLink: _n, ...rest } = t;
       return letter ? { ...rest, kind: 'land', link: letter } : rest;
     }),
     harbors: design.harbors.map(h => {
       if (!harborKeys.has(`${h.q},${h.r},${h.side}`)) return h;
-      const { link: _l, ...rest } = h;
+      const { link: _l, notLink: _n, ...rest } = h;
       return letter ? { ...rest, kind: 'random', link: letter } : rest;
     }),
   });
   return letter && kind ? setGroupKind(linked, letter, kind) : linked;
+}
+
+/**
+ * Mark tiles and harbors "Not `letter`" (null clears it): they stay random and never get the
+ * resource that letter gets. It replaces any link they had.
+ */
+export function setNotLinks(
+  design: BoardDesign,
+  tiles: { q: number; r: number }[],
+  harbors: { q: number; r: number; side: number }[],
+  letter: string | null,
+): BoardDesign {
+  const tileKeys = new Set(tiles.map(t => tileKey(t.q, t.r)));
+  const harborKeys = new Set(harbors.map(h => `${h.q},${h.r},${h.side}`));
+  return tidy({
+    ...design,
+    tiles: design.tiles.map(t => {
+      if (!tileKeys.has(tileKey(t.q, t.r)) || !isLand(t.kind)) return t;
+      const { link: _l, notLink: _n, ...rest } = t;
+      return letter ? { ...rest, kind: 'land', notLink: letter } : rest;
+    }),
+    harbors: design.harbors.map(h => {
+      if (!harborKeys.has(`${h.q},${h.r},${h.side}`)) return h;
+      const { link: _l, notLink: _n, ...rest } = h;
+      return letter ? { ...rest, kind: 'random', notLink: letter } : rest;
+    }),
+  });
 }

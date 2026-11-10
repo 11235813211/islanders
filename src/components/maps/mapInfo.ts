@@ -1,13 +1,17 @@
 import { ISLAND_ROWS, islandCells } from '../../../shared/board';
 import type { BoardDesign, BoardLibrary } from '../../../shared/maps';
-import { BASE_POOL } from '../../../shared/maps';
+import { BASE_POOL, playerRanges } from '../../../shared/maps';
 
 /** "3–4", or "3" when the range is one number. */
 export const playerRange = (p: { min: number; max: number }) => (p.min === p.max ? `${p.min}` : `${p.min}–${p.max}`);
 
-/** True when a room of `count` players is outside the map's intended range. */
-export const playersMismatch = (design: { players: BoardDesign['players'] }, count: number) =>
-  count < design.players.min || count > design.players.max;
+/** True when a room of `count` players is outside every range the map (or one of its versions) is made for. */
+export const playersMismatch = (design: Pick<BoardDesign, 'players' | 'versions'>, count: number) =>
+  !playerRanges(design).some(r => count >= r.min && count <= r.max);
+
+/** "3–4, 5–6": every player count a map has a layout for. */
+export const playersLabel = (design: Pick<BoardDesign, 'players' | 'versions'>) =>
+  playerRanges(design).map(playerRange).join(', ');
 
 /** A preview of the base game's island, as plain land (the layout is drawn at the start). */
 function baseIsland(large: boolean): BoardDesign {
@@ -24,7 +28,7 @@ function baseIsland(large: boolean): BoardDesign {
     pirate: null,
     pool: { ...BASE_POOL },
     harborExclude: [],
-    expansions: large ? ['five-six'] : [],
+    expansions: [],
     updatedAt: 0,
   };
 }

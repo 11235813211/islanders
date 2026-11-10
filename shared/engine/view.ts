@@ -86,6 +86,8 @@ export function getView(state: GameState, selfId: string): GameView {
     pendingGold: state.pendingGold,
     goldDeadline: state.goldDeadline,
     eruption: state.eruption,
+    specialQueue: state.specialQueue,
+    specialAsked: state.specialAsked,
     features: mapFeatures(state),
     winnerId: state.winnerId,
     // Only the thief and the victim learn which card was stolen.

@@ -88,6 +88,16 @@ export default function BoardScene({
       {showClosed && seaMap && (
         <IslandRims tiles={rimTiles(board.hexes.map(h => ({ ...h, land: isLandTerrain(h.terrain) })))} />
       )}
+      {/* Corners the map rules out for starting settlements. */}
+      {showClosed &&
+        board.vertices
+          .filter(v => v.noSetup)
+          .map(v => (
+            <g key={v.id} className="board-nostart" transform={`translate(${v.x} ${v.y})`} aria-hidden="true">
+              <circle r="8" />
+              <path d="M-5-5 5 5" />
+            </g>
+          ))}
       {pirate &&
         board.hexes
           .filter(hex => hex.id === pirate)

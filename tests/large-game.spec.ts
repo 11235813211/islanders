@@ -3,7 +3,7 @@ import { applyAction } from '../shared/engine';
 import { grant, seeded, settled, TEST_NOW } from './fixtures';
 import { mountGame } from './ui-harness';
 
-/** Six players, just after p0 ended a turn: p2 has a road's worth of cards and builds. */
+/** Six players, just after p0 ended a turn: p2 asked to build and has a road's worth of cards. */
 function specialBuild() {
   let g = settled(6);
   g.testMode = true;
@@ -12,6 +12,7 @@ function specialBuild() {
   for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 };
   g.bank = { wood: 24, brick: 24, sheep: 24, wheat: 24, ore: 24 };
   grant(g, 'p2', { wood: 1, brick: 1, sheep: 2 });
+  g = applyAction(g, 'p2', { type: 'request-special-build' }, seeded(), TEST_NOW);
   g = applyAction(g, 'p0', { type: 'end-turn' }, seeded(), TEST_NOW);
   g.turnDeadline = Date.now() + 60_000;
   return g;
@@ -35,5 +36,20 @@ test('six players: the large island, and a special build with no trading', async
   await expect.poll(() => Object.values(game.state().roads).filter(o => o === 'p2').length).toBe(3);
   await page.getByRole('button', { name: 'Done building' }).click();
   await expect.poll(() => game.state().phase).toBe('roll');
+  expect(game.errors).toEqual([]);
+});
+
+test('six players: others ask for a special build during a turn', async ({ page }) => {
+  const g = settled(6);
+  g.testMode = true;
+  g.phase = 'build';
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 60_000;
+  const game = await mountGame(page, g);
+  await page.getByLabel('Follow current turn').uncheck();
+  await page.getByLabel('Play as', { exact: true }).selectOption('p3');
+  await page.getByRole('button', { name: 'Special build' }).click();
+  await expect(page.getByText('In line to build (1)')).toBeVisible();
+  await expect.poll(() => game.state().specialQueue).toEqual(['p3']);
   expect(game.errors).toEqual([]);
 });

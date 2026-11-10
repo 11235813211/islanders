@@ -20,7 +20,7 @@ import {
   requireRule,
 } from './core';
 import { revealFog } from './fog';
-import { canSpecialBuild, legalMoves, roadSites, shipSites, stealTargets } from './legal';
+import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { drift, eruptingVolcanoes, produce } from './production';
 
 /**
@@ -83,16 +83,25 @@ export function visitIsland(next: GameState, playerId: string, vertexId: string,
 }
 
 /**
- * With five or six players, after each turn the others may build in turn order (no trading or
- * cards). Returns who builds next, skipping anyone with nothing they could build; null ends it.
+ * With five or six players, others may ask to build after a turn (no trading or cards). They go in
+ * the order they asked; bots that could build a city or settlement join when the turn ends.
+ * Returns who builds next, or null when nobody is waiting.
  */
 function nextSpecialBuilder(next: GameState): string | null {
   if (!isLargeGame(next.players.length)) return null;
-  const count = next.players.length;
-  const from = next.specialBuilder ? next.players.findIndex(p => p.id === next.specialBuilder) : next.turnIndex;
-  for (let i = (from + 1) % count; i !== next.turnIndex; i = (i + 1) % count)
-    if (canSpecialBuild(next, next.players[i]!.id)) return next.players[i]!.id;
-  return null;
+  if (next.phase === 'build') {
+    const count = next.players.length;
+    for (let step = 1; step < count; step++) {
+      const bot = next.players[(next.turnIndex + step) % count]!;
+      if (!bot.bot || next.specialAsked.includes(bot.id)) continue;
+      const legal = legalMoves({ ...next, phase: 'special-build', specialBuilder: bot.id }, bot.id);
+      if (legal.cities.length || legal.settlements.length) {
+        next.specialAsked.push(bot.id);
+        next.specialQueue.push(bot.id);
+      }
+    }
+  }
+  return next.specialQueue.shift() ?? null;
 }
 
 /** After a roll pays out: gold choices first, then any eruption, then building. */
@@ -115,6 +124,7 @@ export function finishSetupLink(next: GameState): void {
 
 export const turnHandlers: Pick<
   Handlers,
+  | 'request-special-build'
   | 'place-settlement'
   | 'place-road'
   | 'roll'
@@ -277,6 +287,21 @@ export const turnHandlers: Pick<
     addLog(next, `${player.name} finished Road Building.`);
   },
 
+  /** Off-turn, five or six players: ask to build once this turn ends. Each player may ask once per turn. */
+  'request-special-build'({ next, player, playerId }) {
+    requireRule(isLargeGame(next.players.length), 'Special building is for five or six players.');
+    requireRule(
+      !['lobby', 'finished', 'setup-settlement', 'setup-road'].includes(next.phase),
+      'That action is not available right now.',
+    );
+    requireRule(next.players[next.turnIndex]?.id !== playerId, 'It is your turn.');
+    requireRule(next.specialBuilder !== playerId, 'You are building now.');
+    requireRule(!next.specialAsked.includes(playerId), 'You already asked to build this turn.');
+    next.specialAsked.push(playerId);
+    next.specialQueue.push(playerId);
+    addLog(next, `${player.name} wants to build after this turn.`);
+  },
+
   /** Ends a turn, or one player's part of the special build phase. */
   'end-turn'({ next, player }) {
     needPhase(next, 'build', 'special-build');
@@ -289,6 +314,8 @@ export const turnHandlers: Pick<
       return;
     }
     next.specialBuilder = null;
+    next.specialQueue = [];
+    next.specialAsked = [];
     next.turnIndex = (next.turnIndex + 1) % next.players.length;
     next.turn++;
     next.dice = null;

@@ -143,10 +143,6 @@
   background: #e3ddf2;
   color: #523d8f;
 }
-.expansion-five-six {
-  background: #dfeedd;
-  color: #2f6a2c;
-}
 .map-card-name {
   font-weight: 800;
   font-size: 15px;
@@ -429,4 +425,38 @@
   border: 2px solid #fff;
   border-radius: 50%;
   box-shadow: 0 0 0 1px var(--line);
+}
+
+/* What the fog holds, in a map's details. */
+.fog-summary {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f6fafb;
+}
+.fog-summary h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.fog-summary p {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.fog-summary ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 12px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+.fog-summary li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.fog-summary li span {
+  flex: 1;
 }

@@ -117,6 +117,26 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   await page.getByRole('checkbox', { name: '2:1 Lumber' }).uncheck();
   await page.screenshot({ path: 'test-results/editor-fills.png' });
   await page.keyboard.press('Escape');
+  // A corner closed to starting settlements, a link rule, and wood numbers made richer.
+  await page.getByRole('button', { name: 'No start', exact: true }).click();
+  const corner = await cellPoint(page, 1, 0, 0, -60);
+  await page.mouse.click(corner.x, corner.y);
+  await expect(page.locator('.editor-nostart')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Move', exact: true }).click();
+  const rules = page.getByRole('region', { name: 'Link rules' });
+  await rules.getByRole('radio', { name: 'In terrains' }).click();
+  await rules.getByRole('group', { name: 'Letters' }).getByRole('button', { name: 'A' }).click();
+  await rules.getByRole('button', { name: 'Mountains' }).click();
+  await rules.getByRole('button', { name: 'Add rule' }).click();
+  await expect(rules.getByText('in Mountains')).toBeVisible();
+  await page.getByRole('button', { name: /^Numbers by terrain/ }).click();
+  await page.getByLabel('Forest numbers').selectOption('2');
+  await page.keyboard.press('Escape');
+  // A version of the board for five and six players.
+  await page.getByRole('button', { name: 'Add a version for other player counts' }).click();
+  await expect(page.getByRole('tab', { name: '5–6' })).toHaveAttribute('aria-selected', 'true');
+  await page.screenshot({ path: 'test-results/editor-rules.png' });
+  await page.getByRole('tab', { name: '3–4' }).click();
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
@@ -132,6 +152,10 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   expect(at(0, 1)).toMatchObject({ kind: 'land', link: 'A' });
   expect(saved.swapNumbers).toBe(true);
   expect(saved.harborExclude).toEqual(['wood']);
+  expect(saved.noStart).toHaveLength(1);
+  expect(saved.linkRules).toEqual([{ kind: 'in', links: ['A'], terrains: ['ore'] }]);
+  expect(saved.numberBias).toEqual({ wood: 2 });
+  expect(saved.versions?.[0]?.players).toEqual({ min: 5, max: 6 });
   expect(at(2, 0)?.kind).toBe('sea');
   expect(at(2, 1)).toBeUndefined();
 

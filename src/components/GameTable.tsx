@@ -1,7 +1,7 @@
-import { ArrowRight, Clock3, Dices, Eye, Flame, Trophy, Undo2 } from 'lucide-react';
+import { ArrowRight, Clock3, Dices, Eye, Flame, Hammer, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
-import { emptyBag } from '../../shared/engine';
+import { emptyBag, isLargeGame } from '../../shared/engine';
 import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView, Tradable, TradeBag } from '../../shared/types';
 import { SEA } from '../art';
@@ -35,6 +35,18 @@ function Dice({ dice }: { dice: [number, number] | null }) {
       {dice ? dice.map((n, i) => <span key={i}>{['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][n]}</span>) : <Dices size={25} />}
     </span>
   );
+}
+
+/**
+ * The special build button for this seat: `ask` while another player's turn is on and you haven't
+ * asked yet, `waiting` once you're in line, else null.
+ */
+function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
+  if (view.role !== 'player' || !isLargeGame(view.players.length)) return null;
+  if (['lobby', 'finished', 'setup-settlement', 'setup-road'].includes(view.phase)) return null;
+  if (view.turnPlayerId === view.selfId || view.activePlayerId === view.selfId) return null;
+  if (view.specialQueue.includes(view.selfId)) return 'waiting';
+  return view.specialAsked.includes(view.selfId) ? null : 'ask';
 }
 
 function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null): string {
@@ -313,6 +325,27 @@ export default function GameTable({
       >
         Finish roads
       </button>
+    );
+  // Five or six players: during someone else's turn, ask to build when it ends (once per turn).
+  const special = specialBuildState(view);
+  if (!ownTurn && special === 'ask')
+    turnAction = (
+      <button
+        className="button secondary turn-action"
+        disabled={busy || paused}
+        data-tip="Build (no trading) after this turn. You don't have to build."
+        onClick={() => send({ type: 'request-special-build' })}
+      >
+        <Hammer size={18} />
+        <span>Special build</span>
+      </button>
+    );
+  if (!ownTurn && special === 'waiting')
+    turnAction = (
+      <span className="turn-action special-waiting" role="status">
+        <Hammer size={17} />
+        In line to build ({view.specialQueue.indexOf(view.selfId) + 1})
+      </span>
     );
   // Right after ending your turn, the same spot offers to take it back (others vote, as for any undo).
   const canUndoEnd = !spectator && view.undoAvailable?.endsTurn && view.undoAvailable.actorId === view.selfId;

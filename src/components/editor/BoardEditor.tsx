@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Eye, FlaskConical, LayoutGrid, Lock, Redo2, Save, Undo2, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
 import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
 import type { AccountSession } from '../../../shared/types';
@@ -15,7 +15,10 @@ import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
 import EditorToolbar from './EditorToolbar';
 import type { Refill } from './FillBar';
 import Inspector from './Inspector';
+import LinkRules from './LinkRules';
 import { freshId, KIND_LABELS, TOOLS, typing } from './tools';
+import VersionTabs from './VersionTabs';
+import { addVersion, editVersion, mergeShown, removeVersion, showVersion } from './versions';
 import './editor.css';
 
 /**
@@ -48,6 +51,9 @@ export default function BoardEditor({
   const [tool, setTool] = useState<Tool>('select');
   const [brush, setBrush] = useState<DesignKind>('gold');
   const [linkLetter, setLinkLetter] = useState<string | null>('A');
+  /** Which version (by player count) is being edited: null for the main layout. */
+  const [version, setVersionState] = useState<number | null>(null);
+  const shown = useMemo(() => design && showVersion(design, version), [design, version]);
   const [message, setMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [panel, setPanel] = useState<'inspector' | null>(null);
@@ -65,26 +71,33 @@ export default function BoardEditor({
   const readOnly = !!lockedBy;
   const edit = useCallback(
     (change: (d: BoardDesign) => BoardDesign, group?: string) => {
-      if (!readOnly) history.set(d => (d ? change(d) : d), group);
+      if (!readOnly) history.set(d => (d ? editVersion(d, version, change) : d), group);
     },
-    [history.set, readOnly],
+    [history.set, readOnly, version],
   );
 
   const load = (next: BoardDesign, savedAlready: boolean) => {
     history.reset(structuredClone(next));
     saved.current = savedAlready ? JSON.stringify(next) : '';
     lastFill.current = null;
+    setVersionState(null);
     select(null);
     setPanel(null);
     setBrowsing(false);
   };
   const refill: Refill = (key, fill) => {
-    if (!design || readOnly) return;
+    if (!design || !shown || readOnly) return;
     const last = lastFill.current;
-    const base = last && last.key === key && last.result === design ? last.base : design;
+    const again = last && last.key === key && JSON.stringify(last.result) === JSON.stringify(shown);
+    const base = again ? last.base : shown;
     const result = fill(base, Math.random);
     lastFill.current = { key, base, result };
-    history.set(() => result);
+    history.set(d => (d ? mergeShown(d, version, result) : d));
+  };
+  const setVersion = (next: number | null) => {
+    setVersionState(next);
+    lastFill.current = null;
+    select(null);
   };
   useEffect(() => {
     if (!message) return;
@@ -250,7 +263,20 @@ export default function BoardEditor({
           <LayoutGrid size={18} />
           <span className="editor-label">All boards</span>
         </button>
-        {library && <BoardFields design={design} categories={library.categories} edit={edit} />}
+        {library && shown && <BoardFields design={shown} categories={library.categories} edit={edit} />}
+        <VersionTabs
+          design={design}
+          version={version}
+          setVersion={setVersion}
+          add={() => {
+            history.set(d => (d && shown ? addVersion(d, shown) : d));
+            setVersion(design.versions?.length ?? 0);
+          }}
+          remove={i => {
+            history.set(d => (d ? removeVersion(d, i) : d));
+            setVersion(null);
+          }}
+        />
         <div className="editor-actions">
           <button
             type="button"
@@ -306,7 +332,7 @@ export default function BoardEditor({
           </button>
         </div>
         <EditorToolbar
-          design={design}
+          design={shown!}
           tool={tool}
           setTool={setTool}
           brush={brush}
@@ -326,14 +352,14 @@ export default function BoardEditor({
       )}
       <section className="editor-stage">
         <EditorCanvas
-          design={design}
+          design={shown!}
           selection={selection}
           select={select}
           tool={tool}
           brush={brush}
           linkLetter={linkLetter}
           edit={edit}
-          fitKey={design.id}
+          fitKey={`${design.id}:${version ?? ''}`}
         />
         <button
           type="button"
@@ -350,8 +376,9 @@ export default function BoardEditor({
         </p>
       </section>
       <aside className="editor-inspector" aria-label="Settings">
-        <Inspector design={design} selection={selection} select={select} edit={edit} />
-        <BoardSettings design={design} edit={edit} selection={selection} />
+        <Inspector design={shown!} selection={selection} select={select} edit={edit} />
+        <BoardSettings design={shown!} edit={edit} selection={selection} />
+        <LinkRules design={shown!} edit={edit} />
       </aside>
       {message && <Toast message={message} dismiss={() => setMessage(null)} />}
       {preview && (
@@ -362,7 +389,7 @@ export default function BoardEditor({
               <X />
             </button>
           </header>
-          <MapPreview design={design} />
+          <MapPreview design={shown!} />
         </div>
       )}
     </main>

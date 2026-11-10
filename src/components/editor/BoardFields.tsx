@@ -6,14 +6,18 @@ import {
   boardExpansions,
   EXPANSIONS,
   type Expansion,
+  type FillKind,
 } from '../../../shared/maps';
 import { RICH_LEVELS } from '../../../shared/maps/balance';
+import { POOL_KINDS } from '../../../shared/maps/validate';
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
 
 /** Numbers on islands closed to setup: how much richer than the normal mix. */
 const RICH_LABELS = ['Normal numbers', 'Better', 'Rich', 'Richer', 'Mostly 6 & 8'];
 
 import { useDismiss } from '../../hooks/useDismiss';
+import { TileIcon } from './BrushPicker';
+import { KIND_LABELS } from './tools';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
@@ -48,6 +52,67 @@ function ExpansionsMenu({ design, set }: { design: BoardDesign; set: (patch: Par
             <label key={e} className="check-row">
               <input type="checkbox" checked={needs.includes(e)} onChange={() => toggle(e)} />
               {EXPANSIONS[e]}
+            </label>
+          ))}
+        </fieldset>
+      )}
+    </div>
+  );
+}
+
+const BIAS_LABELS = ['Poorer', 'Poor', 'Normal', 'Rich', 'Richer'];
+const BIAS_TERRAINS = POOL_KINDS.filter(k => k !== 'iceberg' && k !== 'desert');
+
+/** How good random numbers are on each terrain, as a dropdown of one select per terrain. */
+function NumberBiasMenu({ design, edit }: { design: BoardDesign; edit: Edit }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, close, root);
+  const bias = design.numberBias ?? {};
+  const changed = BIAS_TERRAINS.filter(k => bias[k]);
+  const summary = changed.length
+    ? changed.map(k => `${KIND_LABELS[k]} ${BIAS_LABELS[(bias[k] ?? 0) + 2]!.toLowerCase()}`).join(', ')
+    : 'Even';
+  const set = (kind: FillKind, level: number) =>
+    edit(d => {
+      const next = { ...(d.numberBias ?? {}), [kind]: level || undefined };
+      const { numberBias: _old, ...rest } = d;
+      return Object.values(next).some(Boolean) ? { ...rest, numberBias: next } : rest;
+    });
+  return (
+    <div className="expansions-menu" ref={root}>
+      <button
+        type="button"
+        className="expansions-button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label={`Numbers by terrain: ${summary}`}
+        data-tip="Make random numbers better or worse on a terrain, board-wide"
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>Numbers</span>
+        <strong>{summary}</strong>
+        <ChevronDown size={14} />
+      </button>
+      {open && (
+        <fieldset className="expansions-list bias-list" aria-label="Numbers by terrain">
+          <span className="inspector-label">Random numbers by terrain</span>
+          {BIAS_TERRAINS.map(kind => (
+            <label key={kind} className="bias-row">
+              <TileIcon kind={kind} size={20} />
+              <span>{KIND_LABELS[kind]}</span>
+              <select
+                aria-label={`${KIND_LABELS[kind]} numbers`}
+                value={bias[kind] ?? 0}
+                onChange={e => set(kind, Number(e.target.value))}
+              >
+                {BIAS_LABELS.map((label, i) => (
+                  <option key={label} value={i - 2}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
           ))}
         </fieldset>
@@ -144,6 +209,7 @@ export default function BoardFields({
           ))}
         </select>
       </label>
+      <NumberBiasMenu design={design} edit={edit} />
       <ExpansionsMenu design={design} set={set} />
     </div>
   );

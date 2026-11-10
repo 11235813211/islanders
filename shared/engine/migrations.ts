@@ -88,6 +88,8 @@ const MIGRATIONS: Migration[] = [
     s.eruption ??= null;
     s.volcanoDecks ??= {};
     s.fog ??= {};
+    s.specialQueue ??= [];
+    s.specialAsked ??= [];
   },
 ];
 

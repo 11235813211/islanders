@@ -1,4 +1,4 @@
-import { HEX_RADIUS } from '../board';
+import { HEX_RADIUS, hexCenter, hexCorner } from '../board';
 import { takesToken } from '../seafaring';
 import type { Terrain } from '../types';
 import { neighborKeys } from './balance';
@@ -9,6 +9,7 @@ import {
   type DesignHarbor,
   type DesignKind,
   type DesignTile,
+  FOG_POOL,
   SIDE_DIRECTIONS,
   tileKey,
 } from './types';
@@ -88,19 +89,42 @@ export function tidy(design: BoardDesign): BoardDesign {
   return {
     ...design,
     tiles: design.tiles.map(t => {
-      if (isLand(t.kind)) return t;
-      const { link: _l, number: _n, noSetup: _s, bonus: _b, pips: _p, ...rest } = t;
+      if (isLand(t.kind)) {
+        // "Not A" only means something on random land without a link of its own.
+        if (!t.notLink || (t.kind === 'land' && !t.link)) return t;
+        const { notLink: _n, ...kept } = t;
+        return kept;
+      }
+      const { link: _l, notLink: _x, number: _n, noSetup: _s, bonus: _b, pips: _p, ...rest } = t;
       return t.kind === 'iceberg' && t.number ? { ...rest, number: t.number } : rest;
     }),
     harbors: harbors.map(h => {
-      if (h.kind !== 'any' || !h.link) return h;
-      const { link: _l, ...rest } = h;
-      return rest;
+      let next = h;
+      if (h.kind === 'any' && h.link) {
+        const { link: _l, ...rest } = next;
+        next = rest;
+      }
+      if (next.notLink && (next.kind !== 'random' || next.link)) {
+        const { notLink: _n, ...rest } = next;
+        next = rest;
+      }
+      return next;
     }),
+    ...noStartOn(design, byKey),
     robber: robber ? design.robber : null,
     pirate: pirate ? design.pirate : null,
     ...islandPoolsOn(design, byKey),
   };
+}
+
+/** No-start corners whose tile is still land. */
+function noStartOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<BoardDesign, 'noStart'> {
+  if (!design.noStart) return {};
+  const kept = design.noStart.filter(k => {
+    const tile = byKey.get(k.split(',').slice(0, 2).join(','));
+    return !!tile && isLand(tile.kind);
+  });
+  return { noStart: kept.length ? kept : undefined };
 }
 
 /** Island mixes whose tile is still land (anything else drops them). */
@@ -279,5 +303,65 @@ export function designWarnings(design: BoardDesign): string[] {
     warnings.push(
       `Only ${open.length} land tiles allow starting settlements; ${design.players.max} players need room for ${design.players.max * 2}.`,
     );
+  const fog = design.tiles.filter(t => t.kind === 'fog').length;
+  if (fog && design.fogExact) {
+    const listed = Object.values(design.fogPool ?? FOG_POOL).reduce((n, c) => n + Math.round(c ?? 0), 0);
+    if (listed !== fog)
+      warnings.push(
+        `The fog counts list ${listed} tiles but the board has ${fog} fog; ${listed > fog ? 'some are left out' : 'the rest are drawn from the mix'}.`,
+      );
+  }
   return [...new Set(warnings)];
+}
+
+/** The keys (`q,r,c`) naming the corner at board point (x, y) from every tile in the design that has it. */
+function cornerKeysAt(design: BoardDesign, x: number, y: number): string[] {
+  const keys: string[] = [];
+  for (const t of design.tiles) {
+    const center = hexCenter(t.q, t.r);
+    for (let c = 0; c < 6; c++) {
+      const p = hexCorner(center.x, center.y, c);
+      if (Math.hypot(p.x - x, p.y - y) < 1) keys.push(`${t.q},${t.r},${c}`);
+    }
+  }
+  return keys;
+}
+
+/** The corner of a land tile nearest a board point, or null when no land tile has a corner close by. */
+export function cornerAt(design: BoardDesign, x: number, y: number): { x: number; y: number } | null {
+  let best: { x: number; y: number; d: number } | null = null;
+  for (const t of design.tiles) {
+    if (!isLand(t.kind)) continue;
+    const center = hexCenter(t.q, t.r);
+    for (let c = 0; c < 6; c++) {
+      const p = hexCorner(center.x, center.y, c);
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < 30 && (!best || d < best.d)) best = { ...p, d };
+    }
+  }
+  return best && { x: best.x, y: best.y };
+}
+
+/** Mark the corner at (x, y) as no place for a starting settlement, or clear it. */
+export function toggleNoStart(design: BoardDesign, x: number, y: number): BoardDesign {
+  const corner = cornerAt(design, x, y);
+  if (!corner) return design;
+  const keys = cornerKeysAt(design, corner.x, corner.y);
+  const marked = (design.noStart ?? []).filter(k => keys.includes(k));
+  const rest = (design.noStart ?? []).filter(k => !keys.includes(k));
+  const land = keys.find(k =>
+    isLand(design.tiles.find(t => tileKey(t.q, t.r) === k.split(',').slice(0, 2).join(','))!.kind),
+  );
+  const noStart = marked.length || !land ? rest : [...rest, land];
+  const { noStart: _old, ...base } = design;
+  return noStart.length ? { ...base, noStart } : base;
+}
+
+/** Board points of the design's no-start corners, for drawing them. */
+export function noStartPoints(design: BoardDesign): { key: string; x: number; y: number }[] {
+  return (design.noStart ?? []).map(key => {
+    const [q, r, c] = key.split(',').map(Number) as [number, number, number];
+    const center = hexCenter(q, r);
+    return { key, ...hexCorner(center.x, center.y, c) };
+  });
 }

@@ -1,7 +1,7 @@
 import { hexCenter, hexCorner } from '../../../shared/board';
 import { type BoardDesign, type DesignHarbor, type DesignTile, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
-import { closedTiles, isLand, takesNumber } from '../../../shared/maps/edit';
+import { closedTiles, isLand, noStartPoints, takesNumber } from '../../../shared/maps/edit';
 import { Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import { tileVariant } from '../BoardScene';
@@ -14,14 +14,42 @@ export function linkColor(letter: string): string {
   return `hsl(${hues[(letter.charCodeAt(0) - 65) % hues.length]} 70% 42%)`;
 }
 
-function LinkBadge({ letter, x, y }: { letter: string; x: number; y: number }) {
+/** A link letter in its color; "Not A" shows as ≠A on a striped badge. */
+function LinkBadge({ piece, x, y }: { piece: { link?: string; notLink?: string }; x: number; y: number }) {
+  const letter = piece.link ?? piece.notLink;
+  if (!letter) return null;
+  const not = !piece.link;
+  const width = not ? 24 : 16;
   return (
-    <g className="editor-link" transform={`translate(${x} ${y})`}>
-      <rect x="-8" y="-8" width="16" height="16" rx="4" fill={linkColor(letter)} stroke="#fff" strokeWidth="1.4" />
-      <text textAnchor="middle" y="4.5" fontSize="12" fontWeight="800" fill="#fff">
-        {letter}
+    <g className={`editor-link${not ? ' not' : ''}`} transform={`translate(${x} ${y})`}>
+      <rect
+        x={-width / 2}
+        y="-8"
+        width={width}
+        height="16"
+        rx="4"
+        fill={not ? '#fff' : linkColor(letter)}
+        stroke={not ? linkColor(letter) : '#fff'}
+        strokeWidth={not ? 2 : 1.4}
+      />
+      <text textAnchor="middle" y="4.5" fontSize="12" fontWeight="800" fill={not ? linkColor(letter) : '#fff'}>
+        {not ? `≠${letter}` : letter}
       </text>
     </g>
+  );
+}
+
+/** Corners where no starting settlement may go: a red no-entry mark. */
+function NoStartMarks({ design }: { design: BoardDesign }) {
+  return (
+    <>
+      {noStartPoints(design).map(p => (
+        <g key={p.key} className="editor-nostart" transform={`translate(${p.x} ${p.y})`} aria-hidden="true">
+          <circle r="9" fill="#fff" stroke="#c8321f" strokeWidth="2.6" />
+          <path d="M-5.5-5.5 5.5 5.5" stroke="#c8321f" strokeWidth="2.6" strokeLinecap="round" />
+        </g>
+      ))}
+    </>
   );
 }
 
@@ -159,7 +187,7 @@ export default function EditorLayer({
         <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
           <Tile uid={uid} terrain={tile.kind} />
           {tile.bonus && <SEA.BonusChip points={tile.bonus} />}
-          {tile.link && !readOnly && <LinkBadge letter={tile.link} x={-25} y={27} />}
+          {!readOnly && <LinkBadge piece={tile} x={-25} y={27} />}
           {design.robber?.q === tile.q && design.robber.r === tile.r && <Robber />}
           {takesNumber(tile.kind) && <NumberSlot uid={uid} tile={tile} readOnly={readOnly} stepNumber={stepNumber} />}
         </g>
@@ -202,12 +230,11 @@ export default function EditorLayer({
             ) : (
               <Harbor resource={harbor.kind} at={geometry.at} corners={geometry.corners} />
             )}
-            {harbor.link && !readOnly && (
-              <LinkBadge letter={harbor.link} x={geometry.at.x + 17} y={geometry.at.y - 22} />
-            )}
+            {!readOnly && <LinkBadge piece={harbor} x={geometry.at.x + 17} y={geometry.at.y - 22} />}
           </g>
         );
       })}
+      <NoStartMarks design={design} />
       {selectedTile && <polygon className="editor-selected" points={hexPoints(55)} transform={place(selectedTile)} />}
     </>
   );

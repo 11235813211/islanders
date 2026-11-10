@@ -429,3 +429,18 @@
     animation-iteration-count: 1;
   }
 }
+
+/* Corners where no starting settlement may go (shown during setup). */
+.board-nostart {
+  pointer-events: none;
+}
+.board-nostart circle {
+  fill: #ffffffd9;
+  stroke: #c8321f;
+  stroke-width: 2.4;
+}
+.board-nostart path {
+  stroke: #c8321f;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}

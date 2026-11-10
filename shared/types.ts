@@ -39,6 +39,8 @@ export interface Vertex {
   y: number;
   hexIds: string[];
   edgeIds: string[];
+  /** The map marks this corner as no place for a starting settlement. */
+  noSetup?: boolean;
 }
 export interface Edge {
   id: string;
@@ -311,6 +313,10 @@ export interface GameState {
   freeRoads: number;
   /** Who is building in the special build phase, or null. */
   specialBuilder: string | null;
+  /** Players waiting to build after this turn, in the order they asked. */
+  specialQueue: string[];
+  /** Who asked to build this turn (each player may ask once). */
+  specialAsked: string[];
   resumePhase: 'roll' | 'build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
@@ -393,6 +399,8 @@ export interface GameView {
   pendingGold: Record<string, number>;
   goldDeadline: number | null;
   eruption: string[] | null;
+  specialQueue: string[];
+  specialAsked: string[];
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
   features: { sea: boolean; volcano: boolean };
   winnerId: string | null;
@@ -458,6 +466,8 @@ export type GameAction =
   /** Bank or harbor trade: `count` times the rate of `give` for `count` of `receive`. */
   | { type: 'trade'; give: Resource; receive: Resource; count?: number }
   | { type: 'end-turn' }
+  /** Five or six players: during someone else's turn, ask to build when it ends. */
+  | { type: 'request-special-build' }
   | { type: 'discard'; resources: TradeBag }
   | { type: 'move-robber'; hexId: string }
   | { type: 'steal'; playerId: string }

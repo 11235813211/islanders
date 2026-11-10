@@ -1,4 +1,4 @@
-import { Anchor, Hand, Link2, Sailboat, UserRound } from 'lucide-react';
+import { Anchor, Ban, Hand, Link2, Sailboat, UserRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { BoardLibrary, DesignKind } from '../../../shared/maps';
 import type { Tool } from './EditorCanvas';
@@ -18,6 +18,13 @@ export const TOOLS: { tool: Tool; key: string; label: string; icon: ReactNode; h
     label: 'Link',
     icon: <Link2 size={17} />,
     hint: 'Click or drag over random tiles and harbors to give them the same resource',
+  },
+  {
+    tool: 'nostart',
+    key: 'n',
+    label: 'No start',
+    icon: <Ban size={17} />,
+    hint: 'Click a corner so no starting settlement may go there (click again to clear)',
   },
   {
     tool: 'harbor',

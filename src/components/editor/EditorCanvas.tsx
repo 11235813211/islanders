@@ -2,14 +2,14 @@ import { Maximize, Minus, Plus } from 'lucide-react';
 import { type PointerEvent as ReactPointerEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { HEX_RADIUS, hexCenter } from '../../../shared/board';
 import { type BoardDesign, type DesignKind, tileKey } from '../../../shared/maps';
-import { cellAt, paint, sideAt, stepNumber, toggleHarbor, updateTile } from '../../../shared/maps/edit';
-import { setLinks } from '../../../shared/maps/fill';
+import { cellAt, paint, sideAt, stepNumber, toggleHarbor, toggleNoStart, updateTile } from '../../../shared/maps/edit';
 import { ArtDefs, SEA } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import EditorLayer from './EditorLayer';
+import { applyLink, linkChoice } from './LinkPicker';
 
 /** Toolbar tools, plus the painting tools held keys switch to (sea, land, brush, erase). */
-export type Tool = 'select' | 'link' | 'sea' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
+export type Tool = 'select' | 'link' | 'nostart' | 'sea' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
 export type EditorSelection =
   | { kind: 'tile'; q: number; r: number }
   | { kind: 'harbor'; q: number; r: number; side: number }
@@ -174,7 +174,7 @@ export default function EditorCanvas({
       ),
     );
     current.last = to;
-    if (current.tool === 'link') return edit(d => setLinks(d, cells, [], linkLetter), current.group);
+    if (current.tool === 'link') return edit(d => applyLink(d, cells, [], linkLetter), current.group);
     const mode =
       current.tool === 'sea' ? 'sea' : current.tool === 'land' ? 'land' : current.tool === 'brush' ? brush : 'erase';
     edit(d => paint(d, cells, mode), current.group);
@@ -185,7 +185,9 @@ export default function EditorCanvas({
     const tile = design.tiles.find(t => t.q === q && t.r === r);
     if (active === 'select') select(tile ? { kind: 'tile', q, r } : null);
     // Clicking a tile that already has this link takes it off again.
-    if (active === 'link' && tile) edit(d => setLinks(d, [{ q, r }], [], tile.link === linkLetter ? null : linkLetter));
+    if (active === 'link' && tile)
+      edit(d => applyLink(d, [{ q, r }], [], linkChoice(tile) === linkLetter ? null : linkLetter));
+    if (active === 'nostart') edit(d => toggleNoStart(d, point.x, point.y));
     if (active === 'harbor') {
       edit(d => toggleHarbor(d, q, r, sideAt(q, r, point.x, point.y)));
       select(null);
@@ -296,7 +298,7 @@ export default function EditorCanvas({
           select={select}
           pickHarbor={
             tool === 'link'
-              ? harbor => edit(d => setLinks(d, [], [harbor], harbor.link === linkLetter ? null : linkLetter))
+              ? harbor => edit(d => applyLink(d, [], [harbor], linkChoice(harbor) === linkLetter ? null : linkLetter))
               : undefined
           }
           stepNumber={(q, r, delta) =>

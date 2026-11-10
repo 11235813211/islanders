@@ -1,7 +1,7 @@
 import { assignNumbers, generateBoard } from '../board';
 import { firstFreeColor } from '../colors';
 import { buildBoard } from '../maps/generate';
-import { type BoardDesign, boardExpansions } from '../maps/types';
+import { type BoardDesign, boardExpansions, designFor, playerRanges } from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
@@ -29,7 +29,7 @@ export function boardFor(
   seafarers = !!design,
 ): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   if (design) {
-    const built = buildBoard(design, random);
+    const built = buildBoard(designFor(design, players), random);
     return seafarers ? built : { ...built, pirate: null };
   }
   const board = generateBoard(random, layout, isLargeGame(players), seafarers);
@@ -42,10 +42,20 @@ export function boardFor(
   };
 }
 
+/** The player counts a map (with its versions) is made for, as one range. */
+const coveredPlayers = (design: BoardDesign) => {
+  const ranges = playerRanges(design);
+  return { min: Math.min(...ranges.map(r => r.min)), max: Math.max(...ranges.map(r => r.max)) };
+};
+
 /** The board, bank, and development deck for the seats at the table (five or six get more of each). */
 function dealTable(next: GameState, random: () => number): void {
   const players = next.players.length;
   Object.assign(next, boardFor(next.design, next.settings.numberLayout, random, players, next.settings.seafarers));
+  // A version for this many players brings its own points to win, unless the host changed them.
+  const played = next.design && designFor(next.design, players);
+  if (played && next.settings.victoryPoints === next.design!.victoryPoints)
+    next.settings.victoryPoints = played.victoryPoints;
   next.bank = bankFor(players);
   next.developmentDeck = developmentDeck(random, isLargeGame(players));
 }
@@ -101,6 +111,8 @@ export function createGame(
     developmentPlayed: false,
     freeRoads: 0,
     specialBuilder: null,
+    specialQueue: [],
+    specialAsked: [],
     resumePhase: null,
     longestRoadId: null,
     largestArmyId: null,
@@ -245,7 +257,7 @@ export const lobbyHandlers: Pick<
       boardFor(chosen, next.settings.numberLayout, random, next.players.length, next.settings.seafarers),
     );
     next.design = chosen;
-    next.map = chosen ? { id: chosen.id, name: chosen.name, players: chosen.players } : null;
+    next.map = chosen ? { id: chosen.id, name: chosen.name, players: coveredPlayers(chosen) } : null;
     addLog(next, `${player.name} chose ${chosen ? chosen.name : 'the standard island'}.`);
   },
 

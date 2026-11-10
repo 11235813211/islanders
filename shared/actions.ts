@@ -38,6 +38,7 @@ const SPEC = {
   roll: {},
   'roll-volcanoes': {},
   'end-turn': {},
+  'request-special-build': {},
   'buy-development': { discoveries: 'bag?' },
   'finish-free-roads': {},
   leave: {},

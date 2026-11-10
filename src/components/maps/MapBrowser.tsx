@@ -1,10 +1,11 @@
 import { AlertTriangle, ArrowLeft, Check, Copy, Eye, Map as MapIcon, Plus, Trash2, Users, X } from 'lucide-react';
 import { type CSSProperties, type DragEvent, useEffect, useState } from 'react';
-import { type BoardDesign, type BoardLibrary, boardExpansions, EXPANSIONS } from '../../../shared/maps';
+import { type BoardDesign, type BoardLibrary, boardExpansions, designFor, EXPANSIONS } from '../../../shared/maps';
 import CategoryHeader from './CategoryHeader';
 import DesignView from './DesignView';
+import FogSummary from './FogSummary';
 import MapThumbnail from './MapThumbnail';
-import { moveBoard, playerRange, playersMismatch } from './mapInfo';
+import { moveBoard, playersLabel, playersMismatch } from './mapInfo';
 import './maps.css';
 
 const COLORS = ['#1f7fa6', '#c4572b', '#3b8442', '#8a5bb8', '#b07c12', '#4f7684', '#c23a6b', '#2f9e8f'];
@@ -62,7 +63,7 @@ function MapDetail({
         {design.description && <p>{design.description}</p>}
         <dl>
           <dt>Players</dt>
-          <dd>{playerRange(design.players)}</dd>
+          <dd>{playersLabel(design)}</dd>
           <dt>Points to win</dt>
           <dd>{design.victoryPoints}</dd>
           <dt>Land tiles</dt>
@@ -78,10 +79,11 @@ function MapDetail({
         {playersMismatch(design, players) && (
           <p className="map-warning" role="note">
             <AlertTriangle size={17} />
-            Made for {playerRange(design.players)} players. This room has {players}.
+            Made for {playersLabel(design)} players. This room has {players}.
           </p>
         )}
         <p className="map-note">Tiles, numbers, and harbors marked “?” are drawn at random when the game starts.</p>
+        <FogSummary design={designFor(design, players)} />
         {canChoose && (
           <button type="button" className="button primary full" disabled={current} onClick={choose}>
             <Check size={18} />
@@ -268,13 +270,10 @@ export default function MapBrowser({
                           <span className="map-card-name">{board.name}</span>
                           <ExpansionTags design={board} />
                           <span className="map-card-meta">
-                            <span>{playerRange(board.players)} players</span>
+                            <span>{playersLabel(board)} players</span>
                             <span>{board.victoryPoints} points</span>
                             {!editing && playersMismatch(board, players) && (
-                              <span
-                                className="map-card-warning"
-                                title={`Made for ${playerRange(board.players)} players`}
-                              >
+                              <span className="map-card-warning" title={`Made for ${playersLabel(board)} players`}>
                                 <AlertTriangle size={14} />
                               </span>
                             )}

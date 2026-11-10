@@ -41,6 +41,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'choose-map',
   'discard',
   'choose-gold',
+  'request-special-build',
   'accept-trade',
   'decline-trade',
   'counter-trade',

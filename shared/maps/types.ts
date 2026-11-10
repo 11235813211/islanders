@@ -23,6 +23,8 @@ export interface DesignTile {
   pips?: number[];
   /** Tiles and harbors sharing a letter get the same resource. Only random land is linked. */
   link?: string;
+  /** "Not A": any resource but the one the tiles and harbors linked to this letter get. Random only. */
+  notLink?: string;
   /** No setup settlement may touch this tile's island. */
   noSetup?: boolean;
   /** Victory points for each player who first settles this tile's island. */
@@ -37,7 +39,22 @@ export interface DesignHarbor {
   kind: Resource | 'any' | 'random';
   /** Same resource as the tiles with this letter. Only random harbors are linked. */
   link?: string;
+  /** Any resource but the one linked to this letter. */
+  notLink?: string;
 }
+
+/**
+ * A rule over link letters: `in` keeps every listed letter to the given terrains ("B, C both in
+ * mountains or hills"); `distinct` gives the listed letters different terrains ("A, B, C distinct").
+ */
+export type LinkRule = { kind: 'in'; links: string[]; terrains: FillKind[] } | { kind: 'distinct'; links: string[] };
+
+/** One corner of a tile, as the editor stores it: tile `q,r` and corner 0–5 (see Hex.vertexIds). */
+export type CornerKey = string;
+
+/** What a board's version for some player counts replaces; everything else is shared. */
+export const VERSION_FIELDS = ['players', 'victoryPoints', 'tiles', 'harbors', 'robber', 'pirate', 'noStart'] as const;
+export type BoardVersion = Pick<BoardDesign, (typeof VERSION_FIELDS)[number]>;
 
 export interface BoardDesign {
   id: string;
@@ -68,11 +85,32 @@ export interface BoardDesign {
   islandPools?: Record<string, Pool>;
   /** What fog tiles may turn out to be, as shares (default FOG_POOL). */
   fogPool?: Partial<Record<FogKind, number>>;
+  /** The fog mix is exact counts (e.g. exactly 2 gold), not shares. */
+  fogExact?: boolean;
   /** 0–RICH_LEVELS: how much richer random numbers are on islands closed to setup (0 is the normal mix). */
   richIslands?: number;
   /** Expansions whose rules or pieces the board needs. Absent: Seafarers when it has sea (see boardExpansions). */
   expansions?: Expansion[];
+  /** Rules between link letters (all must hold when random land is drawn). */
+  linkRules?: LinkRule[];
+  /** Corners where no starting settlement may go, beyond closed islands. */
+  noStart?: CornerKey[];
+  /** -2 (poorer) to 2 (richer): how good random numbers are on each terrain, board-wide. */
+  numberBias?: Partial<Record<FillKind, number>>;
+  /** Other layouts of this board for other player counts (the first whose range fits is played). */
+  versions?: BoardVersion[];
   updatedAt: number;
+}
+
+/** The layout to play with `players` seated: the first version made for that count, or the board itself. */
+export function designFor(design: BoardDesign, players: number): BoardDesign {
+  const version = design.versions?.find(v => players >= v.players.min && players <= v.players.max);
+  return version ? { ...design, ...version } : design;
+}
+
+/** Every player count the board (or one of its versions) is made for. */
+export function playerRanges(design: Pick<BoardDesign, 'players' | 'versions'>): { min: number; max: number }[] {
+  return [design.players, ...(design.versions ?? []).map(v => v.players)];
 }
 
 /** Expansions a board can say it needs, in the order the picker lists them. */
@@ -81,7 +119,6 @@ export const EXPANSIONS = {
   'cities-knights': 'Cities & Knights',
   'traders-barbarians': 'Traders & Barbarians',
   'explorers-pirates': 'Explorers & Pirates',
-  'five-six': '5–6 Players',
 } as const;
 export type Expansion = keyof typeof EXPANSIONS;
 

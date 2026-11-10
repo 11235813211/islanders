@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateBoard, spiralHexes } from '../shared/board';
-import { applyAction, getActivePlayerId, getView, normalizeGame } from '../shared/engine';
+import { advanceTime, applyAction, getActivePlayerId, getView, normalizeGame } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import type { GameAction, GameState } from '../shared/types';
 import { playBotGame } from './bot-harness';
@@ -76,24 +76,40 @@ describe('the 5–6 player island', () => {
 });
 
 describe('special build phase', () => {
-  it('after a turn, each other player who can build gets a turn to build, then play moves on', () => {
+  it('players who ask build after the turn, in the order they asked; nobody else is waited on', () => {
     let g = sixAtBuild();
     grant(g, 'p2', { wood: 1, brick: 1 });
     grant(g, 'p4', { sheep: 1, wheat: 1, ore: 1 });
+    // During p0's turn, p4 asks first, then p2.
+    g = act(g, 'p4', { type: 'request-special-build' });
+    g = act(g, 'p2', { type: 'request-special-build' });
+    expect(() => act(g, 'p4', { type: 'request-special-build' })).toThrow(/already/);
+    expect(() => act(g, 'p0', { type: 'request-special-build' })).toThrow(/your turn/);
     g = act(g, 'p0', { type: 'end-turn' });
-    // p1, p3, p5 have nothing to build and are skipped.
     expect(g.phase).toBe('special-build');
+    expect(getActivePlayerId(g)).toBe('p4');
+    expect(getView(g, 'p4').turnPlayerId).toBe('p0');
+    expect(getView(g, 'p4').legal.development).toBe(true);
+    g = act(g, 'p4', { type: 'buy-development' });
+    // p5 joins the line during p4's special build, even out of seat order.
+    g = act(g, 'p5', { type: 'request-special-build' });
+    g = act(g, 'p4', { type: 'end-turn' });
     expect(getActivePlayerId(g)).toBe('p2');
-    expect(getView(g, 'p2').turnPlayerId).toBe('p0');
     const road = getView(g, 'p2').legal.roads[0]!;
     g = act(g, 'p2', { type: 'build-road', edgeId: road });
     expect(g.roads[road]).toBe('p2');
     g = act(g, 'p2', { type: 'end-turn' });
-    expect(getActivePlayerId(g)).toBe('p4');
-    expect(getView(g, 'p4').legal.development).toBe(true);
-    g = act(g, 'p4', { type: 'buy-development' });
-    expect(g.players[4]!.development).toHaveLength(1);
-    g = act(g, 'p4', { type: 'end-turn' });
+    expect(getActivePlayerId(g)).toBe('p5');
+    g = act(g, 'p5', { type: 'end-turn' });
+    expect(g.phase).toBe('roll');
+    expect(getActivePlayerId(g)).toBe('p1');
+    expect(g.specialAsked).toEqual([]);
+  });
+
+  it('with nobody asking, the next turn starts straight away', () => {
+    let g = sixAtBuild();
+    grant(g, 'p2', { wood: 1, brick: 1 });
+    g = act(g, 'p0', { type: 'end-turn' });
     expect(g.phase).toBe('roll');
     expect(getActivePlayerId(g)).toBe('p1');
   });
@@ -102,6 +118,7 @@ describe('special build phase', () => {
     let g = sixAtBuild();
     grant(g, 'p1', { wood: 4, brick: 1 });
     g.players[1]!.development = [{ id: 'k', kind: 'knight', boughtTurn: 0 }];
+    g = act(g, 'p1', { type: 'request-special-build' });
     g = act(g, 'p0', { type: 'end-turn' });
     expect(getActivePlayerId(g)).toBe('p1');
     expect(() => act(g, 'p1', { type: 'trade', give: 'wood', receive: 'ore' })).toThrow();
@@ -110,11 +127,25 @@ describe('special build phase', () => {
     expect(getView(g, 'p1').legal.shipMoves).toEqual({});
   });
 
-  it('a builder who runs out of time passes; the clock is short', () => {
+  it('a builder gets 20 seconds, then passes (nothing is built for them)', () => {
     let g = sixAtBuild();
     grant(g, 'p3', { wood: 1, brick: 1 });
+    g = act(g, 'p3', { type: 'request-special-build' });
     g = act(g, 'p0', { type: 'end-turn' });
-    expect(g.turnDeadline).toBe(TEST_NOW + 30_000);
+    expect(g.turnDeadline).toBe(TEST_NOW + 20_000);
+    expect(getActivePlayerId(g)).toBe('p3');
+    const passed = advanceTime(g, TEST_NOW + 20_000, seeded());
+    expect(passed.phase).toBe('roll');
+    expect(Object.values(passed.roads).filter(o => o === 'p3')).toHaveLength(
+      Object.values(g.roads).filter(o => o === 'p3').length,
+    );
+  });
+
+  it('bots that could build a city or settlement join the line when the turn ends', () => {
+    let g = sixAtBuild();
+    g.players[3]!.bot = 'advanced';
+    grant(g, 'p3', { wheat: 2, ore: 3 });
+    g = act(g, 'p0', { type: 'end-turn' });
     expect(getActivePlayerId(g)).toBe('p3');
   });
 

@@ -1717,3 +1717,16 @@
     display: none;
   }
 }
+
+/* Waiting your turn in the special build line. */
+.special-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}

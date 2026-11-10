@@ -22,6 +22,7 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
     .filter(vertex => {
       if (state.buildings[vertex.id] || !isLandVertex(state.board, vertex.id)) return false;
       if (vertex.edgeIds.some(id => state.buildings[otherEnd(index.edge.get(id)!, vertex.id)])) return false;
+      if (setup && vertex.noSetup) return false;
       if (setup)
         return !vertex.hexIds.some(id => {
           const hex = index.hex.get(id)!;
@@ -145,12 +146,6 @@ export function affordsDevelopment(state: GameState, player: Player): boolean {
   const cost = BUILD_COSTS.development;
   const missing = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - player.resources[r]), 0);
   return missing <= player.discoveries;
-}
-
-/** In the special build phase, would this player have anything to build? Players with nothing are skipped. */
-export function canSpecialBuild(state: GameState, playerId: string): boolean {
-  const legal = legalMoves({ ...state, phase: 'special-build', specialBuilder: playerId }, playerId);
-  return legal.development || [legal.settlements, legal.roads, legal.ships, legal.cities].some(list => list.length);
 }
 
 /** Moves the given seat may make right now. Empty unless it is that seat's turn. */

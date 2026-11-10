@@ -82,7 +82,14 @@ function cornerKeys(cell: Cell): string[] {
 }
 
 /** How lopsided a numbering is: hot corners, touching reds, repeated neighbors, uneven resources. */
-function numberingCost(cells: (Cell & { terrain: string })[], numbers: Map<string, number>): number {
+/** How many dots each step of a terrain's number richness (-2 to 2) moves its average. */
+const BIAS_PIPS = 0.9;
+
+function numberingCost(
+  cells: (Cell & { terrain: string })[],
+  numbers: Map<string, number>,
+  bias: Partial<Record<string, number>> = {},
+): number {
   let cost = 0;
   const corners = new Map<string, number>();
   const byResource = new Map<string, number[]>();
@@ -99,9 +106,13 @@ function numberingCost(cells: (Cell & { terrain: string })[], numbers: Map<strin
     byResource.set(cell.terrain, [...(byResource.get(cell.terrain) ?? []), pips(n)]);
   }
   for (const total of corners.values()) if (total > 11) cost += (total - 11) ** 2 * 2;
-  const averages = [...byResource.values()].map(list => list.reduce((a, b) => a + b, 0) / list.length);
-  const mean = averages.reduce((a, b) => a + b, 0) / Math.max(1, averages.length);
-  for (const a of averages) cost += (a - mean) ** 2;
+  const averages = [...byResource].map(([terrain, list]) => ({
+    terrain,
+    average: list.reduce((a, b) => a + b, 0) / list.length,
+  }));
+  const mean = averages.reduce((a, b) => a + b.average, 0) / Math.max(1, averages.length);
+  // Richer terrains aim above the board's average, poorer ones below.
+  for (const { terrain, average } of averages) cost += (average - mean - (bias[terrain] ?? 0) * BIAS_PIPS) ** 2 * 2;
   return cost;
 }
 
@@ -184,7 +195,11 @@ export function balancedNumbers(
   producing: NumberCell[],
   fixed: Map<string, number>,
   random: () => number,
-  { tries = 30, richness = 0 }: { tries?: number; richness?: number } = {},
+  {
+    tries = 30,
+    richness = 0,
+    bias,
+  }: { tries?: number; richness?: number; bias?: Partial<Record<string, number>> } = {},
 ): Map<string, number> {
   const isRich = (c: NumberCell) => richness > 0 && !!c.rich;
   const groups = [producing.filter(c => !isRich(c)), producing.filter(isRich)].filter(g => g.length);
@@ -199,12 +214,14 @@ export function balancedNumbers(
     return { open, pool: apportion(open.length, numberWeights(rich ? richness : 0), fixedCounts, random) };
   });
   let best: { cost: number; numbers: Map<string, number> } | null = null;
-  for (let attempt = 0; attempt < tries; attempt++) {
+  const attempts = bias && Object.keys(bias).length ? tries * 3 : tries;
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const numbers = new Map(fixed);
     for (const { open, pool } of pools) placeNumbers(open, pool, numbers, random);
     const cost = numberingCost(
       producing.filter(c => !isRich(c)),
       numbers,
+      bias,
     );
     if (!best || cost < best.cost) best = { cost, numbers };
   }

@@ -31,8 +31,20 @@ const defaultShare = (kind: FillKind | FogKind) =>
   (POOL_PRESETS.all as Record<string, number>)[kind] ?? FOG_POOL[kind as FogKind] ?? 1;
 
 /** One terrain's row: on/off, then its share (or, for icebergs, the percent of sea). */
-function PoolRow({ kind, value, set }: { kind: FillKind | FogKind; value: number; set: (n: number) => void }) {
+function PoolRow({
+  kind,
+  value,
+  set,
+  whole = false,
+}: {
+  kind: FillKind | FogKind;
+  value: number;
+  set: (n: number) => void;
+  /** Whole numbers (exact counts) instead of shares in tenths. */
+  whole?: boolean;
+}) {
   const iceberg = kind === 'iceberg';
+  const integer = iceberg || whole;
   return (
     <div
       className={`pool-row${value ? '' : ' off'}`}
@@ -50,14 +62,13 @@ function PoolRow({ kind, value, set }: { kind: FillKind | FogKind; value: number
         type="number"
         min={0}
         max={iceberg ? ICEBERG_MAX_PERCENT : 20}
-        step={iceberg ? 1 : 0.1}
-        aria-label={iceberg ? 'Iceberg percent of sea' : `${KIND_LABELS[kind]} share`}
+        step={integer ? 1 : 0.1}
+        aria-label={iceberg ? 'Iceberg percent of sea' : `${KIND_LABELS[kind]} ${whole ? 'count' : 'share'}`}
         value={value}
         onChange={e => {
           const n = Number(e.target.value) || 0;
-          set(
-            iceberg ? Math.round(Math.max(0, Math.min(ICEBERG_MAX_PERCENT, n))) : tenths(Math.max(0, Math.min(20, n))),
-          );
+          const top = iceberg ? ICEBERG_MAX_PERCENT : 20;
+          set(integer ? Math.round(Math.max(0, Math.min(top, n))) : tenths(Math.max(0, Math.min(20, n))));
         }}
       />
       {iceberg && <small>% sea</small>}
@@ -155,13 +166,36 @@ export default function BoardSettings({
       {hasFog && (
         <>
           <h3 className="fog-heading">Under the fog</h3>
-          <p className="inspector-hint">What fog tiles may turn out to be, as shares. Land also draws a number.</p>
+          <label className="check-row island-mix">
+            <input
+              type="checkbox"
+              checked={!!design.fogExact}
+              onChange={e =>
+                edit(d => {
+                  const { fogExact: _old, ...rest } = d;
+                  if (!e.target.checked) return rest;
+                  // Whole counts from here on.
+                  const counts = Object.fromEntries(
+                    Object.entries(d.fogPool ?? FOG_POOL).map(([k, n]) => [k, Math.round(n ?? 0)]),
+                  );
+                  return { ...rest, fogExact: true, fogPool: counts };
+                })
+              }
+            />
+            Exact counts ({counts.get('fog')} fog tile{counts.get('fog') === 1 ? '' : 's'})
+          </label>
+          <p className="inspector-hint">
+            {design.fogExact
+              ? 'Exactly this many of each, shuffled under the fog. Land also draws a number.'
+              : 'What fog tiles may turn out to be, as shares. Land also draws a number.'}
+          </p>
           <div className="pool-grid">
             {FOG_POOL_KINDS.map(kind => (
               <PoolRow
                 key={kind}
                 kind={kind}
                 value={fog[kind] ?? 0}
+                whole={design.fogExact}
                 set={n => edit(d => ({ ...d, fogPool: { ...(d.fogPool ?? FOG_POOL), [kind]: n } }), 'fog-pool')}
               />
             ))}

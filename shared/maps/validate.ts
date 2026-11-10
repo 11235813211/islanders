@@ -4,6 +4,7 @@ import { RICH_LEVELS } from './balance';
 import {
   type BoardCategory,
   type BoardDesign,
+  type BoardVersion,
   type DesignHarbor,
   type DesignKind,
   type DesignTile,
@@ -11,6 +12,7 @@ import {
   type Expansion,
   type FillKind,
   type FogKind,
+  type LinkRule,
   type Pool,
 } from './types';
 
@@ -83,7 +85,9 @@ function parseTile(v: unknown): DesignTile {
     if (pips.length && pips.length < 5) tile.pips = pips;
   }
   const l = link(t.link);
+  const notL = link(t.notLink);
   if (l && tile.kind !== 'sea' && tile.kind !== 'iceberg') tile.link = l;
+  else if (notL && tile.kind === 'land') tile.notLink = notL;
   if (t.noSetup === true) tile.noSetup = true;
   if (t.bonus !== undefined) {
     if (!int(t.bonus, 1, 3)) fail('Island bonuses are 1 to 3 points.');
@@ -105,7 +109,9 @@ function parseHarbor(v: unknown): DesignHarbor {
     kind: h.kind as DesignHarbor['kind'],
   };
   const l = link(h.link);
+  const notL = link(h.notLink);
   if (l && harbor.kind !== 'any') harbor.link = l;
+  else if (notL && harbor.kind === 'random') harbor.notLink = notL;
   return harbor;
 }
 
@@ -116,20 +122,7 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   const name = text(value.name, 40, 'Name');
   if (!name) fail('Give the board a name.');
   if (typeof value.categoryId !== 'string' || !categoryIds.includes(value.categoryId)) fail('Choose a category.');
-  const players = value.players as Record<string, unknown>;
-  if (
-    !record(players) ||
-    !int(players.min, 2, 6) ||
-    !int(players.max, 2, 6) ||
-    (players.min as number) > (players.max as number)
-  )
-    fail('Players must be a range within 2–6.');
-  if (!int(value.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max))
-    fail(`Points to win must be ${VICTORY_POINT_RANGE.min}–${VICTORY_POINT_RANGE.max}.`);
-  if (!Array.isArray(value.tiles) || value.tiles.length < 1 || value.tiles.length > DESIGN_LIMITS.tiles)
-    fail(`Use 1–${DESIGN_LIMITS.tiles} tiles.`);
-  if (!Array.isArray(value.harbors) || value.harbors.length > DESIGN_LIMITS.harbors)
-    fail(`Use at most ${DESIGN_LIMITS.harbors} harbors.`);
+  const layout = parseLayout(value);
   const pool = parsePool(value.pool, FILL_KINDS) as Pool;
   const islandPools: Record<string, Pool> = {};
   if (value.islandPools !== undefined) {
@@ -146,32 +139,92 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   if (value.swapNumbers !== undefined && typeof value.swapNumbers !== 'boolean') fail('Invalid number swap setting.');
   if (value.richIslands !== undefined && !int(value.richIslands, 0, RICH_LEVELS))
     fail('Invalid closed-island numbers.');
-  const expansions = value.expansions;
+  // "5–6 players" was once an expansion; the player count now decides it.
+  const expansions = Array.isArray(value.expansions)
+    ? value.expansions.filter(e => e !== 'five-six')
+    : value.expansions;
   if (
     expansions !== undefined &&
     (!Array.isArray(expansions) || !expansions.every(e => Object.hasOwn(EXPANSIONS, e as string)))
   )
     fail('Unknown expansion.');
+  const linkRules = value.linkRules === undefined ? [] : parseLinkRules(value.linkRules);
+  const numberBias: BoardDesign['numberBias'] = {};
+  if (value.numberBias !== undefined) {
+    if (!record(value.numberBias)) fail('Invalid number richness.');
+    for (const [kind, level] of Object.entries(value.numberBias as Record<string, unknown>)) {
+      if (!FILL_KINDS.includes(kind as FillKind) || !int(level, -2, 2)) fail('Number richness runs from -2 to 2.');
+      if (level) numberBias[kind as FillKind] = level as number;
+    }
+  }
+  if (value.versions !== undefined && (!Array.isArray(value.versions) || value.versions.length > 4))
+    fail('A board has at most four versions.');
+  const versions = ((value.versions as unknown[] | undefined) ?? []).map(v => parseLayout(record(v) ? v : {}));
   return {
     id: value.id as string,
     name,
     categoryId: value.categoryId as string,
     description: text(value.description ?? '', 120, 'Description'),
+    ...layout,
+    pool,
+    ...(Object.keys(islandPools).length ? { islandPools } : {}),
+    ...(fogPool ? { fogPool } : {}),
+    ...(value.fogExact === true ? { fogExact: true } : {}),
+    harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
+    ...(value.swapNumbers ? { swapNumbers: true } : {}),
+    ...(value.richIslands ? { richIslands: value.richIslands as number } : {}),
+    ...(expansions ? { expansions: [...new Set(expansions as Expansion[])] } : {}),
+    ...(linkRules.length ? { linkRules } : {}),
+    ...(Object.keys(numberBias).length ? { numberBias } : {}),
+    ...(versions.length ? { versions } : {}),
+    updatedAt: 0,
+  };
+}
+
+/** The parts a version for other player counts can change: players, points, tiles, harbors, starts. */
+function parseLayout(value: Record<string, unknown>): BoardVersion {
+  const players = value.players as Record<string, unknown>;
+  if (
+    !record(players) ||
+    !int(players.min, 2, 6) ||
+    !int(players.max, 2, 6) ||
+    (players.min as number) > (players.max as number)
+  )
+    fail('Players must be a range within 2–6.');
+  if (!int(value.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max))
+    fail(`Points to win must be ${VICTORY_POINT_RANGE.min}–${VICTORY_POINT_RANGE.max}.`);
+  if (!Array.isArray(value.tiles) || value.tiles.length < 1 || value.tiles.length > DESIGN_LIMITS.tiles)
+    fail(`Use 1–${DESIGN_LIMITS.tiles} tiles.`);
+  if (!Array.isArray(value.harbors) || value.harbors.length > DESIGN_LIMITS.harbors)
+    fail(`Use at most ${DESIGN_LIMITS.harbors} harbors.`);
+  const noStart = value.noStart ?? [];
+  if (!Array.isArray(noStart) || noStart.length > 200 || !noStart.every(k => typeof k === 'string' && CORNER.test(k)))
+    fail('Invalid no-start corners.');
+  return {
     players: { min: players.min as number, max: players.max as number },
     victoryPoints: value.victoryPoints as number,
     tiles: (value.tiles as unknown[]).map(parseTile),
     harbors: (value.harbors as unknown[]).map(parseHarbor),
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),
-    pool,
-    ...(Object.keys(islandPools).length ? { islandPools } : {}),
-    ...(fogPool ? { fogPool } : {}),
-    harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
-    ...(value.swapNumbers ? { swapNumbers: true } : {}),
-    ...(value.richIslands ? { richIslands: value.richIslands as number } : {}),
-    ...(expansions ? { expansions: [...new Set(expansions as Expansion[])] } : {}),
-    updatedAt: 0,
+    ...((noStart as string[]).length ? { noStart: [...new Set(noStart as string[])] } : {}),
   };
+}
+
+const CORNER = /^-?\d{1,2},-?\d{1,2},[0-5]$/;
+
+/** Rules between link letters: letters A–Z, terrains from the land mix, at most 20 rules. */
+function parseLinkRules(value: unknown): LinkRule[] {
+  if (!Array.isArray(value) || value.length > 20) return fail('Invalid link rules.');
+  return value.map(rule => {
+    if (!record(rule) || !Array.isArray(rule.links) || rule.links.length < 1 || rule.links.length > 26)
+      return fail('Invalid link rule.');
+    const links = [...new Set(rule.links.map(l => link(l)!))];
+    if (rule.kind === 'distinct') return { kind: 'distinct', links };
+    if (rule.kind !== 'in' || !Array.isArray(rule.terrains) || !rule.terrains.length) return fail('Invalid link rule.');
+    if (!rule.terrains.every(t => FILL_KINDS.includes(t as FillKind) && t !== 'iceberg')) fail('Invalid link rule.');
+    return { kind: 'in', links, terrains: [...new Set(rule.terrains as FillKind[])] };
+  });
 }
 
 /** Check an untrusted category list, or throw DesignError. */

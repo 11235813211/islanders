@@ -56,7 +56,7 @@ export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean 
 /** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
 export const isLargeGame = (players: number): boolean => players >= 5;
 /** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
-export const SPECIAL_BUILD_SECONDS = 30;
+export const SPECIAL_BUILD_SECONDS = 20;
 
 /** Resource cards of each kind in the bank: 19, or 24 with five or six players. */
 export function bankFor(players: number): ResourceBag {
