@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getActivePlayerId, getView, normalizeGame } from '../shared/engine';
+import { sinkShip } from '../shared/engine/production';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { longestRoad, victoryPoints } from '../shared/rules';
 import { ERUPTION_CORNER, isRoadEdge, isShipEdge } from '../shared/seafaring';
@@ -100,8 +101,12 @@ describe('ships', () => {
     expect(conserved(g)).toBe(true);
   });
 
-  it('do not continue from a road without a settlement between them', () => {
+  it.each([
+    ['anywhere', true],
+    ['settlement', false],
+  ] as const)('continue from the end of a road when roads meet ships %s: %s', (routeLinks, continues) => {
     const g = building(g => {
+      g.settings.routeLinks = routeLinks;
       const wood = hexOf(g, 'wood');
       g.buildings[wood.vertexIds[1]!] = { playerId: 'p0', kind: 'settlement' };
       // A road from the bottom corner up to the top-left corner; its far end touches the sea.
@@ -110,8 +115,11 @@ describe('ships', () => {
       grant(g, 'p0', { wood: 2, sheep: 2 });
     });
     const tip = hexOf(g, 'wood').vertexIds[3]!;
-    expect(getView(g, 'p0').legal.ships.some(id => g.board.edges.find(e => e.id === id)!.a === tip)).toBe(false);
-    expect(getView(g, 'p0').legal.ships.some(id => g.board.edges.find(e => e.id === id)!.b === tip)).toBe(false);
+    const fromTip = getView(g, 'p0').legal.ships.some(id => {
+      const edge = g.board.edges.find(e => e.id === id)!;
+      return edge.a === tip || edge.b === tip;
+    });
+    expect(fromTip).toBe(continues);
   });
 
   it('move one open-ended ship per turn, not one built this turn, and never beside the pirate', () => {
@@ -251,10 +259,15 @@ describe('islands and the trade route', () => {
     expect(getView(next, 'p1').players[0]!.publicPoints).toBe(3);
   });
 
-  it("a road can't start from the end of a ship", () => {
-    const g = building();
+  /**
+   * p0's settlement on the shore, a ship along the forest's coast to the next shore corner (`tip`),
+   * and `roadEdge`, the land–land edge from that corner (it only takes a road).
+   */
+  function shipToShore(routeLinks: GameState['settings']['routeLinks']) {
+    const g = building(g => {
+      g.settings.routeLinks = routeLinks;
+    });
     const terrain = new Map(g.board.hexes.map(h => [h.id, h.terrain]));
-    // A shore corner of the forest between two land tiles: its land–land edge only takes a road.
     const tip = g.board.vertices.find(
       v =>
         v.hexIds.length === 3 &&
@@ -266,21 +279,63 @@ describe('islands and the trade route', () => {
     const edge = g.board.edges.find(e => e.id === shipEdge)!;
     g.buildings[edge.a === tip.id ? edge.b : edge.a] = { playerId: 'p0', kind: 'settlement' };
     g.ships[shipEdge] = 'p0';
+    g.shipsBuilt = [];
+    g.pirate = null;
     grant(g, 'p0', { wood: 1, brick: 1 });
-    expect(getView(g, 'p0').legal.roads).not.toContain(roadEdge);
-    g.buildings[tip.id] = { playerId: 'p0', kind: 'settlement' };
+    return { g, tip: tip.id, roadEdge, shipEdge };
+  }
+
+  it('by default a road may start from the end of a ship', () => {
+    const { g, roadEdge } = shipToShore('anywhere');
     expect(getView(g, 'p0').legal.roads).toContain(roadEdge);
   });
 
-  it('roads and ships join only at their owner’s settlement', () => {
-    const g = building();
+  it("under the published rule a road can't start from the end of a ship", () => {
+    const { g, tip, roadEdge } = shipToShore('settlement');
+    expect(getView(g, 'p0').legal.roads).not.toContain(roadEdge);
+    g.buildings[tip] = { playerId: 'p0', kind: 'settlement' };
+    expect(getView(g, 'p0').legal.roads).toContain(roadEdge);
+  });
+
+  it.each([
+    ['anywhere', false],
+    ['settlement', true],
+  ] as const)('a ship whose far end meets your road may move (roads meet ships %s): %s', (routeLinks, moves) => {
+    const { g, roadEdge, shipEdge } = shipToShore(routeLinks);
+    g.roads[roadEdge] = 'p0';
+    expect(shipEdge in getView(g, 'p0').legal.shipMoves).toBe(moves);
+  });
+
+  it.each([
+    ['anywhere', 2],
+    ['settlement', 1],
+  ] as const)('a road and a ship count as one route without a settlement between (%s): %s', (routeLinks, length) => {
+    const g = building(g => {
+      g.settings.routeLinks = routeLinks;
+    });
     const wood = hexOf(g, 'wood');
     const [a, b, c] = [wood.vertexIds[2]!, wood.vertexIds[3]!, wood.vertexIds[4]!];
     g.roads[edgeBetween(g, a, b)] = 'p0';
     g.ships[edgeBetween(g, b, c)] = 'p0';
-    expect(longestRoad(g, 'p0')).toBe(1);
+    expect(longestRoad(g, 'p0')).toBe(length);
     g.buildings[b] = { playerId: 'p0', kind: 'settlement' };
     expect(longestRoad(g, 'p0')).toBe(2);
+  });
+
+  it('by default a ship joined to your settlement through a road is not stranded when another sinks', () => {
+    const { g, tip, roadEdge, shipEdge } = shipToShore('anywhere');
+    g.roads[roadEdge] = 'p0';
+    // The road leads inland to another of p0's settlements.
+    const road = g.board.edges.find(e => e.id === roadEdge)!;
+    g.buildings[road.a === tip ? road.b : road.a] = { playerId: 'p0', kind: 'settlement' };
+    // A second ship out from the tip; sinking the first leaves it joined through the road only.
+    const next = g.board.vertices
+      .find(v => v.id === tip)!
+      .edgeIds.find(id => id !== shipEdge && isShipEdge(g.board, id))!;
+    g.ships[next] = 'p0';
+    sinkShip(g, shipEdge);
+    expect(g.ships[shipEdge]).toBeUndefined();
+    expect(g.ships[next]).toBe('p0');
   });
 });
 

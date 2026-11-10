@@ -2,6 +2,7 @@ import { shuffled } from './board';
 import {
   type DevelopmentCard,
   type DevelopmentType,
+  type GameSettings,
   type GameState,
   RESOURCES,
   type Resource,
@@ -36,6 +37,13 @@ export function tradeRates(state: GameState, playerId: string): Record<Resource,
  * Longest trade route: a trail of roads and ships that never repeats an edge. Opponent buildings
  * break it, and it may switch between road and ship only at its owner's settlement or city.
  */
+/**
+ * Roads and ships join at any corner of your route (the room default), or, under the published
+ * Seafarers rule, only at your own settlement or city.
+ */
+export const linksAnywhere = (state: { settings: Pick<GameSettings, 'routeLinks'> }): boolean =>
+  state.settings.routeLinks !== 'settlement';
+
 export function longestRoad(state: GameState, playerId: string): number {
   const own = (id: string): 'road' | 'ship' | null =>
     state.roads[id] === playerId ? 'road' : state.ships?.[id] === playerId ? 'ship' : null;
@@ -49,7 +57,7 @@ export function longestRoad(state: GameState, playerId: string): number {
     for (const edge of incident.get(vertex) ?? []) {
       if (used.has(edge.id)) continue;
       const next = own(edge.id)!;
-      if (kind && next !== kind && building?.playerId !== playerId) continue;
+      if (kind && next !== kind && building?.playerId !== playerId && !linksAnywhere(state)) continue;
       used.add(edge.id);
       best = Math.max(best, 1 + walk(edge.a === vertex ? edge.b : edge.a, used, next));
       used.delete(edge.id);

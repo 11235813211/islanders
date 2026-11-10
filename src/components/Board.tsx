@@ -98,8 +98,14 @@ function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null
   return [];
 }
 
-function hintFor(mode: BoardMode, hexes: number, edges: number, moveFrom: string | null | undefined): string {
-  if (hexes) return 'Choose a tile for the robber or the pirate';
+function hintFor(
+  view: GameView,
+  mode: BoardMode,
+  hexes: number,
+  edges: number,
+  moveFrom: string | null | undefined,
+): string {
+  if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
   if (edges) return mode === 'ship' ? 'Choose a highlighted sea edge' : 'Choose a highlighted edge';
   return mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner';
@@ -363,7 +369,7 @@ export default function Board({
       {showHint && (
         <div className="board-placement-hint" role="status">
           <span />
-          {hintFor(mode, hexTargets.size, edgeTargets.size, moveFrom)}
+          {hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom)}
         </div>
       )}
     </div>

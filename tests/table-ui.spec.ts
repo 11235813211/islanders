@@ -335,3 +335,13 @@ test('cards from a roll fly into the hand without first popping in and out', asy
   const seen = await page.evaluate(() => (window as unknown as { seen: { spent: number } }).seen);
   expect(seen.spent).toBe(0);
 });
+
+test('without Seafarers the robber hint names only the robber', async ({ page }) => {
+  const g = richGame();
+  g.phase = 'robber';
+  g.robberDeadline = Date.now() + 15_000;
+  await mountGame(page, g);
+  const hint = page.locator('.board-placement-hint');
+  await expect(hint).toHaveText('Choose a tile for the robber');
+  await expect(page.getByText(/pirate/)).toHaveCount(0);
+});

@@ -14,6 +14,8 @@ test('a guest without a name gets one from the list, picks a color, and sets the
   await expect(page.locator('.lobby-player span').first()).toContainText('Purple');
 
   await expect(page.getByLabel('Number layout', { exact: true })).toHaveValue('ordered');
+  // No Seafarers on the standard island: nothing about ships.
+  await expect(page.getByLabel('Roads meet ships', { exact: true })).toBeHidden();
   const points = page.getByRole('group', { name: 'Points to win' });
   await points.getByRole('button', { name: 'More points to win' }).click();
   await expect(points.locator('output')).toHaveText('11');

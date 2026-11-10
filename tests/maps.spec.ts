@@ -32,6 +32,8 @@ test('the host picks a map from the picker; it shows in the lobby with its point
   await expect(page.getByRole('group', { name: 'Points to win' }).locator('output')).toHaveText('13');
   await expect(page.getByRole('note')).toContainText('made for 3–4 players');
   await expect(page.getByLabel('Number layout', { exact: true })).toBeHidden();
+  // A Seafarers map: roads and ships may meet anywhere unless the host picks the published rule.
+  await expect(page.getByLabel('Roads meet ships', { exact: true })).toHaveValue('anywhere');
 
   // Two bots make three players: the warning goes away, and the game starts on the sea map.
   await page.getByRole('button', { name: 'Add bot' }).click();

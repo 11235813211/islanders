@@ -1,4 +1,5 @@
 import { shuffled } from '../board';
+import { linksAnywhere } from '../rules';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type ResourceBag } from '../types';
 import { addLog, bumpStat, emptyBag, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
@@ -146,6 +147,12 @@ export function drift(state: GameState, total: number, random: () => number): vo
   }
 }
 
+/** A piece of the player's route: their ship, or their road when roads and ships join anywhere. */
+const routePiece = (state: GameState, playerId: string) => {
+  const roads = linksAnywhere(state);
+  return (edgeId: string) => state.ships[edgeId] === playerId || (roads && state.roads[edgeId] === playerId);
+};
+
 /**
  * Sink one ship. If that splits its owner's route, the ships beyond the gap slide back toward
  * their settlement, so the ship that is lost is the far end of the route and none are stranded.
@@ -157,7 +164,8 @@ export function sinkShip(state: GameState, edgeId: string): void {
   if (!stranded.size) return;
   state.ships[edgeId] = owner;
   const index = boardIndex(state.board);
-  // The far end: the stranded ship the most ship-steps from the gap.
+  const onRoute = routePiece(state, owner);
+  // The far end: the stranded ship the most steps along the route from the gap.
   const distance = new Map<string, number>([[edgeId, 0]]);
   const queue = [edgeId];
   while (queue.length) {
@@ -165,7 +173,7 @@ export function sinkShip(state: GameState, edgeId: string): void {
     const edge = index.edge.get(id)!;
     for (const v of [edge.a, edge.b])
       for (const next of index.vertex.get(v)!.edgeIds)
-        if (state.ships[next] === owner && !distance.has(next)) {
+        if (onRoute(next) && !distance.has(next)) {
           distance.set(next, distance.get(id)! + 1);
           queue.push(next);
         }
@@ -174,12 +182,13 @@ export function sinkShip(state: GameState, edgeId: string): void {
   delete state.ships[far];
 }
 
-/** A player's ships no longer joined (ship to ship) to one of their settlements or cities. */
+/** A player's ships no longer joined along their route to one of their settlements or cities. */
 function strandedShips(state: GameState, playerId: string): Set<string> {
   const index = boardIndex(state.board);
-  const mine = Object.keys(state.ships).filter(id => state.ships[id] === playerId);
+  const onRoute = routePiece(state, playerId);
+  const route = state.board.edges.map(edge => edge.id).filter(onRoute);
   const reached = new Set<string>();
-  const queue = mine.filter(id => {
+  const queue = route.filter(id => {
     const edge = index.edge.get(id)!;
     return [edge.a, edge.b].some(v => state.buildings[v]?.playerId === playerId);
   });
@@ -189,11 +198,11 @@ function strandedShips(state: GameState, playerId: string): Set<string> {
     for (const v of [edge.a, edge.b]) {
       if (state.buildings[v] && state.buildings[v]!.playerId !== playerId) continue;
       for (const next of index.vertex.get(v)!.edgeIds)
-        if (state.ships[next] === playerId && !reached.has(next)) {
+        if (onRoute(next) && !reached.has(next)) {
           reached.add(next);
           queue.push(next);
         }
     }
   }
-  return new Set(mine.filter(id => !reached.has(id)));
+  return new Set(Object.keys(state.ships).filter(id => state.ships[id] === playerId && !reached.has(id)));
 }

@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   seafarers: false,
   volcanoStart: true,
   volcanoDice: 'random',
+  routeLinks: 'anywhere',
 };
 /** Trade offer lengths the lobby offers. */
 export const TRADE_SECONDS = [15, 30, 45, 60, 90, 120] as const;
@@ -92,7 +93,8 @@ export function validSettings(
     (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&
     (s.seafarers === undefined || typeof s.seafarers === 'boolean') &&
     (s.volcanoStart === undefined || typeof s.volcanoStart === 'boolean') &&
-    (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string))
+    (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string)) &&
+    (s.routeLinks === undefined || ['anywhere', 'settlement'].includes(s.routeLinks as string))
   );
 }
 

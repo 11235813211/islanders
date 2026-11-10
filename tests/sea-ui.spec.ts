@@ -153,6 +153,9 @@ test('the robber previews where it was put; cancel puts it back, confirm moves i
   const game = await mountGame(page, g);
   const before = game.state().robber;
   await expect(page.getByText(/Move the robber or pirate · \d+s/)).toBeVisible();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Choose a tile for the robber or the pirate' }),
+  ).toBeVisible();
   await page
     .getByRole('button', { name: /^Move robber to/ })
     .first()

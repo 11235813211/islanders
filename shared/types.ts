@@ -194,6 +194,8 @@ export interface GameSettings {
   volcanoStart: boolean;
   /** Eruption dice: plain random, or balanced (each volcano works through all six faces before repeating). */
   volcanoDice: 'random' | 'balanced';
+  /** Seafarers: where a road and a ship may join. `settlement` is the published rule (only at your own building). */
+  routeLinks: 'anywhere' | 'settlement';
 }
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {

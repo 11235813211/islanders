@@ -10,6 +10,7 @@ import {
   Minus,
   Mountain,
   Plus,
+  Route,
   Sailboat,
   Shield,
   Timer,
@@ -63,6 +64,20 @@ export const CATEGORIES: Category[] = [
           !on && view.features.sea
             ? 'This map is made for Seafarers. Without it there are no ships or pirate, so other islands can’t be reached. Turn Seafarers off anyway?'
             : null,
+      },
+      {
+        key: 'routeLinks',
+        label: 'Roads meet ships',
+        hint: 'Anywhere along your route, or only at your settlement or city (the published rule).',
+        icon: <Route size={20} />,
+        when: view => view.seafaring,
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'anywhere', label: 'Anywhere' },
+            { value: 'settlement', label: 'At a settlement' },
+          ],
+        },
       },
       {
         key: 'volcanoStart',

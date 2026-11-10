@@ -1,4 +1,4 @@
-import { victoryPoints } from '../rules';
+import { linksAnywhere, victoryPoints } from '../rules';
 import { boardIndex, isLandTerrain, isLandVertex, isRoadEdge, isShipEdge, otherEnd } from '../seafaring';
 import { type GameState, type LegalMoves, type Player, RESOURCES } from '../types';
 import {
@@ -33,13 +33,17 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
     .map(vertex => vertex.id);
 }
 
-/** Can a route of `kind` continue from this corner? Through your own building, or along your own piece of that kind. */
+/**
+ * Can a route of `kind` continue from this corner? Through your own building, or along your own
+ * piece of that kind (or of either kind, when the room lets roads and ships join anywhere).
+ */
 function reaches(state: GameState, playerId: string, vertexId: string, kind: 'roads' | 'ships', skip?: string) {
   const building = state.buildings[vertexId];
   if (building) return building.playerId === playerId;
+  const kinds = linksAnywhere(state) ? (['roads', 'ships'] as const) : [kind];
   return boardIndex(state.board)
     .vertex.get(vertexId)!
-    .edgeIds.some(id => id !== skip && state[kind][id] === playerId);
+    .edgeIds.some(id => id !== skip && kinds.some(k => state[k][id] === playerId));
 }
 
 export function roadSites(state: GameState, playerId: string, setup: boolean): string[] {
@@ -77,16 +81,17 @@ export function shipSites(state: GameState, playerId: string, setup: boolean, mo
 
 /**
  * The last ship of an open route: one of its corners has neither your building nor another of
- * your ships (a route closed by settlements at both ends stays put). It may move anywhere a new
- * ship could go, beside any of your settlements or ships.
+ * your ships (nor your road, when roads and ships join anywhere), so a route closed at both ends
+ * stays put. It may move anywhere a new ship could go, beside any of your settlements or ships.
  */
 function movableEnd(state: GameState, playerId: string, edgeId: string): boolean {
   const index = boardIndex(state.board);
   const edge = index.edge.get(edgeId)!;
+  const roads = linksAnywhere(state);
+  const joined = (other: string) =>
+    other !== edgeId && (state.ships[other] === playerId || (roads && state.roads[other] === playerId));
   return [edge.a, edge.b].some(
-    id =>
-      state.buildings[id]?.playerId !== playerId &&
-      !index.vertex.get(id)!.edgeIds.some(other => other !== edgeId && state.ships[other] === playerId),
+    id => state.buildings[id]?.playerId !== playerId && !index.vertex.get(id)!.edgeIds.some(joined),
   );
 }
 
