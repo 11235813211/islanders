@@ -372,7 +372,10 @@ export interface LegalMoves {
 export interface MapInfo {
   id: string;
   name: string;
-  players: { min: number; max: number };
+  /** The player counts of each of the map's layouts, fewest first. */
+  layouts: { min: number; max: number }[];
+  /** The layout the host chose, or null to play the one that fits the table. */
+  layout: { min: number; max: number } | null;
 }
 export interface GameView {
   roomId: string;
@@ -460,7 +463,8 @@ export type GameAction =
   | { type: 'build-ship'; edgeId: string }
   | { type: 'move-ship'; from: string; to: string }
   | { type: 'choose-gold'; resources: ResourceBag }
-  | { type: 'choose-map'; mapId: string }
+  /** `layoutFor`: play the map's layout made for this many players, whatever the table's size. */
+  | { type: 'choose-map'; mapId: string; layoutFor?: number }
   | { type: 'roll' }
   | { type: 'roll-volcanoes' }
   | { type: 'build-road'; edgeId: string }

@@ -28,6 +28,7 @@ export default function MapBrowser({
   error,
   players,
   currentId = null,
+  currentLayout = null,
   canChoose = false,
   choose = () => {},
   close,
@@ -40,8 +41,11 @@ export default function MapBrowser({
   /** The room's player count, for warnings and the default filter. */
   players: number;
   currentId?: string | null;
+  /** The layout of the current map the host picked, or null when the table's size picks it. */
+  currentLayout?: { min: number; max: number } | null;
   canChoose?: boolean;
-  choose?: (design: BoardDesign) => void;
+  /** `layoutFor`: the host picked the layout made for this many players (maps with several layouts). */
+  choose?: (design: BoardDesign, layoutFor?: number) => void;
   close: () => void;
   closeLabel?: string;
   /** Shows a Home button that leaves this screen entirely (the editor's browser). */
@@ -120,7 +124,8 @@ export default function MapBrowser({
           players={players}
           canChoose={canChoose}
           current={open.id === currentId}
-          choose={() => choose(open)}
+          currentLayout={currentLayout}
+          choose={layoutFor => choose(open, layoutFor)}
           back={() => setOpen(null)}
         />
       ) : (

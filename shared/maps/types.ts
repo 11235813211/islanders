@@ -108,6 +108,10 @@ export function designFor(design: BoardDesign, players: number): BoardDesign {
   return version ? { ...design, ...version } : design;
 }
 
+/** "3–4", or "3" when the range is one number. */
+export const playerRange = (p: { min: number; max: number }): string =>
+  p.min === p.max ? `${p.min}` : `${p.min}–${p.max}`;
+
 /** Every player count the board (or one of its versions) is made for, fewest players first. */
 export function playerRanges(design: Pick<BoardDesign, 'players' | 'versions'>): { min: number; max: number }[] {
   return [design.players, ...(design.versions ?? []).map(v => v.players)].sort((a, b) => a.min - b.min);

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, getView } from '../shared/engine';
+import { applyAction, getView, normalizeGame } from '../shared/engine';
 import { buildBoard, designFor, parseDesign, tileKey } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
 import { noStartPoints, toggleNoStart } from '../shared/maps/edit';
 import { setNotLinks } from '../shared/maps/fill';
 import type { BoardDesign } from '../shared/maps/types';
+import type { GameState } from '../shared/types';
 import { makeLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /** Link rules, "Not A", no-start corners, versions for other player counts, and number richness. */
@@ -88,10 +89,76 @@ describe('versions for other player counts', () => {
     g = applyAction(g, 'p0', { type: 'start' }, seeded(), TEST_NOW);
     expect(g.board.hexes.filter(h => h.terrain !== 'sea')).toHaveLength(8);
     expect(g.settings.victoryPoints).toBe(14);
-    expect(g.map?.players).toEqual({ min: 3, max: 6 });
+    expect(g.map).toMatchObject({
+      layouts: [
+        { min: 3, max: 4 },
+        { min: 5, max: 6 },
+      ],
+      layout: null,
+    });
     expect(parseDesign(design, ['seafaring']).versions).toHaveLength(1);
   });
+
+  it('a layout the host picks is played whatever the table size, with its points', () => {
+    const design = twoLayouts();
+    let g = applyAction(
+      makeLobby(3),
+      'p0',
+      { type: 'choose-map', mapId: design.id, layoutFor: 5 },
+      seeded(),
+      TEST_NOW,
+      {
+        design,
+      },
+    );
+    expect(g.map?.layout).toEqual({ min: 5, max: 6 });
+    expect(g.settings.victoryPoints).toBe(14);
+    g = applyAction(g, 'p0', { type: 'start' }, seeded(), TEST_NOW);
+    expect(g.board.hexes.filter(h => h.terrain !== 'sea')).toHaveLength(8);
+    expect(g.settings.victoryPoints).toBe(14);
+  });
+
+  it('picking another layout of the same map changes the points; a count with no layout is refused', () => {
+    const design = twoLayouts();
+    const choose = (g: GameState, layoutFor?: number) =>
+      applyAction(g, 'p0', { type: 'choose-map', mapId: design.id, layoutFor }, seeded(), TEST_NOW, { design });
+    let g = choose(makeLobby(3), 5);
+    g = choose(g, 3);
+    expect(g.map?.layout).toEqual({ min: 3, max: 4 });
+    expect(g.settings.victoryPoints).toBe(12);
+    expect(() => choose(g, 2)).toThrow(/no layout/);
+  });
+
+  it('rooms saved with one player range for the map load with each layout listed', () => {
+    const design = twoLayouts();
+    const g = applyAction(makeLobby(3), 'p0', { type: 'choose-map', mapId: design.id }, seeded(), TEST_NOW, { design });
+    const old = structuredClone(g) as unknown as Record<string, unknown>;
+    old.map = { id: design.id, name: design.name, players: { min: 3, max: 6 } };
+    old.schemaVersion = 6;
+    const loaded = normalizeGame(old as unknown as GameState, TEST_NOW);
+    expect(loaded.map).toEqual({
+      id: design.id,
+      name: design.name,
+      layouts: [
+        { min: 3, max: 4 },
+        { min: 5, max: 6 },
+      ],
+      layout: null,
+    });
+  });
 });
+
+/** A 3–4 player map (2 land tiles, 12 points) with a 5–6 player version (8 land tiles, 14 points). */
+function twoLayouts(): BoardDesign {
+  const base = testDesign(['~ ~ ~ ~', ' ~ L L ~', '~ ~ ~ ~'], { players: { min: 3, max: 4 }, victoryPoints: 12 });
+  const big = testDesign(['~ ~ ~ ~ ~ ~', ' ~ L L L L ~', '~ L L L L ~', ' ~ ~ ~ ~ ~ ~']);
+  return {
+    ...base,
+    versions: [
+      { players: { min: 5, max: 6 }, victoryPoints: 14, tiles: big.tiles, harbors: [], robber: null, pirate: null },
+    ],
+  };
+}
 
 describe('number richness by terrain', () => {
   it('a richer terrain gets better numbers on average than a poorer one', () => {

@@ -1,9 +1,9 @@
 import { ISLAND_ROWS, islandCells } from '../../../shared/board';
 import type { BoardDesign, BoardLibrary } from '../../../shared/maps';
-import { BASE_POOL, playerRanges } from '../../../shared/maps';
+import { BASE_POOL, playerRange, playerRanges } from '../../../shared/maps';
+import type { MapInfo } from '../../../shared/types';
 
-/** "3–4", or "3" when the range is one number. */
-export const playerRange = (p: { min: number; max: number }) => (p.min === p.max ? `${p.min}` : `${p.min}–${p.max}`);
+export { playerRange };
 
 /** True when a room of `count` players is outside every range the map (or one of its versions) is made for. */
 export const playersMismatch = (design: Pick<BoardDesign, 'players' | 'versions'>, count: number) =>
@@ -12,6 +12,23 @@ export const playersMismatch = (design: Pick<BoardDesign, 'players' | 'versions'
 /** "3–4, 5–6": every player count a map has a layout for. */
 export const playersLabel = (design: Pick<BoardDesign, 'players' | 'versions'>) =>
   playerRanges(design).map(playerRange).join(', ');
+
+const fits = (range: { min: number; max: number }, count: number) => count >= range.min && count <= range.max;
+
+/** The room's chosen map's player counts: the layout the host picked, or every layout. */
+export const roomMapPlayers = (map: MapInfo) =>
+  map.layout ? playerRange(map.layout) : map.layouts.map(playerRange).join(', ');
+
+/** The lobby's warning when the chosen map (or the layout the host picked) doesn't fit the room, else null. */
+export function roomMapWarning(map: MapInfo, players: number): string | null {
+  if (map.layout)
+    return fits(map.layout, players)
+      ? null
+      : `${map.name}: the ${playerRange(map.layout)} player map is chosen. This room has ${players}.`;
+  return map.layouts.some(range => fits(range, players))
+    ? null
+    : `${map.name} is made for ${roomMapPlayers(map)} players. This room has ${players}.`;
+}
 
 /** A preview of the base game's island, as plain land (the layout is drawn at the start). */
 function baseIsland(large: boolean): BoardDesign {

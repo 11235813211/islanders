@@ -108,6 +108,20 @@ test('a map with layouts for other player counts shows one at a time, with arrow
     await expect(picker.locator('.map-layout-players')).toHaveText('5–6 players');
     await expect(picker.getByRole('button', { name: 'Use this 5–6 player map' })).toBeVisible();
     await page.screenshot({ path: 'test-results/map-layouts.png' });
+
+    // Choosing the 5–6 player layout with a smaller room warns in the lobby, even though the
+    // map has a layout for fewer players.
+    await picker.getByRole('button', { name: 'Use this 5–6 player map' }).click();
+    await expect(picker).toBeHidden();
+    await expect(page.locator('.mode-card p')).toContainText('5–6 players');
+    await page.getByRole('button', { name: 'Add bot' }).click();
+    await expect(page.getByRole('note')).toContainText('Layout test: the 5–6 player map is chosen. This room has 2.');
+    // Back in the picker, that layout is the room's; the 2 player one can be chosen instead.
+    await page.getByRole('button', { name: 'Maps', exact: true }).click();
+    await picker.getByRole('button', { name: 'View Layout test' }).click();
+    await expect(picker.locator('.map-layout-players')).toHaveText('2 players');
+    await picker.getByRole('button', { name: 'Use this 2 player map' }).click();
+    await expect(page.getByRole('note')).toBeHidden();
   } finally {
     await page.request.delete(`${server}/api/boards/${id}`, { headers });
   }

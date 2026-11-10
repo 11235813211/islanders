@@ -60,14 +60,19 @@ export default function MapDetail({
   players,
   canChoose,
   current,
+  currentLayout,
   choose,
   back,
 }: {
   design: BoardDesign;
   players: number;
   canChoose: boolean;
+  /** This map is the room's map. */
   current: boolean;
-  choose: () => void;
+  /** The layout of the room's map the host picked, if any. */
+  currentLayout: { min: number; max: number } | null;
+  /** Choose this map; `layoutFor` picks the shown layout when the map has several. */
+  choose: (layoutFor?: number) => void;
   back: () => void;
 }) {
   const layouts = layoutsOf(design);
@@ -80,7 +85,8 @@ export default function MapDetail({
   const shown = layouts[index] ?? design;
   const several = layouts.length > 1;
   const range = playerRange(shown.players);
-  const played = layouts.find(layout => fits(layout, players));
+  const mismatch = playersMismatch(design, players);
+  const inUse = current && (!several || currentLayout?.min === shown.players.min);
   const land = shown.tiles.filter(t => t.kind !== 'sea' && t.kind !== 'iceberg').length;
   return (
     <div className="map-detail">
@@ -111,23 +117,29 @@ export default function MapDetail({
             {!boardExpansions(design).length && 'Base game only'}
           </dd>
         </dl>
-        {playersMismatch(design, players) && (
+        {mismatch && (
           <p className="map-warning" role="note">
             <AlertTriangle size={17} />
             Made for {playersLabel(design)} players. This room has {players}.
           </p>
         )}
-        {several && played && played !== shown && (
-          <p className="map-note">
-            This room has {players} players, so it plays the {playerRange(played.players)} player map.
+        {several && !mismatch && !fits(shown, players) && (
+          <p className="map-warning" role="note">
+            <AlertTriangle size={17} />
+            This layout is made for {range} players. This room has {players}.
           </p>
         )}
         <p className="map-note">Tiles, numbers, and harbors marked “?” are drawn at random when the game starts.</p>
         <FogSummary design={shown} />
         {canChoose && (
-          <button type="button" className="button primary full" disabled={current} onClick={choose}>
+          <button
+            type="button"
+            className="button primary full"
+            disabled={inUse}
+            onClick={() => choose(several ? shown.players.min : undefined)}
+          >
             <Check size={18} />
-            {current ? 'This room’s map' : several ? `Use this ${range} player map` : 'Use this map'}
+            {inUse ? 'This room’s map' : several ? `Use this ${range} player map` : 'Use this map'}
           </button>
         )}
       </aside>

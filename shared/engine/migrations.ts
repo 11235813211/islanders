@@ -1,5 +1,6 @@
 import { generateHarbors } from '../board';
 import { firstFreeColor, isPlayerColor } from '../colors';
+import { playerRanges } from '../maps/types';
 import { developmentDeck, updateAwards } from '../rules';
 import { DEFAULT_SETTINGS } from '../settings';
 import type { GameSettings, GameState } from '../types';
@@ -97,6 +98,16 @@ const MIGRATIONS: Migration[] = [
     s.robberDeadline ??= null;
     s.specialQueue ??= [];
     s.specialAsked ??= [];
+  },
+  // 6 → 7: a chosen map lists each layout's player counts, and which layout the host picked.
+  s => {
+    if (s.map && !s.map.layouts)
+      s.map = {
+        id: s.map.id,
+        name: s.map.name,
+        layouts: s.design ? playerRanges(s.design) : [s.map.players],
+        layout: null,
+      };
   },
 ];
 

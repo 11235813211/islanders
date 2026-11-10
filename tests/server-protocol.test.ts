@@ -122,6 +122,11 @@ describe('public protocol boundary', () => {
     expect(hash).toMatch(/^[a-f0-9]{64}$/);
     expect(hash).not.toBe(token);
     expect(await hashToken(token)).toBe(hash);
-    for (let i = 0; i < 100; i++) expect(ROOM_PATTERN.test(roomCode())).toBe(true);
+    for (let i = 0; i < 100; i++) {
+      const code = roomCode();
+      expect(ROOM_PATTERN.test(code)).toBe(true);
+      // The number never starts with 0 (LUMBER02 is never made).
+      expect(code).toMatch(/[A-Z][1-9]\d$/);
+    }
   });
 });

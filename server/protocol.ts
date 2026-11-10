@@ -189,6 +189,7 @@ export async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+/** A new room's code: a word and two digits, like LUMBER42. */
 export function roomCode(): string {
   const words = [
     'ANCHOR',
@@ -302,7 +303,8 @@ export function roomCode(): string {
     'YARROW',
     'ZEPHYR',
   ];
-  return `${words[randomIndex(words.length)]}${randomIndex(100).toString().padStart(2, '0')}`;
+  // 10–99: a number never starts with 0, which reads like the letter O.
+  return `${words[randomIndex(words.length)]}${10 + randomIndex(90)}`;
 }
 
 function randomIndex(length: number): number {

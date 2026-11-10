@@ -1,7 +1,7 @@
 import { assignNumbers, generateBoard } from '../board';
 import { firstFreeColor } from '../colors';
 import { buildBoard } from '../maps/generate';
-import { type BoardDesign, boardExpansions, designFor, playerRanges } from '../maps/types';
+import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
@@ -27,9 +27,11 @@ export function boardFor(
   random: () => number,
   players = 4,
   seafarers = !!design,
+  /** Play the layout made for this many players instead of the one that fits `players`. */
+  layoutFor?: number,
 ): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   if (design) {
-    const built = buildBoard(designFor(design, players), random);
+    const built = buildBoard(designFor(design, layoutFor ?? players), random);
     return seafarers ? built : { ...built, pirate: null };
   }
   const board = generateBoard(random, layout, isLargeGame(players), seafarers);
@@ -42,18 +44,21 @@ export function boardFor(
   };
 }
 
-/** The player counts a map (with its versions) is made for, as one range. */
-const coveredPlayers = (design: BoardDesign) => {
-  const ranges = playerRanges(design);
-  return { min: Math.min(...ranges.map(r => r.min)), max: Math.max(...ranges.map(r => r.max)) };
-};
+/**
+ * How many players the map's layout is picked for: the host's chosen layout, or the table's size
+ * (designFor then plays the layout that fits it).
+ */
+const layoutCount = (next: GameState) => next.map?.layout?.min ?? next.players.length;
 
 /** The board, bank, and development deck for the seats at the table (five or six get more of each). */
 function dealTable(next: GameState, random: () => number): void {
   const players = next.players.length;
-  Object.assign(next, boardFor(next.design, next.settings.numberLayout, random, players, next.settings.seafarers));
+  Object.assign(
+    next,
+    boardFor(next.design, next.settings.numberLayout, random, players, next.settings.seafarers, layoutCount(next)),
+  );
   // A version for this many players brings its own points to win, unless the host changed them.
-  const played = next.design && designFor(next.design, players);
+  const played = next.design && designFor(next.design, layoutCount(next));
   if (played && next.settings.victoryPoints === next.design!.victoryPoints)
     next.settings.victoryPoints = played.victoryPoints;
   next.bank = bankFor(players);
@@ -234,7 +239,14 @@ export const lobbyHandlers: Pick<
     if (state.settings.seafarers !== next.settings.seafarers)
       Object.assign(
         next,
-        boardFor(next.design, next.settings.numberLayout, random, next.players.length, next.settings.seafarers),
+        boardFor(
+          next.design,
+          next.settings.numberLayout,
+          random,
+          next.players.length,
+          next.settings.seafarers,
+          next.map?.layout?.min,
+        ),
       );
     else if (state.settings.numberLayout !== next.settings.numberLayout && !next.design)
       assignNumbers(next.board, next.settings.numberLayout, random);
@@ -248,18 +260,35 @@ export const lobbyHandlers: Pick<
     const base = action.mapId === 'base';
     requireRule(base || design?.id === action.mapId, 'That map is not available.');
     const chosen = base ? null : design!;
-    if ((next.design?.id ?? 'base') !== action.mapId) {
-      next.settings.victoryPoints = chosen?.victoryPoints ?? DEFAULT_SETTINGS.victoryPoints;
-      // Sea maps start with Seafarers on; the host may still turn it off.
-      next.settings.seafarers = !!chosen && boardExpansions(chosen).includes('seafarers');
-    }
+    const layouts = chosen ? layoutsOf(chosen) : [];
+    const layout =
+      action.layoutFor === undefined
+        ? null
+        : layouts.find(l => action.layoutFor! >= l.players.min && action.layoutFor! <= l.players.max)?.players;
+    requireRule(layout !== undefined && (!layout || !base), 'That map has no layout for that many players.');
+    const before = next.map;
+    next.design = chosen;
+    next.map = chosen ? { id: chosen.id, name: chosen.name, layouts: playerRanges(chosen), layout } : null;
+    const newMap = (before?.id ?? 'base') !== action.mapId;
+    if (newMap || before?.layout?.min !== layout?.min)
+      next.settings.victoryPoints = chosen
+        ? designFor(chosen, layoutCount(next)).victoryPoints
+        : DEFAULT_SETTINGS.victoryPoints;
+    // Sea maps start with Seafarers on; the host may still turn it off.
+    if (newMap) next.settings.seafarers = !!chosen && boardExpansions(chosen).includes('seafarers');
     Object.assign(
       next,
-      boardFor(chosen, next.settings.numberLayout, random, next.players.length, next.settings.seafarers),
+      boardFor(
+        chosen,
+        next.settings.numberLayout,
+        random,
+        next.players.length,
+        next.settings.seafarers,
+        next.map?.layout?.min,
+      ),
     );
-    next.design = chosen;
-    next.map = chosen ? { id: chosen.id, name: chosen.name, players: coveredPlayers(chosen) } : null;
-    addLog(next, `${player.name} chose ${chosen ? chosen.name : 'the standard island'}.`);
+    const which = layout && layouts.length > 1 ? ` (the ${playerRange(layout)} player map)` : '';
+    addLog(next, `${player.name} chose ${chosen ? chosen.name : 'the standard island'}${which}.`);
   },
 
   'choose-color'({ next, player, playerId }, action) {

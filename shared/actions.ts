@@ -66,7 +66,7 @@ const SPEC = {
   'build-ship': { edgeId: 'id' },
   'move-ship': { from: 'id', to: 'id' },
   'choose-gold': { resources: 'bag' },
-  'choose-map': { mapId: 'id' },
+  'choose-map': { mapId: 'id', layoutFor: 'count?' },
   trade: { give: 'resource', receive: 'resource', count: 'count?' },
   discard: { resources: 'tradeBag' },
   'move-robber': { hexId: 'id' },
