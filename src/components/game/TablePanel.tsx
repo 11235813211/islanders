@@ -1,8 +1,6 @@
 import { BarChart3, ChevronDown, ChevronUp, MessageCircle, ScrollText, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { type GameAction, type GameView, RESOURCES } from '../../../shared/types';
-import { ResourceIcon } from '../../art';
-import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
+import type { GameAction, GameView } from '../../../shared/types';
 
 export type PanelTab = 'chat' | 'activity' | 'dice';
 
@@ -29,29 +27,6 @@ export function DiceTracker({ view }: { view: GameView }) {
       ) : (
         <p>Tracking is off.</p>
       )}
-    </div>
-  );
-}
-
-/** Cards left in the bank, when the room shows them. */
-export function BankCounts({ view }: { view: GameView }) {
-  const counts = view.bankCounts;
-  if (!counts) return null;
-  return (
-    <div className="bank-counts" role="group" aria-label="Cards left in the bank">
-      <span>Bank</span>
-      {RESOURCES.map(r => (
-        <span
-          key={r}
-          className="bank-count"
-          style={cardStyle(r)}
-          role="img"
-          aria-label={`${counts[r]} ${RESOURCE_LABELS[r]}`}
-        >
-          <ResourceIcon resource={r} size={18} />
-          {counts[r]}
-        </span>
-      ))}
     </div>
   );
 }
@@ -158,10 +133,7 @@ export default function TablePanel({
               ))}
             </ol>
           ) : (
-            <>
-              <BankCounts view={view} />
-              <DiceTracker view={view} />
-            </>
+            <DiceTracker view={view} />
           )}
         </div>
       )}

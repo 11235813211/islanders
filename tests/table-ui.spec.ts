@@ -345,3 +345,18 @@ test('without Seafarers the robber hint names only the robber', async ({ page })
   await expect(hint).toHaveText('Choose a tile for the robber');
   await expect(page.getByText(/pirate/)).toHaveCount(0);
 });
+
+test('when the room shows the bank, everyone sees its cards under the scoreboard', async ({ page }) => {
+  const g = richGame();
+  g.settings.showBank = true;
+  await mountGame(page, g);
+  const bank = page.locator('.player-panel').getByRole('group', { name: 'Cards left in the bank' });
+  await expect(bank).toBeVisible();
+  await expect(bank.getByRole('img', { name: `${g.bank.ore} Ore` })).toBeVisible();
+  await page.locator('.player-panel').screenshot({ path: 'test-results/bank-desktop.png' });
+});
+
+test('without the bank shown, there is no bank strip', async ({ page }) => {
+  await mountGame(page, richGame());
+  await expect(page.getByRole('group', { name: 'Cards left in the bank' })).toHaveCount(0);
+});

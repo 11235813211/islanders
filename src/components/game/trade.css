@@ -147,25 +147,6 @@
     height: 21px;
   }
 }
-.bank-counts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  font-weight: 800;
-}
-.bank-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 5px;
-  border: 1px solid var(--card);
-  border-radius: 4px;
-  background: var(--card-light);
-  color: var(--card-dark);
-}
 .trade-card > strong.bank-badge {
   background: #4f6b74;
   border-color: #33494f;

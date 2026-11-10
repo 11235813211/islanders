@@ -138,6 +138,34 @@
   height: 25px;
   padding: 2px;
 }
+/* Cards left in the bank (rooms that show it), a strip under the scoreboard. */
+.bank-counts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid #d4e0df;
+  font-size: 12px;
+  font-weight: 800;
+  color: #52717d;
+}
+.bank-counts > span:first-child {
+  padding: 0 3px;
+}
+.bank-count {
+  flex: 1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border: 1px solid var(--card);
+  border-radius: 4px;
+  background: var(--card-light);
+  color: var(--card-dark);
+  font-variant-numeric: tabular-nums;
+}
 .player-table thead .points-goal {
   white-space: nowrap;
 }

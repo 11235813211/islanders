@@ -290,7 +290,18 @@ export function MonopolyPanel({
 }
 
 /** Gold fields and volcanoes: pick the resources you are owed (everyone owed picks at once). */
-export function GoldPanel({ view, busy, send }: { view: GameView; busy: boolean; send: (a: GameAction) => void }) {
+export function GoldPanel({
+  view,
+  busy,
+  send,
+  secondsLeft,
+}: {
+  view: GameView;
+  busy: boolean;
+  send: (a: GameAction) => void;
+  /** Seconds before an Advanced bot picks for you. */
+  secondsLeft: number | null;
+}) {
   const [bag, setBag] = useState(emptyBag);
   // The engine pays no more than the bank holds (exact counts are known only when the room shows them).
   const stock = view.bankCounts;
@@ -300,7 +311,7 @@ export function GoldPanel({ view, busy, send }: { view: GameView; busy: boolean;
   return (
     <Panel
       title="Gold"
-      status={`${picked} / ${owed} chosen`}
+      status={`${picked} / ${owed} chosen${secondsLeft === null ? '' : ` · ${secondsLeft}s`}`}
       action={
         <button
           className="button primary"

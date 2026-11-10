@@ -1,7 +1,9 @@
 import { Bot, Route } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { playerVars } from '../../../shared/colors';
-import type { GameView } from '../../../shared/types';
+import { type GameView, RESOURCES } from '../../../shared/types';
+import { ResourceIcon } from '../../art';
+import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
 
 /** Scoreboard: one row per seat, its name on a block of the seat's color. */
@@ -91,6 +93,30 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
           })}
         </tbody>
       </table>
+      <BankCounts view={view} />
     </section>
+  );
+}
+
+/** Cards left in the bank, under the scoreboard for everyone, when the room shows them. */
+export function BankCounts({ view }: { view: GameView }) {
+  const counts = view.bankCounts;
+  if (!counts) return null;
+  return (
+    <div className="bank-counts" role="group" aria-label="Cards left in the bank">
+      <span>Bank</span>
+      {RESOURCES.map(r => (
+        <span
+          key={r}
+          className="bank-count"
+          style={cardStyle(r)}
+          role="img"
+          aria-label={`${counts[r]} ${RESOURCE_LABELS[r]}`}
+        >
+          <ResourceIcon resource={r} size={18} />
+          {counts[r]}
+        </span>
+      ))}
+    </div>
   );
 }

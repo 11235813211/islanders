@@ -49,7 +49,7 @@ export const emptyDiceCounts = (): Record<number, number> =>
 export const AUTO_ROLL_SECONDS = [0, 5, 10, 15, 30];
 export const MAX_PLAYERS = 6;
 /** Seconds everyone has to pick gold or volcano resources before a choice is made for them. */
-export const GOLD_SECONDS = 15;
+export const GOLD_SECONDS = 25;
 /** Seconds to place the robber or pirate before it is placed for you. */
 export const ROBBER_SECONDS = 15;
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */

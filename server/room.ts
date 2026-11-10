@@ -4,7 +4,6 @@ import {
   addSpectator,
   advanceTime,
   applyAction,
-  botDueAt,
   createGame,
   GameError,
   getActivePlayerId,
@@ -12,6 +11,7 @@ import {
   idlePause,
   idleResume,
   MAX_PLAYERS,
+  nextDueAt,
   normalizeGame,
 } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
@@ -182,14 +182,9 @@ export class GameRoom extends DurableObject<Env> {
       // Only a future pause deadline: once it passes, the alarm below has paused the game (or there was nothing to pause).
       const pauseAt = (this.record.emptySince ?? Number.NEGATIVE_INFINITY) + IDLE_GRACE_MS;
       if (pauseAt > Date.now()) deadlines.push(pauseAt);
-      if (game.proposal) deadlines.push(game.proposal.expiresAt);
-      if (game.pausedAt === null) {
-        if (game.phase === 'roll' && game.rollDeadline !== null) deadlines.push(game.rollDeadline);
-        if (game.turnDeadline !== null) deadlines.push(game.turnDeadline);
-        if (game.tradeOffer) deadlines.push(game.tradeOffer.expiresAt);
-        const bot = botDueAt(game);
-        if (bot !== null) deadlines.push(bot);
-      }
+      // Every game deadline and bot move (gold, robber, and volcano dice included).
+      const due = nextDueAt(game);
+      if (due !== null) deadlines.push(due);
       for (const socket of this.sockets()) {
         const saved = this.savedFor(this.attachment(socket));
         if (saved?.account) deadlines.push(saved.account.expiresAt);

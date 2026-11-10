@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTime, applyAction, getView, normalizeGame } from '../shared/engine';
+import { advanceTime, applyAction, getView, nextDueAt, normalizeGame } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
 import { longestRoad } from '../shared/rules';
 import { boardIndex, isShipEdge } from '../shared/seafaring';
@@ -124,15 +124,23 @@ describe('eruptions', () => {
     expect(g.phase).toBe('build');
   });
 
-  it('gold choices are made for anyone who has not chosen after 15 seconds', () => {
+  it('gold choices are made for anyone who has not chosen after 25 seconds, and the room wakes up for it', () => {
     let g = building(g => {
       g.buildings[hexOf(g, 'gold').vertexIds[0]!] = { playerId: 'p0', kind: 'settlement' };
       g.phase = 'roll';
     });
     g = act(g, 'p0', { type: 'roll' }, sequence(0.5, 0.2)); // 4 + 2... sets up gold on 8 below
-    Object.assign(g, { phase: 'gold', pendingGold: { p0: 1 }, goldDeadline: TEST_NOW + 15_000 });
-    expect(advanceTime(g, TEST_NOW + 14_000, seeded()).phase).toBe('gold');
-    const done = advanceTime(g, TEST_NOW + 15_000, seeded());
+    const deadline = TEST_NOW + 25_000;
+    Object.assign(g, {
+      phase: 'gold',
+      pendingGold: { p0: 1 },
+      goldDeadline: deadline,
+      turnDeadline: deadline + 60_000,
+    });
+    // The room's alarm is set for the gold deadline (not only the turn clock).
+    expect(nextDueAt(g)).toBe(deadline);
+    expect(advanceTime(g, deadline - 1000, seeded()).phase).toBe('gold');
+    const done = advanceTime(g, deadline, seeded());
     expect(done.phase).not.toBe('gold');
     expect(done.pendingGold).toEqual({});
   });
@@ -168,6 +176,7 @@ describe('friendly robber at sea', () => {
     g = act(g, 'p0', { type: 'roll' }, sequence(0.5, 0.4)); // 4 + 3 = 7
     expect(g.phase).toBe('robber');
     expect(g.robberDeadline).toBe(TEST_NOW + 15_000);
+    expect(nextDueAt(g)).toBe(TEST_NOW + 15_000);
     expect(advanceTime(g, TEST_NOW + 15_000, seeded()).phase).not.toBe('robber');
   });
 });

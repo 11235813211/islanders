@@ -89,6 +89,28 @@ function runBotStep(state: GameState, now: number, random: () => number): GameSt
   return next;
 }
 
+/** The phase deadline that is running, if any: the roll (or volcano dice), gold picks, or the robber. */
+function phaseDeadline(state: GameState): number | null {
+  if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
+  if (state.phase === 'gold') return state.goldDeadline;
+  if (state.phase === 'robber') return state.robberDeadline;
+  return null;
+}
+
+/**
+ * When advanceTime will next change this game by itself (a deadline or a bot move), or null. The
+ * room's alarm is set from this, so every deadline fires on time even with nobody sending moves.
+ */
+export function nextDueAt(state: GameState): number | null {
+  const times: (number | null)[] = [state.proposal?.expiresAt ?? null];
+  if (state.pausedAt === null) {
+    times.push(state.tradeOffer?.expiresAt ?? null, phaseDeadline(state), botDueAt(state));
+    if (playing(state)) times.push(state.turnDeadline);
+  }
+  const due = times.filter((time): time is number => time !== null);
+  return due.length ? Math.min(...due) : null;
+}
+
 /** Called by durable alarms; deadlines and bots never depend on an open browser. */
 export function advanceTime(state: GameState, now: number, random: () => number = Math.random): GameState {
   const next = structuredClone(state);

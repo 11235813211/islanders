@@ -41,7 +41,15 @@ function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
   return view.specialAsked.includes(view.selfId) ? null : 'ask';
 }
 
-function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null, robberIn: number | null): string {
+/** Whole seconds until a deadline (never below 0), or null when there is none. */
+const secondsUntil = (deadline: number | null, clock: number) =>
+  deadline === null ? null : Math.max(0, Math.ceil((deadline - clock) / 1000));
+
+/** " · 12s" after an instruction, or nothing without a deadline. */
+const countdown = (seconds: number | null) => (seconds === null ? '' : ` · ${seconds}s`);
+
+function instructionFor(view: GameView, ownTurn: boolean, clock: number): string {
+  const rollIn = secondsUntil(view.rollDeadline, clock);
   const active = view.players.find(p => p.id === view.activePlayerId);
   if (view.pausedAt !== null) return 'Game paused';
   switch (view.phase) {
@@ -59,14 +67,16 @@ function instructionFor(view: GameView, ownTurn: boolean, rollIn: number | null,
       return `Roll dice${rollIn === null ? '' : ` · auto ${rollIn}s`}`;
     case 'robber':
       return ownTurn
-        ? `Move the robber${view.seafaring ? ' or pirate' : ''}${robberIn === null ? '' : ` · ${robberIn}s`}`
+        ? `Move the robber${view.seafaring ? ' or pirate' : ''}${countdown(secondsUntil(view.robberDeadline, clock))}`
         : 'Moving robber…';
     case 'steal':
       return 'Choosing a player…';
     case 'discard':
       return 'Discarding resources…';
     case 'gold':
-      return 'Choosing gold…';
+      return view.pendingGold[view.selfId]
+        ? `Choose your gold${countdown(secondsUntil(view.goldDeadline, clock))}`
+        : 'Choosing gold…';
     case 'eruption':
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
     case 'special-build':
@@ -195,8 +205,6 @@ export default function GameTable({
 
   const clock = view.pausedAt ?? now;
   const remaining = view.turnDeadline === null ? 0 : Math.max(0, Math.ceil((view.turnDeadline - clock) / 1000));
-  const robberIn = view.robberDeadline === null ? null : Math.max(0, Math.ceil((view.robberDeadline - clock) / 1000));
-  const rollIn = view.rollDeadline === null ? null : Math.max(0, Math.ceil((view.rollDeadline - clock) / 1000));
 
   function place(kind: PlaceKind, id: string) {
     if (blocked) return;
@@ -257,7 +265,16 @@ export default function GameTable({
     const close = () => setDevKind(null);
     if (discarding)
       return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
-    if (choosingGold) return <GoldPanel key={view.selfId} view={view} busy={busy} send={send} />;
+    if (choosingGold)
+      return (
+        <GoldPanel
+          key={view.selfId}
+          view={view}
+          busy={busy}
+          send={send}
+          secondsLeft={secondsUntil(view.goldDeadline, clock)}
+        />
+      );
     if (buying && self)
       return (
         <DiscoveryPanel
@@ -426,7 +443,7 @@ export default function GameTable({
           {spectator ? 'Spectating' : ownTurn ? 'Your turn' : active?.name}
         </span>
         <span className="turn-instruction" role="status">
-          {instructionFor(view, ownTurn, rollIn, robberIn)}
+          {instructionFor(view, ownTurn, clock)}
         </span>
         <span
           className={`turn-clock ${view.turnExpired ? 'expired' : ''}`}

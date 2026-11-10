@@ -91,3 +91,15 @@ test('tapping a number token in the editor raises it on a phone', async ({ page 
   await page.touchscreen.tap(spot!.x, spot!.y);
   await expect.poll(labels, { message: 'the number changes on tap' }).not.toEqual(before);
 });
+
+test('the bank strip fits under the scoreboard on a phone, and the controls still fit', async ({ page }) => {
+  const g = richGame();
+  g.settings.showBank = true;
+  await mountGame(page, g);
+  await expect(page.getByRole('group', { name: 'Cards left in the bank' })).toBeInViewport();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  const end = (await page.getByRole('button', { name: 'End turn', exact: true }).boundingBox())!;
+  expect(end.y + end.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+  await page.screenshot({ path: 'test-results/phone-bank.png' });
+});

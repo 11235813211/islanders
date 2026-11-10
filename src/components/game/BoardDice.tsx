@@ -5,6 +5,8 @@ import { DieFace } from './BoardEffects';
 
 /** Where a fresh roll starts and where the board's middle is, relative to the dice's resting spot. */
 interface Path {
+  /** The roll this path was measured for. */
+  id: number;
   sx: number;
   sy: number;
   cx: number;
@@ -23,31 +25,35 @@ export default function BoardDice({ view }: { view: GameView }) {
   const [path, setPath] = useState<Path | null>(null);
   const [settled, setSettled] = useState<number | null>(null);
   const dice = view.dice ?? (roll && settled !== roll.id ? roll.dice : null);
+  // Measured from layout (offsets), never from the screen box: a previous roll's tumble may still
+  // be moving the dice, and measuring that would send the new roll somewhere off the board.
   useLayoutEffect(() => {
-    const frame = root.current?.parentElement?.getBoundingClientRect();
-    const own = root.current?.getBoundingClientRect();
-    if (!roll || !frame || !own) return setPath(null);
+    const own = root.current;
+    const frame = own?.offsetParent;
+    if (!roll || !own || !(frame instanceof HTMLElement)) return setPath(null);
     const angle = ((roll.id * 137.5) % 360) * (Math.PI / 180);
-    const reach = Math.max(frame.width, frame.height) * 0.8;
-    const cx = frame.left + frame.width / 2 - (own.left + own.width / 2);
-    const cy = frame.top + frame.height / 2 - (own.top + own.height / 2);
-    setPath({ cx, cy, sx: cx + Math.cos(angle) * reach, sy: cy + Math.sin(angle) * reach });
+    const reach = Math.max(frame.clientWidth, frame.clientHeight) * 0.8;
+    const cx = frame.clientWidth / 2 - (own.offsetLeft + own.offsetWidth / 2);
+    const cy = frame.clientHeight / 2 - (own.offsetTop + own.offsetHeight / 2);
+    setPath({ id: roll.id, cx, cy, sx: cx + Math.cos(angle) * reach, sy: cy + Math.sin(angle) * reach });
   }, [roll?.id]);
+  // Only a path measured for this roll animates it (never the last roll's, for a frame).
+  const tumble = path && path.id === roll?.id ? path : null;
   if (!dice) return null;
   const [a, b] = dice;
-  const style = path
+  const style = tumble
     ? ({
-        '--sx': `${path.sx}px`,
-        '--sy': `${path.sy}px`,
-        '--cx': `${path.cx}px`,
-        '--cy': `${path.cy}px`,
+        '--sx': `${tumble.sx}px`,
+        '--sy': `${tumble.sy}px`,
+        '--cx': `${tumble.cx}px`,
+        '--cy': `${tumble.cy}px`,
       } as CSSProperties)
     : undefined;
   return (
     <div
       ref={root}
       key={roll?.id ?? 'resting'}
-      className={`board-dice${path ? ' rolling' : ''}`}
+      className={`board-dice${tumble ? ' rolling' : ''}`}
       style={style}
       role="img"
       aria-label={`Dice: ${a} and ${b}, total ${a + b}`}
