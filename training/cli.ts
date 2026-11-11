@@ -5,10 +5,13 @@ import { isLandVertex } from '../shared/seafaring';
 import { listCheckpoints, loadCheckpoint, promote, seatFor } from './checkpoints';
 import type { Kind } from './datasets';
 import { endDiagnostics, type RouteLog, traceRoutes } from './diagnostics';
+import { reportDisagreements } from './disagree';
 import { pairedDifference, playMatch, report, summarize } from './evaluate';
 import { runGauntlet } from './gauntlet';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { collect, fitNetwork } from './networks';
+import { runJobs } from './pool';
+import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { playGame } from './sim';
 import { TUNABLE, tune } from './tune';
@@ -310,6 +313,29 @@ Object.assign(COMMANDS, {
       filter: filterFromFlags(),
       only: list(flags.only),
     });
+  },
+  /**
+   * Where a challenger's build decisions differ from the field's, and which choice wins more:
+   * --base shipped --challenger shipped --knobs '{"planner":1}' [--games 300 --rate 0.1
+   * --rollouts 16 --seed 600000 --maps base --players 4]. Knobs apply to the challenger.
+   */
+  async disagree() {
+    const base = seatFor(flags.base ?? 'shipped');
+    const jobs = Array.from({ length: Number(flags.games ?? 300) }, (_, i) => ({
+      seed: Number(flags.seed ?? 600_000) + i,
+      filter: filterFromFlags(),
+      hero: base,
+      field: [base],
+      record: 'disagree' as const,
+      challenger: withKnobs(seatFor(flags.challenger ?? 'shipped')),
+      rollouts: {
+        rollouts: Number(flags.rollouts ?? 16),
+        rounds: Infinity,
+        rate: Number(flags.rate ?? 0.1),
+      } as RolloutOptions,
+    }));
+    const results = await runJobs(jobs, done => process.stderr.write(`  ${done}/${jobs.length} games\r`));
+    reportDisagreements(results.flatMap(r => r.disagreements ?? []));
   },
   /** List checkpoints with their last note. */
   checkpoints() {

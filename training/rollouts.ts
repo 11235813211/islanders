@@ -86,14 +86,17 @@ export function decisionRows(
 
 const pad = (xs: number[], length: number) => [...xs, ...new Array(length - xs.length).fill(0)];
 
-/** One rollout's outcome per seat, ours first; null if the move is illegal. */
-function rollout(
+/**
+ * One rollout's outcome per seat, ours first; null if the move is illegal. Without a scorer it
+ * plays to the end (an unfinished game counts for nobody).
+ */
+export function rollout(
   state: GameState,
   id: string,
   action: Parameters<typeof applyAction>[2] | null,
   brains: Brain[],
   random: () => number,
-  options: RolloutOptions,
+  options: { rounds: number; scorer?: Net },
 ): number[] | null {
   let g: GameState = { ...state, developmentDeck: shuffled(state.developmentDeck, random) };
   try {
@@ -109,6 +112,7 @@ function rollout(
     const winner = (Number(g.winnerId.slice(1)) - seat + n) % n;
     return Array.from({ length: n }, (_, k) => (k === winner ? 1 : 0));
   }
+  if (!options.scorer) return new Array(n).fill(0);
   const econ = new Economy(getView(g, id), knobs);
   return seatChances(options.scorer, seatFeatures(econ, seatPositions(econ)));
 }

@@ -8,6 +8,7 @@ import { MAX_SEATS, SEAT_FEATURES, seatFeatures, seatPositions } from '../shared
 import { goldChoice, specialBuild } from '../shared/bots/analysis';
 import { getView } from '../shared/engine';
 import type { BotLevel } from '../shared/types';
+import { type Disagreement, disagreement } from './disagree';
 import { decisionRows, isDecision, type RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { type GameResult, playGame } from './sim';
@@ -63,8 +64,10 @@ export interface GameJob {
    * Record network inputs: each seat's final starting position, positions during play, or
    * move comparisons (rollouts.ts, with `rollouts`).
    */
-  record?: 'setup' | 'value' | 'moves';
+  record?: 'setup' | 'value' | 'moves' | 'disagree';
   rollouts?: RolloutOptions;
+  /** Disagreements: the policy compared with each seat's own (disagree.ts). */
+  challenger?: SeatSpec;
 }
 
 export interface JobResult extends GameResult {
@@ -78,6 +81,7 @@ export interface JobResult extends GameResult {
   exploration: { decisions: number; explored: number; differed: number };
   /** Recorded network inputs, by seat. */
   recorded?: { seat: number; features: number[] }[];
+  disagreements?: Disagreement[];
 }
 
 const brains = new Map<string, Brain>();
@@ -118,9 +122,17 @@ export function runJob(job: GameJob): JobResult {
   let setupDone = false;
   const params = makeParams();
   const brains = seats.map(brainFor);
+  const disagreements: Disagreement[] = [];
   const result = playGame(scenario, brains, job.seed, {
     beforeMove(state, seat) {
       if (!job.record || state.phase.startsWith('setup')) return;
+      if (job.record === 'disagree') {
+        const r = job.rollouts!;
+        if (!isDecision(state, seat, job.seed, r.rate)) return;
+        const d = disagreement(state, seat, brains, brainFor(job.challenger!), job.seed, r.rollouts);
+        if (d) disagreements.push(d);
+        return;
+      }
       if (job.record === 'moves') {
         const r = job.rollouts!;
         if (isDecision(state, seat, job.seed, r.rate))
@@ -150,6 +162,7 @@ export function runJob(job: GameJob): JobResult {
     ms: performance.now() - started,
     heroSeats: heroes,
     recorded: job.record ? recorded : undefined,
+    disagreements: job.record === 'disagree' ? disagreements : undefined,
     exploration: {
       decisions: exploration.decisions - before.decisions,
       explored: exploration.explored - before.explored,
