@@ -10,19 +10,28 @@ import { bankTrade, developmentPlay, longestRoadMove } from './turn';
 /**
  * The build phase with weighed plans (plans.ts): take the next step of the best plan when we can
  * pay for it, else trade toward it (bank, then players), then spend on another plan only if that
- * doesn't delay the best one. Routes are built piece by piece toward the plan's corner, so a road
- * is only ever part of a plan.
+ * doesn't delay the best one, and buy a development card with what's left. Routes are built piece
+ * by piece toward the plan's corner, so a road is only ever part of a plan.
  */
 export function planStep(econ: Economy, { builds = 0, allowOffers = true }: TurnOptions): GameAction {
   if (builds >= 2 && !allowOffers) return { type: 'end-turn' };
   const play = developmentPlay(econ);
   if (play) return play;
+  // With a spot already in reach, settle it before starting a route anywhere else (roads
+  // toward a second spot leave the first one open, and then both may go to someone else).
   const ranked = econ.plans
+    .filter(plan => !econ.spots || (plan.kind !== 'route' && plan.kind !== 'explore'))
     .map(plan => ({ plan, score: planScore(econ, plan) }))
     .sort((a, b) => b.score - a.score)
     .map(r => r.plan);
   const best = ranked[0];
   if (!best) return { type: 'end-turn' };
+  // A settlement we can build now beats the first piece of a route to a better one (the rollout
+  // comparisons: settling now wins); the cards would be gone and the far spot may be taken.
+  if (best.kind === 'route' || best.kind === 'explore') {
+    const settle = ranked.find(p => p.kind === 'settlement' && nextStep(econ, p));
+    if (settle) return nextStep(econ, settle)!.action;
+  }
   const now = nextStep(econ, best);
   if (now) return now.action;
   const trade = bankTrade(econ);
@@ -35,6 +44,11 @@ export function planStep(econ: Economy, { builds = 0, allowOffers = true }: Turn
     const step = nextStep(econ, plan);
     if (step && !delays(econ, best, step.cost)) return step.action;
   }
+  // Cards left over: the next piece toward our route when no spot is in reach yet, else a
+  // development card (the rollout comparisons: both beat stopping).
+  const route = econ.target && !econ.spots ? linkAction(econ.view, econ.target.firstEdge, econ.target.firstKind) : null;
+  if (route) return route;
+  if (econ.view.legal.development) return { type: 'buy-development' };
   return { type: 'end-turn' };
 }
 

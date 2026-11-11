@@ -139,4 +139,14 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
   valid loss 0.974 vs linear 0.998 vs uniform 1.259). valueRole 0 (planner decides whether):
   −1.5% ±0.9% vs shipped over the gauntlet. valueRole 1 (net decides whether): ×0.20, hoards
   again (twice the discards, a third of the roads). TD(λ 0.7) refit w1td. Whole-game labels
-  can't tell holding from building; move comparisons (`moves-collect`) are the fix being tried.
+  can't tell holding from building. Move comparisons (`moves-collect`) were built but never run
+  at scale (stopped: see PLAN.md).
+- Bug fix (2026-11-11): the planner built roads toward the next target while a reachable spot
+  waited for cards (`legal.settlements` is empty when unaffordable). Intermediate ×1.25 → ×1.71
+  (33.5% → 45.8%), Beginner ×2.87 → ×3.22, seeds 900000. The only large gain in this log, and
+  against weak bots. Path search now follows the room's `routeLinks` setting (not measured alone).
+- Fog: a fog-weight knob did nothing useful (0: +1.6% ±1.7%; 3: −8.7% ±1.7%, Middle Fog 3p).
+- Plan-based planner (`planner` knob, plans.ts): after three fixes found by `disagree`, +0.7%
+  ±1.3% and −0.2% ±1.4% vs shipped (300 seeds); −10.0% ±1.6% on Middle Fog 3p (explores fog,
+  0.93 tiles/game, but overbuilds ships). Not shipped. The `disagree` pilot (863 decisions,
+  16 rollouts each) found its weak spots fast; that tool is worth keeping.

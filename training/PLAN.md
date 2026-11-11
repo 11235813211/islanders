@@ -1,87 +1,63 @@
 # Plan: a strong Advanced bot
 
-Goal: a bot that is good at the game, not one that has learned Intermediate's habits. The old
-target ("Intermediate wins about 10%") is dropped. Read `training/README.md` (commands, results
-log) and `AGENTS.md` first. Status is at the bottom; update it as steps finish.
+Goal: a bot that beats skilled people. A human who isn't a strong player crushed two Advanced bots
+on Middle Fog (2026-11-11), so we are far from it. Read `training/README.md` (commands, results
+log) and `AGENTS.md` first.
 
-## Rules for every step
+## What we learned (2026-11-10 to 11)
 
-- **Never measure against Intermediate alone.** A change counts only if it is no worse against
-  every opponent in the gauntlet (below) and better on the total. A gain that shows up only against
-  Intermediate is exploitation; reject it.
-- Paired, seat-rotated comparisons on fresh seeds (`compare`, `select`), with ± errors. No
-  promotion from one run.
-- Play-time CPU stays as it is now (median well under 1 ms; worst under about 7 ms;
-  `tests/bots.test.ts`). Heavy compute happens only in training.
-- Bots read only `GameView`. The public card count is `view.likelyHands` (bot seats only).
-- Keep the trade-offer limits in the README.
+- Every gain except one bug fix was noise (±1–2%). Knob tuning, setup round 2, value network v1,
+  the seat value network with TD(λ), a fog knob, and a plan-based planner: none beat the
+  shipped bot by more than its error. Results log in the README has the numbers.
+- All yardsticks were our own bots, which share the planner's blind spots, so nothing measured
+  how much stronger a bot _can_ be. Beating Intermediate is only a regression check.
+- Learned values used greedily (one step, no search) exploit their own errors: twice the
+  network hoarded. Full TD(λ) self-play without search is not the path in a game with hidden
+  cards, huge trade options, and long plans.
+- Symptoms like dead-end roads point at the hand-written planner; patching them one at a time
+  moves win rates by ±1%. Treat them as clues, not goals.
 
-## The gauntlet (build first, in step 3a)
+## Rules from here
 
-`training/run.mjs gauntlet --hero X`: one report of X's edge against each of these, plus a
-weighted total:
-- Intermediate and Beginner;
-- the current shipped bot and the last two promoted checkpoints (self-play: stops cycling);
-- styles (`style:trader`, `style:hoarder`, `style:cards`, `style:builder`);
-- mixed tables (one of each at the table), the closest stand-in for varied humans.
+- **Measure before compute.** Each step names, in advance, the result that would justify the
+  next one, and the result that stops it. No large run without a cheap pilot passing first.
+- **Look for big effects.** We want gains of many times, not percent. Report effect ± error
+  plainly; don't call ±1% an improvement.
+- Yardsticks, strongest first: games against people (consented records, `/api/records`,
+  `training/replays.ts`); a slow search bot (step 1); the gauntlet (regression only).
+- Play-time CPU stays within the Worker budget (`tests/bots.test.ts`) unless the plan changes.
+- Bots read only `GameView`.
 
-All scenarios (every map, 2–6 players, varied settings), and the base island at 4 players
-reported separately, since that is the game most people play.
+## Steps
 
-## Step 3: value network that sees every seat
+1. **Headroom probe.** A slow, training-only search bot: at each of its decisions, sample hidden
+   hands and the deck from the public card count, play each candidate move out many times with
+   the shipped bot (common dice across candidates; `training/rollouts.ts`, `disagree.ts` have the
+   pieces), take the best. Test: 200 four-player games, one search bot vs three shipped, seats
+   rotated. Decide in advance: **≥ 45% wins** (fair 25%) means large headroom and search is the
+   teacher, go to step 3; **under 30%** means rollouts with this playout policy can't find much,
+   stop and rethink (better playout policy, or another approach).
+2. **People as the yardstick.** Consented recording is live in code (not deployed). A handful of
+   the owner's games against each bot version: from ~5% to ~40% wins shows in 10–15 games.
+3. **Only if step 1 passes: expert iteration.** Search offline to produce decisions and values;
+   train the network to imitate them (seat network and trainer exist: `value.ts`, `mlp.ts`
+   `trainSeatNet`); play the network fast; search again with it as the playout policy; repeat.
+   Each round gated by search-bot win rate and games against people, thresholds set first.
+4. **CPU at play time** (owner's call): the free Workers plan allows ~10 ms CPU per move, so the
+   shipped bot can't search. The paid plan allows far more; even 1–2 s of search per move may
+   be the biggest lever. Step 1 shows how much it's worth.
 
-Why the first value network failed (README log): it learned from whole-game outcomes, so it
-picked up correlations ("winners hold cards") instead of what a move does.
+## Tools that exist
 
-a. **Gauntlet command** (above).
-b. **Per-seat output.** The network predicts every seat's chance to win (softmax over seats, our
-seat first, opponents sorted by points), from our features plus a small block per opponent
-(points, likely hand from `likelyHands`, production, cards, knights, road, pieces left).
-Fixed width: pad to 6 seats. Keep it board-agnostic. Files: `shared/bots/advanced/value.ts`
-(features), `training/mlp.ts` (add a softmax output and cross-entropy loss).
-c. **Better labels**, in `training/networks.ts` / new `training/labels.ts`:
-- TD(λ) targets: each sampled position learns from the network's value a few turns later,
-  plus the final result (λ ≈ 0.7), so dice luck mostly cancels;
-- move comparisons: at sampled decisions, try each candidate (build each kind, buy a card,
-  hold), play each out 16–32 times with the current bot (cut off after about 15 turns and
-  scored by the network), and label each candidate with its average. This answers "hold or
-  build?" directly. Budget: about a day on 14 threads for 30k decisions.
-  d. **Play:** the planner proposes the top few moves; the network scores each one's result,
-  averaged over the next roll (11 totals, weighted). That's a few hundred evaluations per
-  decision, well within the CPU budget. `shared/bots/advanced/choose.ts`.
-  e. Measure with the gauntlet; promote only if it beats the shipped bot everywhere.
-
-## Step 4: one value for trades, robber, and monopoly
-
-With every seat's chances: accept or offer a trade only if our chance rises and the partner's
-does not rise more (nor the leader's); place the robber where the leader's chance drops most;
-play monopoly where our gain is largest. Replaces knobs in `trade.ts` and `robber.ts` where it
-measures better. Also protects against people fleecing the bot with lopsided trades.
-
-## Step 5: offline teacher
-
-An expensive searcher for training only: sample hidden cards and the deck from the card count,
-run tree search (1–5 s per decision) with the current bot playing out the games, and save its
-choices and values. Train the network on them, play self-play with the new network, repeat.
-Each round must pass the gauntlet. Cores: `THREADS` (default: all but one).
-
-## Step 6: real results
-
-Record outcomes of live games by bot level (no hands, just who won, table size, map) so the bot
-can be judged against people. Needs a small server change and a plain note in the UI if it
-counts people's games.
+`gauntlet` (one hero vs every opponent, paired with --baseline), `disagree` (where a challenger's
+build decisions differ, rolled out to the end), `routes` (where a seat's roads went), end-of-game
+diagnostics in eval (dead routes, fog revealed), `moves-collect` and seat-net TD(λ) fitting
+(parked), consented game records and replay (`training/replays.ts`, `replays --file`).
 
 ## Status
 
-- Done (2026-11-10, uncommitted unless git says otherwise): training 2× faster (same games);
-  public card count (`shared/engine/hands.ts`, `tests/hands.test.ts`), used by Advanced for
-  steals, monopoly, and whom to offer to. 36.3% vs 34.7% against Intermediate on seeds 700000.
-- Done (2026-11-11): 3a `gauntlet` (`training/gauntlet.ts`; promotion history in
-  `training/promoted.json`, `promote` appends). 3b seat network: `SEAT_FEATURES` per seat in
-  `value.ts` (deciding seat first, then turn order; shared weights, softmax over seats;
-  `trainSeatNet` in `mlp.ts`). 3c labels: TD(λ) at fit time from the parent's network
-  (`seatTargets` in `networks.ts`, one viewing seat per game), and move comparisons
-  (`moves-collect`, `training/rollouts.ts`: common dice across candidates, deck reshuffled).
-  3d in `choose.ts`: knob `valueRole` (0: planner decides whether to build, net what; 1: net
-  decides both). A candidate is judged as the position the next player rolls from (what the
-  samples are), so no separate roll averaging. Old v1 value checkpoints deleted (other inputs).
+- 2026-11-11, branch `advanced-bot-plans`: bug fixes (saving for reachable spots, route links),
+  counter-offers not repeated to a person within two rounds, consented recording, the tools
+  above, plan-based planner off (`planner` knob). Not deployed (recording needs the v4 Durable
+  Object migration on deploy).
+- Next: step 1.
