@@ -135,6 +135,7 @@ export type GameEvent =
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
   | { kind: 'player-trade'; fromId: string; toId: string; give: TradeBag; get: TradeBag }
   | { kind: 'offer'; playerId: string; give: TradeBag; want: TradeBag; to?: string[] }
+  | { kind: 'counter'; playerId: string; toId: string; give: TradeBag; want: TradeBag }
   | { kind: 'discard'; playerId: string; resources: TradeBag }
   | { kind: 'steal'; thiefId: string; victimId: string; resource: Tradable | null }
   | { kind: 'development'; playerId: string; card: DevelopmentType; gains: TradeBag | null }

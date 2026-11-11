@@ -169,7 +169,13 @@ export const tradeHandlers: Pick<
       give: clean(action.give),
       want: clean(action.want),
     });
-    addLog(next, `${player.name} made a counter-offer.`);
+    addLog(next, `${player.name} made a counter-offer.`, {
+      kind: 'counter',
+      playerId,
+      toId: offer.fromId,
+      give: clean(action.give),
+      want: clean(action.want),
+    });
   },
 
   /** A recipient says yes. The offering player then picks whom to trade with (confirm-trade). */

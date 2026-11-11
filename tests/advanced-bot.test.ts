@@ -17,6 +17,7 @@ const DESIGN = testDesign([
   '~ ~ ~ ~ ~ ~ ~',
 ]);
 
+const grantBag = () => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
 const hexOf = (g: GameState, terrain: Terrain) => g.board.hexes.find(h => h.terrain === terrain)!;
 
 /** p0 is about to move the robber or pirate; the setup callback places pieces directly. */
@@ -81,6 +82,50 @@ describe('advanced robber and pirate', () => {
 });
 
 describe('advanced trading with people at the table', () => {
+  it('does not counter the same person again within two rounds', () => {
+    const random = seeded(5);
+    let g = makeLobby(4);
+    for (const p of g.players.slice(1)) p.bot = 'advanced';
+    g = applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW);
+    let now = TEST_NOW;
+    const counters = new Map<number, (typeof g.log)[number]>();
+    let offeredTurn = -1;
+    for (let step = 0; step < 6000 && g.phase !== 'finished' && g.turn < 150; step++) {
+      for (const e of g.log) if (e.event?.kind === 'counter') counters.set(e.id, e);
+      const bot = pendingBotActor(g);
+      if (bot) {
+        now = Math.max(now, botDueAt(g)!);
+        g = advanceTime(g, now, random);
+        continue;
+      }
+      // The person asks everyone for one of each card they lack, every turn, and never accepts.
+      const me = g.players[0]!;
+      const spare = (['wood', 'brick', 'sheep', 'wheat', 'ore'] as const).find(r => me.resources[r] > 0);
+      const lack = (['ore', 'wheat', 'sheep', 'brick', 'wood'] as const).find(r => r !== spare);
+      let action: Parameters<typeof applyAction>[2];
+      if (g.tradeOffer?.fromId === 'p0') action = { type: 'cancel-trade', offerId: g.tradeOffer.id };
+      else if (g.phase === 'build' && getActivePlayerId(g) === 'p0' && spare && lack && offeredTurn !== g.turn) {
+        offeredTurn = g.turn;
+        action = { type: 'offer-trade', give: { ...grantBag(), [spare]: 1 }, want: { ...grantBag(), [lack]: 1 } };
+      } else action = chooseBotAction(getView(g, getActivePlayerId(g) ?? 'p0'), { level: 'beginner' });
+      try {
+        g = applyAction(g, getActivePlayerId(g) ?? 'p0', action, random, now);
+      } catch {
+        now += 200_000;
+        g = advanceTime(g, now, random);
+      }
+    }
+    const toPerson = [...counters.values()].filter(e => e.event?.kind === 'counter' && e.event.toId === 'p0');
+    expect(toPerson.length).toBeGreaterThan(0);
+    const last = new Map<string, number>();
+    for (const e of toPerson.sort((a, b) => a.id - b.id)) {
+      const from = (e.event as { playerId: string }).playerId;
+      const before = last.get(from);
+      if (before !== undefined) expect(e.turn! - before).toBeGreaterThanOrEqual(2 * 4);
+      last.set(from, e.turn!);
+    }
+  });
+
   it('offers at most once per turn, and asks a person at most every third round', () => {
     const random = seeded(11);
     let g = makeLobby(4);
