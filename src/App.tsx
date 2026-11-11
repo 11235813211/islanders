@@ -7,11 +7,9 @@ import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
 import InviteDialog, { type InviteKind } from './components/InviteDialog';
-import OpenInAppPrompt from './components/OpenInAppPrompt';
 import RoomLobby from './components/RoomLobby';
 import { useAccount } from './hooks/useAccount';
 import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
-import { mayHaveApp, rememberApp } from './lib/installedApp';
 
 declare const __LAN_ORIGIN__: string;
 
@@ -24,8 +22,6 @@ function App() {
   const [code, setCode] = useState(roomFromLocation);
   const [inviteCode, setInviteCode] = useState(roomFromLocation);
   const attemptedInvite = useRef('');
-  /** An invite waiting on "Open in the Islanders app?" (phones that may have the home-screen app). */
-  const [appOffer, setAppOffer] = useState<string | null>(null);
   const entryRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +55,8 @@ function App() {
     const key = `${inviteCode}:${account.account?.username ?? 'guest'}`;
     if (!inviteCode || session || attemptedInvite.current === key) return;
     attemptedInvite.current = key;
-    // Ask before joining, so choosing the app never takes (and then gives up) a seat here.
-    void mayHaveApp().then(may => (may ? setAppOffer(inviteCode) : void enter('join', inviteCode, true)));
+    void enter('join', inviteCode, true);
   }, [inviteCode, session, account.account?.username]);
-  // Running as the home-screen app: remember it, so Android's browser can offer to switch to it.
-  useEffect(rememberApp, []);
   // Left, removed, or the room closed: go home and say why.
   // biome-ignore lint/correctness/useExhaustiveDependencies: react only to the room ending.
   useEffect(() => {
@@ -117,7 +110,6 @@ function App() {
     setEditing(false);
     entryRequest.current++;
     attemptedInvite.current = '';
-    setAppOffer(null);
     setInviteCode('');
     setLoading(false);
     setSession(null);
@@ -159,16 +151,6 @@ function App() {
     }
     url.hash = `room=${view?.roomId ?? ''}${kind === 'spectator' ? '&spectate=1' : ''}`;
     return url.href;
-  }
-  /** "Open in app": copy the invite (nothing is joined here) and say how to finish in the app. */
-  async function openInApp(code: string) {
-    setAppOffer(null);
-    try {
-      await navigator.clipboard.writeText(location.href);
-      setNotice('Invite copied. Open Islanders from your home screen and paste it into the join box.');
-    } catch {
-      setNotice(`Open Islanders from your home screen and join with code ${code}.`);
-    }
   }
   /** Home from the header. Leaving a game against bots first asks whether to save it or end it. */
   function goHome() {
@@ -228,17 +210,14 @@ function App() {
         {loading && <LoaderCircle className="spin" size={40} />}
         <h1>{loading ? `Joining ${inviteCode}…` : `Join ${inviteCode}`}</h1>
         {error && <p role="status">{error}</p>}
-        {/* While "Open in the Islanders app?" is asked, that question is the only choice. */}
-        {!loading && !appOffer && (
+        {!loading && (
           <button className="button primary" onClick={() => void enter('join', inviteCode, true)}>
             {error ? 'Try again' : 'Join here'}
           </button>
         )}
-        {!appOffer && (
-          <button className="button secondary" onClick={home}>
-            Return home
-          </button>
-        )}
+        <button className="button secondary" onClick={home}>
+          Return home
+        </button>
       </main>
     );
   else if (!session && editing && canPlaytest)
@@ -307,15 +286,6 @@ function App() {
   return (
     <div className={`app ${hasGame ? 'app-game' : ''}`}>
       {header}
-      {appOffer && (
-        <OpenInAppPrompt
-          openInApp={() => void openInApp(appOffer)}
-          stayHere={() => {
-            setAppOffer(null);
-            void enter('join', appOffer, true);
-          }}
-        />
-      )}
       {screen}
       {(message || notice) && (
         <div className={`toast${message ? '' : ' toast-info'}`} role={message ? 'alert' : 'status'}>

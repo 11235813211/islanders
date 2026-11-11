@@ -657,49 +657,6 @@ a {
   padding: 11px;
   font-size: 14px;
 }
-/* Invite opened in a phone's browser: "Open in the Islanders app?" before joining (OpenInAppPrompt). */
-.open-in-app {
-  position: fixed;
-  z-index: 190;
-  top: calc(10px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  display: grid;
-  gap: 10px;
-  justify-items: center;
-  width: min(360px, calc(100vw - 20px));
-  padding: 14px 14px 8px;
-  border: 1px solid #84c7d6;
-  border-radius: 14px;
-  background: #fffdf6;
-  color: var(--ink);
-  box-shadow: 0 10px 34px #16506c55;
-}
-.open-in-app p {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 17px;
-  font-weight: 800;
-}
-.open-in-app p svg {
-  color: #0a89b2;
-}
-.open-in-app-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-}
-.open-in-app-actions .button {
-  justify-content: center;
-  min-height: 42px;
-}
-.open-in-app-never {
-  font-size: 13px;
-  color: var(--muted);
-}
 .toast {
   position: fixed;
   z-index: 200;
