@@ -2,12 +2,14 @@ import { GameError } from '../shared/engine';
 import type { AccountIdentity, AccountStore } from './accounts';
 import type { BoardLibraryStore } from './boards';
 import { ProtocolError } from './protocol';
+import type { GameRecordStore } from './recording';
 import type { GameRoom } from './room';
 
 export interface Env {
   ROOMS: DurableObjectNamespace<GameRoom>;
   ACCOUNTS: DurableObjectNamespace<AccountStore>;
   LIBRARY: DurableObjectNamespace<BoardLibraryStore>;
+  RECORDS: DurableObjectNamespace<GameRecordStore>;
   ASSETS: Fetcher;
   ALLOWED_ORIGINS: string;
   DEV_MODE?: string;

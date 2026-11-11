@@ -2,7 +2,18 @@ import { isIdentifier } from '../shared/actions';
 import type { AccountRoomStatus } from '../shared/types';
 import type { AccountIdentity, Revoked } from './accounts';
 import type { LibraryResult } from './boards';
-import { accountStub, canPlaytest, checkLimit, type Env, failure, json, libraryStub, logError, roomStub } from './env';
+import {
+  accountStub,
+  canPlaytest,
+  checkLimit,
+  type Env,
+  failure,
+  json,
+  libraryStub,
+  logError,
+  roomStub,
+  securityHeaders,
+} from './env';
 import {
   hashToken,
   MAX_BOARD_BYTES,
@@ -18,6 +29,7 @@ import {
   record,
   roomCode,
 } from './protocol';
+import { recordsStub } from './recording';
 
 function cors(response: Response, origin: string | null): Response {
   if (response.status === 101 || !origin) return response;
@@ -183,6 +195,20 @@ async function handleBoards(url: URL, request: Request, env: Env): Promise<Respo
   throw new ProtocolError('Use GET, PUT, or DELETE for boards.', 405);
 }
 
+/** Saved game records (see recording.ts): the list, or one record by id. Limited to the same accounts as the board editor. */
+async function handleRecords(url: URL, request: Request, env: Env): Promise<Response> {
+  const identity = await accountFor(request, env, true);
+  if (!identity || !canPlaytest(env, identity))
+    throw new ProtocolError('Saved games are not available on this account.', 403);
+  if (request.method !== 'GET') throw new ProtocolError('Use GET for saved games.', 405);
+  const store = recordsStub(env);
+  const id = /^\/api\/records\/([\w-]+)$/.exec(url.pathname)?.[1];
+  if (url.pathname === '/api/records') return json(structuredClone(await store.list()));
+  const text = id ? await store.get(id) : null;
+  if (text === null) throw new ProtocolError('Record not found.', 404);
+  return new Response(text, { headers: { ...securityHeaders, 'Content-Type': 'application/json' } });
+}
+
 async function handleRooms(url: URL, request: Request, env: Env): Promise<Response> {
   if (url.pathname === '/api/rooms' && request.method === 'POST') {
     const body = await readBody(request);
@@ -246,7 +272,10 @@ export default {
       return json({ ok: true, service: 'islanders', protocol: 3 });
     const origin = request.headers.get('Origin');
     // Same-origin GET fetches can omit Origin; /me still requires its bearer credential, and the board list is public.
-    const plainRead = request.method === 'GET' && ['/api/accounts/me', '/api/boards'].includes(url.pathname) && !origin;
+    const plainRead =
+      request.method === 'GET' &&
+      (['/api/accounts/me', '/api/boards'].includes(url.pathname) || url.pathname.startsWith('/api/records')) &&
+      !origin;
     if (!plainRead && !originAllowed(origin, env.ALLOWED_ORIGINS || '', url.origin, env.DEV_MODE === 'true'))
       return json({ error: 'This origin is not allowed.' }, 403);
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }), origin);
@@ -259,7 +288,10 @@ export default {
       if (accountMatch) response = await handleAccounts(accountMatch[1]!, request, env, requester);
       else if (url.pathname === '/api/client-errors' && request.method === 'POST')
         response = await handleClientError(request, env, requester);
-      else if (url.pathname === '/api/boards' || url.pathname.startsWith('/api/boards/')) {
+      else if (url.pathname === '/api/records' || url.pathname.startsWith('/api/records/')) {
+        await checkLimit(env.CONNECTION_LIMITER, `records:${requester}`);
+        response = await handleRecords(url, request, env);
+      } else if (url.pathname === '/api/boards' || url.pathname.startsWith('/api/boards/')) {
         await checkLimit(env.CONNECTION_LIMITER, `boards:${requester}`);
         response = await handleBoards(url, request, env);
       } else {

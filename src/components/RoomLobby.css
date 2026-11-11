@@ -220,6 +220,26 @@
   color: var(--muted);
   font-size: 12px;
 }
+.save-games {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+}
+.save-games label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 600;
+}
+.save-games input {
+  width: 22px;
+  height: 22px;
+}
+.save-games small {
+  color: var(--muted);
+  font-size: 12px;
+}
 .lobby-exits {
   display: flex;
   flex-wrap: wrap;

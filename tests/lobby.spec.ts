@@ -19,6 +19,13 @@ test('a guest without a name gets one from the list, picks a color, and sets the
   const points = page.getByRole('group', { name: 'Points to win' });
   await points.getByRole('button', { name: 'More points to win' }).click();
   await expect(points.locator('output')).toHaveText('11');
+  // Saving games is off until chosen; with the only person agreeing, the lobby says the game will be saved.
+  const save = page.getByLabel('Save my games to improve the bots');
+  await expect(save).not.toBeChecked();
+  await expect(page.getByText('This game will be saved for bot training.')).toBeHidden();
+  await save.click();
+  await expect(save).toBeChecked();
+  await expect(page.getByText('This game will be saved for bot training.')).toBeVisible();
   await page.screenshot({ path: 'test-results/lobby-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/lobby-phone.png', fullPage: true });

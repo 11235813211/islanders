@@ -11,6 +11,7 @@ import { runGauntlet } from './gauntlet';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { collect, fitNetwork } from './networks';
 import { runJobs } from './pool';
+import { loadRecords, replayGame } from './replays';
 import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { playGame } from './sim';
@@ -123,6 +124,16 @@ function fitFor(kind: Kind, hidden: string) {
 }
 
 Object.assign(COMMANDS, {
+  /** Replay saved games and check they end as recorded: --file records.json (from /api/records). */
+  replays() {
+    for (const record of loadRecords(flags.file ?? '')) {
+      const end = replayGame(record);
+      const ok = end.version === record.finalVersion && end.phase === 'finished';
+      console.log(
+        `${ok ? 'ok' : 'DIFFERS'}  ${record.steps.length} steps  ${end.players.length} players  turn ${end.turn}`,
+      );
+    }
+  },
   /** Self-play recording starting positions: --from shipped --games 40000 --out r1 [--explore 0.35]. */
   'setup-collect': () => collectFor('setup', 0.35),
   /** Self-play recording positions during play: --from s1 --games 20000 --out v1 [--explore 0.1]. */

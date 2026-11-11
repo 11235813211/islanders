@@ -9,6 +9,8 @@ export interface AccountIdentity {
   playerId: string;
   sessionHash: string;
   expiresAt: number;
+  /** The person's choice to have their games saved for bot training. */
+  saveGames?: boolean;
 }
 interface SavedLogin {
   tokenHash: string;
@@ -25,6 +27,8 @@ interface AccountRecord {
   recoveryHash?: string;
   sessions: SavedLogin[];
   rooms: AccountRoom[];
+  /** Consent to record games with this person in them (off unless set). */
+  saveGames?: boolean;
 }
 /** Login sessions that ended, and the rooms whose seats should drop them. */
 export interface Revoked {
@@ -186,10 +190,20 @@ export class AccountStore extends DurableObject<Env> {
           playerId: this.account.playerId,
           sessionHash,
           expiresAt: session.expiresAt,
+          saveGames: this.account.saveGames === true,
         },
         rooms: this.account.rooms,
         hasRecoveryCode: !!this.account.recoveryHash,
       };
+    });
+  }
+
+  /** Remember whether this account's games may be recorded. */
+  async setSaveGames(sessionHash: string, value: boolean): Promise<boolean> {
+    return this.serial(async () => {
+      if (!this.account || !this.liveSession(sessionHash)) return false;
+      await this.save({ ...this.account, saveGames: value });
+      return true;
     });
   }
 

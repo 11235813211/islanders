@@ -15,8 +15,16 @@ import {
   normalizeGame,
 } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
+import { type RecordedStep, shouldRecord, tape } from '../shared/replay';
 import { emptyRoomMs, guestName } from '../shared/settings';
-import type { AccountRoomStatus, GameAction, GameState, ServerMessage, Session } from '../shared/types';
+import type {
+  AccountRoomStatus,
+  GameAction,
+  GameState,
+  RecordingStatus,
+  ServerMessage,
+  Session,
+} from '../shared/types';
 import type { AccountIdentity } from './accounts';
 import { accountStub, checkLimit, type Env, failure, json, libraryStub, logError } from './env';
 import {
@@ -30,6 +38,7 @@ import {
   readBody,
   secureRandom,
 } from './protocol';
+import { appendStep, beginRecording, finishRecording, type Recording } from './recording';
 
 interface AccountBinding {
   username: string;
@@ -48,6 +57,10 @@ interface RoomRecord {
   game: GameState;
   sessions: SavedSession[];
   lastActivity: number;
+  /** Player id → agreed to have this game saved for bot training. Only the choice is kept, never names. */
+  consent?: Record<string, boolean>;
+  /** Set while this game is being recorded (see recording.ts). */
+  recording?: Recording;
   /** When the last human player disconnected. The game pauses after IDLE_GRACE_MS and the room closes after EMPTY_ROOM_MS. */
   emptySince?: number;
 }
@@ -161,7 +174,33 @@ export class GameRoom extends DurableObject<Env> {
       socket.close(LEFT_ROOM, 'You are no longer in this room.');
       return;
     }
-    this.send(socket, { type: 'state', state, online: this.online(), ...(acknowledgedId ? { acknowledgedId } : {}) });
+    this.send(socket, {
+      type: 'state',
+      state,
+      online: this.online(),
+      recording: this.recordingStatus(this.record, attachment.playerId),
+      ...(acknowledgedId ? { acknowledgedId } : {}),
+    });
+  }
+  private recordingStatus(room: RoomRecord, playerId: string): RecordingStatus {
+    const consent = room.consent ?? {};
+    const on = room.game.phase === 'lobby' ? shouldRecord(room.game, consent) : !!room.recording;
+    return { mine: consent[playerId] === true, on };
+  }
+  /** Add a step to this room's recording, if there is one. */
+  private async logStep(room: RoomRecord, step: RecordedStep): Promise<RoomRecord> {
+    if (!room.recording) return room;
+    return { ...room, recording: await appendStep(this.ctx.storage, room.recording, step) };
+  }
+  /** When a recorded game has just ended, save it. A failure here never affects the game. */
+  private async endRecording(room: RoomRecord): Promise<RoomRecord> {
+    if (!room.recording || room.game.phase !== 'finished') return room;
+    try {
+      await finishRecording(this.env, this.ctx.storage, room.recording, room.game, Date.now());
+    } catch (error) {
+      logError('record', error);
+    }
+    return { ...room, recording: undefined };
   }
   private broadcast(acknowledgedId?: string, actor?: string): void {
     for (const socket of this.sockets())
@@ -224,7 +263,14 @@ export class GameRoom extends DurableObject<Env> {
     };
     const otherSessions = room.sessions.filter(candidate => candidate.playerId !== playerId);
     const ownSessions = room.sessions.filter(candidate => candidate.playerId === playerId).slice(-11);
-    await this.commit({ ...room, sessions: [...otherSessions, ...ownSessions, saved], lastActivity: Date.now() });
+    // A signed-in person's saved choice applies to every room they join.
+    const consent = identity ? { ...room.consent, [playerId]: identity.saveGames === true } : room.consent;
+    await this.commit({
+      ...room,
+      consent,
+      sessions: [...otherSessions, ...ownSessions, saved],
+      lastActivity: Date.now(),
+    });
     if (identity)
       await accountStub(this.env, identity.username).remember(identity.sessionHash, {
         roomId: session.roomId,
@@ -463,6 +509,10 @@ export class GameRoom extends DurableObject<Env> {
           this.snapshot(socket);
           return;
         }
+        if (message.type === 'consent') {
+          await this.setConsent(room, saved, attachment.playerId, message.value);
+          return;
+        }
         if (message.type !== 'action') throw new ProtocolError('Already authenticated.');
         actionId = message.id;
         if (saved.processedIds.includes(message.id)) {
@@ -470,9 +520,12 @@ export class GameRoom extends DurableObject<Env> {
           return;
         }
         await checkLimit(this.env.CONNECTION_LIMITER, `action:${room.game.roomId}:${attachment.playerId}`);
-        const timed = advanceTime(room.game, Date.now(), secureRandom);
+        const timeTape = tape(secureRandom);
+        const timedAt = Date.now();
+        const timed = advanceTime(room.game, timedAt, timeTape.random);
         if (timed !== room.game) {
-          await this.commit({ ...room, game: timed, lastActivity: Date.now() });
+          const logged = await this.logStep(room, { kind: 'time', now: timedAt, random: timeTape.draws });
+          await this.commit(await this.endRecording({ ...logged, game: timed, lastActivity: Date.now() }));
           this.broadcast();
           room = this.requireRoom();
         }
@@ -488,16 +541,27 @@ export class GameRoom extends DurableObject<Env> {
         const action = message.action;
         const actor = SELF_ACTIONS.has(action.type) ? attachment.playerId : this.actor(attachment);
         const design = action.type === 'choose-map' ? await this.design(action.mapId) : undefined;
-        const game = applyAction(room.game, actor, action, secureRandom, Date.now(), {
-          online: room.game.testMode ? room.game.players.map(p => p.id) : this.online(),
-          design,
-        });
+        const actionTape = tape(secureRandom);
+        const actedAt = Date.now();
+        const online = room.game.testMode ? room.game.players.map(p => p.id) : this.online();
+        const game = applyAction(room.game, actor, action, actionTape.random, actedAt, { online, design });
         const sessions = room.sessions.map(session =>
           session.tokenHash === saved.tokenHash
             ? { ...session, processedIds: [...session.processedIds, message.id].slice(-64) }
             : session,
         );
         let next: RoomRecord = { ...room, game, sessions, lastActivity: Date.now() };
+        if (action.type === 'start' && !room.recording && shouldRecord(room.game, room.consent ?? {}))
+          next.recording = await beginRecording(this.ctx.storage, room.game);
+        next = await this.logStep(next, {
+          kind: 'action',
+          actor,
+          action,
+          now: actedAt,
+          random: actionTape.draws,
+          online,
+        });
+        next = await this.endRecording(next);
         if (action.type === 'leave') next = await this.dropMember(next, attachment.playerId, 'You left the room.');
         if (action.type === 'remove-player')
           next = await this.dropMember(next, action.playerId, 'The host removed you from the room.');
@@ -519,6 +583,16 @@ export class GameRoom extends DurableObject<Env> {
         if (!expected) logError('room action', error);
       }
     });
+  }
+
+  /** Save a person's choice about recording. It can only change before the game starts. */
+  private async setConsent(room: RoomRecord, saved: SavedSession, playerId: string, value: boolean): Promise<void> {
+    if (room.game.phase !== 'lobby')
+      throw new ProtocolError('Saving games can only be changed before the game starts.');
+    await this.commit({ ...room, consent: { ...room.consent, [playerId]: value } });
+    if (saved.account)
+      await accountStub(this.env, saved.account.username).setSaveGames(saved.account.sessionHash, value);
+    this.broadcast();
   }
 
   private async authenticate(
@@ -548,9 +622,11 @@ export class GameRoom extends DurableObject<Env> {
     socket.serializeAttachment(attachment);
     // Someone is back: cancel a pending idle pause, or resume one that already started.
     if (room.game.players.some(p => p.id === saved.playerId && !p.bot)) {
-      const game = idleResume(room.game, Date.now());
+      const now = Date.now();
+      const game = idleResume(room.game, now);
+      const logged = game !== room.game ? await this.logStep(room, { kind: 'idle-resume', now, random: [] }) : room;
       if (game !== room.game || room.emptySince !== undefined)
-        await this.commit({ ...room, game, emptySince: undefined });
+        await this.commit({ ...logged, game, emptySince: undefined });
     }
     await this.scheduleAlarm();
     this.broadcast();
@@ -595,12 +671,18 @@ export class GameRoom extends DurableObject<Env> {
           now - record.emptySince >= IDLE_GRACE_MS &&
           !this.onlinePlayers(record.game).length
         ) {
-          record = { ...record, game: idlePause(record.game, now) };
+          const game = idlePause(record.game, now);
+          if (game !== record.game) record = await this.logStep(record, { kind: 'idle-pause', now, random: [] });
+          record = { ...record, game };
         }
         try {
-          const game = advanceTime(record.game, now, secureRandom);
+          const timeTape = tape(secureRandom);
+          const game = advanceTime(record.game, now, timeTape.random);
           // Bot and timer moves don't count as activity, so abandoned rooms still expire.
-          if (game !== record.game) record = { ...record, game };
+          if (game !== record.game) {
+            record = await this.logStep(record, { kind: 'time', now, random: timeTape.draws });
+            record = await this.endRecording({ ...record, game });
+          }
         } catch (error) {
           // Back off instead of retrying the same overdue deadline in a tight loop.
           logError('alarm', error);

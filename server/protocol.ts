@@ -95,6 +95,7 @@ export function parseMessage(raw: string | ArrayBuffer): ClientMessage {
   if (value.type === 'auth' && typeof value.token === 'string' && /^[a-f0-9]{64}$/.test(value.token)) {
     return { type: 'auth', token: value.token };
   }
+  if (value.type === 'consent' && typeof value.value === 'boolean') return { type: 'consent', value: value.value };
   if (value.type === 'view-as' && isIdentifier(value.playerId)) return { type: 'view-as', playerId: value.playerId };
   if (
     value.type === 'action' &&

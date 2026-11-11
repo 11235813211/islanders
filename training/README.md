@@ -43,6 +43,14 @@ itself scores exactly ×1.00):
 - `replay --seed 300868 --hero t1` one game inline, with the final state (for stuck games).
 - `profile --games 10` single-thread timing; `scenarios` prints the map/size mix.
 
+Saved games (people opt in with "Save my games to improve the bots"; recorded only if every human
+at the table agreed; format in `shared/replay.ts`, storage in `server/recording.ts`, newest 500 kept):
+- Export with an account listed in `PLAYTEST_USERS`: `GET /api/records` lists them, and
+  `GET /api/records/<id>` returns one (send `Authorization: Bearer <username>:<token>`; the token is in the
+  browser's `islanders-account` localStorage entry). Save one or an array of them to a file.
+- `replays --file records.json` re-runs each through the engine and says whether it ends as recorded.
+  In code, `replayGame(record, onMove)` in `training/replays.ts` gives the state before and after every step.
+
 Train:
 - `setup-collect --from t1 --games 40000 --out r2 --seed 1000000 [--explore 0.35]` and
   `setup-fit --from t1 --data r1,r2 --name s2 [--hidden 16] [--fresh]`

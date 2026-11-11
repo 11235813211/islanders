@@ -16,7 +16,7 @@ declare const __LAN_ORIGIN__: string;
 function App() {
   const account = useAccount();
   const [session, setSession] = useState<Session | null>(() => savedSession(roomFromLocation()));
-  const room = useRoom(session);
+  const room = useRoom(session, Boolean(account.account));
   const view = room.view;
   const [name, setName] = useState('');
   const [code, setCode] = useState(roomFromLocation);
@@ -267,6 +267,8 @@ function App() {
         online={room.online}
         busy={busy}
         send={send}
+        recording={room.recording}
+        setSaveGames={room.setSaveGames}
         invite={() => setDialog('share')}
       />
     );

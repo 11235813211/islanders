@@ -24,6 +24,7 @@ import {
   type GameSettings,
   type GameView,
   PLAYER_COLOR_IDS,
+  type RecordingStatus,
 } from '../../shared/types';
 import type { Connection } from '../hooks/useRoom';
 import LobbySeat from './lobby/LobbySeat';
@@ -42,10 +43,22 @@ export interface RoomLobbyProps {
   online: string[];
   busy: boolean;
   send: (action: GameAction) => void;
+  recording: RecordingStatus;
+  setSaveGames: (value: boolean) => void;
   invite: () => void;
 }
 
-export default function RoomLobby({ view, playerId, connection, online, busy, send, invite }: RoomLobbyProps) {
+export default function RoomLobby({
+  view,
+  playerId,
+  connection,
+  online,
+  busy,
+  send,
+  recording,
+  setSaveGames,
+  invite,
+}: RoomLobbyProps) {
   const host = playerId === view.hostId;
   const self = view.players.find(p => p.id === view.selfId);
   const takenBy = new Map(view.players.map(p => [p.color, p]));
@@ -172,6 +185,21 @@ export default function RoomLobby({ view, playerId, connection, online, busy, se
               Invite a player
             </button>
           ))}
+        {self && !view.testMode && (
+          <div className="save-games">
+            <label>
+              <input
+                type="checkbox"
+                checked={recording.mine}
+                disabled={connection !== 'online'}
+                onChange={e => setSaveGames(e.target.checked)}
+              />
+              Save my games to improve the bots
+            </label>
+            <small>Keeps moves, dice, and results. Not names or chat.</small>
+            {recording.on && <small>This game will be saved for bot training.</small>}
+          </div>
+        )}
         <div className="room-code-box">
           <span>Room code</span>
           <strong>{view.roomId}</strong>

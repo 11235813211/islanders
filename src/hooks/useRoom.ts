@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AccountSession, GameAction, GameView, ServerMessage, Session } from '../../shared/types';
+import type { AccountSession, GameAction, GameView, RecordingStatus, ServerMessage, Session } from '../../shared/types';
 import { API, apiRequest, requestId } from '../lib/api';
 
 type Pending = { type: 'action'; id: string; version: number; action: GameAction };
 /** Server close code: you left, or the host removed you. */
 const LEFT_ROOM = 4000;
 export type Connection = 'connecting' | 'online' | 'reconnecting' | 'offline';
+
+const SAVE_GAMES_KEY = 'islanders-save-games';
+/** A guest's saved choice about recording games (signed-in people keep theirs on the account). */
+function guestSavesGames(): boolean {
+  try {
+    return localStorage.getItem(SAVE_GAMES_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export function roomFromLocation() {
   return new URLSearchParams(window.location.hash.slice(1)).get('room')?.toUpperCase() ?? '';
@@ -64,9 +74,10 @@ export async function enterRoom(
   return data;
 }
 
-export function useRoom(session: Session | null) {
+export function useRoom(session: Session | null, signedIn = false) {
   const [view, setView] = useState<GameView | null>(null);
   const [online, setOnline] = useState<string[]>([]);
+  const [recording, setRecording] = useState<RecordingStatus>({ mine: false, on: false });
   const [connection, setConnection] = useState<Connection>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -134,6 +145,10 @@ export function useRoom(session: Session | null) {
         currentView.current = message.state;
         setView(message.state);
         setOnline(message.online);
+        if (message.recording) setRecording(message.recording);
+        // A guest's choice lives in this browser; tell the room once per connection.
+        if (!authenticated && !signedIn && message.recording && !message.recording.mine && guestSavesGames())
+          ws.send(JSON.stringify({ type: 'consent', value: true }));
         if (message.acknowledgedId === inFlight.current?.id) {
           inFlight.current = null;
           setPending(false);
@@ -175,7 +190,7 @@ export function useRoom(session: Session | null) {
       socket.current?.close();
       socket.current = null;
     };
-  }, [session]);
+  }, [session, signedIn]);
 
   useEffect(() => {
     if (!pending) return;
@@ -201,6 +216,17 @@ export function useRoom(session: Session | null) {
     [connection],
   );
 
+  /** Choose whether this game may be saved for bot training. */
+  const setSaveGames = useCallback((value: boolean) => {
+    if (socket.current?.readyState !== WebSocket.OPEN) return;
+    try {
+      localStorage.setItem(SAVE_GAMES_KEY, value ? '1' : '0');
+    } catch {
+      /* Storage may be disabled; the room still has the choice. */
+    }
+    socket.current.send(JSON.stringify({ type: 'consent', value }));
+  }, []);
+
   const viewAs = useCallback(
     (playerId: string) => {
       if (socket.current?.readyState === WebSocket.OPEN && !inFlight.current && connection === 'online') {
@@ -209,5 +235,17 @@ export function useRoom(session: Session | null) {
     },
     [connection],
   );
-  return { view, online, connection, error, pending, left, send, viewAs, clearError: () => setError(null) };
+  return {
+    view,
+    online,
+    recording,
+    connection,
+    error,
+    pending,
+    left,
+    send,
+    setSaveGames,
+    viewAs,
+    clearError: () => setError(null),
+  };
 }

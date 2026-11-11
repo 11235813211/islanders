@@ -535,10 +535,16 @@ export interface AccountRoomStatus extends AccountRoom {
   yourTurn: boolean;
   winner: string | null;
 }
+/** Whether this player agreed to have games saved, and whether this game is (or will be) saved. */
+export interface RecordingStatus {
+  mine: boolean;
+  on: boolean;
+}
 export type ClientMessage =
   | { type: 'auth'; token: string }
   | { type: 'view-as'; playerId: string }
+  | { type: 'consent'; value: boolean }
   | { type: 'action'; id: string; version: number; action: GameAction };
 export type ServerMessage =
-  | { type: 'state'; state: GameView; online: string[]; acknowledgedId?: string }
+  | { type: 'state'; state: GameView; online: string[]; recording?: RecordingStatus; acknowledgedId?: string }
   | { type: 'error'; message: string; id?: string };
