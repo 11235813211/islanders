@@ -24,6 +24,14 @@ export const KNOBS = {
   /** 0: the planner decides whether to build and the value network what; 1: the network decides both. */
   valueRole: [0, 0, 1],
 
+  // Plans (plans.ts)
+  /** 0: the fixed-order planner; 1: plans weighed by payoff per turn. */
+  planner: [0, 0, 1],
+  /** Points one resource card is worth (a settlement is four cards and a point, plus production). */
+  pointPerCard: [0.22, 0.1, 0.4],
+  /** Rounds the game lasts per point the leader still needs. */
+  roundsPerPoint: [2.2, 1, 4],
+
   // Expansion
   /** How much an opponent being closer to a spot cuts its value (0: ignore races). */
   racePenalty: [0.6, 0, 1],

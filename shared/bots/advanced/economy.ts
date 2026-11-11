@@ -4,6 +4,16 @@ import { type GameAction, type GameView, RESOURCES, type Resource, type Resource
 import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths } from '../analysis';
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
+import { makePlans, type Plan, type PlanKind, planScore } from './plans';
+
+const GOAL: Record<PlanKind, Goal> = {
+  city: 'city',
+  settlement: 'settlement',
+  route: 'settlement',
+  explore: 'road',
+  development: 'development',
+  road: 'road',
+};
 
 /**
  * How this bot values cards: each goal (city, settlement with the roads it needs, development
@@ -35,7 +45,9 @@ export class Economy {
   readonly production: ResourceBag;
   readonly choicePips: number;
   readonly goals: GoalOption[];
-  readonly target: Target | null;
+  /** The plans weighed (planner 1; see plans.ts). */
+  readonly plans: Plan[] = [];
+  target: Target | null;
   /** The best target after `target` is taken (for afterstates). */
   runnerUp: Target | null = null;
   /** Open corners our roads and ships already reach (settle there with cards alone). */
@@ -58,7 +70,38 @@ export class Economy {
     this.choicePips = choice;
     this.frontiers = view.players.map(p => this.frontier(p.id));
     this.target = this.expansionTarget();
-    this.goals = this.goalOptions();
+    if (knobs.planner < 0.5) {
+      this.goals = this.goalOptions();
+      return;
+    }
+    const { land, fog } = this.reachable();
+    this.plans = makePlans(this, land, fog);
+    this.goals = this.plans.map(p => ({ goal: GOAL[p.kind], cost: p.cost, value: p.payoff }));
+    // The route to follow: the best-scoring plan that builds roads or ships.
+    const routes = this.plans
+      .filter(p => p.path)
+      .map(p => ({ p, score: planScore(this, p) }))
+      .sort((a, b) => b.score - a.score);
+    this.target = routes[0] ? { ...routes[0].p.path!, value: routes[0].score } : null;
+    this.runnerUp = routes[1] ? { ...routes[1].p.path!, value: routes[1].score } : null;
+  }
+
+  /** Open land corners (and fog corners) our routes could reach, with the way there. */
+  private reachable(): { land: Map<string, Target>; fog: Map<string, Target> } {
+    const reach = this.view.seafaring ? 7 : 5;
+    const occupied = new Uint8Array(this.geo.n);
+    for (const id of Object.keys(this.view.buildings)) occupied[this.geo.indexOf.get(id)!] = 1;
+    const index = boardIndex(this.view.board);
+    const land = new Map<string, Target>();
+    const fog = new Map<string, Target>();
+    for (const [vertexId, path] of roadPaths(this.board)) {
+      if (path.distance === 0 || path.distance > reach) continue;
+      const c = this.geo.indexOf.get(vertexId)!;
+      const target = { vertexId, value: 0, ...path };
+      if (this.geo.land[c] && isOpen(this.geo, occupied, c)) land.set(vertexId, target);
+      if (index.vertex.get(vertexId)!.hexIds.some(h => index.hex.get(h)!.terrain === 'fog')) fog.set(vertexId, target);
+    }
+    return { land, fog };
   }
 
   get victoryTarget(): number {

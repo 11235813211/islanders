@@ -433,7 +433,7 @@ export interface GameView {
   specialQueue: string[];
   specialAsked: string[];
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
-  features: { sea: boolean; volcano: boolean };
+  features: { sea: boolean; volcano: boolean; fogLand: number };
   winnerId: string | null;
   log: GameLog[];
   selfId: string;

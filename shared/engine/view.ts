@@ -16,14 +16,21 @@ import {
 } from './core';
 import { legalMoves } from './legal';
 
-/** What the map has, or may draw from its random land: sea (so it needs Seafarers) and volcanoes. */
+/**
+ * What the map has, or may draw from its random land: sea (so it needs Seafarers), volcanoes, and
+ * the share of its fog mix that turns out to be producing land (public: the map shows its mix).
+ */
 function mapFeatures(state: GameState): GameView['features'] {
   const design = state.design;
-  if (!design) return { sea: false, volcano: false };
+  if (!design) return { sea: false, volcano: false, fogLand: 0 };
   const random = design.tiles.some(t => t.kind === 'land');
   const draws = (pool: Pool | undefined) => random && (pool?.volcano ?? 0) > 0;
   const fogVolcano = design.tiles.some(t => t.kind === 'fog') && ((design.fogPool ?? FOG_POOL).volcano ?? 0) > 0;
+  const fog = Object.entries(design.fogPool ?? FOG_POOL);
+  const fogTotal = fog.reduce((n, [, c]) => n + (c ?? 0), 0);
+  const fogLand = fog.reduce((n, [k, c]) => n + (k === 'sea' || k === 'desert' ? 0 : (c ?? 0)), 0);
   return {
+    fogLand: fogTotal ? fogLand / fogTotal : 0,
     sea: boardExpansions(design).includes('seafarers'),
     volcano:
       design.tiles.some(t => t.kind === 'volcano') ||

@@ -4,6 +4,7 @@ import { type DevelopmentCard, type GameAction, RESOURCES, type Resource } from 
 import { bagValue, COSTS, canPay, linkAction, resourceWeights } from '../analysis';
 import type { TurnOptions } from '../types';
 import { choices, type Economy } from './economy';
+import { planStep } from './plan-turn';
 import { blockedOwnPips } from './robber';
 import { nextOffer } from './trade';
 
@@ -71,7 +72,7 @@ export function developmentPlay(econ: Economy): GameAction | null {
 }
 
 /** Bank or harbor trade that makes the goal affordable this turn, giving up the least useful cards. */
-function bankTrade(econ: Economy): GameAction | null {
+export function bankTrade(econ: Economy): GameAction | null {
   const { view } = econ;
   const goal = econ.bestGoal();
   if (!goal) return null;
@@ -147,7 +148,9 @@ export function towardTarget(econ: Economy): GameAction | null {
 }
 
 /** One move of the build phase. */
-export function buildStep(econ: Economy, { builds = 0, allowOffers = true }: TurnOptions): GameAction {
+export function buildStep(econ: Economy, options: TurnOptions): GameAction {
+  if (econ.knobs.planner >= 0.5) return planStep(econ, options);
+  const { builds = 0, allowOffers = true } = options;
   const { view, knobs } = econ;
   if (builds >= 2 && !allowOffers) return { type: 'end-turn' };
   const play = developmentPlay(econ);

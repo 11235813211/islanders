@@ -236,7 +236,7 @@ Object.assign(COMMANDS, {
   routes() {
     const seed = Number(flags.seed ?? 1);
     const scenario = drawScenario(seed, filterFromFlags());
-    const spec = seatFor(flags.hero ?? 'shipped');
+    const spec = withKnobs(seatFor(flags.hero ?? 'shipped'));
     const log: RouteLog[] = [];
     const knobs = makeParams('advanced' in spec ? spec.advanced : {}).knobs;
     const brains = Array.from({ length: scenario.players }, (_, i) =>
