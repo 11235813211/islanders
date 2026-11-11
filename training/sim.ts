@@ -2,6 +2,7 @@ import { actWith, BOTS, type Brain } from '../shared/bots';
 import { addPlayer, applyAction, createGame, GameError, getActivePlayerId, getView } from '../shared/engine';
 import { bankGold, pendingBotActor } from '../shared/engine/time';
 import type { GameAction, GameState } from '../shared/types';
+import { endDiagnostics } from './diagnostics';
 import type { Scenario } from './scenarios';
 
 /**
@@ -68,11 +69,40 @@ export function playGame(
   const random = seeded(seed);
   let g = scenarioLobby(scenario, brains.length, random);
   g = applyAction(g, 'p0', { type: 'start' }, random, NOW);
+  const actions = brains.map(() => ({}) as Record<string, number>);
+  const played = playOn(g, brains, random, { hooks, maxSteps, actions });
+  g = played.state;
+  hooks.end?.(g);
+  endDiagnostics(g).forEach((counts, seat) => {
+    Object.assign(actions[seat]!, counts);
+  });
+  const points = g.players.map(p => getView(g, p.id).players.find(q => q.id === p.id)!.points);
+  return {
+    winner: g.winnerId ? Number(g.winnerId.slice(1)) : null,
+    points,
+    turns: g.turn,
+    steps: played.steps,
+    victoryPoints: g.settings.victoryPoints,
+    actions,
+  };
+}
+
+/**
+ * Bot moves from any state until the game ends, `maxSteps` moves, or turn `untilTurn` begins
+ * (rollouts continue a game for a few turns).
+ */
+export function playOn(
+  state: GameState,
+  brains: Brain[],
+  random: () => number,
+  options: { hooks?: SimHooks; maxSteps?: number; untilTurn?: number; actions?: Record<string, number>[] } = {},
+): { state: GameState; steps: number } {
+  let g = state;
   let steps = 0;
   let turnSteps = 0;
-  const actions = brains.map(() => ({}) as Record<string, number>);
   let lastTurn = -1;
-  for (; steps < maxSteps && g.phase !== 'finished'; steps++) {
+  const { hooks = {}, maxSteps = 8000, untilTurn = Infinity, actions } = options;
+  for (; steps < maxSteps && g.phase !== 'finished' && g.turn < untilTurn; steps++) {
     const actor = pendingBotActor(g);
     if (!actor) throw new Error(`No seat wants to act in phase ${g.phase} (turn ${g.turn}).`);
     if (g.turn !== lastTurn) {
@@ -82,27 +112,23 @@ export function playGame(
     turnSteps++;
     const seat = Number(actor.slice(1));
     hooks.beforeMove?.(g, seat);
+    const fog = Object.keys(g.fog).length;
     g = step(g, actor, brains[seat]!, turnSteps, random);
-    const kind = lastAction ?? 'fallback';
-    actions[seat]![kind] = (actions[seat]![kind] ?? 0) + 1;
+    if (actions) {
+      const kind = lastAction ?? 'fallback';
+      actions[seat]![kind] = (actions[seat]![kind] ?? 0) + 1;
+      const revealed = fog - Object.keys(g.fog).length;
+      if (revealed) actions[seat]!['end: fog revealed'] = (actions[seat]!['end: fog revealed'] ?? 0) + revealed;
+    }
   }
-  hooks.end?.(g);
-  const points = g.players.map(p => getView(g, p.id).players.find(q => q.id === p.id)!.points);
-  return {
-    winner: g.winnerId ? Number(g.winnerId.slice(1)) : null,
-    points,
-    turns: g.turn,
-    steps,
-    victoryPoints: g.settings.victoryPoints,
-    actions,
-  };
+  return { state: g, steps };
 }
 
 /** The type of the action `step` last applied (null when it fell back). */
 let lastAction: string | null = null;
 
-/** One bot move with the room driver's fallbacks: the brain, then Beginner, then ending the turn. */
-function step(g: GameState, actor: string, brain: Brain, turnSteps: number, random: () => number): GameState {
+/** One bot move with the room driver's fallbacks (exported for rollouts): the brain, then Beginner, then ending the turn. */
+export function step(g: GameState, actor: string, brain: Brain, turnSteps: number, random: () => number): GameState {
   const view = getView(g, actor);
   const attempts: (() => GameAction)[] = [
     () => (turnSteps > MAX_STEPS_PER_TURN && g.phase === 'build' ? { type: 'end-turn' } : actWith(brain, view)),

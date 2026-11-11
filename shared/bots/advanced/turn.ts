@@ -157,7 +157,8 @@ export function buildStep(econ: Economy, { builds = 0, allowOffers = true }: Tur
   const award = longestRoadMove(econ);
   if (award) return award.action;
   const goal = econ.bestGoal();
-  if (goal?.goal === 'settlement') {
+  // With a corner already in reach, save for the settlement instead of roads to the next one.
+  if (goal?.goal === 'settlement' && !econ.spots) {
     const road = towardTarget(econ);
     if (road) return road;
   }
@@ -174,7 +175,7 @@ export function buildStep(econ: Economy, { builds = 0, allowOffers = true }: Tur
     if (goal?.goal === 'development' || keeps) return { type: 'buy-development' };
   }
   const near = knobs.spareRoads + (view.seafaring ? 2 : 0);
-  if (econ.self.roadsLeft + econ.self.shipsLeft > 2 && (econ.target?.distance ?? 99) <= near) {
+  if (!econ.spots && econ.self.roadsLeft + econ.self.shipsLeft > 2 && (econ.target?.distance ?? 99) <= near) {
     const road = towardTarget(econ);
     if (road) return road;
   }

@@ -1,19 +1,23 @@
 import { boardIndex } from '../../seafaring';
-import { RESOURCES, type ResourceBag } from '../../types';
+import { RESOURCES, type Resource, type ResourceBag } from '../../types';
 import { COSTS, pips } from '../analysis';
 import type { Economy } from './economy';
-import { type Net, predict } from './net';
+import { cornerPips, distanceFrom, openCorners } from './geometry';
 
 /**
- * The value network: how likely this seat is to win from a position, learned from self-play.
- * A position is a small summary (production, hand, points, awards, pieces, room to expand), so a
- * candidate move can be tried by editing the summary instead of the game: the build phase scores
- * the position each move leads to and takes the best (one step of lookahead).
+ * The value network sees every seat: a small summary per seat (production, likely hand, points,
+ * awards, pieces, room to grow), and one shared network turns each summary into a score; a
+ * softmax over the seats gives each one's chance to win. Seat 0 is always the seat that is
+ * deciding, so a candidate move is tried by editing its summary and reading its chance (and,
+ * when a move takes an award, the holder's summary too).
  *
- * Inputs are board-agnostic: totals and ratios, never which tile or corner.
+ * Inputs are board-agnostic: totals and ratios, never which tile or corner. Opponents' hands are
+ * the public card count (`view.likelyHands`), the same thing a person at the table could track.
  */
 
 export interface Position {
+  /** Index in view.players. */
+  seat: number;
   production: ResourceBag;
   choice: number;
   hand: ResourceBag;
@@ -21,23 +25,29 @@ export interface Position {
   developments: number;
   knights: number;
   road: number;
-  /** 1: we hold the award, -1: someone else does, 0: nobody. */
-  roadAward: number;
-  armyAward: number;
+  roadAward: boolean;
+  armyAward: boolean;
   settlementsLeft: number;
   citiesLeft: number;
   routesLeft: number;
-  targetValue: number;
-  targetDistance: number;
-  /** Corners we could settle right now. */
+  /** Open corners its routes already reach, and ones one or two pieces away. */
   spots: number;
+  near: number;
+  /** Best open corner further out: its worth (pips, discounted by distance) and distance. */
+  reach: number;
+  reachDistance: number;
+  /** The corner behind `reach`, and the next best (for when it is taken). */
+  reachCorner: number;
+  nextReach: number;
+  nextDistance: number;
+  rates: Record<Resource, number>;
 }
 
-export const VALUE_FEATURES = [
+export const SEAT_FEATURES = [
+  'self',
+  'order',
   'points',
   'pointsToGo',
-  'oppMaxPoints',
-  'oppSecondPoints',
   'lead',
   'wood',
   'brick',
@@ -46,9 +56,8 @@ export const VALUE_FEATURES = [
   'ore',
   'choice',
   'production',
+  'productionShare',
   'kinds',
-  'oppMaxProduction',
-  'oppMeanProduction',
   'handWood',
   'handBrick',
   'handSheep',
@@ -61,136 +70,163 @@ export const VALUE_FEATURES = [
   'turnsDevelopment',
   'developments',
   'knights',
-  'armyMine',
-  'armyTheirs',
-  'oppMaxKnights',
+  'army',
   'road',
-  'roadMine',
-  'roadTheirs',
-  'oppMaxRoad',
+  'roadAward',
   'settlementsLeft',
   'citiesLeft',
   'routesLeft',
-  'targetValue',
-  'targetDistance',
   'spots',
-  'harborWood',
-  'harborBrick',
-  'harborSheep',
-  'harborWheat',
-  'harborOre',
+  'near',
+  'reach',
+  'reachDistance',
+  'harborAny',
+  'harborMatch',
   'players',
   'turn',
   'seafaring',
+  'target',
+  'deck',
 ] as const;
 
-const award = (holder: string | null, self: string) => (holder === self ? 1 : holder ? -1 : 0);
+/** Most seats at a table; training pads to this. */
+export const MAX_SEATS = 6;
 
-/** The position as it stands. */
-export function currentPosition(econ: Economy): Position {
-  const { view, self } = econ;
-  return {
-    production: { ...econ.production },
-    choice: econ.choicePips,
-    hand: { ...view.hand },
-    points: self.points,
-    developments: view.development.filter(c => c.kind !== 'victory-point').length,
-    knights: self.knights,
-    road: self.longestRoad,
-    roadAward: award(view.longestRoadId, view.selfId),
-    armyAward: award(view.largestArmyId, view.selfId),
-    settlementsLeft: self.settlementsLeft,
-    citiesLeft: self.citiesLeft,
-    routesLeft: self.roadsLeft + (view.seafaring ? self.shipsLeft : 0),
-    targetValue: econ.target?.value ?? 0,
-    targetDistance: econ.target?.distance ?? 9,
-    spots: econ.spots,
-  };
-}
-
-interface Opponents {
-  maxPoints: number;
-  secondPoints: number;
-  maxProduction: number;
-  meanProduction: number;
-  maxKnights: number;
-  maxRoad: number;
-}
-
-const opponentCache = new WeakMap<Economy, Opponents>();
-
-function opponents(econ: Economy): Opponents {
-  const cached = opponentCache.get(econ);
-  if (cached) return cached;
-  const others = econ.view.players.filter(p => p.id !== econ.view.selfId);
-  const points = others.map(p => p.publicPoints + p.developmentCount * 0.25).sort((a, b) => b - a);
-  const production = others.map(p => {
-    const { production, choice } = econ.productionOf(p.id);
-    return RESOURCES.reduce((n, r) => n + production[r], choice);
-  });
-  const result = {
-    maxPoints: points[0] ?? 0,
-    secondPoints: points[1] ?? 0,
-    maxProduction: Math.max(0, ...production),
-    meanProduction: production.reduce((a, b) => a + b, 0) / (production.length || 1),
-    maxKnights: Math.max(0, ...others.map(p => p.knights)),
-    maxRoad: Math.max(0, ...others.map(p => p.longestRoad)),
-  };
-  opponentCache.set(econ, result);
-  return result;
-}
-
-/** Network inputs for a position (see VALUE_FEATURES). */
-export function valueFeatures(econ: Economy, pos: Position): number[] {
+/** Every seat's position as it stands, the deciding seat first, then the others in turn order. */
+export function seatPositions(econ: Economy): Position[] {
   const { view } = econ;
+  const n = view.players.length;
+  const occupied = new Uint8Array(econ.geo.n);
+  for (const id of Object.keys(view.buildings)) occupied[econ.geo.indexOf.get(id)!] = 1;
+  const open = openCorners(econ.geo, occupied);
+  return Array.from({ length: n }, (_, k) => seatPosition(econ, (econ.seat + k) % n, open));
+}
+
+function seatPosition(econ: Economy, seat: number, open: number[]): Position {
+  const { view, geo } = econ;
+  const player = view.players[seat]!;
+  const self = player.id === view.selfId;
+  const { production, choice } = self
+    ? { production: econ.production, choice: econ.choicePips }
+    : econ.productionOf(player.id);
+  const frontier = econ.frontiers[seat]!;
+  const reachLimit = view.seafaring ? 7 : 5;
+  let spots = 0;
+  let near = 0;
+  const best = { value: 0, distance: 9, corner: -1 };
+  const next = { value: 0, distance: 9 };
+  for (const c of open) {
+    const d = frontier.length ? distanceFrom(geo, frontier, c) : 255;
+    if (d === 0) spots++;
+    else if (d <= 2) near++;
+    if (d === 0 || d > reachLimit) continue;
+    const value = cornerPips(geo, c) / (1 + 0.5 * d ** 1.5);
+    if (value > best.value) {
+      Object.assign(next, { value: best.value, distance: best.distance });
+      Object.assign(best, { value, distance: d, corner: c });
+    } else if (value > next.value) Object.assign(next, { value, distance: d });
+  }
+  return {
+    seat,
+    production: { ...production },
+    choice,
+    hand: { ...econ.handOf(player.id) },
+    points: self ? player.points : player.publicPoints,
+    developments: self ? view.development.filter(c => c.kind !== 'victory-point').length : player.developmentCount,
+    knights: player.knights,
+    road: player.longestRoad,
+    roadAward: view.longestRoadId === player.id,
+    armyAward: view.largestArmyId === player.id,
+    settlementsLeft: player.settlementsLeft,
+    citiesLeft: player.citiesLeft,
+    routesLeft: player.roadsLeft + (view.seafaring ? player.shipsLeft : 0),
+    spots,
+    near,
+    reach: best.value,
+    reachDistance: best.distance,
+    reachCorner: best.corner,
+    nextReach: next.value,
+    nextDistance: next.distance,
+    rates: self ? view.tradeRates : harborRates(econ, player.id),
+  };
+}
+
+/** Bank rates from the harbors a player has built on. */
+function harborRates(econ: Economy, playerId: string): Record<Resource, number> {
+  const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4 };
+  for (const [vertexId, b] of Object.entries(econ.view.buildings)) {
+    if (b.playerId !== playerId) continue;
+    const harbor = econ.geo.harbor[econ.geo.indexOf.get(vertexId)!];
+    if (harbor === 'any') for (const r of RESOURCES) rates[r] = Math.min(rates[r], 3);
+    else if (harbor) rates[harbor] = 2;
+  }
+  return rates;
+}
+
+const total = (p: Position) => RESOURCES.reduce((n, r) => n + p.production[r], p.choice);
+
+/**
+ * Network inputs for every seat (see SEAT_FEATURES); `positions[0]` is the deciding seat.
+ * `mover` is the seat about to roll (training samples are taken just before a roll, so a move is
+ * judged as the position the next player rolls from).
+ */
+export function seatFeatures(econ: Economy, positions: readonly Position[], mover = moverOf(econ)): number[][] {
+  const meanProduction = positions.reduce((s, p) => s + total(p), 0) / positions.length || 1;
+  return positions.map((p, k) => {
+    const others = Math.max(0, ...positions.filter((_, j) => j !== k).map(q => q.points));
+    return featuresOf(econ, p, k, mover, [(p.points - others) / 5, total(p) / meanProduction]);
+  });
+}
+
+/** The seat whose turn it is (view.players index), or -1. */
+export function moverOf(econ: Economy): number {
+  return econ.view.players.findIndex(p => p.id === econ.view.turnPlayerId);
+}
+
+function featuresOf(econ: Economy, pos: Position, k: number, mover: number, [lead, share]: number[]): number[] {
+  const { view } = econ;
+  const n = view.players.length;
   const target = view.settings.victoryPoints;
-  const opp = opponents(econ);
-  const total = RESOURCES.reduce((n, r) => n + pos.production[r], pos.choice);
-  const cards = RESOURCES.reduce((n, r) => n + pos.hand[r], 0);
-  const turns = (cost: ResourceBag) => Math.min(10, econ.turnsWith(pos.hand, pos.production, pos.choice, cost)) / 10;
+  const cards = RESOURCES.reduce((s, r) => s + pos.hand[r], 0);
+  const turns = (cost: ResourceBag) =>
+    Math.min(10, econ.turnsWith(pos.hand, pos.production, pos.choice, cost, pos.rates)) / 10;
   return [
+    k === 0 ? 1 : 0,
+    mover < 0 ? 0 : ((pos.seat - mover + n) % n) / n,
     pos.points / target,
     (target - pos.points) / 10,
-    opp.maxPoints / target,
-    opp.secondPoints / target,
-    (pos.points - opp.maxPoints) / 5,
+    lead,
     ...RESOURCES.map(r => pos.production[r] / 10),
     pos.choice / 10,
-    total / 30,
+    total(pos) / 30,
+    share,
     RESOURCES.filter(r => pos.production[r] > 0).length / 5,
-    opp.maxProduction / 30,
-    opp.meanProduction / 30,
     ...RESOURCES.map(r => pos.hand[r] / 4),
     cards / 10,
     Math.max(0, cards - view.settings.discardLimit) / 4,
     pos.citiesLeft ? turns(COSTS.city) : 1,
-    pos.settlementsLeft && (pos.spots || pos.targetValue) ? turns(COSTS.settlement) : 1,
+    pos.settlementsLeft && (pos.spots || pos.reach) ? turns(COSTS.settlement) : 1,
     view.developmentRemaining ? turns(COSTS.development) : 1,
     pos.developments / 3,
     pos.knights / 3,
-    pos.armyAward === 1 ? 1 : 0,
-    pos.armyAward === -1 ? 1 : 0,
-    opp.maxKnights / 3,
+    pos.armyAward ? 1 : 0,
     pos.road / 10,
-    pos.roadAward === 1 ? 1 : 0,
-    pos.roadAward === -1 ? 1 : 0,
-    opp.maxRoad / 10,
+    pos.roadAward ? 1 : 0,
     pos.settlementsLeft / 5,
     pos.citiesLeft / 4,
     pos.routesLeft / 15,
-    pos.targetValue / 15,
-    Math.min(9, pos.targetDistance) / 5,
     Math.min(3, pos.spots) / 3,
-    ...RESOURCES.map(r => (4 - view.tradeRates[r]) / 2),
-    view.players.length / 6,
+    Math.min(5, pos.near) / 5,
+    pos.reach / 10,
+    Math.min(9, pos.reachDistance) / 5,
+    RESOURCES.some(r => pos.rates[r] === 3) ? 1 : 0,
+    RESOURCES.reduce((s, r) => s + (pos.rates[r] === 2 ? pos.production[r] : 0), 0) / 10,
+    n / 6,
     Math.min(150, view.turn) / 100,
     view.seafaring ? 1 : 0,
+    target / 15,
+    view.developmentRemaining / 25,
   ];
-}
-
-/** Predicted chance of winning from a position. */
-export function positionValue(net: Net, econ: Economy, pos: Position): number {
-  return predict(net, valueFeatures(econ, pos));
 }
 
 /** Pips (robber counted) a building at this corner adds, by resource and choice. */

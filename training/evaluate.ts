@@ -97,6 +97,8 @@ export interface MatchOptions {
   filter?: ScenarioFilter;
   heroes?: 1 | 'half';
   quiet?: boolean;
+  /** See GameJob.mixed. */
+  mixed?: boolean;
   /**
    * Play each seed once per seat, the hero moving round the table, so no seat or board favors
    * it. `games` then counts seeds.
@@ -110,7 +112,7 @@ export function matchJobs(hero: SeatSpec, field: SeatSpec[], options: MatchOptio
   const jobs: GameJob[] = [];
   for (let i = 0; i < options.games; i++) {
     const seed = first + i;
-    const base = { seed, filter: options.filter, hero, field, heroes: options.heroes };
+    const base = { seed, filter: options.filter, hero, field, heroes: options.heroes, mixed: options.mixed };
     if (!options.rotate) jobs.push(base);
     else for (let seat = 0; seat < drawScenario(seed, options.filter).players; seat++) jobs.push({ ...base, seat });
   }

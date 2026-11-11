@@ -21,6 +21,8 @@ export const KNOBS = {
   setupExplore: [0, 0, 1],
   /** Training only: chance of a random move among the value network's candidates. */
   valueExplore: [0, 0, 1],
+  /** 0: the planner decides whether to build and the value network what; 1: the network decides both. */
+  valueRole: [0, 0, 1],
 
   // Expansion
   /** How much an opponent being closer to a spot cuts its value (0: ignore races). */

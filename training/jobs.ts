@@ -4,10 +4,11 @@ import { exploration } from '../shared/bots/advanced/choose';
 import { Economy } from '../shared/bots/advanced/economy';
 import { makeParams } from '../shared/bots/advanced/params';
 import { finalSetupFeatures } from '../shared/bots/advanced/setup';
-import { currentPosition, valueFeatures } from '../shared/bots/advanced/value';
+import { MAX_SEATS, SEAT_FEATURES, seatFeatures, seatPositions } from '../shared/bots/advanced/value';
 import { goldChoice, specialBuild } from '../shared/bots/analysis';
 import { getView } from '../shared/engine';
 import type { BotLevel } from '../shared/types';
+import { decisionRows, isDecision, type RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { type GameResult, playGame } from './sim';
 
@@ -56,8 +57,14 @@ export interface GameJob {
   heroes?: 1 | 'half';
   /** First hero seat; by default it rotates with the seed. */
   seat?: number;
-  /** Record network inputs: each seat's final starting position, or positions during play. */
-  record?: 'setup' | 'value';
+  /** Start the field at a seed-chosen member, so small tables meet every member of a mixed field. */
+  mixed?: boolean;
+  /**
+   * Record network inputs: each seat's final starting position, positions during play, or
+   * move comparisons (rollouts.ts, with `rollouts`).
+   */
+  record?: 'setup' | 'value' | 'moves';
+  rollouts?: RolloutOptions;
 }
 
 export interface JobResult extends GameResult {
@@ -102,7 +109,7 @@ export function runJob(job: GameJob): JobResult {
   const started = performance.now();
   const scenario = drawScenario(job.seed, job.filter);
   const heroes = heroSeats(job, scenario.players);
-  let f = 0;
+  let f = job.mixed ? job.seed % job.field.length : 0;
   const seats = Array.from({ length: scenario.players }, (_, i) =>
     heroes.includes(i) ? job.hero : job.field[f++ % job.field.length]!,
   );
@@ -110,9 +117,16 @@ export function runJob(job: GameJob): JobResult {
   const before = { ...exploration };
   let setupDone = false;
   const params = makeParams();
-  const result = playGame(scenario, seats.map(brainFor), job.seed, {
-    beforeMove(state) {
+  const brains = seats.map(brainFor);
+  const result = playGame(scenario, brains, job.seed, {
+    beforeMove(state, seat) {
       if (!job.record || state.phase.startsWith('setup')) return;
+      if (job.record === 'moves') {
+        const r = job.rollouts!;
+        if (isDecision(state, seat, job.seed, r.rate))
+          for (const features of decisionRows(state, seat, brains, job.seed, r)) recorded.push({ seat, features });
+        return;
+      }
       if (job.record === 'setup') {
         // The first move after setup: every seat's starting position is final.
         if (setupDone) return;
@@ -121,11 +135,10 @@ export function runJob(job: GameJob): JobResult {
           recorded.push({ seat, features: finalSetupFeatures(getView(state, p.id), params) });
         });
       } else if (state.phase === 'roll' && sampled(state.version, job.seed)) {
-        // A sample of turn starts, every seat's position (inputs use default knobs, like the bot's).
-        state.players.forEach((p, seat) => {
-          const econ = new Economy(getView(state, p.id), params.knobs);
-          recorded.push({ seat, features: valueFeatures(econ, currentPosition(econ)) });
-        });
+        // A sample of turn starts, seen by one seat per game (so TD targets have a sequence).
+        const viewer = viewSeat(job.seed, state.players.length);
+        const econ = new Economy(getView(state, state.players[viewer]!.id), params.knobs);
+        recorded.push({ seat: viewer, features: paddedSeats(seatFeatures(econ, seatPositions(econ))) });
       }
     },
   });
@@ -143,6 +156,21 @@ export function runJob(job: GameJob): JobResult {
       differed: exploration.differed - before.differed,
     },
   };
+}
+
+/** The seat whose view a game's value samples are taken from. */
+export function viewSeat(seed: number, players: number): number {
+  return (Math.imul(seed, 2654435761) >>> 0) % players;
+}
+
+/** [seats present, then MAX_SEATS blocks of SEAT_FEATURES, zero for absent seats]. */
+function paddedSeats(seats: number[][]): number[] {
+  const out = new Array(1 + MAX_SEATS * SEAT_FEATURES.length).fill(0);
+  out[0] = seats.length;
+  seats.forEach((f, k) => {
+    out.splice(1 + k * SEAT_FEATURES.length, f.length, ...f);
+  });
+  return out;
 }
 
 /** About one turn start in four, chosen by a hash so it is the same in every run. */

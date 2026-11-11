@@ -3,102 +3,109 @@ import { type GameAction, RESOURCES, type ResourceBag } from '../../types';
 import { COSTS } from '../analysis';
 import type { TurnOptions } from '../types';
 import type { Economy } from './economy';
-import type { Net } from './net';
+import { type Net, seatChances } from './net';
 import { buildStep, longestRoadMove, towardTarget } from './turn';
-import { cornerYield, currentPosition, type Position, positionValue, withBuild } from './value';
+import { cornerYield, type Position, seatFeatures, seatPositions, withBuild } from './value';
 
 /**
- * One build-phase move chosen by the value network: every sensible move (a city, a settlement,
- * a road toward the target or for Longest Road, a development card, a bank trade, or stopping)
- * is tried on the position summary, and the move whose result the network rates highest wins.
- * Returns null when stopping is best (the caller may still try offers to players).
+ * Build-phase moves chosen by the value network: every sensible move (a city, a settlement, a
+ * road toward the best open corner or for Longest Road, a development card, a bank trade, or
+ * stopping) is tried on the seat summaries, and the move after which our chance to win is
+ * highest wins. Each result is judged as the position the next player rolls from, which is what
+ * the network was trained on.
  */
 
-interface Candidate {
+export interface Candidate {
   action: GameAction | null;
-  position: Position;
+  /** Every seat after the move, ours first. */
+  seats: Position[];
 }
 
 const SHIP = BUILD_COSTS.ship;
+const NOTHING = { production: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 }, choice: 0 };
+
+/** The seats with ours replaced, and an award moved from its holder when we take it. */
+function after(base: Position[], self: Position, award?: 'roadAward' | 'armyAward'): Position[] {
+  return base.map((p, k) => {
+    if (k === 0) return self;
+    if (award && p[award]) return { ...p, [award]: false, points: p.points - 2 };
+    return p;
+  });
+}
+
+function settlementSelf(econ: Economy, me: Position, vertexId: string): Position {
+  const p = withBuild(me, cornerYield(econ, vertexId), COSTS.settlement);
+  const c = econ.geo.indexOf.get(vertexId)!;
+  const tookReach = c === me.reachCorner;
+  return {
+    ...p,
+    points: p.points + 1 + econ.islandBonus(c),
+    settlementsLeft: p.settlementsLeft - 1,
+    spots: tookReach ? p.spots : Math.max(0, p.spots - 1),
+    reach: tookReach ? me.nextReach : me.reach,
+    reachDistance: tookReach ? me.nextDistance : me.reachDistance,
+  };
+}
+
+function roadSelf(me: Position, cost: ResourceBag): Position {
+  const p = withBuild(me, NOTHING, cost);
+  const distance = me.reachDistance - 1;
+  const arrived = distance <= 0;
+  return {
+    ...p,
+    routesLeft: p.routesLeft - 1,
+    reachDistance: arrived ? me.nextDistance : distance,
+    reach: arrived ? me.nextReach : me.reach,
+    spots: arrived ? p.spots + 1 : p.spots,
+  };
+}
 
 function candidates(econ: Economy): Candidate[] {
   const { view } = econ;
-  const base = currentPosition(econ);
-  const out: Candidate[] = [{ action: null, position: base }];
+  const base = seatPositions(econ);
+  const me = base[0]!;
+  const out: Candidate[] = [{ action: null, seats: base }];
   for (const v of view.legal.cities) {
-    const p = withBuild(base, cornerYield(econ, v), COSTS.city);
-    out.push({
-      action: { type: 'build-city', vertexId: v },
-      position: { ...p, points: p.points + 1, citiesLeft: p.citiesLeft - 1, settlementsLeft: p.settlementsLeft + 1 },
-    });
+    const p = withBuild(me, cornerYield(econ, v), COSTS.city);
+    const self = { ...p, points: p.points + 1, citiesLeft: p.citiesLeft - 1, settlementsLeft: p.settlementsLeft + 1 };
+    out.push({ action: { type: 'build-city', vertexId: v }, seats: after(base, self) });
   }
-  for (const v of view.legal.settlements) {
-    const p = withBuild(base, cornerYield(econ, v), COSTS.settlement);
-    const bonus = econ.islandBonus(econ.geo.indexOf.get(v)!);
-    const next = econ.target?.vertexId === v ? econ.runnerUp : econ.target;
-    out.push({
-      action: { type: 'build-settlement', vertexId: v },
-      position: {
-        ...p,
-        points: p.points + 1 + bonus,
-        settlementsLeft: p.settlementsLeft - 1,
-        spots: Math.max(0, p.spots - 1),
-        targetValue: next?.value ?? 0,
-        targetDistance: next?.distance ?? 9,
-      },
-    });
-  }
+  for (const v of view.legal.settlements)
+    out.push({ action: { type: 'build-settlement', vertexId: v }, seats: after(base, settlementSelf(econ, me, v)) });
   const road = towardTarget(econ);
-  if (road && 'edgeId' in road) {
-    const cost = road.type === 'build-ship' ? SHIP : COSTS.road;
-    const p = withBuild(base, { production: zero(), choice: 0 }, cost);
-    const distance = base.targetDistance - 1;
-    out.push({
-      action: road,
-      position: {
-        ...p,
-        routesLeft: p.routesLeft - 1,
-        targetDistance: distance,
-        spots: distance <= 0 ? p.spots + 1 : p.spots,
-      },
-    });
-  }
+  if (road && 'edgeId' in road)
+    out.push({ action: road, seats: after(base, roadSelf(me, road.type === 'build-ship' ? SHIP : COSTS.road)) });
   const award = longestRoadMove(econ);
   if (award && 'edgeId' in award.action) {
-    const cost = award.action.type === 'build-ship' ? SHIP : COSTS.road;
-    const p = withBuild(base, { production: zero(), choice: 0 }, cost);
+    const p = withBuild(me, NOTHING, award.action.type === 'build-ship' ? SHIP : COSTS.road);
     const others = Math.max(4, ...view.players.filter(q => q.id !== view.selfId).map(q => q.longestRoad));
-    const takes = award.length > others && base.roadAward !== 1;
-    out.push({
-      action: award.action,
-      position: {
-        ...p,
-        road: award.length,
-        roadAward: takes ? 1 : p.roadAward,
-        points: p.points + (takes ? 2 : 0),
-        routesLeft: p.routesLeft - 1,
-      },
-    });
+    const takes = award.length > others && !me.roadAward;
+    const self = {
+      ...p,
+      road: award.length,
+      roadAward: takes || me.roadAward,
+      points: p.points + (takes ? 2 : 0),
+      routesLeft: p.routesLeft - 1,
+    };
+    out.push({ action: award.action, seats: after(base, self, takes ? 'roadAward' : undefined) });
   }
   if (view.legal.development) {
-    const p = withBuild(base, { production: zero(), choice: 0 }, COSTS.development);
-    out.push({ action: { type: 'buy-development' }, position: { ...p, developments: p.developments + 1 } });
+    const p = withBuild(me, NOTHING, COSTS.development);
+    out.push({ action: { type: 'buy-development' }, seats: after(base, { ...p, developments: p.developments + 1 }) });
   }
   for (const give of RESOURCES) {
     const rate = view.tradeRates[give];
     if (view.hand[give] < rate) continue;
     for (const receive of RESOURCES) {
       if (receive === give || !econ.bankHas(receive)) continue;
-      const hand = { ...base.hand };
+      const hand = { ...me.hand };
       hand[give] -= rate;
       hand[receive]++;
-      out.push({ action: { type: 'trade', give, receive }, position: { ...base, hand } });
+      out.push({ action: { type: 'trade', give, receive }, seats: after(base, { ...me, hand }) });
     }
   }
   return out;
 }
-
-const zero = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
 
 /** Deterministic 0–1 noise from the view (training exploration only). */
 function noise(econ: Economy): number {
@@ -106,6 +113,11 @@ function noise(econ: Economy): number {
   for (const ch of `${econ.view.version}:${econ.view.selfId}:${econ.view.turn}`)
     h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return (h >>> 0) / 2 ** 32;
+}
+
+/** Candidates without bank trades: every build and stopping (training's move comparisons). */
+export function moveCandidates(econ: Economy): Candidate[] {
+  return candidates(econ).filter(c => c.action?.type !== 'trade');
 }
 
 const BUILDS = new Set<GameAction['type']>([
@@ -117,16 +129,21 @@ const BUILDS = new Set<GameAction['type']>([
 ]);
 
 /**
- * The build phase with the value network. The planner decides whether to spend (left to itself
- * the network hoards: it learned that winners hold cards, and one step of lookahead can't see
- * what a road or a card leads to). When the planner would build, the network picks what: any
- * affordable city, settlement, road, or card, judged by the position it leads to.
+ * The build phase with the value network. With `valueRole` 0 the planner decides whether to
+ * spend and the network picks what to build; with 1 the network also decides whether to build,
+ * trade with the bank, or stop (the planner still makes offers to players when it stops).
  */
 export function valueBuild(econ: Economy, net: Net, options: TurnOptions): GameAction {
   const plan = buildStep(econ, options);
-  if (!BUILDS.has(plan.type)) return plan;
-  const builds = candidates(econ).filter(c => c.action && BUILDS.has(c.action.type));
-  return valueMove(econ, net, builds, econ.knobs.valueExplore) ?? plan;
+  if (econ.knobs.valueRole < 0.5) {
+    if (!BUILDS.has(plan.type)) return plan;
+    const builds = candidates(econ).filter(c => c.action && BUILDS.has(c.action.type));
+    return valueMove(econ, net, builds, econ.knobs.valueExplore) ?? plan;
+  }
+  const move = valueMove(econ, net, candidates(econ), econ.knobs.valueExplore);
+  if (move) return move;
+  // Stopping: an offer to players is still worth a try.
+  return plan.type === 'offer-trade' ? plan : { type: 'end-turn' };
 }
 
 /** Training check that exploration happens: decisions made, and explored moves that differed. */
@@ -150,11 +167,13 @@ export function valueMove(econ: Economy, net: Net, options: Candidate[], explore
 }
 
 function bestOf(econ: Economy, net: Net, options: Candidate[]): GameAction | null {
-  let best = options[0]!;
-  let score = positionValue(net, econ, best.position);
-  for (const option of options.slice(1)) {
-    const s = positionValue(net, econ, option.position);
-    if (s > score) [best, score] = [option, s];
+  // Judged as the position the next player rolls from.
+  const next = (econ.seat + 1) % econ.view.players.length;
+  let best: GameAction | null = null;
+  let score = -1;
+  for (const option of options) {
+    const s = seatChances(net, seatFeatures(econ, option.seats, next))[0]!;
+    if (s > score) [best, score] = [option.action, s];
   }
-  return best.action;
+  return best;
 }

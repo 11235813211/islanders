@@ -1,9 +1,12 @@
 import type { Knob } from '../shared/bots/advanced/params';
+import { makeParams } from '../shared/bots/advanced/params';
 import { getView } from '../shared/engine';
 import { isLandVertex } from '../shared/seafaring';
 import { listCheckpoints, loadCheckpoint, promote, seatFor } from './checkpoints';
 import type { Kind } from './datasets';
+import { endDiagnostics, type RouteLog, traceRoutes } from './diagnostics';
 import { pairedDifference, playMatch, report, summarize } from './evaluate';
+import { runGauntlet } from './gauntlet';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { collect, fitNetwork } from './networks';
 import { drawScenario, type ScenarioFilter } from './scenarios';
@@ -88,6 +91,12 @@ const COMMANDS: Record<string, () => Promise<void> | void> = {
 
 async function collectFor(kind: Kind, explore: number) {
   await collect(kind, {
+    scorer: flags.scorer,
+    rollouts: {
+      rollouts: Number(flags.rollouts ?? 16),
+      rounds: Number(flags.rounds ?? 4),
+      rate: Number(flags.rate ?? 0.05),
+    },
     from: flags.from ?? 'shipped',
     games: Number(flags.games ?? 2000),
     firstSeed: Number(flags.seed ?? 1),
@@ -105,6 +114,8 @@ function fitFor(kind: Kind, hidden: string) {
     hidden: flags.hidden === '0' ? [] : (list(flags.hidden) ?? [hidden]).map(Number),
     epochs: Number(flags.epochs ?? 30),
     fresh: flags.fresh === 'true',
+    lambda: Number(flags.lambda ?? 0.7),
+    moves: list(flags.moves),
   });
 }
 
@@ -113,9 +124,15 @@ Object.assign(COMMANDS, {
   'setup-collect': () => collectFor('setup', 0.35),
   /** Self-play recording positions during play: --from s1 --games 20000 --out v1 [--explore 0.1]. */
   'value-collect': () => collectFor('value', 0.1),
+  /**
+   * Move comparisons in --from's games, scored by --scorer's value network (default --from):
+   * --from shipped --scorer w1 --games 4000 --out m1
+   * [--rollouts 16 --rounds 4 --rate 0.05 (share of build decisions)].
+   */
+  'moves-collect': () => collectFor('moves', 0),
   /** Train the setup network: --from shipped --data r1,r2 --name s2 [--hidden 16] [--fresh]. */
   'setup-fit': () => fitFor('setup', '16'),
-  /** Train the value network: --from s1 --data v1 --name v1 [--hidden 32] [--fresh]. */
+  /** Train the value network: --from s1 --data v1 --name v1 [--moves m1] [--hidden 32] [--fresh] [--lambda 0.7]. */
   'value-fit': () => fitFor('value', '32'),
   /**
    * Tune knobs by evolution strategies: --from shipped --name t1 [--generations 20 --pairs 8
@@ -212,6 +229,34 @@ Object.assign(COMMANDS, {
       },
     });
   },
+  /**
+   * Where a seat's roads and ships went: --seed 5 --hero shipped [--maps new-board-3 --players 3].
+   * Each piece with the target it headed for and how that target ended (ours, taken, open).
+   */
+  routes() {
+    const seed = Number(flags.seed ?? 1);
+    const scenario = drawScenario(seed, filterFromFlags());
+    const spec = seatFor(flags.hero ?? 'shipped');
+    const log: RouteLog[] = [];
+    const knobs = makeParams('advanced' in spec ? spec.advanced : {}).knobs;
+    const brains = Array.from({ length: scenario.players }, (_, i) =>
+      i === 0 ? traceRoutes(brainFor(spec), knobs, log) : brainFor(spec),
+    );
+    playGame(scenario, brains, seed, {
+      end(g) {
+        console.log(scenario.name, 'winner', g.winnerId, 'turn', g.turn);
+        for (const r of log) {
+          const b = r.target ? g.buildings[r.target] : undefined;
+          const fate = !r.target ? '-' : !b ? 'open' : b.playerId === 'p0' ? 'ours' : `taken by ${b.playerId}`;
+          const live = (g.roads[r.edge] ?? g.ships[r.edge]) ? '' : ' (moved)';
+          console.log(
+            `turn ${r.turn} ${r.why.padEnd(6)} target ${r.target ?? '-'} d${r.distance ?? '-'} → ${fate}${live}`,
+          );
+        }
+        console.log(JSON.stringify(endDiagnostics(g)[0]));
+      },
+    });
+  },
   /** How games spread over maps and table sizes: --games 10000 [--seed 1]. */
   scenarios() {
     const counts = new Map<string, number>();
@@ -250,6 +295,21 @@ Object.assign(COMMANDS, {
       console.log(
         `  ${r.name.padEnd(16)} ${(r.diff * 100).toFixed(2).padStart(6)}% ±${(r.err * 100).toFixed(2)}%  edge ×${r.edge.toFixed(3)}`,
       );
+  },
+  /**
+   * The gauntlet (PLAN.md): --hero t3 [--baseline shipped] [--games 300 --base-games 200 --seed 900000]
+   * [--only intermediate,mixed]. One row per opponent, all scenarios and base island at 4 players.
+   */
+  async gauntlet() {
+    await runGauntlet({
+      hero: withKnobs(seatFor(flags.hero ?? 'shipped')),
+      baseline: flags.baseline ? seatFor(flags.baseline) : undefined,
+      games: Number(flags.games ?? 300),
+      baseGames: Number(flags['base-games'] ?? 200),
+      firstSeed: Number(flags.seed ?? 900_000),
+      filter: filterFromFlags(),
+      only: list(flags.only),
+    });
   },
   /** List checkpoints with their last note. */
   checkpoints() {

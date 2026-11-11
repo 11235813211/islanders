@@ -1,7 +1,7 @@
 /**
  * A small fully connected network: inputs are standardized, hidden layers use tanh, and the one
  * output is a logit (squashed to 0–1 by `predict`). Plain arrays so weights load from JSON.
- * Training (training/fit.ts) writes this shape; this file only evaluates it.
+ * Training (training/mlp.ts) writes this shape; this file only evaluates it.
  */
 export interface Net {
   /** Feature names, in input order (a check that weights match the feature code). */
@@ -28,3 +28,12 @@ export function logit(net: Net, x: readonly number[]): number {
 
 /** The network's output as a 0–1 score (a predicted share of wins). */
 export const predict = (net: Net, x: readonly number[]): number => 1 / (1 + Math.exp(-logit(net, x)));
+
+/** Each seat's chance to win: a softmax of the network's logits over the seats present. */
+export function seatChances(net: Net, seats: readonly (readonly number[])[]): number[] {
+  const logits = seats.map(s => logit(net, s));
+  const top = Math.max(...logits);
+  const exps = logits.map(v => Math.exp(v - top));
+  const total = exps.reduce((a, b) => a + b, 0);
+  return exps.map(v => v / total);
+}

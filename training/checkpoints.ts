@@ -30,6 +30,17 @@ export const CHECKPOINTS = join(ROOT, 'training', 'checkpoints');
 export const SHIPPED = join(ROOT, 'shared', 'bots', 'advanced', 'weights.json');
 export const DATA = join(ROOT, 'training', 'data');
 
+/** Promotion history, oldest first; `promote` appends. The last entry is what ships. */
+const HISTORY = join(ROOT, 'training', 'promoted.json');
+
+export function promotedHistory(): string[] {
+  return existsSync(HISTORY) ? JSON.parse(readFileSync(HISTORY, 'utf8')) : [];
+}
+
+export function recordPromotion(name: string): void {
+  writeFileSync(HISTORY, `${JSON.stringify([...promotedHistory().filter(n => n !== name), name])}\n`);
+}
+
 const LEVELS: BotLevel[] = ['beginner', 'intermediate'];
 
 /**
@@ -125,4 +136,5 @@ export function promote(checkpoint: Checkpoint): void {
     valueNet: small(checkpoint.valueNet),
   };
   writeFileSync(SHIPPED, `${JSON.stringify(stored)}\n`);
+  recordPromotion(checkpoint.name);
 }

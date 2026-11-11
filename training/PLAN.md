@@ -76,4 +76,12 @@ counts people's games.
 - Done (2026-11-10, uncommitted unless git says otherwise): training 2× faster (same games);
   public card count (`shared/engine/hands.ts`, `tests/hands.test.ts`), used by Advanced for
   steals, monopoly, and whom to offer to. 36.3% vs 34.7% against Intermediate on seeds 700000.
-- Next: 3a (gauntlet), then 3b–3e.
+- Done (2026-11-11): 3a `gauntlet` (`training/gauntlet.ts`; promotion history in
+  `training/promoted.json`, `promote` appends). 3b seat network: `SEAT_FEATURES` per seat in
+  `value.ts` (deciding seat first, then turn order; shared weights, softmax over seats;
+  `trainSeatNet` in `mlp.ts`). 3c labels: TD(λ) at fit time from the parent's network
+  (`seatTargets` in `networks.ts`, one viewing seat per game), and move comparisons
+  (`moves-collect`, `training/rollouts.ts`: common dice across candidates, deck reshuffled).
+  3d in `choose.ts`: knob `valueRole` (0: planner decides whether to build, net what; 1: net
+  decides both). A candidate is judged as the position the next player rolls from (what the
+  samples are), so no separate roll averaging. Old v1 value checkpoints deleted (other inputs).

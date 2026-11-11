@@ -40,7 +40,10 @@ export class Economy {
   runnerUp: Target | null = null;
   /** Open corners our roads and ships already reach (settle there with cards alone). */
   spots = 0;
-  private readonly frontiers: number[][];
+  /** Those corners. */
+  readonly spotIds: string[] = [];
+  /** Per seat (view.players order): corners its routes can grow from. */
+  readonly frontiers: number[][];
 
   constructor(
     readonly view: GameView,
@@ -148,7 +151,10 @@ export class Economy {
     for (const id of Object.keys(this.view.buildings)) occupied[this.geo.indexOf.get(id)!] = 1;
     for (const [vertexId, path] of paths) {
       const c = this.geo.indexOf.get(vertexId)!;
-      if (path.distance === 0 && this.geo.land[c] && isOpen(this.geo, occupied, c)) this.spots++;
+      if (path.distance === 0 && this.geo.land[c] && isOpen(this.geo, occupied, c)) {
+        this.spots++;
+        this.spotIds.push(vertexId);
+      }
     }
     // Nearby spots first; when every one is gone (late on a small map), anywhere still reachable.
     return this.bestTarget(paths, this.view.seafaring ? 7 : 5) ?? this.bestTarget(paths, Infinity);
@@ -187,14 +193,15 @@ export class Economy {
       const gain = Math.max(...settlements.map(([id]) => bagValue(this.board.yieldAt(id), unitWeights)));
       goals.push({ goal: 'city', cost: COSTS.city, value: (knobs.cityValue + gain / 8) * push });
     }
-    if (self.settlementsLeft && (view.legal.settlements.length || this.target)) {
-      const roads = view.legal.settlements.length ? 0 : (this.target?.distance ?? 0);
+    if (self.settlementsLeft && (this.spots || this.target)) {
+      // A corner we already reach needs only the settlement's cards; else the roads to the target.
+      const roads = this.spots ? 0 : (this.target?.distance ?? 0);
       const cost = { ...COSTS.settlement };
       cost.wood += roads;
       if (this.target?.firstKind === 'ship') cost.sheep += roads;
       else cost.brick += roads;
-      const worth = view.legal.settlements.length
-        ? Math.max(...view.legal.settlements.map(id => this.spotWorth(id)))
+      const worth = this.spots
+        ? Math.max(...this.spotIds.map(id => this.spotWorth(id)))
         : (this.target?.value ?? 0) * (1 + knobs.distanceCost * (this.target?.distance ?? 0) ** 1.5);
       const bonusPoints = this.target ? this.islandBonus(this.geo.indexOf.get(this.target.vertexId)!) : 0;
       goals.push({
@@ -214,14 +221,20 @@ export class Economy {
   }
 
   /** The same for a hypothetical production (the value network's afterstates). */
-  turnsWith(hand: ResourceBag, production: ResourceBag, choicePips: number, cost: ResourceBag): number {
+  turnsWith(
+    hand: ResourceBag,
+    production: ResourceBag,
+    choicePips: number,
+    cost: ResourceBag,
+    rates: Record<Resource, number> = this.view.tradeRates,
+  ): number {
     const rolls = this.view.players.length;
     let shortfall = 0;
     let credit = 0;
     const missing: Resource[] = [];
     for (const r of RESOURCES) {
       const gap = cost[r] - hand[r];
-      if (gap <= 0) credit += Math.floor(-gap / this.view.tradeRates[r]);
+      if (gap <= 0) credit += Math.floor(-gap / rates[r]);
       else {
         shortfall += gap;
         missing.push(r);

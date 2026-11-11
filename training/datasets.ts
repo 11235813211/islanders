@@ -9,12 +9,23 @@ import type { Dataset } from './mlp';
  * collected with different features is refused instead of silently misread.
  */
 
-export type Kind = 'setup' | 'value';
+export type Kind = 'setup' | 'value' | 'moves';
 
-export function saveRows(kind: Kind, name: string, features: readonly string[], rows: number[], meta: object): string {
+export function saveRows(
+  kind: Kind,
+  name: string,
+  features: readonly string[],
+  rows: number[][],
+  meta: object,
+): string {
   mkdirSync(DATA, { recursive: true });
   const path = join(DATA, `${kind}-${name}.bin`);
-  writeFileSync(path, Buffer.from(Float64Array.from(rows).buffer));
+  const width = features.length + 2;
+  const flat = new Float64Array(rows.length * width);
+  rows.forEach((row, i) => {
+    flat.set(row, i * width);
+  });
+  writeFileSync(path, Buffer.from(flat.buffer));
   writeFileSync(`${path}.json`, JSON.stringify({ features, ...meta }));
   return path;
 }

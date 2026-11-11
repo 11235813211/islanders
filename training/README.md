@@ -123,3 +123,12 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
   steals) and sends it to bot seats only (`view.likelyHands`). Advanced uses it for steals,
   monopoly, and to offer only to players likely holding the cards. Same seeds as the shipped
   result above (700000, 800 rotated): 36.3% ±0.9% vs 34.7% (×1.36 vs ×1.30).
+- Gauntlet baseline (2026-11-11, seeds 900000, 300 seeds all / 200 base/4, rotated), shipped s2:
+  Intermediate ×1.25, Beginner ×2.87, shipped ×1.00, s1 ×1.09, t1 ×1.03, trader ×1.24,
+  hoarder ×1.15, cards ×1.01, builder ×1.66, mixed ×1.39; weighted ×1.28 (base/4 ×1.30).
+  `style:cards` is the hardest opponent besides the shipped bot itself.
+- Seat value network w1 (20k games of shipped play, 504k positions, one viewing seat per game;
+  valid loss 0.974 vs linear 0.998 vs uniform 1.259). valueRole 0 (planner decides whether):
+  −1.5% ±0.9% vs shipped over the gauntlet. valueRole 1 (net decides whether): ×0.20, hoards
+  again (twice the discards, a third of the roads). TD(λ 0.7) refit w1td. Whole-game labels
+  can't tell holding from building; move comparisons (`moves-collect`) are the fix being tried.

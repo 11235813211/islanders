@@ -1,4 +1,5 @@
 import { emptyBag } from '../engine/core';
+import { linksAnywhere } from '../rules';
 import {
   boardIndex,
   isLandVertex,
@@ -171,11 +172,13 @@ function searchPaths(board: Board, self: string): Map<string, Path> {
     return !!view.pirate && [e.a, e.b].every(v => board.vertex.get(v)!.hexIds.includes(view.pirate!));
   };
   // 0-1 BFS over (corner, kind of route arriving there).
+  const anywhere = linksAnywhere(view);
   while (front.length || backHead < back.length) {
     const { vertex, mode, path } = front.length ? front.pop()! : back[backHead++]!;
     const building = view.buildings[vertex];
     if (building && building.playerId !== self) continue;
-    const kinds: Link[] = building ? ['road', 'ship'] : [mode];
+    // Roads and ships meet at our buildings, or anywhere when the room allows it.
+    const kinds: Link[] = building || anywhere ? ['road', 'ship'] : [mode];
     for (const edgeId of board.vertex.get(vertex)!.edgeIds) {
       const e = board.edge.get(edgeId)!;
       const other = e.a === vertex ? e.b : e.a;
