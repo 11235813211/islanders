@@ -7,10 +7,11 @@ import { finalSetupFeatures } from '../shared/bots/advanced/setup';
 import { MAX_SEATS, SEAT_FEATURES, seatFeatures, seatPositions } from '../shared/bots/advanced/value';
 import { goldChoice, specialBuild } from '../shared/bots/analysis';
 import { getView } from '../shared/engine';
-import type { BotLevel } from '../shared/types';
+import type { BotLevel, GameState } from '../shared/types';
 import { type Disagreement, disagreement } from './disagree';
 import { decisionRows, isDecision, type RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
+import { type SearchOptions, type SearchStats, searchBrain } from './search';
 import { type GameResult, playGame } from './sim';
 
 /**
@@ -21,6 +22,8 @@ import { type GameResult, playGame } from './sim';
 export type SeatSpec =
   | { level: BotLevel }
   | { advanced: Parameters<typeof makeParams>[0] }
+  /** A level as another git ref plays it (run.mjs --ref). */
+  | { ref: BotLevel }
   /** Diagnosis: `base` plays everything except the listed parts, which `with` plays. */
   | { hybrid: { base: SeatSpec; with: SeatSpec; parts: Part[] } };
 
@@ -68,6 +71,8 @@ export interface GameJob {
   rollouts?: RolloutOptions;
   /** Disagreements: the policy compared with each seat's own (disagree.ts). */
   challenger?: SeatSpec;
+  /** Hero seats search their build decisions with rollouts of the table's bots (search.ts). */
+  search?: SearchOptions;
 }
 
 export interface JobResult extends GameResult {
@@ -82,13 +87,24 @@ export interface JobResult extends GameResult {
   /** Recorded network inputs, by seat. */
   recorded?: { seat: number; features: number[] }[];
   disagreements?: Disagreement[];
+  search?: SearchStats;
 }
 
 const brains = new Map<string, Brain>();
+let refBots: Record<string, { brain: Brain }> | null = null;
+
+/** The bots of another git ref, loaded by the worker (run.mjs --ref). */
+export function setRefBots(bots: Record<string, { brain: Brain }>): void {
+  refBots = bots;
+}
 
 /** The brain a seat plays with (cached per worker by its spec). */
 export function brainFor(spec: SeatSpec): Brain {
   if ('level' in spec) return BOTS[spec.level].brain;
+  if ('ref' in spec) {
+    if (!refBots) throw new Error('ref: seats need --ref <git ref>');
+    return refBots[spec.ref]!.brain;
+  }
   if ('hybrid' in spec) return hybrid(brainFor(spec.hybrid.base), brainFor(spec.hybrid.with), spec.hybrid.parts);
   const key = JSON.stringify(spec.advanced);
   let brain = brains.get(key);
@@ -123,8 +139,25 @@ export function runJob(job: GameJob): JobResult {
   const params = makeParams();
   const brains = seats.map(brainFor);
   const disagreements: Disagreement[] = [];
-  const result = playGame(scenario, brains, job.seed, {
+  const search: SearchStats = { decisions: 0, overrides: 0, gain: 0 };
+  let live: GameState | null = null;
+  const playing = job.search
+    ? brains.map((b, i) =>
+        heroes.includes(i)
+          ? searchBrain(
+              b,
+              () => live!,
+              () => brains,
+              job.seed,
+              job.search!,
+              search,
+            )
+          : b,
+      )
+    : brains;
+  const result = playGame(scenario, playing, job.seed, {
     beforeMove(state, seat) {
+      live = state;
       if (!job.record || state.phase.startsWith('setup')) return;
       if (job.record === 'disagree') {
         const r = job.rollouts!;
@@ -163,6 +196,7 @@ export function runJob(job: GameJob): JobResult {
     heroSeats: heroes,
     recorded: job.record ? recorded : undefined,
     disagreements: job.record === 'disagree' ? disagreements : undefined,
+    search: job.search ? search : undefined,
     exploration: {
       decisions: exploration.decisions - before.decisions,
       explored: exploration.explored - before.explored,

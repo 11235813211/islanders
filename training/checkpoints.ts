@@ -103,6 +103,7 @@ export function seatFor(name: string): SeatSpec {
       hybrid: { base: seatFor(hybrid[1]!), with: seatFor(hybrid[2]!), parts: hybrid[3]!.split(',') as Part[] },
     };
   if ((LEVELS as string[]).includes(name)) return { level: name as BotLevel };
+  if (name.startsWith('ref:')) return { ref: name.slice(4) as BotLevel };
   if (name.startsWith('style:')) {
     const style = STYLES[name.slice(6)];
     if (!style) throw new Error(`No style "${name}" (styles: ${Object.keys(STYLES).join(', ')}).`);

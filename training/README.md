@@ -41,6 +41,10 @@ itself scores exactly ×1.00):
 - `select --candidates t1-g5,t1-g10,t1 --baseline s1 --games 600 --seed 400000` pick among
   saved candidates on fresh seeds.
 - `replay --seed 300868 --hero t1` one game inline, with the final state (for stuck games).
+- `search --seeds 50 [--screen 8 --confirm 32 --margin 1.5 --players 4]` the headroom probe
+  (PLAN step 1, `search.ts`): one seat searches its build decisions with rollouts of the shipped
+  bot on hidden facts resampled from its view; every seed once per seat. Slow: ~4.5 CPU-minutes
+  per game at the defaults.
 - `profile --games 10` single-thread timing; `scenarios` prints the map/size mix.
 
 Saved games (people opt in with "Save my games to improve the bots"; recorded only if every human
@@ -66,7 +70,8 @@ Train:
 - `promote --name t1` writes weights.json (then `npm run format`, `npm test`).
 - `checkpoints` lists checkpoints with their last note.
 
-Seats by name: checkpoints, `shipped`, `default`, `beginner`, `intermediate`, styles
+Seats by name: `ref:advanced` (or another level) as a git ref plays it, with `--ref origin/main`
+(compares against the pushed bot even when the code differs); checkpoints, `shipped`, `default`, `beginner`, `intermediate`, styles
 (`style:trader|hoarder|cards|builder`, the shipped bot pushed one way), and hybrids for
 diagnosis (`intermediate+t1:setup`; parts: setup, robber, build, trade, gold, discard).
 
@@ -150,3 +155,10 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
   ±1.3% and −0.2% ±1.4% vs shipped (300 seeds); −10.0% ±1.6% on Middle Fog 3p (explores fog,
   0.93 tiles/game, but overbuilds ships). Not shipped. The `disagree` pilot (863 decisions,
   16 rollouts each) found its weak spots fast; that tool is worth keeping.
+- Headroom probe (PLAN step 1, 2026-11-12, 50 seeds × 4 seats, 4 players, seeds 1000000+): one seat
+  searching its build decisions with shipped-bot rollouts vs three shipped: screen 8 / confirm 32 /
+  margin 1.5: 28.5% (+3.5% ±2.5%); margin 0: 33.5% (+8.5% ±3.2%); screen 16 / confirm 64:
+  30.5% (+5.5% ±2.3%). 4–11 CPU-minutes per game. Small real headroom, not large.
+- Branch vs pushed main (`--ref origin/main`, 2026-11-12, rotated): shipped vs main's Advanced,
+  all scenarios ×1.44 (39.1% vs 27.2% fair, 1103 games, seeds 1100000); base/4 ×1.30 (32.6%
+  ±1.7%, 800 games). Control: main vs itself ×1.00; main vs Intermediate ×1.25 (as logged).

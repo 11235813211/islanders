@@ -6,7 +6,7 @@ import { listCheckpoints, loadCheckpoint, promote, seatFor } from './checkpoints
 import type { Kind } from './datasets';
 import { endDiagnostics, type RouteLog, traceRoutes } from './diagnostics';
 import { reportDisagreements } from './disagree';
-import { pairedDifference, playMatch, report, summarize } from './evaluate';
+import { matchJobs, pairedDifference, playMatch, report, summarize } from './evaluate';
 import { runGauntlet } from './gauntlet';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { collect, fitNetwork } from './networks';
@@ -347,6 +347,46 @@ Object.assign(COMMANDS, {
     }));
     const results = await runJobs(jobs, done => process.stderr.write(`  ${done}/${jobs.length} games\r`));
     reportDisagreements(results.flatMap(r => r.disagreements ?? []));
+  },
+  /**
+   * The headroom probe (PLAN step 1): one searching seat (rollouts of --base) against --base:
+   * [--seeds 50 --players 4 --screen 8 --confirm 32 --margin 1.5 --seed 1000000]. Each seed is
+   * played once per seat. Prints the search seat's wins against fair share, and the same games
+   * with --base in that seat (exactly fair when --base is the field).
+   */
+  async search() {
+    const base = seatFor(flags.base ?? 'shipped');
+    const filter = filterFromFlags() ?? { players: [4] };
+    const match = {
+      games: Number(flags.seeds ?? 50),
+      firstSeed: Number(flags.seed ?? 1_000_000),
+      filter,
+      rotate: true,
+    };
+    const search = {
+      screen: Number(flags.screen ?? 8),
+      confirm: Number(flags.confirm ?? 32),
+      margin: Number(flags.margin ?? 1.5),
+    };
+    const started = Date.now();
+    const jobs = matchJobs(base, [base], match).map(job => ({ ...job, search }));
+    const results = await runJobs(jobs, done =>
+      process.stderr.write(`  ${done}/${jobs.length} games, ${((Date.now() - started) / 60000).toFixed(1)} min\r`),
+    );
+    const plain = await runJobs(matchJobs(base, [base], match));
+    report(`search (${JSON.stringify(search)}) vs ${flags.base ?? 'shipped'}`, summarize(results), true);
+    report(`${flags.base ?? 'shipped'} in the same seats`, summarize(plain));
+    const p = pairedDifference(results, plain);
+    const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+    console.log(`search − plain: ${pct(p.winDiff)} ±${pct(p.winErr)} (${p.seeds} seeds)`);
+    const stats = results.map(r => r.search!);
+    const decisions = stats.reduce((n, s) => n + s.decisions, 0);
+    const overrides = stats.reduce((n, s) => n + s.overrides, 0);
+    const gain = stats.reduce((n, s) => n + s.gain, 0);
+    console.log(
+      `${decisions} decisions searched, ${pct(overrides / decisions)} changed the bot's move, ` +
+        `confirmed gain ${pct(gain / Math.max(1, overrides))} per change; ${((Date.now() - started) / 60000).toFixed(1)} min`,
+    );
   },
   /** List checkpoints with their last note. */
   checkpoints() {
