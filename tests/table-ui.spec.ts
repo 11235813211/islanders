@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { applyAction } from '../shared/engine';
+import { applyAction, ownBoard } from '../shared/engine';
 import { grant, richGame, seeded, settled, TEST_NOW } from './fixtures';
 import { mountGame } from './ui-harness';
 
@@ -312,6 +312,8 @@ test('cards from a roll fly into the hand without first popping in and out', asy
   const total = preview.dice![0] + preview.dice![1];
   test.skip(total === 7, 'This seed rolls a seven');
   const home = Object.keys(g.buildings).find(v => g.buildings[v]!.playerId === 'p0')!;
+  // Boards are shared between states and frozen once viewed: edit a copy.
+  ownBoard(g);
   const hex = g.board.hexes.find(h => h.vertexIds.includes(home) && h.terrain !== 'desert' && h.id !== g.robber)!;
   hex.number = total;
   await mountGame(page, g);

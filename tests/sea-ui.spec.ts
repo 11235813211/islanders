@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { applyAction, getView } from '../shared/engine';
+import { applyAction, getView, ownBoard } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { grant, seaSettled, seeded, TEST_NOW } from './fixtures';
 import { mountGame } from './ui-harness';
@@ -183,6 +183,8 @@ test('a roll that moves an iceberg plays out in full even when the turn ends str
   const preview = applyAction(g, 'p0', { type: 'roll' }, seeded(), TEST_NOW);
   const total = preview.dice![0] + preview.dice![1];
   test.skip(total === 7, 'This seed rolls a seven');
+  // Boards are shared between states and frozen once viewed: edit a copy.
+  ownBoard(g);
   for (const hex of g.board.hexes) if (hex.number === total) hex.number = total === 12 ? 2 : 12;
   g.board.hexes.find(h => h.terrain === 'iceberg')!.number = total;
   const game = await mountGame(page, g);

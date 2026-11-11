@@ -9,6 +9,7 @@ export {
   getActivePlayerId,
   isLargeGame,
   MAX_PLAYERS,
+  ownBoard,
   resourceCount,
 } from './core';
 export { addPlayer, addSpectator, createGame } from './lobby';
