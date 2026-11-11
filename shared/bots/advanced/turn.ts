@@ -1,7 +1,7 @@
 import { emptyBag } from '../../engine/core';
 import { longestRoad } from '../../rules';
 import { type DevelopmentCard, type GameAction, RESOURCES, type Resource } from '../../types';
-import { bagValue, COSTS, canPay, estimateHand, linkAction, resourceWeights } from '../analysis';
+import { bagValue, COSTS, canPay, linkAction, resourceWeights } from '../analysis';
 import type { TurnOptions } from '../types';
 import { choices, type Economy } from './economy';
 import { blockedOwnPips } from './robber';
@@ -58,7 +58,7 @@ export function developmentPlay(econ: Economy): GameAction | null {
     const goal = econ.bestGoal();
     const weights = resourceWeights(econ.board, view.selfId);
     const held = (r: Resource) =>
-      view.players.filter(p => p.id !== view.selfId).reduce((n, p) => n + estimateHand(econ.board, p.id)[r], 0);
+      view.players.filter(p => p.id !== view.selfId).reduce((n, p) => n + econ.handOf(p.id)[r], 0);
     const want = (r: Resource) => held(r) * weights[r] * (goal && view.hand[r] < goal.cost[r] ? 1.5 : 1);
     const resource = [...RESOURCES].sort((a, b) => want(b) - want(a))[0]!;
     if (held(resource) >= 3) return { type: 'play-monopoly', cardId: monopoly.id, resource };

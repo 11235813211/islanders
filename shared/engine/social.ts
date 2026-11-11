@@ -1,3 +1,4 @@
+import { copyData } from '../copy';
 import type { GameAction, GameState } from '../types';
 import { addLog, cloneState, requireRule } from './core';
 
@@ -33,7 +34,7 @@ function resolveProposal(state: GameState, now: number): GameState {
     const history = [...state.undoHistory];
     const restored: GameState = {
       ...state,
-      ...structuredClone(undo.snapshot),
+      ...copyData(undo.snapshot),
       version: state.version,
       chat: state.chat,
       spectators: state.spectators,

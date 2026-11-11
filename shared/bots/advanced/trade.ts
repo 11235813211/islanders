@@ -137,6 +137,16 @@ function recentlyAskedPeople(view: GameView, turns: number): boolean {
 /** Most offers a bot makes in one turn at a table with people, whatever tuning says (offers clutter their screen). */
 export const PEOPLE_TABLE_OFFERS = 1;
 
+/** Could this player have what we want? Only asked when the count says it's at least likely. */
+function mayHold(econ: Economy, playerId: string, want: TradeBag): boolean {
+  if (!econ.view.likelyHands) return true;
+  const hand = econ.handOf(playerId);
+  return RESOURCES.every(r => !want[r] || hand[r] >= want[r] * MAY_HOLD);
+}
+
+/** How much of the wanted cards the count must show (a steal spreads one card over a hand). */
+const MAY_HOLD = 0.5;
+
 /**
  * The next offer to make this turn, or null. Bots get every kind; people only fair offers for
  * the last card a goal needs, at most every third turn (so the bot doesn't pester them).
@@ -152,7 +162,7 @@ export function nextOffer(econ: Economy): GameAction | null {
   for (const c of candidates(econ)) {
     if (made.some(m => same(m.give, c.give) && same(m.want, c.want))) continue;
     const to = view.players
-      .filter(p => p.id !== view.selfId && p.resourceCount > 0)
+      .filter(p => p.id !== view.selfId && p.resourceCount > 0 && mayHold(econ, p.id, c.want))
       .filter(p => p.publicPoints < view.settings.victoryPoints - knobs.tradeCutoff)
       .filter(p => p.bot || (askPeople && c.fair))
       .map(p => p.id);

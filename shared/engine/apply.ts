@@ -1,4 +1,5 @@
 import { parseAction } from '../actions';
+import { copyData } from '../copy';
 import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
@@ -14,6 +15,7 @@ import {
   SPECIAL_BUILD_SECONDS,
 } from './core';
 import { developmentHandlers } from './development';
+import { trackHands } from './hands';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
 import { seaHandlers } from './sea';
@@ -131,6 +133,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     addLog(next, 'No legal robber destination is available.');
   }
   updateAwards(next);
+  trackHands(next);
   const activeId = getActivePlayerId(next);
   if (next.turn > 0 && activeId && victoryPoints(next, activeId) >= next.settings.victoryPoints) {
     const points = victoryPoints(next, activeId);
@@ -201,7 +204,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         map: _map,
         ...rest
       } = state;
-      const snapshot = structuredClone(rest);
+      const snapshot = copyData(rest);
       next.undoHistory = [...state.undoHistory, ...(state.undo ? [state.undo] : [])];
       next.undo = { actorId: playerId, at: now, description: next.log.at(-1)?.text ?? action.type, snapshot };
     } else {

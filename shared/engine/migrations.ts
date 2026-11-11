@@ -5,6 +5,7 @@ import { developmentDeck, updateAwards } from '../rules';
 import { DEFAULT_SETTINGS } from '../settings';
 import type { GameSettings, GameState } from '../types';
 import { AUTO_ROLL_SECONDS, emptyDiceCounts, emptyStats } from './core';
+import { startHandGuess } from './hands';
 
 /**
  * Stored rooms are upgraded by running each numbered step once, in order.
@@ -113,6 +114,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     const old = s.settings?.showBank as unknown;
     if (typeof old === 'boolean') s.settings.showBank = old ? 'always' : 'auto';
+  },
+  // 8 → 9: the public card count for bots. Earlier moves are unknown, so it starts from card counts.
+  s => {
+    s.handGuess ??= startHandGuess(s);
   },
 ];
 

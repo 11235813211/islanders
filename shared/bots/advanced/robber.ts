@@ -1,6 +1,6 @@
 import { boardIndex } from '../../seafaring';
 import { type GameView, RESOURCES } from '../../types';
-import { estimateHand, pips } from '../analysis';
+import { pips } from '../analysis';
 import type { Economy } from './economy';
 
 /**
@@ -26,7 +26,7 @@ function stealWorth(econ: Economy, playerId: string): number {
   if (!player.resourceCount) return 0;
   const goal = econ.bestGoal();
   if (!goal) return 1;
-  const hand = estimateHand(econ.board, playerId);
+  const hand = econ.handOf(playerId);
   const useful = RESOURCES.reduce((n, r) => n + (econ.view.hand[r] < goal.cost[r] ? hand[r] : 0), 0);
   return 0.6 + Math.min(1, useful / player.resourceCount);
 }

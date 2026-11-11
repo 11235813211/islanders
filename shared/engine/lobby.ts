@@ -106,6 +106,7 @@ export function createGame(
     shipMoved: false,
     islands: {},
     bonusPoints: {},
+    handGuess: { seen: {}, likely: {}, logId: 0 },
     winnerId: null,
     log: [],
     settings: { ...DEFAULT_SETTINGS },

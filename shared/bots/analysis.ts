@@ -125,17 +125,38 @@ export interface Path {
  * settlement or city, and new ships never go beside the pirate.
  */
 export function roadPaths(board: Board, self = board.view.selfId): Map<string, Path> {
+  // One search per view and seat: a single decision asks for these many times.
+  let forView = pathCache.get(board.view);
+  if (!forView) {
+    forView = new Map();
+    pathCache.set(board.view, forView);
+  }
+  let paths = forView.get(self);
+  if (!paths) {
+    paths = searchPaths(board, self);
+    forView.set(self, paths);
+  }
+  return paths;
+}
+
+const pathCache = new WeakMap<GameView, Map<string, Map<string, Path>>>();
+
+function searchPaths(board: Board, self: string): Map<string, Path> {
   const { view } = board;
   const best = new Map<string, Path>();
-  const seen = new Map<string, number>();
-  const queue: { vertex: string; mode: Link; path: Path }[] = [];
-  const visit = (vertex: string, mode: Link, path: Path, front: boolean) => {
-    const key = `${vertex}|${mode}`;
-    if ((seen.get(key) ?? Infinity) <= path.distance) return;
-    seen.set(key, path.distance);
+  const seen = { road: new Map<string, number>(), ship: new Map<string, number>() };
+  // 0-1 BFS deque: free steps (own routes) go to the front, new pieces to the back.
+  type Entry = { vertex: string; mode: Link; path: Path };
+  const front: Entry[] = [];
+  const back: Entry[] = [];
+  let backHead = 0;
+  const visit = (vertex: string, mode: Link, path: Path, free: boolean) => {
+    const seenMode = seen[mode];
+    if ((seenMode.get(vertex) ?? Infinity) <= path.distance) return;
+    seenMode.set(vertex, path.distance);
     if (path.distance < (best.get(vertex)?.distance ?? Infinity)) best.set(vertex, path);
-    if (front) queue.unshift({ vertex, mode, path });
-    else queue.push({ vertex, mode, path });
+    if (free) front.push({ vertex, mode, path });
+    else back.push({ vertex, mode, path });
   };
   const start: Path = { distance: 0, firstEdge: null, firstKind: null };
   for (const v of view.board.vertices) {
@@ -150,8 +171,8 @@ export function roadPaths(board: Board, self = board.view.selfId): Map<string, P
     return !!view.pirate && [e.a, e.b].every(v => board.vertex.get(v)!.hexIds.includes(view.pirate!));
   };
   // 0-1 BFS over (corner, kind of route arriving there).
-  while (queue.length) {
-    const { vertex, mode, path } = queue.shift()!;
+  while (front.length || backHead < back.length) {
+    const { vertex, mode, path } = front.length ? front.pop()! : back[backHead++]!;
     const building = view.buildings[vertex];
     if (building && building.playerId !== self) continue;
     const kinds: Link[] = building ? ['road', 'ship'] : [mode];

@@ -6,9 +6,15 @@ import { conserved, makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
 /**
  * Play one complete game where every seat is a bot, driven only by
  * advanceTime (the same path the room's alarm uses). Throws if the game
- * stalls or resources stop adding up.
+ * stalls or resources stop adding up. `onStep` sees every state along the way.
  */
-export function playBotGame(levels: BotLevel[], seed: number, maxSteps = 6000, design?: BoardDesign): GameState {
+export function playBotGame(
+  levels: BotLevel[],
+  seed: number,
+  maxSteps = 6000,
+  design?: BoardDesign,
+  onStep?: (state: GameState) => void,
+): GameState {
   const random = seeded(seed);
   let g = design ? seaLobby(design, levels.length, seed) : makeLobby(levels.length);
   g.players.forEach((p, i) => {
@@ -24,6 +30,7 @@ export function playBotGame(levels: BotLevel[], seed: number, maxSteps = 6000, d
     if (next === g) throw new Error(`Bot made no progress in phase ${g.phase}.`);
     g = next;
     if (!conserved(g)) throw new Error(`Resources stopped adding up on turn ${g.turn}.`);
+    onStep?.(g);
   }
   return g;
 }

@@ -1,5 +1,7 @@
 # Training the Advanced bot
 
+Work in progress and what comes next: `training/PLAN.md`.
+
 Everything here runs on your machine (Node 24, `nvm use`); nothing ships to the Worker except
 `shared/bots/advanced/weights.json`. Commands:
 
@@ -114,3 +116,10 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
   Intermediate there). The value network needs more than one round and better credit for a
   single move than a whole game's result; a cheaper first step is new setup features (the setup
   net plateaued) or a deeper look at the per-seat action counts on base/4.
+- Training speed (2026-11-10): plain-data copies instead of structuredClone, longest road from the
+  player's own routes, cached road searches per view: the same games 2× faster (profile: 411 →
+  205 ms/game single-thread). Results are unchanged move for move.
+- Card count: the engine keeps a public count of every hand (`engine/hands.ts`; exact except
+  steals) and sends it to bot seats only (`view.likelyHands`). Advanced uses it for steals,
+  monopoly, and to offer only to players likely holding the cards. Same seeds as the shipped
+  result above (700000, 800 rotated): 36.3% ±0.9% vs 34.7% (×1.36 vs ×1.30).

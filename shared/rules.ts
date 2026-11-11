@@ -1,7 +1,9 @@
 import { shuffled } from './board';
+import { boardIndex } from './seafaring';
 import {
   type DevelopmentCard,
   type DevelopmentType,
+  type Edge,
   type GameSettings,
   type GameState,
   RESOURCES,
@@ -51,9 +53,25 @@ export function longestRoad(
 ): number {
   const own = (id: string): 'road' | 'ship' | null =>
     state.roads[id] === playerId ? 'road' : state.ships?.[id] === playerId ? 'ship' : null;
-  const edges = state.board.edges.filter(edge => own(edge.id));
-  const incident = new Map<string, typeof edges>();
-  for (const edge of edges) for (const id of [edge.a, edge.b]) incident.set(id, [...(incident.get(id) ?? []), edge]);
+  // Only this player's routes, found by id: scanning every edge for every player after every move
+  // was one of the largest costs of a turn.
+  const edgeById = boardIndex(state.board).edge;
+  const incident = new Map<string, Edge[]>();
+  const add = (routes: Record<string, string> | undefined) => {
+    for (const id in routes) {
+      if (routes[id] !== playerId) continue;
+      const edge = edgeById.get(id);
+      if (!edge) continue;
+      for (const v of [edge.a, edge.b]) {
+        const list = incident.get(v);
+        if (list) list.push(edge);
+        else incident.set(v, [edge]);
+      }
+    }
+  };
+  add(state.roads);
+  add(state.ships);
+  const anywhere = linksAnywhere(state);
   const walk = (vertex: string, used: Set<string>, kind: 'road' | 'ship' | null): number => {
     const building = state.buildings[vertex];
     if (used.size && building && building.playerId !== playerId) return 0;
@@ -61,14 +79,16 @@ export function longestRoad(
     for (const edge of incident.get(vertex) ?? []) {
       if (used.has(edge.id)) continue;
       const next = own(edge.id)!;
-      if (kind && next !== kind && building?.playerId !== playerId && !linksAnywhere(state)) continue;
+      if (kind && next !== kind && building?.playerId !== playerId && !anywhere) continue;
       used.add(edge.id);
       best = Math.max(best, 1 + walk(edge.a === vertex ? edge.b : edge.a, used, next));
       used.delete(edge.id);
     }
     return best;
   };
-  return Math.max(0, ...[...incident.keys()].map(vertex => walk(vertex, new Set(), null)));
+  let longest = 0;
+  for (const vertex of incident.keys()) longest = Math.max(longest, walk(vertex, new Set(), null));
+  return longest;
 }
 
 export function updateAwards(state: GameState): void {

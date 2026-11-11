@@ -1,7 +1,7 @@
 import { emptyBag } from '../../engine/core';
 import { boardIndex } from '../../seafaring';
 import { type GameAction, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../types';
-import { Board, bagValue, COSTS, type Goal, pips, roadPaths } from '../analysis';
+import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths } from '../analysis';
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
 
@@ -60,6 +60,15 @@ export class Economy {
 
   get victoryTarget(): number {
     return this.view.settings.victoryPoints;
+  }
+
+  /**
+   * A player's likely cards: the engine's public count when the view has it, else a guess from
+   * their card count and production.
+   */
+  handOf(playerId: string): ResourceBag {
+    if (playerId === this.view.selfId) return this.view.hand;
+    return this.view.likelyHands?.[playerId] ?? estimateHand(this.board, playerId);
   }
 
   /** Pips by resource for a player, and pips from gold and paying volcanoes (a free choice). */

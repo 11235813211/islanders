@@ -311,6 +311,8 @@ export interface GameState {
   /** Islands each player has settled, and the bonus points those islands gave. */
   islands: Record<string, number[]>;
   bonusPoints: Record<string, number>;
+  /** The public count of each player's cards (engine/hands.ts). */
+  handGuess: HandGuess;
   winnerId: string | null;
   log: GameLog[];
   settings: GameSettings;
@@ -388,6 +390,16 @@ export interface MapInfo {
   /** The layout the host chose, or null to play the one that fits the table. */
   layout: { min: number; max: number } | null;
 }
+/**
+ * The public card count (engine/hands.ts): `likely` is what anyone watching could work out;
+ * `seen` is the real hands at the last update, kept only to find what changed. Never sent.
+ */
+export interface HandGuess {
+  seen: Record<string, ResourceBag>;
+  likely: Record<string, ResourceBag>;
+  /** The last log entry already counted (steals are found in the log). */
+  logId: number;
+}
 export interface GameView {
   roomId: string;
   version: number;
@@ -401,6 +413,8 @@ export interface GameView {
   ships: Record<string, string>;
   robber: string;
   pirate: string | null;
+  /** Bots only (null for people): each player's likely cards, counted from public moves. */
+  likelyHands: Record<string, ResourceBag> | null;
   bank: Record<Resource, boolean>;
   /** Cards left of each resource, when the room shows them (settings.showBank). */
   bankCounts: ResourceBag | null;

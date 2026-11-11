@@ -40,10 +40,14 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
 function reaches(state: GameState, playerId: string, vertexId: string, kind: 'roads' | 'ships', skip?: string) {
   const building = state.buildings[vertexId];
   if (building) return building.playerId === playerId;
-  const kinds = linksAnywhere(state) ? (['roads', 'ships'] as const) : [kind];
-  return boardIndex(state.board)
-    .vertex.get(vertexId)!
-    .edgeIds.some(id => id !== skip && kinds.some(k => state[k][id] === playerId));
+  // Called for both ends of every edge on every legal-move check, so no allocations here.
+  const either = linksAnywhere(state);
+  const own = state[kind];
+  for (const id of boardIndex(state.board).vertex.get(vertexId)!.edgeIds) {
+    if (id === skip) continue;
+    if (own[id] === playerId || (either && (state.roads[id] === playerId || state.ships[id] === playerId))) return true;
+  }
+  return false;
 }
 
 export function roadSites(state: GameState, playerId: string, setup: boolean): string[] {

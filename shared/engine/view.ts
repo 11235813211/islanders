@@ -1,3 +1,4 @@
+import { copyData } from '../copy';
 import { boardExpansions, FOG_POOL, type Pool } from '../maps/types';
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
@@ -55,7 +56,7 @@ export function getView(state: GameState, selfId: string): GameView {
   const finished = state.phase === 'finished';
   // The board is shared, not copied (states never change a board in place, see cloneState), and
   // frozen so a view still can't change the game.
-  const view = structuredClone({
+  const view = copyData({
     roomId: state.roomId,
     version: state.version,
     board: null as unknown as GameView['board'],
@@ -88,6 +89,7 @@ export function getView(state: GameState, selfId: string): GameView {
     ships: state.ships,
     robber: state.robber,
     pirate: state.pirate,
+    likelyHands: player?.bot ? state.handGuess.likely : null,
     // Exact bank counts reveal an opponent's hand by subtraction in a two-player
     // game, so by default they are sent only with three or more players (bankShown).
     bank: Object.fromEntries(RESOURCES.map(resource => [resource, state.bank[resource] > 0])) as Record<

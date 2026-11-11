@@ -1,3 +1,4 @@
+import { copyData } from '../copy';
 import type { BoardDesign } from '../maps/types';
 import { boardIndex } from '../seafaring';
 import { DISCOVERY_RULES } from '../settings';
@@ -82,12 +83,12 @@ export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4 } 
  */
 export function cloneState(state: GameState): GameState {
   const { board, log, chat, undoHistory, ...rest } = state;
-  return { ...structuredClone(rest), board, log: [...log], chat: [...chat], undoHistory: [...undoHistory] };
+  return { ...copyData(rest), board, log: [...log], chat: [...chat], undoHistory: [...undoHistory] };
 }
 
 /** Give `next` its own copy of the board before changing it in place (see cloneState). */
 export function ownBoard(next: GameState): void {
-  next.board = structuredClone(next.board);
+  next.board = copyData(next.board);
 }
 
 /** Append a log line (capped at 60), optionally with a structured event. */
