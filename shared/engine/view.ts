@@ -32,16 +32,33 @@ function mapFeatures(state: GameState): GameView['features'] {
   };
 }
 
+const frozen = new WeakSet<GameView['board']>();
+
+/** Deep-freeze a board once (copying it on every view was most of a bot move's CPU time). */
+function freezeBoard(board: GameView['board']): GameView['board'] {
+  if (frozen.has(board)) return board;
+  const deep = (value: unknown) => {
+    if (!value || typeof value !== 'object' || Object.isFrozen(value)) return;
+    for (const child of Object.values(value)) deep(child);
+    Object.freeze(value);
+  };
+  deep(board);
+  frozen.add(board);
+  return board;
+}
+
 /** Explicit projection: internal state and opponents' hands never reach clients. */
 export function getView(state: GameState, selfId: string): GameView {
   const player = state.players.find(candidate => candidate.id === selfId);
   requireRule(player || state.spectators.some(p => p.id === selfId), 'You are not a member of this room.');
   const active = getActivePlayerId(state);
   const finished = state.phase === 'finished';
-  return structuredClone({
+  // The board is shared, not copied (states never change a board in place, see cloneState), and
+  // frozen so a view still can't change the game.
+  const view = structuredClone({
     roomId: state.roomId,
     version: state.version,
-    board: state.board,
+    board: null as unknown as GameView['board'],
     hostId: state.hostId,
     players: state.players.map(candidate => {
       const pieces = pieceCounts(state, candidate.id);
@@ -138,4 +155,6 @@ export function getView(state: GameState, selfId: string): GameView {
     map: state.map,
     seafaring: seaRules(state),
   } satisfies GameView);
+  view.board = freezeBoard(state.board);
+  return view;
 }

@@ -274,7 +274,9 @@ describe('resource production and turn state', () => {
     const otherSameNumber = state.board.hexes.filter(
       candidate => candidate.number === hex.number && candidate.id !== hex.id,
     );
-    for (const other of otherSameNumber) other.number = 12;
+    // Boards are shared between states and frozen once viewed: edit a copy.
+    state.board = structuredClone(state.board);
+    for (const hex of state.board.hexes) if (otherSameNumber.some(o => o.id === hex.id)) hex.number = 12;
     state.robber = hex.id;
     const blocked = rollTotal(state, hex.number!);
     expect(blocked.players.every(player => resourceCount(player.resources) === 0)).toBe(true);
@@ -286,6 +288,7 @@ describe('resource production and turn state', () => {
     const state = setup();
     clearHands(state);
     state.buildings = {};
+    state.board = structuredClone(state.board);
     const hex = state.board.hexes.find(candidate => candidate.terrain === 'wood')!;
     for (const tile of state.board.hexes) tile.number = tile.id === hex.id ? 6 : null;
     grant(state, 'p2', { wood: 18 });
@@ -520,7 +523,10 @@ describe('trust boundary and immutability', () => {
     expect(view.players.every(player => !Object.hasOwn(player, 'resources'))).toBe(true);
     expect(view.hand).toEqual(state.players[0].resources);
     view.hand.wood = 500;
-    view.board.hexes[0].number = 100;
+    // The view shares the game's board, frozen, so editing it fails instead of changing the game.
+    expect(() => {
+      view.board.hexes[0].number = 100;
+    }).toThrow(TypeError);
     expect(state).toEqual(original);
     expect(() => getView(state, 'intruder')).toThrow(/not a member/);
     expect(() => applyAction(state, 'intruder', { type: 'roll' })).toThrow(/not a player/);

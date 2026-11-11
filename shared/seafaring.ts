@@ -86,9 +86,18 @@ export function vertexIsland(board: Board, vertexId: string): number | null {
   return null;
 }
 
-/** Bonus points for first settling an island (the largest chip on any of its tiles). */
+const bonuses = new WeakMap<Board, Map<number, number>>();
+
+/** Bonus points for first settling an island (the largest chip on any of its tiles). Cached per board. */
 export function islandBonus(board: Board, island: number): number {
-  return Math.max(0, ...board.hexes.filter(h => h.island === island).map(h => h.bonus ?? 0));
+  let byIsland = bonuses.get(board);
+  if (!byIsland) {
+    byIsland = new Map();
+    for (const h of board.hexes)
+      if (h.island !== undefined) byIsland.set(h.island, Math.max(byIsland.get(h.island) ?? 0, h.bonus ?? 0));
+    bonuses.set(board, byIsland);
+  }
+  return byIsland.get(island) ?? 0;
 }
 
 /** The other end of an edge. */

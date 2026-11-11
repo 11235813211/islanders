@@ -1,11 +1,12 @@
 import { hasAnswered } from '../rules';
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, RESOURCES } from '../types';
+import { advanced } from './advanced';
 import { goldChoice, specialBuild } from './analysis';
 import { beginner } from './beginner';
-import { advanced, intermediate } from './strategic';
-import type { BotOptions, Brain } from './types';
+import { intermediate } from './strategic';
+import type { BotOptions, Brain, TurnOptions } from './types';
 
-export type { BotOptions } from './types';
+export type { BotOptions, Brain } from './types';
 
 /** Bot levels, weakest first. Descriptions are shown in the lobby. */
 export const BOTS: Record<BotLevel, { brain: Brain; label: string; description: string }> = {
@@ -13,12 +14,12 @@ export const BOTS: Record<BotLevel, { brain: Brain; label: string; description: 
   intermediate: {
     brain: intermediate,
     label: 'Intermediate',
-    description: 'Plans toward goals, uses the robber and cards on purpose, offers fair trades.',
+    description: 'Plans toward goals, estimates your cards, and refuses trades that help the leader.',
   },
   advanced: {
     brain: advanced,
     label: 'Advanced',
-    description: 'Plans ahead, estimates your cards, and refuses trades that help the leader.',
+    description: 'Trained by self-play: reads races for spots, trades hard, and aims the robber and pirate.',
   },
 };
 
@@ -28,7 +29,11 @@ export const BOTS: Record<BotLevel, { brain: Brain; label: string; description: 
  * an offer sent to it, or reviewing answers to its own offer.
  */
 export function chooseBotAction(view: GameView, options: BotOptions = {}): GameAction {
-  const brain = BOTS[options.level ?? DEFAULT_BOT_LEVEL].brain;
+  return actWith(BOTS[options.level ?? DEFAULT_BOT_LEVEL].brain, view, options);
+}
+
+/** The same, for any brain (training plays candidate brains this way). */
+export function actWith(brain: Brain, view: GameView, options: TurnOptions = {}): GameAction {
   const offer = view.tradeOffer;
   if (view.phase === 'discard') {
     // Where discoveries count toward the limit, a bot gives them up only once its cards run out.
@@ -37,8 +42,8 @@ export function chooseBotAction(view: GameView, options: BotOptions = {}): GameA
     if (owed > cards) return { type: 'discard', resources: { ...view.hand, discovery: owed - cards } };
     return brain.discard(view);
   }
-  if (view.phase === 'gold') return goldChoice(view);
-  if (view.phase === 'special-build') return specialBuild(view);
+  if (view.phase === 'gold') return (brain.gold ?? goldChoice)(view);
+  if (view.phase === 'special-build') return (brain.specialBuild ?? specialBuild)(view);
   if (view.phase === 'eruption') return { type: 'roll-volcanoes' };
   if (offer && view.phase === 'build') {
     if (offer.fromId === view.selfId) return brain.review(view, offer);

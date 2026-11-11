@@ -74,6 +74,22 @@ export const BUILD_COSTS: Record<'road' | 'ship' | 'settlement' | 'city' | 'deve
 };
 export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4 } as const;
 
+/**
+ * Copy a state for the next move. The board is shared, not copied: it changes only on rare moves
+ * (fog, icebergs, lobby redraws), which call ownBoard first. Log, chat, and undo entries are never
+ * changed once written, so only their lists are copied. Copying the board on every move was most
+ * of the engine's CPU time.
+ */
+export function cloneState(state: GameState): GameState {
+  const { board, log, chat, undoHistory, ...rest } = state;
+  return { ...structuredClone(rest), board, log: [...log], chat: [...chat], undoHistory: [...undoHistory] };
+}
+
+/** Give `next` its own copy of the board before changing it in place (see cloneState). */
+export function ownBoard(next: GameState): void {
+  next.board = structuredClone(next.board);
+}
+
 /** Append a log line (capped at 60), optionally with a structured event. */
 export function addLog(state: GameState, text: string, event?: GameEvent): void {
   state.log.push({ id: (state.log.at(-1)?.id ?? 0) + 1, text, turn: state.turn, ...(event ? { event } : {}) });

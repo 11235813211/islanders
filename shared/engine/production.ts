@@ -2,7 +2,7 @@ import { shuffled } from '../board';
 import { linksAnywhere } from '../rules';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type ResourceBag } from '../types';
-import { addLog, bumpStat, emptyBag, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
+import { addLog, bumpStat, emptyBag, ownBoard, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
 
 /**
  * Pay out a roll. Resource tiles pay cards (if the bank can't cover everyone owed a resource,
@@ -116,6 +116,8 @@ const ICEBERG_SIDES = [4, 5, 0, 1, 2, 3] as const;
  * the map), and a ship on that side sinks either way.
  */
 export function drift(state: GameState, total: number, random: () => number): void {
+  if (!state.board.hexes.some(hex => hex.terrain === 'iceberg' && hex.number === total)) return;
+  ownBoard(state);
   const index = boardIndex(state.board);
   const drifting = state.board.hexes.filter(hex => hex.terrain === 'iceberg' && hex.number === total);
   for (const hex of drifting) {

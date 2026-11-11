@@ -1,5 +1,13 @@
 import { emptyBag } from '../engine/core';
-import { isLandVertex, islandBonus, isRoadEdge, isShipEdge, terrainResource, vertexIsland } from '../seafaring';
+import {
+  boardIndex,
+  isLandVertex,
+  islandBonus,
+  isRoadEdge,
+  isShipEdge,
+  terrainResource,
+  vertexIsland,
+} from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 
 /**
@@ -23,9 +31,11 @@ export class Board {
   readonly vertex: Map<string, GameView['board']['vertices'][number]>;
   readonly edge: Map<string, GameView['board']['edges'][number]>;
   constructor(readonly view: GameView) {
-    this.hex = new Map(view.board.hexes.map(h => [h.id, h]));
-    this.vertex = new Map(view.board.vertices.map(v => [v.id, v]));
-    this.edge = new Map(view.board.edges.map(e => [e.id, e]));
+    // Shared lookup tables, cached per board (boards are shared between states and views).
+    const index = boardIndex(view.board);
+    this.hex = index.hex;
+    this.vertex = index.vertex;
+    this.edge = index.edge;
   }
 
   hexesAt(vertexId: string): Hex[] {
@@ -110,13 +120,12 @@ export interface Path {
 }
 
 /**
- * Cheapest new roads and ships from this bot's network to every reachable corner. Roads continue
- * roads and ships continue ships; they only meet at the bot's own settlement or city, and new
- * ships never go beside the pirate.
+ * Cheapest new roads and ships from a player's network (this bot's by default) to every reachable
+ * corner. Roads continue roads and ships continue ships; they only meet at the player's own
+ * settlement or city, and new ships never go beside the pirate.
  */
-export function roadPaths(board: Board): Map<string, Path> {
+export function roadPaths(board: Board, self = board.view.selfId): Map<string, Path> {
   const { view } = board;
-  const self = view.selfId;
   const best = new Map<string, Path>();
   const seen = new Map<string, number>();
   const queue: { vertex: string; mode: Link; path: Path }[] = [];

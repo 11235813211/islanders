@@ -21,4 +21,8 @@ export interface Brain {
   respond(view: GameView, offer: TradeOffer): GameAction;
   /** This seat's own offer: everyone has answered, so take a counter-offer or withdraw. */
   review(view: GameView, offer: TradeOffer): GameAction;
+  /** Resources from gold or volcanoes (default: goldChoice in analysis.ts). */
+  gold?(view: GameView): GameAction;
+  /** Five or six players: the special build phase (default: specialBuild in analysis.ts). */
+  specialBuild?(view: GameView): GameAction;
 }

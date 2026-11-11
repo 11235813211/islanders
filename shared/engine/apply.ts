@@ -5,6 +5,7 @@ import type { GameAction, GameState } from '../types';
 import {
   type ActionContext,
   addLog,
+  cloneState,
   GOLD_SECONDS,
   getActivePlayerId,
   type Handlers,
@@ -93,7 +94,7 @@ export function applyAction(
   // Spectators are not players, so the two actions they can take skip the player checks below.
   if (action.type === 'switch-role') return switchRole(state, playerId);
   if (action.type === 'leave' && state.spectators.some(s => s.id === playerId)) {
-    const next = structuredClone(state);
+    const next = cloneState(state);
     next.spectators = next.spectators.filter(s => s.id !== playerId);
     next.version++;
     return next;
@@ -107,7 +108,7 @@ export function applyAction(
   if (!ALWAYS.has(action.type)) requireRule(state.phase !== 'finished', 'This game has finished.');
   if (!OFF_TURN.has(action.type)) requireRule(getActivePlayerId(state) === playerId, 'Wait for your turn.');
 
-  const next = structuredClone(state);
+  const next = cloneState(state);
   const ctx: ActionContext = {
     state,
     next,
@@ -198,8 +199,9 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         testMode: _test,
         design: _design,
         map: _map,
-        ...snapshot
-      } = structuredClone(state);
+        ...rest
+      } = state;
+      const snapshot = structuredClone(rest);
       next.undoHistory = [...state.undoHistory, ...(state.undo ? [state.undo] : [])];
       next.undo = { actorId: playerId, at: now, description: next.log.at(-1)?.text ?? action.type, snapshot };
     } else {

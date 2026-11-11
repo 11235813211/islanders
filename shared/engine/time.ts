@@ -1,8 +1,8 @@
 import { chooseBotAction } from '../bots';
 import { hasAnswered } from '../rules';
-import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
+import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameState, RESOURCES } from '../types';
 import { applyAction } from './apply';
-import { addLog, GameError, getActivePlayerId, undoEndsTurn } from './core';
+import { addLog, cloneState, emptyBag, GameError, getActivePlayerId, undoEndsTurn } from './core';
 import { getView } from './view';
 
 /** How long a bot "thinks" before each move, so people can follow along. */
@@ -77,6 +77,7 @@ function runBotStep(state: GameState, now: number, random: () => number): GameSt
         ? { type: 'end-turn' }
         : chooseBotAction(view, { level }),
     () => chooseBotAction(view, { level: 'beginner', builds: 99 }),
+    () => bankGold(state, id),
   ];
   for (const attempt of attempts) {
     try {
@@ -88,7 +89,7 @@ function runBotStep(state: GameState, now: number, random: () => number): GameSt
   // Nothing legal came back: end the bot's turn if it is building, otherwise let the turn clock handle it.
   if (state.phase === 'build' && getActivePlayerId(state) === id)
     return applyAction(state, id, { type: 'end-turn' }, random, now);
-  const next = structuredClone(state);
+  const next = cloneState(state);
   next.updatedAt = now + 60_000;
   return next;
 }
@@ -117,7 +118,7 @@ export function nextDueAt(state: GameState): number | null {
 
 /** Called by durable alarms; deadlines and bots never depend on an open browser. */
 export function advanceTime(state: GameState, now: number, random: () => number = Math.random): GameState {
-  const next = structuredClone(state);
+  const next = cloneState(state);
   let changed = false;
   if (next.proposal && next.proposal.expiresAt <= now) {
     next.proposal = null;
@@ -150,12 +151,36 @@ export function advanceTime(state: GameState, now: number, random: () => number 
   return due !== null && due <= now ? runBotStep(state, now, random) : state;
 }
 
+/**
+ * A gold pick the bank can surely pay, spread over the resources it has most of. Bots can't
+ * always know (bank counts are hidden at two players), so this is the fallback when theirs is refused.
+ */
+export function bankGold(state: GameState, id: string): GameAction {
+  const bank = { ...state.bank };
+  const resources = emptyBag();
+  const owed = Math.min(
+    state.pendingGold[id] ?? 0,
+    RESOURCES.reduce((n, r) => n + bank[r], 0),
+  );
+  for (let i = 0; i < owed; i++) {
+    const r = [...RESOURCES].sort((a, b) => bank[b] - bank[a])[0]!;
+    bank[r]--;
+    resources[r]++;
+  }
+  return { type: 'choose-gold', resources };
+}
+
 /** Gold time ran out: pick for everyone still choosing, as an Advanced bot would. */
 function chooseGoldForAll(state: GameState, now: number, random: () => number): GameState {
   let next = state;
   for (const id of Object.keys(state.pendingGold)) {
     if (next.phase !== 'gold' || !next.pendingGold[id]) continue;
-    next = applyAction(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+    try {
+      next = applyAction(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+    } catch (error) {
+      if (!(error instanceof GameError)) throw error;
+      next = applyAction(next, id, bankGold(next, id), random, now);
+    }
   }
   return next;
 }
@@ -199,7 +224,7 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
     next.undoHistory = [];
     return next;
   }
-  let next = structuredClone(state);
+  let next = cloneState(state);
   let builds = 0;
   const turn = state.turn;
   const setupIndex = state.setupIndex;

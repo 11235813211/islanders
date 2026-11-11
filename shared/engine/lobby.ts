@@ -8,6 +8,7 @@ import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type 
 import {
   addLog,
   bankFor,
+  cloneState,
   emptyBag,
   emptyDiceCounts,
   emptyStats,
@@ -16,6 +17,7 @@ import {
   isLargeGame,
   MAX_PLAYERS,
   needPhase,
+  ownBoard,
   requireRule,
 } from './core';
 import { SCHEMA_VERSION } from './migrations';
@@ -164,7 +166,7 @@ export function addPlayer(state: GameState, input: { id: string; name: string })
     name.length >= 1 && name.length <= 24 && !/[\u0000-\u001f\u007f]/.test(name),
     'Use a name between 1 and 24 characters.',
   );
-  const next = structuredClone(state);
+  const next = cloneState(state);
   next.players.push(newSeat(next, input.id, name));
   next.stats[input.id] = emptyStats();
   if (!next.hostId) next.hostId = input.id;
@@ -179,7 +181,7 @@ export function addSpectator(state: GameState, input: { id: string; name: string
     !state.players.some(p => p.id === input.id) && !state.spectators.some(p => p.id === input.id),
     'Already in this room.',
   );
-  const next = structuredClone(state);
+  const next = cloneState(state);
   next.spectators.push(input);
   next.version++;
   return next;
@@ -197,7 +199,7 @@ export function switchRole(state: GameState, id: string): GameState {
   }
   requireRule(humanPlayers(state).length > 1, 'Someone has to keep a seat. Invite another player first.');
   requireRule(state.spectators.length < 16, 'This room already has sixteen spectators.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   next.players = next.players.filter(p => p.id !== id);
   delete next.stats[id];
   next.spectators.push({ id, name: seat.name });
@@ -248,8 +250,10 @@ export const lobbyHandlers: Pick<
           next.map?.layout?.min,
         ),
       );
-    else if (state.settings.numberLayout !== next.settings.numberLayout && !next.design)
+    else if (state.settings.numberLayout !== next.settings.numberLayout && !next.design) {
+      ownBoard(next);
       assignNumbers(next.board, next.settings.numberLayout, random);
+    }
     addLog(next, `${player.name} updated the room settings.`);
   },
 

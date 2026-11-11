@@ -44,7 +44,11 @@ export function tradeRates(state: GameState, playerId: string): Record<Resource,
 export const linksAnywhere = (state: { settings: Pick<GameSettings, 'routeLinks'> }): boolean =>
   state.settings.routeLinks !== 'settlement';
 
-export function longestRoad(state: GameState, playerId: string): number {
+/** A player's longest route. Takes a view too (bots try out roads with it). */
+export function longestRoad(
+  state: Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'>,
+  playerId: string,
+): number {
   const own = (id: string): 'road' | 'ship' | null =>
     state.roads[id] === playerId ? 'road' : state.ships?.[id] === playerId ? 'ship' : null;
   const edges = state.board.edges.filter(edge => own(edge.id));

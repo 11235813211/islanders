@@ -1,5 +1,5 @@
 import type { GameAction, GameState } from '../types';
-import { addLog, requireRule } from './core';
+import { addLog, cloneState, requireRule } from './core';
 
 const ACTIVE_PHASES = (state: GameState) => !['lobby', 'finished'].includes(state.phase);
 export const PROPOSAL_MS = 45_000;
@@ -61,7 +61,7 @@ export function socialAction(
   if (action.type !== 'chat' && action.type !== 'propose' && action.type !== 'vote') return null;
   const member = [...state.players, ...state.spectators].find(p => p.id === playerId);
   requireRule(member, 'You are not a member of this room.');
-  let next = structuredClone(state);
+  let next = cloneState(state);
   if (action.type === 'chat') {
     const last = [...next.chat].reverse().find(message => message.senderId === playerId);
     requireRule(!last || now - last.at >= 1000, 'Wait a moment before sending another message.');
@@ -144,7 +144,7 @@ export function socialAction(
 /** Freeze clocks while nobody is connected. Returns the same object when nothing changes. */
 export function idlePause(state: GameState, now: number): GameState {
   if (!ACTIVE_PHASES(state) || state.pausedAt !== null) return state;
-  const next = structuredClone(state);
+  const next = cloneState(state);
   next.pausedAt = now;
   next.pauseReason = 'idle';
   next.proposal = null;
@@ -156,7 +156,7 @@ export function idlePause(state: GameState, now: number): GameState {
 /** Undo an idle pause when someone reconnects. Vote pauses stay until players vote to resume. */
 export function idleResume(state: GameState, now: number): GameState {
   if (state.pauseReason !== 'idle' || state.pausedAt === null) return state;
-  const next = structuredClone(state);
+  const next = cloneState(state);
   shiftClocks(next, now - next.pausedAt!);
   next.pausedAt = null;
   next.pauseReason = null;

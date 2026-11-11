@@ -14,7 +14,6 @@ import {
   bagValue,
   COSTS,
   canPay,
-  DEFAULT_SPOT_TUNING,
   estimateHand,
   eventsThisTurn,
   expansionTarget,
@@ -29,26 +28,17 @@ import {
 import type { Brain, TurnOptions } from './types';
 
 /**
- * Intermediate and Advanced share this planner. Both pick a goal (city,
- * settlement, development card), spend and trade toward it, target the leader
- * with the robber, and play development cards on purpose.
+ * Intermediate: a hand-written planner (the Advanced bot before the trained one). It picks a
+ * goal (city, settlement, development card), spends and trades toward it, targets the leader
+ * with the robber, plays development cards on purpose, and estimates opponents' hands from what
+ * they produce (for Monopoly, steals, and refusing trades with anyone close to winning).
  *
- * Advanced differs by its profile: setup scoring tuned by self-play, every
- * choice its best one, and opponents' hands estimated from what they produce
- * (for Monopoly, steals, and refusing trades with anyone close to winning).
- * Intermediate sometimes takes a near-best setup corner or robber tile.
- *
- * Tuning: tests/bots.test.ts has a head-to-head report. Over 240 seeded games
- * (Beginner vs Intermediate vs Advanced, all seat orders) the profiles below
- * won about 3% / 38% / 58%. Ideas that tested no better than noise, and were
- * removed: lookahead on purchases, city-vs-settlement comparison, Longest Road
- * chasing, proactive harbor trades, and spending down big hands.
+ * It is also the baseline the trained Advanced bot is measured against (training/README.md).
+ * Ideas that tested no better than noise here, and were removed: lookahead on purchases,
+ * city-vs-settlement comparison, Longest Road chasing, proactive harbor trades, and spending
+ * down big hands.
  */
 interface Profile {
-  /** Guess opponents' cards (Monopoly, steals) and refuse trades with anyone near winning. */
-  handEstimates: boolean;
-  /** Chance (0–1) of taking a near-best option instead of the best one for setup and robber choices. */
-  sloppiness: number;
   /** Corner scoring weights for setup choices. */
   spot: SpotTuning;
 }
@@ -67,20 +57,6 @@ class Planner {
     this.weights = resourceWeights(this.board, view.selfId);
     this.production = this.board.production(view.selfId);
     this.self = view.players.find(p => p.id === view.selfId)!;
-  }
-
-  /**
-   * Usually the best (first) option; with the profile's sloppiness, sometimes the 2nd or 3rd.
-   * Derived from the game state so the same view always gives the same choice.
-   */
-  pick<T>(ranked: T[]): T {
-    const seed = [...`${this.view.version}:${this.view.selfId}:${this.view.turn}`].reduce(
-      (h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619),
-      2166136261,
-    );
-    const roll = (seed >>> 0) / 2 ** 32;
-    if (roll >= this.profile.sloppiness || ranked.length < 2) return ranked[0]!;
-    return ranked[1 + Math.floor((roll / this.profile.sloppiness) * Math.min(2, ranked.length - 1))]!;
   }
 
   get target() {
@@ -125,7 +101,7 @@ class Planner {
     const ids = [...this.view.legal.settlements];
     const score = (id: string) => spotValue(this.board, id, this.weights, this.profile.spot);
     ids.sort((a, b) => score(b) - score(a) || a.localeCompare(b));
-    return { type: 'place-settlement', vertexId: this.pick(ids) };
+    return { type: 'place-settlement', vertexId: ids[0]! };
   }
 
   setupRoad(): GameAction {
@@ -160,7 +136,7 @@ class Planner {
       }
       return value;
     };
-    return this.pick([...this.view.legal.robberHexes].sort((a, b) => score(b) - score(a)));
+    return [...this.view.legal.robberHexes].sort((a, b) => score(b) - score(a))[0]!;
   }
 
   stealTarget(): string {
@@ -169,10 +145,8 @@ class Planner {
     const score = (id: string) => {
       const player = this.view.players.find(p => p.id === id)!;
       let value = player.resourceCount + player.publicPoints * 0.5;
-      if (this.profile.handEstimates) {
-        const hand = estimateHand(this.board, id);
-        value += RESOURCES.reduce((n, r) => n + (this.view.hand[r] < need[r] ? hand[r] : 0), 0) * 1.5;
-      }
+      const hand = estimateHand(this.board, id);
+      value += RESOURCES.reduce((n, r) => n + (this.view.hand[r] < need[r] ? hand[r] : 0), 0) * 1.5;
       return value;
     };
     return [...this.view.legal.stealTargets].sort((a, b) => score(b) - score(a))[0]!;
@@ -185,8 +159,11 @@ class Planner {
   }
 
   robberOnMe(): boolean {
-    const hex = this.board.hex.get(this.view.robber)!;
-    return pips(hex.number) >= 3 && hex.vertexIds.some(id => this.view.buildings[id]?.playerId === this.view.selfId);
+    // The robber can start off the board on sea maps.
+    const hex = this.board.hex.get(this.view.robber);
+    return (
+      !!hex && pips(hex.number) >= 3 && hex.vertexIds.some(id => this.view.buildings[id]?.playerId === this.view.selfId)
+    );
   }
 
   knightTakesArmy(): boolean {
@@ -214,12 +191,7 @@ class Planner {
     const monopoly = this.playable('monopoly');
     if (monopoly) {
       const others = this.view.players.filter(p => p.id !== this.view.selfId);
-      const held = (r: Resource) =>
-        others.reduce(
-          (n, p) =>
-            n + (this.profile.handEstimates ? estimateHand(this.board, p.id)[r] : this.board.production(p.id)[r] / 6),
-          0,
-        );
+      const held = (r: Resource) => others.reduce((n, p) => n + estimateHand(this.board, p.id)[r], 0);
       const resource = [...RESOURCES].sort((a, b) => held(b) * this.weights[b] - held(a) * this.weights[a])[0]!;
       if (held(resource) >= 3) return { type: 'play-monopoly', cardId: monopoly.id, resource };
     }
@@ -335,7 +307,7 @@ class Planner {
   /** Is a trade worth it: better value for us, and not feeding someone about to win? */
   tradeIsGood(partnerId: string, get: ResourceBag, give: ResourceBag): boolean {
     const partner = this.view.players.find(p => p.id === partnerId);
-    if (!partner || (this.profile.handEstimates && partner.publicPoints >= this.target - 2)) return false;
+    if (!partner || partner.publicPoints >= this.target - 2) return false;
     if (!canPay(this.view.hand, give)) return false;
     const { goal } = this.goal();
     const hand = { ...this.view.hand };
@@ -367,8 +339,8 @@ function recentOffer(
   );
 }
 
-/** Advanced's settings. Exported so the tuning report can try variations. */
-export const ADVANCED: Profile = { handEstimates: true, sloppiness: 0, spot: { variety: 2.5, harbor: 0.3 } };
+/** Intermediate's settings. */
+const INTERMEDIATE: Profile = { spot: { variety: 2.5, harbor: 0.3 } };
 
 function makeBrain(profile: Profile): Brain {
   return {
@@ -437,5 +409,4 @@ function makeBrain(profile: Profile): Brain {
   };
 }
 
-export const intermediate = makeBrain({ handEstimates: false, sloppiness: 0.5, spot: DEFAULT_SPOT_TUNING });
-export const advanced = makeBrain(ADVANCED);
+export const intermediate = makeBrain(INTERMEDIATE);

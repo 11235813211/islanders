@@ -1,6 +1,6 @@
 import { boardIndex, isLandTerrain, terrainResource } from '../seafaring';
 import type { GameState } from '../types';
-import { addLog, bumpStat } from './core';
+import { addLog, bumpStat, ownBoard } from './core';
 
 /**
  * Fog (the Fog Islands rules): placing a road or ship that touches a corner of a fog tile reveals
@@ -9,10 +9,12 @@ import { addLog, bumpStat } from './core';
  * lets them pick one resource; sea and desert give nothing.
  */
 export function revealFog(next: GameState, edgeId: string, playerId: string): void {
-  const index = boardIndex(next.board);
-  const edge = index.edge.get(edgeId)!;
+  const edge = boardIndex(next.board).edge.get(edgeId)!;
   const player = next.players.find(p => p.id === playerId)!;
-  const hexIds = new Set([edge.a, edge.b].flatMap(v => index.vertex.get(v)!.hexIds));
+  const hexIds = new Set([edge.a, edge.b].flatMap(v => boardIndex(next.board).vertex.get(v)!.hexIds));
+  if (![...hexIds].some(id => next.fog[id])) return;
+  ownBoard(next);
+  const index = boardIndex(next.board);
   for (const hexId of hexIds) {
     const hex = index.hex.get(hexId)!;
     const hidden = next.fog[hexId];

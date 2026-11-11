@@ -17,8 +17,9 @@ Which published rules are in, which are room variations, and their tests: `docs/
   - `maps/`: designed boards. `types.ts` (BoardDesign), `generate.ts` (design → Board with balanced random fills), `balance.ts`, `builtin.ts` (the maps that ship, drawn as token grids), `edit.ts` (board-editor edits, pure), `fill.ts` (the editor's fills, unfills, and links; linked pieces are always random), `validate.ts`, `library.ts`.
   - `actions.ts`: the one table of every action's fields, used by both server and engine.
   - `types.ts` (all state/view/action types), `settings.ts` (defaults and limits), `colors.ts` (seat palette), `guest-names.ts` (editable list), `rules.ts` (scoring helpers), `board.ts`.
-  - `bots/`: `beginner.ts`, `strategic.ts` (Intermediate and Advanced profiles), `analysis.ts` (position helpers). Bots read only `GameView`, never hidden state.
+  - `bots/`: `beginner.ts`, `strategic.ts` (Intermediate, hand-written), `advanced/` (trained: setup lookahead + network, planner knobs, all numbers in `params.ts` and `weights.json`), `analysis.ts` (position helpers). Bots read only `GameView`, never hidden state.
 - `server/`: `worker.ts` routes HTTP, `room.ts` is one Durable Object per room, `accounts.ts` one per account, `boards.ts` the one board library (`/api/boards`; editing is limited to `PLAYTEST_USERS`), `protocol.ts` parses input, `env.ts` shared helpers. `index.ts` only re-exports.
+- `training/`: self-play training for the Advanced bot (tuning, the setup network, evaluation). Read `training/README.md` first; its results log says what has been tried.
 - `src/`: `App.tsx` (screens), `components/RoomLobby.tsx` (lobby and its settings schema), `components/GameTable.tsx` with pieces in `components/game/`, `components/Board.tsx` (targets and clicks) over `components/BoardScene.tsx` (the map art, shared with previews and the editor), `components/maps/` (map picker), `components/editor/` (board editor), `art/` (all drawings, versioned: see `src/art/README.md`), `hooks/`, `lib/`.
 - `src/components/game/phone.css` holds phone-only layout overrides.
 
@@ -38,7 +39,7 @@ Which published rules are in, which are room variations, and their tests: `docs/
 - `npx playwright test --project=iphone`: phone checks (`tests/phone.spec.ts`).
 - Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`. It and `art-compare.spec.ts` only take screenshots, so CI skips them (`playwright.config.ts`); CI splits the rest across two runners.
 - Server tests that need a seat to keep playing can call `PlayerConnection.autoPlay()` (`tests/server-helpers.ts`) instead of waiting out turn clocks. Sea tiles and pieces: `tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
-- Bot strength: `GAMES=240 npx vitest run tests/bots.test.ts -t report` (about a minute). Run it after changing bot logic; Advanced should beat Intermediate, which should beat Beginner.
+- Bot strength: `node training/run.mjs eval --games 2000` (Advanced vs Intermediate on every map, size, and setting; about 2 minutes). Run it after changing bot logic; Advanced should beat Intermediate, which should beat Beginner. `tests/bots.test.ts` also checks Advanced's CPU per move.
 - `npm run check` (lint, unit tests, build) must pass before you say you're done. Report failures honestly.
 
 ## Code rules (keep the codebase cheap to read and change)
@@ -51,6 +52,7 @@ Which published rules are in, which are room variations, and their tests: `docs/
 - Delete dead code and failed experiments instead of leaving switches or commented-out blocks.
 - Keep `getView` the only path from state to client; never send hidden cards, deck order, or tokens.
 - Bots must stay cheap (no deep search) so turns fit the free Workers CPU budget.
+- Boards are shared between states and views, never changed in place: call `ownBoard(next)` (engine/core.ts) before editing one.
 
 ## Working efficiently
 
