@@ -100,6 +100,33 @@ describe('designed boards', () => {
     }
   });
 
+  it('spreads the terrain "not A" tiles give up over every tile that may take it', () => {
+    // Top rows "not A", A in mountains: the mountains go to the bottom rows, but not always the same ones.
+    const d = design([
+      '~ ~ ~ ~ ~ ~ ~',
+      ' ~ L L L L L ~',
+      '~ L L L L L L ~',
+      ' ~ L L L L L ~',
+      '~ L L L L L L ~',
+      ' ~ ~ ~ ~ ~ ~ ~',
+    ]);
+    const rows = [...new Set(d.tiles.filter(t => t.kind === 'land').map(t => t.r))].sort((a, b) => a - b);
+    d.tiles = d.tiles.map(t => (t.kind === 'land' && t.r <= rows[1]! ? { ...t, notLink: 'A' } : t));
+    d.linkRules = [{ kind: 'in', links: ['A'], terrains: ['ore'] }];
+    d.pool = { wood: 4, brick: 3, sheep: 4, wheat: 4, ore: 6.5 };
+    const open = d.tiles.filter(t => t.kind === 'land' && !t.notLink);
+    const hits = new Map(open.map(t => [`${t.q},${t.r}`, 0]));
+    const runs = 400;
+    for (let seed = 1; seed <= runs; seed++)
+      for (const hex of buildBoard(d, seeded(seed)).board.hexes)
+        if (hex.terrain === 'ore') hits.set(`${hex.q},${hex.r}`, (hits.get(`${hex.q},${hex.r}`) ?? 0) + 1);
+    // Every allowed tile is sometimes not mountains, and sometimes is.
+    for (const count of hits.values()) {
+      expect(count / runs).toBeLessThan(0.95);
+      expect(count / runs).toBeGreaterThan(0.2);
+    }
+  });
+
   it('respects harbor exclusions and counts fixed harbors in the balance', () => {
     const d = design(BUILTIN_BOARDS[0]!.tiles.length ? [] : []);
     Object.assign(d, structuredClone(BUILTIN_BOARDS[0]!));

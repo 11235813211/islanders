@@ -188,9 +188,12 @@ function keepNotLinks(
   singles.forEach((tile, i) => {
     const not = banned(i);
     if (!not || kinds[i] !== not) return;
-    const j = singles.findIndex(
-      (other, k) => k !== i && mixKey(other) === mixKey(tile) && kinds[k] !== not && banned(k) !== kinds[i],
+    // Swap with a random partner: always taking the first in tile order piled the displaced
+    // terrain onto the same few tiles every time.
+    const partners = singles.flatMap((other, k) =>
+      k !== i && mixKey(other) === mixKey(tile) && kinds[k] !== not && banned(k) !== kinds[i] ? [k] : [],
     );
+    const j = partners.length ? partners[Math.floor(random() * partners.length)]! : -1;
     if (j >= 0) [kinds[i], kinds[j]] = [kinds[j]!, kinds[i]!];
     else {
       const rest = [...pools.get(mixKey(tile))!.keys()].filter(k => k !== not);
