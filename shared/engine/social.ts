@@ -185,12 +185,15 @@ export function idleResume(state: GameState, now: number): GameState {
   return next;
 }
 
-/** Note in the log that a person connected or disconnected; nothing else changes (no-op outside a game). */
+/**
+ * Note in the log that a person connected or disconnected (no-op outside a game). The version stays
+ * the same: a connection blip isn't a move, so it mustn't void undo proposals made against the
+ * current version, or make a reconnect look like a replayed action.
+ */
 export function logPresence(state: GameState, playerId: string, online: boolean): GameState {
   const player = state.players.find(p => p.id === playerId && !p.bot);
   if (!ACTIVE_PHASES(state) || !player) return state;
   const next = cloneState(state);
-  next.version++;
   addLog(next, `${player.name} ${online ? 'connected' : 'disconnected'}.`, { kind: 'presence', playerId, online });
   return next;
 }

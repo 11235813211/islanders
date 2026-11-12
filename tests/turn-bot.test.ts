@@ -147,6 +147,7 @@ describe('server-side turn completion', () => {
       event: { kind: 'presence', playerId: 'p1', online: false },
     });
     expect(logPresence(left, 'p1', true).log.at(-1)!.text).toBe('Player 1 connected.');
+    expect(left.version).toBe(g.version);
     g.players[2]!.bot = 'advanced';
     expect(logPresence(g, 'p2', false)).toBe(g);
     const lobby = makeLobby(2);
