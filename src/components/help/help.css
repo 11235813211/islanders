@@ -1,0 +1,20 @@
+/* The help dialog: short sections that scroll inside the dialog on small screens. */
+.help-sections {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
+.help-sections h3 {
+  font-size: 14px;
+  margin: 16px 0 6px;
+}
+.help-sections section:first-child h3 {
+  margin-top: 0;
+}
+.help-sections ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.help-sections li {
+  line-height: 1.45;
+  margin-bottom: 4px;
+}

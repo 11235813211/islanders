@@ -163,7 +163,7 @@ async function handleClientError(request: Request, env: Env, requester: string):
 }
 
 /**
- * The board library. Anyone may read it (the map picker); editing needs a board-editor account
+ * The board library. Anyone may read it (the map picker), less admin-only boards; editing needs a board-editor account
  * (the same accounts that may create solo test rooms).
  */
 async function handleBoards(url: URL, request: Request, env: Env): Promise<Response> {
@@ -172,7 +172,11 @@ async function handleBoards(url: URL, request: Request, env: Env): Promise<Respo
   const match = /^\/api\/boards(?:\/([^/]+)(\/lock)?)?$/.exec(url.pathname);
   if (!match) throw new ProtocolError('Board not found.', 404);
   const id = match[1];
-  if (request.method === 'GET' && !id) return json(structuredClone(await library.library()));
+  if (request.method === 'GET' && !id) {
+    // An expired sign-in still gets the public library.
+    const reader = await accountFor(request, env).catch(() => null);
+    return json(structuredClone(await library.library(canPlaytest(env, reader))));
+  }
   const identity = await accountFor(request, env, true);
   if (!identity || !canPlaytest(env, identity))
     throw new ProtocolError('Board editing is not available on this account.', 403);

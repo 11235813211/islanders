@@ -26,6 +26,20 @@ test('the game screen fits a phone: no sideways scroll, header hidden, controls 
   expect(game.errors).toEqual([]);
 });
 
+test('the help button opens touch-worded help that fits a phone', async ({ page }) => {
+  const game = await mountGame(page, richGame());
+  await page.getByRole('button', { name: 'How to play here' }).tap();
+  const help = page.getByRole('dialog', { name: 'How to play here' });
+  await expect(help.getByRole('heading', { name: 'Right now' })).toBeVisible();
+  await expect(help).toContainText('tap a card in your hand');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: 'test-results/phone-help.png' });
+  await help.getByRole('button', { name: 'Close dialog' }).tap();
+  await expect(help).toBeHidden();
+  expect(game.errors).toEqual([]);
+});
+
 test('typing in chat does not trigger iOS zoom (fields are at least 16px)', async ({ page }) => {
   await mountGame(page, richGame());
   await page.getByRole('button', { name: 'Open chat' }).tap();

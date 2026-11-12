@@ -9,6 +9,7 @@ import {
   mergeLibrary,
   parseCategories,
   parseDesign,
+  publicLibrary,
 } from '../shared/maps';
 import { apportion, balancedNumbers, pips } from '../shared/maps/balance';
 import { parseGrid } from '../shared/maps/builtin';
@@ -185,6 +186,18 @@ describe('library', () => {
     const merged = mergeLibrary(stored);
     expect(merged.boards.map(b => b.id)).not.toContain(BUILTIN_BOARDS[0]!.id);
     expect(merged.boards).toHaveLength(BUILTIN_BOARDS.length - 1);
+  });
+
+  it('hides "AI Training" boards from non-admins', () => {
+    const fresh = mergeLibrary(undefined);
+    const trainer = { ...structuredClone(BUILTIN_BOARDS[0]!), id: 'trainer-1', categoryId: 'category-3' };
+    const library = {
+      categories: [...fresh.categories, { id: 'category-3', name: 'AI Training', color: '#000501' }],
+      boards: [...fresh.boards, trainer],
+    };
+    const shown = publicLibrary(library);
+    expect(shown.categories.map(c => c.id)).toEqual(fresh.categories.map(c => c.id));
+    expect(shown.boards.map(b => b.id)).toEqual(fresh.boards.map(b => b.id));
   });
 
   it('rejects bad designs and categories', () => {

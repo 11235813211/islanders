@@ -1,7 +1,8 @@
-import { tradeRates } from '../rules';
+import { bankTradeSize, tradeRates } from '../rules';
 import { isBotGame } from '../settings';
-import { type GameState, type Player, RESOURCES, type TradeBag, type TradeOffer } from '../types';
+import { type GameState, type Player, RESOURCES, type ResourceBag, type TradeBag, type TradeOffer } from '../types';
 import {
+  type ActionContext,
   addBag,
   addLog,
   bagCount,
@@ -82,9 +83,39 @@ export function pruneTradeOffer(next: GameState): void {
   offer.counters = offer.counters.filter(counter => canAfford(owner(counter.fromId), counter.give));
 }
 
+/** Trade with the bank at the player's harbor rates (see bankTradeSize). */
+function bankExchange({ next, player, playerId }: ActionContext, give: ResourceBag, receive: ResourceBag): void {
+  needPhase(next, 'build');
+  requireRule(
+    bankTradeSize(give, receive, tradeRates(next, playerId)) !== null,
+    'Give each resource in a multiple of its trade rate, one card for each.',
+  );
+  requireRule(canAfford(player, give), `This trade needs ${describeBag(give)}.`);
+  requireRule(
+    RESOURCES.every(r => next.bank[r] >= receive[r]),
+    'The bank does not have enough cards of that resource left.',
+  );
+  addBag(player, give, -1);
+  addBag(player, receive);
+  for (const r of RESOURCES) next.bank[r] += give[r] - receive[r];
+  addLog(next, `${player.name} traded ${describeBag(give)} for ${describeBag(receive)}.`, {
+    kind: 'bank-trade',
+    playerId,
+    give: { ...give },
+    get: { ...receive },
+  });
+}
+
+/** "4 sheep and 3 ore": the kinds in a bag, with "one" for a single card. */
+function describeBag(bag: ResourceBag): string {
+  const parts = RESOURCES.filter(r => bag[r] > 0).map(r => `${bag[r] === 1 ? 'one' : bag[r]} ${r}`);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]!;
+}
+
 export const tradeHandlers: Pick<
   Handlers,
   | 'trade'
+  | 'bank-trade'
   | 'offer-trade'
   | 'counter-trade'
   | 'accept-trade'
@@ -94,30 +125,16 @@ export const tradeHandlers: Pick<
   | 'cancel-trade'
 > = {
   /** Maritime trade with the bank at the player's best harbor rate, `count` times over. */
-  trade({ next, player, playerId }, action) {
-    needPhase(next, 'build');
-    requireRule(action.give !== action.receive, 'Choose two different resource types.');
+  trade(context, action) {
     const count = action.count ?? 1;
-    const ratio = tradeRates(next, playerId)[action.give];
-    requireRule(
-      player.resources[action.give] >= ratio * count,
-      `This maritime trade needs ${ratio * count} resources of one type.`,
-    );
-    requireRule(next.bank[action.receive] >= count, 'The bank does not have enough cards of that resource left.');
-    player.resources[action.give] -= ratio * count;
-    next.bank[action.give] += ratio * count;
-    next.bank[action.receive] -= count;
-    player.resources[action.receive] += count;
-    addLog(
-      next,
-      `${player.name} traded ${ratio * count} ${action.give} for ${count === 1 ? 'one' : count} ${action.receive}.`,
-      {
-        kind: 'bank-trade',
-        playerId,
-        give: { ...emptyBag(), [action.give]: ratio * count },
-        get: { ...emptyBag(), [action.receive]: count },
-      },
-    );
+    const ratio = tradeRates(context.next, context.playerId)[action.give];
+    requireRule(action.give !== action.receive, 'Choose two different resource types.');
+    bankExchange(context, { ...emptyBag(), [action.give]: ratio * count }, { ...emptyBag(), [action.receive]: count });
+  },
+
+  /** One bank trade over several kinds at their own rates (e.g. 2 sheep + 3 ore for wheat and wood). */
+  'bank-trade'(context, action) {
+    bankExchange(context, action.give, action.receive);
   },
 
   'offer-trade'({ next, player, playerId, now }, action) {

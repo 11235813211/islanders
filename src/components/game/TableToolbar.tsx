@@ -16,6 +16,8 @@ import { useState } from 'react';
 import type { GameAction, GameView } from '../../../shared/types';
 import type { Connection } from '../../hooks/useRoom';
 import { setSoundEnabled, soundEnabled } from '../../lib/sound';
+import HelpButton from '../help/HelpButton';
+import { gameHelp } from '../help/helpContent';
 
 /** Why the undo button is or isn't available. */
 function undoTitle(view: GameView): string {
@@ -102,6 +104,7 @@ export default function TableToolbar({
         </div>
       )}
       <div className="table-tools">
+        <HelpButton sections={touch => gameHelp(view, touch)} />
         <button className="icon-button" aria-label="Open chat" onClick={toggleChat}>
           <MessageCircle size={19} />
         </button>

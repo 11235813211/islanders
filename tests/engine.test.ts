@@ -463,10 +463,52 @@ describe('building and bank trades', () => {
     const next = applyAction(state, 'p0', { type: 'trade', give: 'wood', receive: 'ore' });
     expect(next.players[0].resources).toEqual({ ...emptyBag(), ore: 1 });
     expect(() => applyAction(state, 'p0', { type: 'trade', give: 'wood', receive: 'wood' })).toThrow(/different/);
-    expect(() => applyAction(next, 'p0', { type: 'trade', give: 'ore', receive: 'wood' })).toThrow(/4 resources/);
+    expect(() => applyAction(next, 'p0', { type: 'trade', give: 'ore', receive: 'wood' })).toThrow(/needs 4 ore/);
     grant(state, 'p1', { ore: 19 });
     expect(() => applyAction(state, 'p0', { type: 'trade', give: 'wood', receive: 'ore' })).toThrow(/bank/);
     assertConserved(next);
+  });
+
+  it('mixes harbor rates in one bank trade: 4 sheep at 2:1, or 2 sheep and 3 ore at 2:1 and 3:1', () => {
+    const state = setup();
+    clearHands(state);
+    state.phase = 'build';
+    // A 2:1 sheep harbor and a 3:1 harbor, both on p0's buildings.
+    const sheepPort = state.board.harbors.find(h => h.resource === 'sheep')!;
+    const anyPort = state.board.harbors.find(h => h.resource === 'any')!;
+    state.buildings = {
+      [sheepPort.vertices[0]!]: { playerId: 'p0', kind: 'settlement' },
+      [anyPort.vertices[0]!]: { playerId: 'p0', kind: 'settlement' },
+    };
+    grant(state, 'p0', { sheep: 4, ore: 3 });
+    const bag = (b: Partial<ResourceBag>) => ({ ...emptyBag(), ...b });
+    const two = applyAction(state, 'p0', {
+      type: 'bank-trade',
+      give: bag({ sheep: 4 }),
+      receive: bag({ brick: 1, wheat: 1 }),
+    });
+    expect(two.players[0].resources).toEqual(bag({ ore: 3, brick: 1, wheat: 1 }));
+    assertConserved(two);
+    const mixed = applyAction(state, 'p0', {
+      type: 'bank-trade',
+      give: bag({ sheep: 2, ore: 3 }),
+      receive: bag({ wheat: 1, wood: 1 }),
+    });
+    expect(mixed.players[0].resources).toEqual(bag({ sheep: 2, wheat: 1, wood: 1 }));
+    expect(mixed.log.at(-1)?.text).toMatch(/2 sheep and 3 ore for one wood and one wheat/);
+    assertConserved(mixed);
+    // Not a whole multiple of a rate, too many cards asked, or the same kind on both sides.
+    const reject = (give: Partial<ResourceBag>, receive: Partial<ResourceBag>) =>
+      expect(() => applyAction(state, 'p0', { type: 'bank-trade', give: bag(give), receive: bag(receive) })).toThrow(
+        /multiple/,
+      );
+    reject({ sheep: 3 }, { wheat: 1 });
+    reject({ sheep: 2, ore: 2 }, { wheat: 2 });
+    reject({ sheep: 4 }, { wheat: 3 });
+    reject({ sheep: 2 }, { sheep: 1 });
+    expect(() =>
+      applyAction(state, 'p0', { type: 'bank-trade', give: bag({ ore: 6 }), receive: bag({ wheat: 2 }) }),
+    ).toThrow(/needs 6 ore/);
   });
 
   it('ends the game at ten points and rejects every subsequent move', () => {

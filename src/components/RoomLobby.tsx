@@ -27,6 +27,8 @@ import {
   type RecordingStatus,
 } from '../../shared/types';
 import type { Connection } from '../hooks/useRoom';
+import HelpButton from './help/HelpButton';
+import { lobbyHelp } from './help/helpContent';
 import LobbySeat from './lobby/LobbySeat';
 import MapChoice from './lobby/MapChoice';
 import { CATEGORIES, SettingControl } from './lobby/settings';
@@ -88,6 +90,7 @@ export default function RoomLobby({
         </div>
         <div className="heading-actions">
           <ConnectionPill status={connection} />
+          <HelpButton sections={() => lobbyHelp(view)} />
           <button className="button secondary" onClick={invite}>
             <Users size={20} />
             Invite friends

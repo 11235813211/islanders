@@ -27,7 +27,7 @@ import type {
   Session,
 } from '../shared/types';
 import type { AccountIdentity } from './accounts';
-import { accountStub, checkLimit, type Env, failure, json, libraryStub, logError } from './env';
+import { accountStub, canPlaytest, checkLimit, type Env, failure, json, libraryStub, logError } from './env';
 import {
   AUTH_TIMEOUT_MS,
   hashToken,
@@ -300,10 +300,14 @@ export class GameRoom extends DurableObject<Env> {
     return { ...room, sessions: room.sessions.filter(s => s.playerId !== playerId) };
   }
 
-  /** The library's design for a map id (null for the standard island or an unknown id). */
-  private async design(mapId: string): Promise<BoardDesign | undefined> {
+  /**
+   * The library's design for a map id, as `username` may play it (undefined for the standard
+   * island, an unknown id, or an admin-only board chosen by someone else).
+   */
+  private async design(mapId: string, username: string | undefined): Promise<BoardDesign | undefined> {
     if (mapId === 'base') return undefined;
-    const design = await libraryStub(this.env).board(mapId);
+    const admin = canPlaytest(this.env, username ? { username } : null);
+    const design = await libraryStub(this.env).board(mapId, admin);
     return design ? structuredClone(design) : undefined;
   }
 
@@ -386,7 +390,7 @@ export class GameRoom extends DurableObject<Env> {
               });
           }
           if (body.mapId) {
-            const design = await this.design(body.mapId);
+            const design = await this.design(body.mapId, identity?.username);
             if (design)
               game = applyAction(game, playerId, { type: 'choose-map', mapId: design.id }, secureRandom, Date.now(), {
                 design,
@@ -541,7 +545,8 @@ export class GameRoom extends DurableObject<Env> {
         }
         const action = message.action;
         const actor = SELF_ACTIONS.has(action.type) ? attachment.playerId : this.actor(attachment);
-        const design = action.type === 'choose-map' ? await this.design(action.mapId) : undefined;
+        const design =
+          action.type === 'choose-map' ? await this.design(action.mapId, saved.account?.username) : undefined;
         const actionTape = tape(secureRandom);
         const actedAt = Date.now();
         const online = room.game.testMode ? room.game.players.map(p => p.id) : this.online();

@@ -104,6 +104,17 @@ test('trade stays beside the hand, collects hand clicks and supports bank exchan
   await expect(dialog.getByRole('button', { name: 'Remove one Lumber from give' })).toHaveText(String(rate));
   await dialog.getByRole('button', { name: 'Bank', exact: true }).click();
   await expect.poll(() => game.state().players[0].resources.wood).toBe(before - rate);
+  // One bank trade can buy several cards, mixing kinds: wool and brick at their rates, for ore and grain.
+  const rates = getView(game.state(), 'p0').tradeRates;
+  for (let i = 0; i < rates.sheep; i++) await page.getByRole('button', { name: /^Trade Wool/ }).click();
+  for (let i = 0; i < rates.brick; i++) await page.getByRole('button', { name: /^Trade Brick/ }).click();
+  await dialog.getByRole('button', { name: 'Request one more Ore' }).click();
+  await expect(dialog.getByRole('button', { name: 'Bank', exact: true })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Request one more Grain' }).click();
+  const { ore, sheep } = game.state().players[0].resources;
+  await dialog.getByRole('button', { name: 'Bank', exact: true }).click();
+  await expect.poll(() => game.state().players[0].resources.ore).toBe(ore + 1);
+  expect(game.state().players[0].resources.sheep).toBe(sheep - rates.sheep);
   expect(game.errors).toEqual([]);
 });
 

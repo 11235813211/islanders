@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type BoardDesign, BUILTIN_BOARDS, playerRanges } from '../shared/maps';
+import { type BoardDesign, BUILTIN_BOARDS, isAdminOnlyCategory, playerRanges } from '../shared/maps';
 import type { GameSettings } from '../shared/types';
 import { seeded } from './sim';
 
@@ -44,7 +44,7 @@ export function allMaps(): BoardDesign[] {
     ? JSON.parse(readFileSync(path, 'utf8'))
     : { boards: [], categories: [] };
   const library = stored.boards;
-  const training = new Set(stored.categories.filter(c => /ai training/i.test(c.name)).map(c => c.id));
+  const training = new Set(stored.categories.filter(isAdminOnlyCategory).map(c => c.id));
   for (const b of library) if (training.has(b.categoryId)) trainers.add(b.id);
   const ids = new Set(BUILTIN_BOARDS.map(b => b.id));
   cachedMaps = [...BUILTIN_BOARDS, ...library.filter(b => !ids.has(b.id))];

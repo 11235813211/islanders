@@ -65,6 +65,7 @@ const REVERSIBLE = new Set<GameAction['type']>([
   // The card goes back into a reshuffled deck on undo (see returnBoughtCards), so undoing can't be used to peek.
   'buy-development',
   'trade',
+  'bank-trade',
   'confirm-trade',
   'accept-counter',
   'end-turn',

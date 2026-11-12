@@ -1,5 +1,5 @@
 import { GameError } from '../shared/engine';
-import type { AccountIdentity, AccountStore } from './accounts';
+import type { AccountStore } from './accounts';
 import type { BoardLibraryStore } from './boards';
 import { ProtocolError } from './protocol';
 import type { GameRecordStore } from './recording';
@@ -49,7 +49,7 @@ export const accountStub = (env: Env, username: string) => env.ACCOUNTS.get(env.
 export const libraryStub = (env: Env) => env.LIBRARY.get(env.LIBRARY.idFromName('library'));
 
 /** Solo test rooms and the board editor are developer tools: open in local dev, otherwise limited to listed accounts. */
-export function canPlaytest(env: Env, identity: AccountIdentity | null): boolean {
+export function canPlaytest(env: Env, identity: { username: string } | null | undefined): boolean {
   if (env.DEV_MODE === 'true') return true;
   const allowed = (env.PLAYTEST_USERS ?? '')
     .split(',')

@@ -506,6 +506,8 @@ export type GameAction =
   | { type: 'build-city'; vertexId: string }
   /** Bank or harbor trade: `count` times the rate of `give` for `count` of `receive`. */
   | { type: 'trade'; give: Resource; receive: Resource; count?: number }
+  /** A bank trade mixing rates: see bankTradeSize in rules.ts. */
+  | { type: 'bank-trade'; give: ResourceBag; receive: ResourceBag }
   | { type: 'end-turn' }
   /** Five or six players: during someone else's turn, ask to build when it ends. */
   | { type: 'request-special-build' }

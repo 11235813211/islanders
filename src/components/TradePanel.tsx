@@ -3,11 +3,13 @@ import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playerVars } from '../../shared/colors';
 import { emptyBag } from '../../shared/engine';
+import { bankTradeSize } from '../../shared/rules';
 import {
   type GameAction,
   type GameView,
   RESOURCES,
   type Resource,
+  type ResourceBag,
   type Tradable,
   type TradeBag,
   type TradeOffer,
@@ -79,23 +81,31 @@ export function counterDraft(offer: TradeOffer): TradeDraft {
   return { give: { ...offer.want }, want: { ...offer.give }, to: null, counterOf: offer.id };
 }
 
+/** A draft's cards as a plain resource bag (discoveries left out). */
+const cardsOf = (bag: TradeBag): ResourceBag => ({
+  ...emptyBag(),
+  ...Object.fromEntries(RESOURCES.map(r => [r, bag[r]])),
+});
+
 /**
- * The bank trade this draft describes, if it is one: one kind given in a multiple of its harbor
- * rate, for that many of one other kind the bank still has.
+ * The bank trade this draft describes, if it is one: each kind given in a multiple of its harbor
+ * rate, one card per multiple, mixing rates if need be (see bankTradeSize), from cards you hold
+ * and that the bank still has.
  */
-export function bankTrade(
-  draft: TradeDraft,
-  view: GameView,
-): { give: Resource; receive: Resource; count: number } | null {
+export function bankTrade(draft: TradeDraft, view: GameView): { give: ResourceBag; receive: ResourceBag } | null {
   if (draft.give.discovery || draft.want.discovery) return null;
-  const gives = RESOURCES.filter(r => draft.give[r] > 0);
-  const gets = RESOURCES.filter(r => draft.want[r] > 0);
-  if (gives.length !== 1 || gets.length !== 1) return null;
-  const [give, receive] = [gives[0]!, gets[0]!];
-  const count = draft.want[receive];
-  const enough = view.bankCounts ? view.bankCounts[receive] >= count : view.bank[receive];
-  if (draft.give[give] !== count * view.tradeRates[give] || draft.give[give] > view.hand[give] || !enough) return null;
-  return { give, receive, count };
+  const give = cardsOf(draft.give);
+  const receive = cardsOf(draft.want);
+  if (bankTradeSize(give, receive, view.tradeRates) === null) return null;
+  const enough = (r: Resource) => !receive[r] || (view.bankCounts ? view.bankCounts[r] >= receive[r] : view.bank[r]);
+  if (!RESOURCES.every(r => give[r] <= view.hand[r] && enough(r))) return null;
+  return { give, receive };
+}
+
+/** "2:1" or "2:1 + 3:1": the rates a bank trade uses. */
+function ratesUsed(give: ResourceBag, view: GameView): string {
+  const rates = [...new Set(RESOURCES.filter(r => give[r] > 0).map(r => view.tradeRates[r]))].sort();
+  return rates.map(rate => `${rate}:1`).join(' + ');
 }
 
 const ALL: Tradable[] = [...RESOURCES, 'discovery'];
@@ -143,7 +153,7 @@ export default function TradeComposer({
   }
   function tradeWithBank() {
     if (!bank) return;
-    send({ type: 'trade', give: bank.give, receive: bank.receive, ...(bank.count > 1 ? { count: bank.count } : {}) });
+    send({ type: 'bank-trade', give: bank.give, receive: bank.receive });
     close();
   }
   const status = !active
@@ -153,7 +163,7 @@ export default function TradeComposer({
     : countering
       ? `Counter to ${view.players.find(p => p.id === offer?.fromId)?.name ?? 'the offer'}`
       : bank
-        ? `Bank: ${view.tradeRates[bank.give]}:1`
+        ? `Bank: ${ratesUsed(bank.give, view)}`
         : draft.to
           ? `Offer to ${recipients.length} of ${others.length}`
           : 'Offer to all players';
@@ -234,8 +244,8 @@ export default function TradeComposer({
             disabled={busy || !active || !bank}
             data-tip={
               bank
-                ? `Trade with the bank at ${view.tradeRates[bank.give]}:1`
-                : 'Give one kind at your harbor rate (4:1, 3:1, or 2:1) for one other kind'
+                ? `Trade with the bank at ${ratesUsed(bank.give, view)}`
+                : 'Give each kind in a multiple of its rate (4:1, 3:1, or 2:1), one card for each'
             }
             onClick={tradeWithBank}
           >

@@ -68,6 +68,7 @@ const SPEC = {
   'choose-gold': { resources: 'bag' },
   'choose-map': { mapId: 'id', layoutFor: 'count?' },
   trade: { give: 'resource', receive: 'resource', count: 'count?' },
+  'bank-trade': { give: 'bag', receive: 'bag' },
   discard: { resources: 'tradeBag' },
   'move-robber': { hexId: 'id' },
   steal: { playerId: 'id' },

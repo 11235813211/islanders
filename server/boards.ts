@@ -8,6 +8,7 @@ import {
   mergeLibrary,
   parseCategories,
   parseDesign,
+  publicLibrary,
   type StoredLibrary,
 } from '../shared/maps';
 import type { Env } from './env';
@@ -110,15 +111,20 @@ export class BoardLibraryStore extends DurableObject<Env> {
     if (holder) throw new ProtocolError(`${holder} is editing this board. Try again once they leave it.`, 409);
   }
 
-  async library(): Promise<BoardLibrary> {
+  /** The library; non-admins (`admin` false) don't see admin-only categories or their boards. */
+  async library(admin: boolean): Promise<BoardLibrary> {
     return this.serial(async () => {
       const { categories, boards } = mergeLibrary(await this.stored());
-      return { categories, boards };
+      return admin ? { categories, boards } : publicLibrary({ categories, boards });
     });
   }
 
-  async board(id: string): Promise<BoardDesign | null> {
-    return this.serial(async () => mergeLibrary(await this.stored()).boards.find(b => b.id === id) ?? null);
+  /** One board by id, or null if it doesn't exist or (for non-admins) is admin-only. */
+  async board(id: string, admin: boolean): Promise<BoardDesign | null> {
+    return this.serial(async () => {
+      const library = mergeLibrary(await this.stored());
+      return (admin ? library : publicLibrary(library)).boards.find(b => b.id === id) ?? null;
+    });
   }
 
   /** Create or replace one board, keeping its place in the list. */

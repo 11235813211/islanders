@@ -8,6 +8,7 @@ import {
   type GameState,
   RESOURCES,
   type Resource,
+  type ResourceBag,
   type TradeOffer,
 } from './types';
 
@@ -33,6 +34,23 @@ export function tradeRates(state: GameState, playerId: string): Record<Resource,
       owned.some(p => p.resource === resource) ? 2 : owned.some(p => p.resource === 'any') ? 3 : 4,
     ]),
   ) as Record<Resource, number>;
+}
+
+/**
+ * How many cards a bank trade buys, or null when it doesn't fit the rates. Each kind given must be
+ * a whole multiple of its rate (each multiple buys one card), so one trade can mix harbors:
+ * 2 sheep + 3 ore at 2:1 and 3:1 buy two cards. Nothing may be both given and received.
+ */
+export function bankTradeSize(give: ResourceBag, receive: ResourceBag, rates: Record<Resource, number>): number | null {
+  let bought = 0;
+  let wanted = 0;
+  for (const r of RESOURCES) {
+    if (give[r] && receive[r]) return null;
+    if (give[r] % rates[r]) return null;
+    bought += give[r] / rates[r];
+    wanted += receive[r];
+  }
+  return bought > 0 && bought === wanted ? bought : null;
 }
 
 /**

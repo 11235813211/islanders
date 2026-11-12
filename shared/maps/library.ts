@@ -35,3 +35,17 @@ export function mergeLibrary(stored: StoredLibrary | undefined): StoredLibrary {
 export function findBoard(library: BoardLibrary, id: string): BoardDesign | undefined {
   return library.boards.find(b => b.id === id);
 }
+
+/** Categories named "AI Training" hold edge-case boards made for bot training, playable only by admins. */
+export function isAdminOnlyCategory(category: { name: string }): boolean {
+  return /ai training/i.test(category.name);
+}
+
+/** The library as non-admins see it: without admin-only categories and their boards. */
+export function publicLibrary(library: BoardLibrary): BoardLibrary {
+  const hidden = new Set(library.categories.filter(isAdminOnlyCategory).map(c => c.id));
+  return {
+    categories: library.categories.filter(c => !hidden.has(c.id)),
+    boards: library.boards.filter(b => !hidden.has(b.categoryId)),
+  };
+}

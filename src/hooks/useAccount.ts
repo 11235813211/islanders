@@ -5,7 +5,8 @@ import { ApiError, apiRequest } from '../lib/api';
 const ACCOUNT_KEY = 'islanders-account';
 type SignInResponse = AccountSession & { recoveryCode?: string };
 
-function loadAccount(): AccountSession | null {
+/** The signed-in account saved on this device, if its sign-in hasn't expired. */
+export function loadAccount(): AccountSession | null {
   try {
     const value = JSON.parse(localStorage.getItem(ACCOUNT_KEY) ?? 'null') as AccountSession | null;
     return value &&
