@@ -143,9 +143,34 @@ export const EXPANSIONS = {
 } as const;
 export type Expansion = keyof typeof EXPANSIONS;
 
-/** The expansions a board needs: what its editor chose, or Seafarers for any board with sea. */
+/** The expansions a board needs: what its editor chose, or Seafarers when ships are needed to play it. */
 export function boardExpansions(design: Pick<BoardDesign, 'expansions' | 'tiles'>): Expansion[] {
-  return design.expansions ?? (design.tiles.some(t => t.kind === 'sea') ? ['seafarers'] : []);
+  return design.expansions ?? (needsShips(design.tiles) ? ['seafarers'] : []);
+}
+
+/**
+ * Ships (and so the pirate) are needed only when some land is out of reach by road: the land is
+ * split into more than one island, or fog hides tiles to explore. One island ringed by sea isn't.
+ */
+function needsShips(tiles: Pick<DesignTile, 'q' | 'r' | 'kind'>[]): boolean {
+  if (!tiles.some(t => t.kind === 'sea')) return false;
+  if (tiles.some(t => t.kind === 'fog')) return true;
+  const land = new Set(tiles.filter(t => t.kind !== 'sea').map(t => tileKey(t.q, t.r)));
+  const [first] = land;
+  if (!first) return false;
+  const reached = new Set([first]);
+  const queue = [first];
+  while (queue.length) {
+    const [q, r] = queue.pop()!.split(',').map(Number) as [number, number];
+    for (const [dq, dr] of SIDE_DIRECTIONS) {
+      const key = tileKey(q + dq, r + dr);
+      if (land.has(key) && !reached.has(key)) {
+        reached.add(key);
+        queue.push(key);
+      }
+    }
+  }
+  return reached.size < land.size;
 }
 
 /** The Fog Islands stack: two sea, two gold, and eight land tiles. */

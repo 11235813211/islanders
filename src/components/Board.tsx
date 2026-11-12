@@ -351,20 +351,21 @@ export default function Board({
               </g>
             );
           })}
-          {picked && onRobberConfirm && (
-            <RobberConfirm at={picked} pirate={picked.terrain === 'sea'} onConfirm={onRobberConfirm} />
-          )}
-          {selected && selectedPoint && (
-            <ConfirmCard
-              at={selectedPoint}
-              choices={choices}
-              view={view}
-              color={color(view.selfId)}
-              onConfirm={onConfirm}
-            />
-          )}
           <SeaDecorations frame={frame} />
         </g>
+        {/* Outside the sea clip, so a card by the board's edge is never cut off. */}
+        {picked && onRobberConfirm && (
+          <RobberConfirm at={picked} pirate={picked.terrain === 'sea'} onConfirm={onRobberConfirm} />
+        )}
+        {selected && selectedPoint && (
+          <ConfirmCard
+            at={selectedPoint}
+            choices={choices}
+            view={view}
+            color={color(view.selfId)}
+            onConfirm={onConfirm}
+          />
+        )}
       </svg>
       <BoardDice view={view} />
       {showHint && (
@@ -390,29 +391,31 @@ function RobberConfirm({
   const piece = pirate ? 'pirate' : 'robber';
   return (
     <g className="map-confirm robber-confirm" transform={`translate(${at.x} ${at.y - 62})`}>
-      <path d="M-46 18H-6L0 26 6 18H46V-20H-46Z" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
-      {[true, false].map(yes => (
-        // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
-        <g
-          key={String(yes)}
-          transform={`translate(${yes ? -22 : 22} 0)`}
-          role="button"
-          tabIndex={0}
-          aria-label={yes ? `Confirm ${piece}` : `Cancel ${piece}`}
-          onClick={event => {
-            event.stopPropagation();
-            onConfirm(yes);
-          }}
-          onKeyDown={event => keyboardActivate(event, () => onConfirm(yes))}
-        >
-          <circle r="14" fill={yes ? '#198144' : '#c8473b'} />
-          {yes ? (
-            <path d="m-6 0 4 4 8-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-          ) : (
-            <path d="M-5-5 5 5M5-5-5 5" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-          )}
-        </g>
-      ))}
+      <g className="map-confirm-body">
+        <path d="M-46 18H-6L0 26 6 18H46V-20H-46Z" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+        {[true, false].map(yes => (
+          // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
+          <g
+            key={String(yes)}
+            transform={`translate(${yes ? -22 : 22} 0)`}
+            role="button"
+            tabIndex={0}
+            aria-label={yes ? `Confirm ${piece}` : `Cancel ${piece}`}
+            onClick={event => {
+              event.stopPropagation();
+              onConfirm(yes);
+            }}
+            onKeyDown={event => keyboardActivate(event, () => onConfirm(yes))}
+          >
+            <circle r="14" fill={yes ? '#198144' : '#c8473b'} />
+            {yes ? (
+              <path d="m-6 0 4 4 8-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+            ) : (
+              <path d="M-5-5 5 5M5-5-5 5" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+            )}
+          </g>
+        ))}
+      </g>
     </g>
   );
 }
@@ -434,42 +437,44 @@ function ConfirmCard({
   const width = 64 * choices.length;
   return (
     <g className="map-confirm" transform={`translate(${at.x} ${at.y - 42})`}>
-      <path
-        d={`M${-width / 2} 18H-6L0 26 6 18H${width / 2}V-22H${-width / 2}Z`}
-        fill="#fffdf4"
-        stroke="#123d54"
-        strokeWidth="2"
-      />
-      {choices.map((kind, i) => (
-        <g
-          key={kind}
-          transform={`translate(${-width / 2 + 32 + i * 64} 0)`}
-          role="button"
-          tabIndex={0}
-          aria-label={`Confirm ${kind}`}
-          onClick={event => {
-            event.stopPropagation();
-            onConfirm?.(kind);
-          }}
-          onKeyDown={event => keyboardActivate(event, () => onConfirm?.(kind))}
-        >
-          <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
-          {/* The board's own piece art, outlined in a dark tone of the seat color, so even white shows on the cream card. */}
-          {kind === 'road' && <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color} />}
-          {kind === 'ship' && (
-            <g transform="translate(-10 0) scale(.8)">
-              <SEA.Ship from={{ x: -18, y: 8 }} to={{ x: 18, y: 8 }} color={color} />
-            </g>
-          )}
-          {(kind === 'settlement' || kind === 'city') && (
-            <g transform="translate(-11 -1) scale(.75)">
-              <BuildingPiece color={color} city={kind === 'city'} style={view.settings.pieceStyle} />
-            </g>
-          )}
-          <circle cx="17" cy="-2" r="10" fill="#198144" />
-          <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-        </g>
-      ))}
+      <g className="map-confirm-body">
+        <path
+          d={`M${-width / 2} 18H-6L0 26 6 18H${width / 2}V-22H${-width / 2}Z`}
+          fill="#fffdf4"
+          stroke="#123d54"
+          strokeWidth="2"
+        />
+        {choices.map((kind, i) => (
+          <g
+            key={kind}
+            transform={`translate(${-width / 2 + 32 + i * 64} 0)`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Confirm ${kind}`}
+            onClick={event => {
+              event.stopPropagation();
+              onConfirm?.(kind);
+            }}
+            onKeyDown={event => keyboardActivate(event, () => onConfirm?.(kind))}
+          >
+            <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
+            {/* The board's own piece art, outlined in a dark tone of the seat color, so even white shows on the cream card. */}
+            {kind === 'road' && <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color} />}
+            {kind === 'ship' && (
+              <g transform="translate(-10 0) scale(.8)">
+                <SEA.Ship from={{ x: -18, y: 8 }} to={{ x: 18, y: 8 }} color={color} />
+              </g>
+            )}
+            {(kind === 'settlement' || kind === 'city') && (
+              <g transform="translate(-11 -1) scale(.75)">
+                <BuildingPiece color={color} city={kind === 'city'} style={view.settings.pieceStyle} />
+              </g>
+            )}
+            <circle cx="17" cy="-2" r="10" fill="#198144" />
+            <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+          </g>
+        ))}
+      </g>
     </g>
   );
 }

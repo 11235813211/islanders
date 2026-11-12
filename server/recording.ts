@@ -2,8 +2,8 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   anonymizeLobby,
   buildRecord,
-  type GameRecord,
   type RecordedStep,
+  type RecordInfo,
   type SeatIds,
   seatIds,
   toStep,
@@ -85,15 +85,6 @@ export async function finishRecording(
   await recordsStub(env).add({ endedAt: now, seats: record.seats, turns: record.turns, steps: steps.length }, bytes);
 }
 
-export interface RecordInfo {
-  id: string;
-  endedAt: number;
-  seats: GameRecord['seats'];
-  turns: number;
-  steps: number;
-  bytes: number;
-}
-
 const recordsStub = (env: Env) => env.RECORDS.get(env.RECORDS.idFromName('records'));
 
 export { recordsStub };
@@ -112,6 +103,16 @@ export class GameRecordStore extends DurableObject<Env> {
 
   async list(): Promise<RecordInfo[]> {
     return (await this.ctx.storage.get<RecordInfo[]>('index')) ?? [];
+  }
+
+  /** Delete one record; false if there was none. */
+  async remove(id: string): Promise<boolean> {
+    const index = (await this.ctx.storage.get<RecordInfo[]>('index')) ?? [];
+    const next = index.filter(info => info.id !== id);
+    if (next.length === index.length) return false;
+    await this.ctx.storage.put('index', next);
+    await this.ctx.storage.delete(`r:${id}`);
+    return true;
   }
 
   /** One record as JSON text, or null if it is gone. */

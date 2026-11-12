@@ -57,6 +57,14 @@ function linkGroups(design: BoardDesign): Map<string, LinkGroup> {
     g.harbor = true;
     if (RESOURCES.includes(harbor.kind as Resource)) g.fixed ??= harbor.kind as Resource;
   }
+  // A letter named only by "not A" marks or a rule still gets a terrain, so "not A" means something
+  // even when no tile carries A itself ("A in mountains" with only "not A" tiles: none are mountains).
+  const named = [
+    ...design.tiles.map(t => t.notLink),
+    ...design.harbors.map(h => h.notLink),
+    ...(design.linkRules ?? []).flatMap(rule => rule.links),
+  ];
+  for (const link of named) if (link) group(link);
   return groups;
 }
 

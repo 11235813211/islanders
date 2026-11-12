@@ -372,6 +372,13 @@ test('spending flies the cards to the bank, and a bought development card flies 
   await page.getByLabel('Follow current turn').uncheck();
   const devCards = game.state().players[0]!.development.length;
   await page.getByRole('button', { name: 'Buy development card' }).click();
+  // It asks first, just above the button; nothing is bought until confirmed.
+  const ask = page.getByRole('dialog', { name: 'Buy a development card?' });
+  const askBox = (await ask.boundingBox())!;
+  const buttonBox = (await page.getByRole('button', { name: 'Buy development card' }).boundingBox())!;
+  expect(askBox.y + askBox.height).toBeLessThanOrEqual(buttonBox.y);
+  expect(game.state().players[0]!.development.length).toBe(devCards);
+  await ask.getByRole('button', { name: 'Confirm buy' }).click();
   await expect.poll(() => game.state().players[0]!.development.length).toBe(devCards + 1);
   // Sheep, wheat, and ore go to the bank; a card back comes back to the hand.
   await expect(page.locator('.bank-flights .resource-flight')).toHaveCount(4);

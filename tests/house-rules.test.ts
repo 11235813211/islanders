@@ -135,7 +135,7 @@ describe('volcanoes and icebergs', () => {
 
   it('without the gold variant a volcano pays nothing; a city with no settlement left is lost', () => {
     let g = seaLobby(ISLE, 2);
-    g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, volcanoGold: false } });
+    g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, volcanoGold: false, volcanoDice: 'random' } });
     g = act(g, 'p0', { type: 'start' });
     Object.assign(g, { phase: 'roll', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
     const volcano = hexOf(g, 'volcano');

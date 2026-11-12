@@ -364,8 +364,39 @@ a {
 .test-features svg {
   color: #158759;
 }
-.recent-rooms {
+.recent-rooms,
+.saved-games {
   grid-column: 1 / -1;
+}
+/* Saved games (playtest accounts): one line each, with a delete button. */
+.saved-games h2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.saved-games ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow: auto;
+}
+.saved-games li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.saved-when {
+  flex: 1;
+  min-width: 0;
+}
+.saved-seats {
+  display: inline-flex;
+  gap: 2px;
+  color: #52717d;
 }
 .recent-room-list {
   display: flex;

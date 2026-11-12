@@ -1,7 +1,8 @@
 import { test } from '@playwright/test';
 import { getActivePlayerId } from '../shared/engine';
+import { BUILTIN_BOARDS } from '../shared/maps/builtin';
 import type { PieceStyle, PlayerColor } from '../shared/types';
-import { richGame } from './fixtures';
+import { grant, richGame, seaSettled } from './fixtures';
 import { mountGame } from './ui-harness';
 
 // Screenshot review for art and seat colors: writes test-results/visual-*.png.
@@ -98,6 +99,9 @@ test('trade offers read from each side, with answers in seat colors', async ({ p
   await page.getByLabel('Follow current turn').uncheck();
   const notice = page.getByRole('region', { name: 'Trade offer' });
   await notice.screenshot({ path: 'test-results/visual-trade-offerer.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await notice.screenshot({ path: 'test-results/phone-trade-offerer.png' });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByLabel('Play as', { exact: true }).selectOption('p3');
   await notice.screenshot({ path: 'test-results/visual-trade-recipient.png' });
   await page.getByLabel('Play as', { exact: true }).selectOption('p0');
@@ -105,4 +109,23 @@ test('trade offers read from each side, with answers in seat colors', async ({ p
   await page.getByRole('button', { name: /^Trade Lumber/ }).click();
   await page.getByRole('button', { name: 'Request one more Ore' }).click();
   await page.locator('.board-viewport').screenshot({ path: 'test-results/visual-trade-composer.png' });
+});
+
+/** A sea map with jungles at three seats on a landscape phone: bank row, build bar, and turn button. */
+test('phone tour: landscape sea map', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const design = BUILTIN_BOARDS.find(board => board.id === 'jungle-coast')!;
+  const game = seaSettled(design, 3);
+  game.testMode = true;
+  game.phase = 'build';
+  game.rollDeadline = null;
+  game.turnDeadline = Date.now() + 120_000;
+  grant(game, getActivePlayerId(game)!, { wood: 3, brick: 2, sheep: 4, wheat: 2, ore: 1 });
+  game.players.forEach(p => {
+    p.discoveries = 2;
+  });
+  await mountGame(page, game);
+  await page.screenshot({ path: 'test-results/phone-landscape-sea.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/phone-portrait-sea.png' });
 });

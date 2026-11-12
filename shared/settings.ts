@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   volcanoGold: true,
   seafarers: false,
   volcanoStart: true,
-  volcanoDice: 'random',
+  volcanoDice: 'balanced',
   routeLinks: 'anywhere',
 };
 /** Whether the bank's card counts are shown at a table of `players` (see BankDisplay). */

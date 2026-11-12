@@ -116,6 +116,32 @@ export function nextDueAt(state: GameState): number | null {
   return due.length ? Math.min(...due) : null;
 }
 
+/** What a bot did for a person who ran out of time, as the log says it. */
+const TAKEOVER_TEXT: Partial<Record<GameAction['type'], string>> = {
+  roll: 'rolled',
+  'roll-volcanoes': 'rolled the volcano dice',
+  discard: 'discarded',
+  'move-robber': 'moved the robber',
+  steal: 'picked whom to rob',
+  'choose-gold': 'picked gold',
+  'build-settlement': 'placed a settlement',
+  'build-road': 'placed a road',
+  'build-ship': 'placed a ship',
+};
+
+/**
+ * Apply a forced choice for `id`, noting it in the log when a bot made it for a person. The log entry
+ * goes first so it sits before what the choice caused (a steal, a roll's payout).
+ */
+function forced(state: GameState, id: string, action: GameAction, random: () => number, now: number): GameState {
+  const player = state.players.find(p => p.id === id);
+  const text = TAKEOVER_TEXT[action.type];
+  if (!text || !player || player.bot) return applyAction(state, id, action, random, now);
+  const noted = cloneState(state);
+  addLog(noted, `A bot ${text} for ${player.name}.`, { kind: 'takeover', playerId: id, action: action.type });
+  return applyAction(noted, id, action, random, now);
+}
+
 /** Called by durable alarms; deadlines and bots never depend on an open browser. */
 export function advanceTime(state: GameState, now: number, random: () => number = Math.random): GameState {
   const next = cloneState(state);
@@ -140,7 +166,7 @@ export function advanceTime(state: GameState, now: number, random: () => number 
       return chooseGoldForAll(next, now, random);
     if (next.phase === 'robber' && next.robberDeadline !== null && next.robberDeadline <= now) {
       const id = getActivePlayerId(next)!;
-      return applyAction(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+      return forced(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
     }
   }
   if (changed) {
@@ -176,10 +202,10 @@ function chooseGoldForAll(state: GameState, now: number, random: () => number): 
   for (const id of Object.keys(state.pendingGold)) {
     if (next.phase !== 'gold' || !next.pendingGold[id]) continue;
     try {
-      next = applyAction(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+      next = forced(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
     } catch (error) {
       if (!(error instanceof GameError)) throw error;
-      next = applyAction(next, id, bankGold(next, id), random, now);
+      next = forced(next, id, bankGold(next, id), random, now);
     }
   }
   return next;
@@ -246,7 +272,7 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
       const action = choose();
       if (!action) continue;
       try {
-        next = applyAction(next, id, action, random, now);
+        next = active.bot ? applyAction(next, id, action, random, now) : forced(next, id, action, random, now);
         applied = action;
         break;
       } catch (error) {

@@ -160,6 +160,10 @@ export type GameEvent =
       toHexId: string | null;
     }
   | { kind: 'discover'; playerId: string; hexId: string; terrain: Terrain }
+  /** A person's connection came or went (logged by the room, see logPresence). */
+  | { kind: 'presence'; playerId: string; online: boolean }
+  /** A person ran out of time and the game made a forced choice for them (see engine/time.ts). */
+  | { kind: 'takeover'; playerId: string; action: GameAction['type'] }
   | { kind: 'win'; playerId: string; points: number };
 export interface GameLog {
   id: number;
@@ -204,7 +208,7 @@ export interface GameSettings {
   seafarers: boolean;
   /** Setup settlements may touch a volcano. */
   volcanoStart: boolean;
-  /** Eruption dice: plain random, or balanced (each volcano works through all six faces before repeating). */
+  /** Eruption dice: plain random, or balanced (each volcano draws from its own shuffled deck holding each face twice). */
   volcanoDice: 'random' | 'balanced';
   /** Seafarers: where a road and a ship may join. `settlement` is the published rule (only at your own building). */
   routeLinks: 'anywhere' | 'settlement';
@@ -417,8 +421,12 @@ export interface GameView {
   /** Bots only (null for people): each player's likely cards, counted from public moves. */
   likelyHands: Record<string, ResourceBag> | null;
   bank: Record<Resource, boolean>;
+  /** Whether the discovery supply has any left (like `bank`, without the count). */
+  discoveryInSupply: boolean;
   /** Cards left of each resource, when the room shows them (settings.showBank). */
   bankCounts: ResourceBag | null;
+  /** Discoveries left in the supply, on jungle maps where bank counts are shown. */
+  discoveryBank: number | null;
   /** The map has a jungle, so discovery rules matter. */
   jungle: boolean;
   activePlayerId: string | null;

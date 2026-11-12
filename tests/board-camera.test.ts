@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { cameraGesture, cameraTransform, cameraViewBox, initialCamera } from '../src/lib/boardCamera';
+import { generateBoard } from '../shared/board';
+import { BUILTIN_BOARDS } from '../shared/maps/builtin';
+import { buildBoard } from '../shared/maps/generate';
+import {
+  BASE_FRAME,
+  boardFrame,
+  cameraGesture,
+  cameraTransform,
+  cameraViewBox,
+  initialCamera,
+} from '../src/lib/boardCamera';
 
 describe('board gesture geometry', () => {
   const rect = { left: 20, top: 80, width: 800, height: 400 },
@@ -77,5 +87,35 @@ describe('moving the drawn board during a gesture', () => {
           expect(actual.x).toBeCloseTo(expected.x, 6);
           expect(actual.y).toBeCloseTo(expected.y, 6);
         }
+  });
+});
+
+describe('the board frame', () => {
+  const R = 60;
+  const inside = (frame: ReturnType<typeof boardFrame>, hex: { x: number; y: number }) =>
+    hex.x - R >= frame.x &&
+    hex.y - R >= frame.y &&
+    hex.x + R <= frame.x + frame.width &&
+    hex.y + R <= frame.y + frame.height;
+  it('keeps the standard frame for the classic island', () => {
+    expect(boardFrame(generateBoard().hexes)).toBe(BASE_FRAME);
+  });
+  it('contains every tile of every built-in map and of off-center land-only boards', () => {
+    for (const design of BUILTIN_BOARDS) {
+      const { hexes } = buildBoard(design, () => 0.3).board;
+      const frame = boardFrame(hexes);
+      expect(
+        hexes.filter(h => !inside(frame, h)).map(h => h.id),
+        design.id,
+      ).toEqual([]);
+    }
+    // 19 land tiles in a tall column-ish shape: the case that used to be clipped at the top.
+    const tall = Array.from({ length: 19 }, (_, i) => ({
+      x: (i % 3) * 104,
+      y: -400 + i * 45,
+      terrain: 'wood' as const,
+    }));
+    const frame = boardFrame(tall);
+    expect(tall.every(h => inside(frame, h))).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import type { AccountRoomStatus } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
 import { parseJoinInput } from '../hooks/useRoom';
+import SavedGames from './SavedGames';
 
 function roomStatusLabel(room: AccountRoomStatus): string {
   if (room.phase === 'lobby') return 'In the lobby';
@@ -182,6 +183,7 @@ export default function HomeScreen({
           </button>
         </section>
       )}
+      {canPlaytest && account.account && <SavedGames account={account.account} />}
       {account.account && (
         <section className="recent-rooms panel">
           <div className="section-heading">

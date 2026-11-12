@@ -12,6 +12,7 @@ import {
 } from '../shared/maps';
 import { apportion, balancedNumbers, pips } from '../shared/maps/balance';
 import { parseGrid } from '../shared/maps/builtin';
+import { boardExpansions } from '../shared/maps/types';
 import { isProducing } from '../shared/seafaring';
 import { seeded } from './fixtures';
 
@@ -89,6 +90,16 @@ describe('designed boards', () => {
     }
   });
 
+  it('keeps "not A" tiles off the terrain a rule gives A, even when no tile carries A', () => {
+    const d = design(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ L L L L ~', ' ~ L L L ~', '~ ~ ~ ~ ~']);
+    d.tiles = d.tiles.map(t => (t.kind === 'land' ? { ...t, notLink: 'A' } : t));
+    d.linkRules = [{ kind: 'in', links: ['A'], terrains: ['ore'] }];
+    for (let seed = 1; seed < 20; seed++) {
+      const { board } = buildBoard(d, seeded(seed));
+      expect(board.hexes.filter(h => h.terrain === 'ore')).toEqual([]);
+    }
+  });
+
   it('respects harbor exclusions and counts fixed harbors in the balance', () => {
     const d = design(BUILTIN_BOARDS[0]!.tiles.length ? [] : []);
     Object.assign(d, structuredClone(BUILTIN_BOARDS[0]!));
@@ -126,6 +137,16 @@ describe('designed boards', () => {
         BUILTIN_CATEGORIES.map(c => c.id),
       ),
     ).toMatchObject({ id: board.id });
+  });
+});
+
+describe('expansions a board needs', () => {
+  it('asks for Seafarers (ships and the pirate) only when land is out of reach by road', () => {
+    const ringed = parseGrid([' ~ ~ ~ ~', '~ L L ~', ' ~ L L ~', '~ ~ ~ ~']);
+    expect(boardExpansions(ringed)).toEqual([]);
+    const islands = parseGrid([' ~ ~ ~ ~ ~', '~ L ~ L ~', ' ~ ~ ~ ~ ~']);
+    expect(boardExpansions(islands)).toEqual(['seafarers']);
+    expect(boardExpansions({ ...ringed, expansions: ['seafarers'] })).toEqual(['seafarers']);
   });
 });
 

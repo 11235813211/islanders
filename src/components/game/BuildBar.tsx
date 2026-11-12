@@ -1,7 +1,8 @@
-import { House, Move, Route, Sailboat } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Check, House, Move, Route, Sailboat, X } from 'lucide-react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GameView, PublicPlayer, Resource } from '../../../shared/types';
 import { ResourceIcon } from '../../art';
+import { useDismiss } from '../../hooks/useDismiss';
 import type { BoardMode, PlaceKind } from '../Board';
 import { RESOURCE_LABELS } from '../ResourceHand';
 import { CityIcon } from './icons';
@@ -22,12 +23,15 @@ function BuildButton({
   disabled,
   selected,
   onClick,
+  children,
 }: {
   kind: BuildKind | 'development';
   remaining: number;
   disabled: boolean;
   selected?: boolean;
   onClick: () => void;
+  /** A popover shown above the button (the buy confirmation). */
+  children?: ReactNode;
 }) {
   const [tip, setTip] = useState(false);
   const held = useRef(false);
@@ -52,7 +56,7 @@ function BuildButton({
   };
   return (
     <span
-      className={`recipe-control ${tip ? 'show-recipe' : ''}`}
+      className={`recipe-control ${tip ? 'show-recipe' : ''}${children ? ' confirming' : ''}`}
       onMouseLeave={() => setTip(false)}
       onPointerDown={() => {
         clearTimeout(timer.current);
@@ -94,7 +98,41 @@ function BuildButton({
           ))}
         </span>
       </span>
+      {children}
     </span>
+  );
+}
+
+/** "Buy a development card?" with its cost, just above the Dev Card button. */
+function BuyConfirm({ buy, close }: { buy: () => void; close: () => void }) {
+  const root = useRef<HTMLDivElement>(null);
+  // Presses on the Dev Card button itself toggle the card, so they don't count as "outside".
+  const scope = useMemo(
+    () => ({
+      get current() {
+        return root.current?.parentElement ?? null;
+      },
+    }),
+    [],
+  );
+  useDismiss(true, close, scope);
+  return (
+    <div className="buy-confirm" ref={root} role="dialog" aria-label="Buy a development card?">
+      Buy a development card?
+      <span className="buy-confirm-recipe">
+        {RECIPES.development.map(r => (
+          <ResourceIcon key={r} resource={r} size={20} />
+        ))}
+      </span>
+      <span className="buy-confirm-buttons">
+        <button type="button" className="button primary" aria-label="Confirm buy" onClick={buy}>
+          <Check size={20} />
+        </button>
+        <button type="button" className="button secondary" aria-label="Cancel buy" onClick={close}>
+          <X size={20} />
+        </button>
+      </span>
+    </div>
   );
 }
 
@@ -118,6 +156,8 @@ export default function BuildBar({
   buyWithDiscoveries: () => void;
 }) {
   const toggle = (kind: Exclude<BoardMode, null>) => setMode(mode === kind ? null : kind);
+  const [confirming, setConfirming] = useState(false);
+  const closeConfirm = useCallback(() => setConfirming(false), []);
   const movable = Object.keys(view.legal.shipMoves).length > 0;
   return (
     <>
@@ -167,8 +207,19 @@ export default function BuildBar({
         kind="development"
         remaining={view.developmentRemaining}
         disabled={blocked || !view.legal.development}
-        onClick={() => (self.discoveries > 0 ? buyWithDiscoveries() : send({ type: 'buy-development' }))}
-      />
+        // With discoveries, the panel that picks what they pay for is the confirmation.
+        onClick={() => (self.discoveries > 0 ? buyWithDiscoveries() : setConfirming(open => !open))}
+      >
+        {confirming && !blocked && view.legal.development && (
+          <BuyConfirm
+            close={closeConfirm}
+            buy={() => {
+              setConfirming(false);
+              send({ type: 'buy-development' });
+            }}
+          />
+        )}
+      </BuildButton>
     </>
   );
 }

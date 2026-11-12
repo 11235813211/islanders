@@ -25,24 +25,34 @@ export const BASE_FRAME: Frame = { x: -335, y: -300, width: 670, height: 600 };
 /** Sea around a designed board's outermost tiles. */
 const MARGIN = 26;
 
-/** The area a board is drawn in: the standard frame, or the tiles' bounds plus a sea margin. */
+/**
+ * The area a board is drawn in: always every tile plus a sea margin. A land-only board that fits the
+ * standard frame keeps it (so the classic island looks the same); any other shape gets its own bounds.
+ */
 export function boardFrame(hexes: Pick<Hex, 'x' | 'y' | 'terrain'>[]): Frame {
+  if (!hexes.length) return BASE_FRAME;
   const sea = hexes.some(h => h.terrain === 'sea');
-  if (!hexes.length || (!sea && hexes.length <= 19)) return BASE_FRAME;
-  // The 5–6 player island gets the same sea border as the standard frame.
+  // Land-only islands get the same sea border as the standard frame.
   const [marginX, marginY] = sea ? [MARGIN, MARGIN] : [75, 60];
   const halfWidth = (Math.sqrt(3) / 2) * HEX_RADIUS;
   const xs = hexes.map(h => h.x);
   const ys = hexes.map(h => h.y);
   const x = Math.min(...xs) - halfWidth - marginX;
   const y = Math.min(...ys) - HEX_RADIUS - marginY;
-  return {
+  const bounds = {
     x,
     y,
     width: Math.max(...xs) + halfWidth + marginX - x,
     height: Math.max(...ys) + HEX_RADIUS + marginY - y,
   };
+  return !sea && contains(BASE_FRAME, bounds) ? BASE_FRAME : bounds;
 }
+
+const contains = (outer: Frame, inner: Frame) =>
+  inner.x >= outer.x - 0.5 &&
+  inner.y >= outer.y - 0.5 &&
+  inner.x + inner.width <= outer.x + outer.width + 0.5 &&
+  inner.y + inner.height <= outer.y + outer.height + 0.5;
 
 /** The board SVG's viewBox for a camera. */
 export function cameraViewBox(camera: Camera, frame: Frame = BASE_FRAME): string {
@@ -78,7 +88,6 @@ export function previewCamera(svg: SVGSVGElement | null, drawn: Camera, shown: C
   svg.style.transform = same
     ? ''
     : cameraTransform(drawn, shown, frame, { width: box.clientWidth, height: box.clientHeight });
-  svg.style.willChange = same ? '' : 'transform';
 }
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));

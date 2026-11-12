@@ -195,14 +195,18 @@ async function handleBoards(url: URL, request: Request, env: Env): Promise<Respo
   throw new ProtocolError('Use GET, PUT, or DELETE for boards.', 405);
 }
 
-/** Saved game records (see recording.ts): the list, or one record by id. Limited to the same accounts as the board editor. */
+/** Saved game records (see recording.ts): the list, one record by id, or deleting one. Limited to the same accounts as the board editor. */
 async function handleRecords(url: URL, request: Request, env: Env): Promise<Response> {
   const identity = await accountFor(request, env, true);
   if (!identity || !canPlaytest(env, identity))
     throw new ProtocolError('Saved games are not available on this account.', 403);
-  if (request.method !== 'GET') throw new ProtocolError('Use GET for saved games.', 405);
   const store = recordsStub(env);
   const id = /^\/api\/records\/([\w-]+)$/.exec(url.pathname)?.[1];
+  if (request.method === 'DELETE' && id) {
+    if (!(await store.remove(id))) throw new ProtocolError('Record not found.', 404);
+    return json({ ok: true });
+  }
+  if (request.method !== 'GET') throw new ProtocolError('Use GET or DELETE for saved games.', 405);
   if (url.pathname === '/api/records') return json(structuredClone(await store.list()));
   const text = id ? await store.get(id) : null;
   if (text === null) throw new ProtocolError('Record not found.', 404);

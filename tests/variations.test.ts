@@ -96,17 +96,17 @@ describe('eruptions', () => {
     expect(g.phase).toBe('build');
   });
 
-  it('balanced volcano dice show all six faces before any repeats', () => {
+  it('balanced volcano dice deal each face twice in every 12 eruptions', () => {
     let g = building(() => {}, { volcanoDice: 'balanced' });
     const volcano = hexOf(g, 'volcano').id;
     const faces: number[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       Object.assign(g, { phase: 'eruption', eruption: [volcano] });
       g = act(g, 'p0', { type: 'roll-volcanoes' }, seeded(i + 3));
       const last = g.log.filter(e => e.event?.kind === 'eruption').at(-1)!.event as { die: number };
       faces.push(last.die);
     }
-    expect([...faces].sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([...faces].sort()).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]);
     expect(JSON.stringify(getView(g, 'p0'))).not.toContain('volcanoDecks');
   });
 

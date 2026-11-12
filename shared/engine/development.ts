@@ -4,6 +4,7 @@ import {
   addLog,
   BUILD_COSTS,
   bagCount,
+  discoveriesLeft,
   discoveryRule,
   emptyBag,
   type Handlers,
@@ -136,8 +137,8 @@ export const developmentHandlers: Pick<
     const finds = action.resources.discovery ?? 0;
     requireRule(!finds || discoveryRule(next).stealable, 'Year of Plenty cannot take discoveries in this room.');
     const index = takeCard(ctx, action.type, action.cardId);
-    // Discoveries come from the jungle, not the bank, so they never run out.
-    const available = resourceCount(next.bank) + (discoveryRule(next).stealable ? 2 : 0);
+    const left = discoveryRule(next).stealable ? discoveriesLeft(next) : 0;
+    const available = resourceCount(next.bank) + left;
     requireRule(
       available > 0 && bagCount(action.resources) === Math.min(2, available),
       'Choose two available resources, or all remaining cards if only one is left.',
@@ -146,6 +147,7 @@ export const developmentHandlers: Pick<
       RESOURCES.every(r => next.bank[r] >= action.resources[r]),
       'The bank does not have those resources.',
     );
+    requireRule(finds <= left, 'There are not that many discoveries left.');
     for (const r of RESOURCES) next.bank[r] -= action.resources[r];
     addBag(player, action.resources);
     finishPlay(ctx, index, action.type, action.resources);

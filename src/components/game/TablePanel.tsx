@@ -1,6 +1,7 @@
 import { BarChart3, ChevronDown, ChevronUp, MessageCircle, ScrollText, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { GameAction, GameView } from '../../../shared/types';
+import ActivityLog from './ActivityLog';
 
 export type PanelTab = 'chat' | 'activity' | 'dice';
 
@@ -127,11 +128,7 @@ export default function TablePanel({
               </form>
             </>
           ) : panel === 'activity' ? (
-            <ol className="activity-list">
-              {[...view.log].reverse().map(e => (
-                <li key={e.id}>{e.text}</li>
-              ))}
-            </ol>
+            <ActivityLog view={view} />
           ) : (
             <DiceTracker view={view} />
           )}

@@ -228,7 +228,6 @@ export function TradeNotice({
           )}
         </div>
         <Answers view={view} offer={offer} canConfirm={mine && !busy && !paused} send={send} />
-        {mine && offer.acceptedBy.length > 0 && <span className="offer-from">Tap a ✓ to trade with that player.</span>}
         {mine &&
           offer.counters.map(c => (
             <div className="offer-counter" key={c.id}>

@@ -234,8 +234,8 @@ export function PlentyPanel({
         items={tradablesFor(view, 'take')}
         label="Choose resources to take"
         name={r => `Take one more ${tradableLabel(r)}`}
-        disabled={r => busy || picked >= 2 || (r !== 'discovery' && !view.bank[r])}
-        count={r => (r === 'discovery' ? null : (view.bankCounts?.[r] ?? null))}
+        disabled={r => busy || picked >= 2 || !(r === 'discovery' ? view.discoveryInSupply : view.bank[r])}
+        count={r => (r === 'discovery' ? view.discoveryBank : (view.bankCounts?.[r] ?? null))}
         pick={r => setBag(withItem(bag, r, 1))}
       />
       <Chosen bag={bag} label="Take" direction="in" hint="Choose cards above" remove={r => setBag(without(bag, r))} />

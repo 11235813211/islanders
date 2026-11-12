@@ -10,6 +10,7 @@ import {
   getView,
   idlePause,
   idleResume,
+  logPresence,
   MAX_PLAYERS,
   nextDueAt,
   normalizeGame,
@@ -616,6 +617,7 @@ export class GameRoom extends DurableObject<Env> {
       .sort((a, b) => this.attachment(a).connectedAt - this.attachment(b).connectedAt);
     for (const old of previous.slice(0, Math.max(0, previous.length - MAX_PLAYER_SOCKETS + 1)))
       old.close(4409, 'Session opened on another device.');
+    const wasOnline = this.online().includes(saved.playerId);
     attachment.playerId = saved.playerId;
     attachment.tokenHash = tokenHash;
     attachment.controlledId = saved.playerId;
@@ -623,8 +625,13 @@ export class GameRoom extends DurableObject<Env> {
     // Someone is back: cancel a pending idle pause, or resume one that already started.
     if (room.game.players.some(p => p.id === saved.playerId && !p.bot)) {
       const now = Date.now();
-      const game = idleResume(room.game, now);
-      const logged = game !== room.game ? await this.logStep(room, { kind: 'idle-resume', now, random: [] }) : room;
+      let logged = room;
+      let game = idleResume(room.game, now);
+      if (game !== room.game) logged = await this.logStep(logged, { kind: 'idle-resume', now, random: [] });
+      const announced = wasOnline ? game : logPresence(game, saved.playerId, true);
+      if (announced !== game)
+        logged = await this.logStep(logged, { kind: 'connected', actor: saved.playerId, now, random: [] });
+      game = announced;
       if (game !== room.game || room.emptySince !== undefined)
         await this.commit({ ...logged, game, emptySince: undefined });
     }
@@ -639,11 +646,26 @@ export class GameRoom extends DurableObject<Env> {
       } catch {
         /* Already closed. */
       }
+      await this.announceLeft(socket);
       if (this.record && !this.onlinePlayers(this.record.game).length && this.record.emptySince === undefined)
         await this.commit({ ...this.record, emptySince: Date.now() });
       this.broadcast();
       await this.scheduleAlarm();
     });
+  }
+
+  /** Log that a player disconnected, once their last open socket has closed. */
+  private async announceLeft(socket: WebSocket): Promise<void> {
+    const playerId = this.attachment(socket)?.playerId;
+    const room = this.record;
+    if (!playerId || !room) return;
+    const stillHere = this.sockets().some(other => other !== socket && this.attachment(other)?.playerId === playerId);
+    if (stillHere) return;
+    const game = logPresence(room.game, playerId, false);
+    if (game === room.game) return;
+    const now = Date.now();
+    const logged = await this.logStep(room, { kind: 'disconnected', actor: playerId, now, random: [] });
+    await this.commit({ ...logged, game });
   }
 
   async webSocketError(socket: WebSocket): Promise<void> {

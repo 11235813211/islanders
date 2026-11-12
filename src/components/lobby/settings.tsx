@@ -90,7 +90,7 @@ export const CATEGORIES: Category[] = [
       {
         key: 'volcanoDice',
         label: 'Eruption dice',
-        hint: 'Random, or balanced: each volcano erupts toward all six corners before any corner repeats.',
+        hint: 'Random, or balanced: each volcano draws from its own deck of 12 with every corner twice.',
         icon: <Dices size={20} />,
         when: view => view.features.volcano,
         control: {

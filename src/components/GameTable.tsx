@@ -5,6 +5,7 @@ import { emptyBag, isLargeGame } from '../../shared/engine';
 import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView, Tradable, TradeBag } from '../../shared/types';
 import { SEA } from '../art';
+import { useMedia } from '../hooks/useMedia';
 import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import type { BoardMode, PlaceKind, Selection } from './Board';
@@ -43,6 +44,8 @@ function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
 }
 
 /** The phone layouts (see phone.css): portrait phones, and landscape screens with little height. */
+/** Landscape phones: the turn button moves into the turn line so the build bar keeps its room. */
+const LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 600px)';
 const PHONE_LAYOUT = '(max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px)';
 
 /** Whole seconds until a deadline (never below 0), or null when there is none. */
@@ -136,6 +139,7 @@ export default function GameTable({
   const active = view.players.find(p => p.id === view.activePlayerId);
   const blocked = busy || paused || spectator || !ownTurn;
   useTurnAlerts(view);
+  const landscapePhone = useMedia(LANDSCAPE_PHONE);
 
   const setMode = (next: BoardMode) => {
     setModeState(next);
@@ -465,6 +469,7 @@ export default function GameTable({
           <Clock3 size={15} />
           {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
         </span>
+        {landscapePhone && turnAction}
       </div>
       {/* Spectators have no hand: the chat takes its place (see .spectating). */}
       {!spectator && (
@@ -502,7 +507,7 @@ export default function GameTable({
             }}
           />
         )}
-        {turnAction}
+        {!landscapePhone && turnAction}
       </div>
       <TablePanel view={view} busy={busy} send={send} panel={panel} setPanel={setPanel} />
       {(devKind === 'knight' || devKind === 'road-building' || devKind === 'victory-point') && (

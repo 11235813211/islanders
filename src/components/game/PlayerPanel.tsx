@@ -1,10 +1,11 @@
-import { Bot, ChevronDown, ChevronUp, Route } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, Route, WifiOff } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { type GameView, RESOURCES } from '../../../shared/types';
-import { ResourceIcon } from '../../art';
+import { ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
+import { tradableStyle } from './tradables';
 
 const FOLDED_KEY = 'islanders:scoreboard-folded';
 
@@ -76,7 +77,7 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
             const offline = !view.testMode && !p.bot && !online.includes(p.id);
             return (
               <tr
-                className={view.activePlayerId === p.id ? 'active' : ''}
+                className={[view.activePlayerId === p.id && 'active', offline && 'offline'].filter(Boolean).join(' ')}
                 key={p.id}
                 data-player-id={p.id}
                 style={playerVars(p.color) as CSSProperties}
@@ -88,12 +89,12 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
                     title={`${p.name}${p.bot ? ` · ${p.bot} bot` : ''}${offline ? ' · disconnected' : ''}. ${p.settlementsLeft} settlements, ${p.citiesLeft} cities, ${p.roadsLeft} roads${view.seafaring ? ` and ${p.shipsLeft} ships` : ''} remaining.`}
                   >
                     <span className="player-name-text">
+                      {offline && <WifiOff className="offline-mark" size={14} aria-label="Disconnected" />}
                       {p.bot && <Bot size={13} aria-label="Bot" />}
                       {p.name}
                     </span>
                     {p.id === view.selfId && <small>you</small>}
                   </span>
-                  {offline && <span className="offline-dot" title="Disconnected" />}
                 </th>
                 <td aria-label={`${p.resourceCount} resource cards`}>
                   <CardCount count={p.resourceCount} />
@@ -158,20 +159,39 @@ export function BankCounts({ view }: { view: GameView }) {
   const counts = view.bankCounts;
   if (!counts) return null;
   return (
-    <div className="bank-counts" role="group" aria-label="Cards left in the bank">
-      <span>Bank</span>
-      {RESOURCES.map(r => (
-        <span
-          key={r}
-          className="bank-count"
-          style={cardStyle(r)}
-          role="img"
-          aria-label={`${counts[r]} ${RESOURCE_LABELS[r]}`}
-        >
-          <ResourceIcon resource={r} size={18} />
-          {counts[r]}
-        </span>
-      ))}
-    </div>
+    <>
+      <div className="bank-counts" role="group" aria-label="Cards left in the bank">
+        <span>Bank</span>
+        {RESOURCES.map(r => (
+          <span
+            key={r}
+            className="bank-count"
+            style={cardStyle(r)}
+            role="img"
+            aria-label={`${counts[r]} ${RESOURCE_LABELS[r]}`}
+          >
+            <ResourceIcon resource={r} size={18} />
+            {counts[r]}
+          </span>
+        ))}
+      </div>
+      {view.discoveryBank !== null && (
+        <div className="bank-counts bank-extras" role="group" aria-label="Discoveries left">
+          {/* Same label width as the row above, so the chips line up under the resources. */}
+          <span aria-hidden="true" className="bank-label-spacer">
+            Bank
+          </span>
+          <span
+            className="bank-count"
+            style={tradableStyle('discovery')}
+            role="img"
+            aria-label={`${view.discoveryBank} discoveries`}
+          >
+            <SEA.DiscoveryIcon size={18} />
+            {view.discoveryBank}
+          </span>
+        </div>
+      )}
+    </>
   );
 }

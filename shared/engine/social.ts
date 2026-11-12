@@ -1,3 +1,4 @@
+import { shuffled } from '../board';
 import { copyData } from '../copy';
 import type { GameAction, GameState } from '../types';
 import { addLog, cloneState, requireRule } from './core';
@@ -15,7 +16,22 @@ export function shiftClocks(state: GameState, milliseconds: number): void {
   }
 }
 
-function resolveProposal(state: GameState, now: number): GameState {
+/**
+ * Development cards bought since `restored` was saved go back into the deck, which is reshuffled:
+ * the buyer saw the card, so it must not sit on top waiting for the next purchase. (The deck itself
+ * is never part of an undo snapshot.)
+ */
+function returnBoughtCards(current: GameState, restored: GameState, random: () => number): void {
+  const kept = new Set(restored.players.flatMap(p => p.development.map(card => card.id)));
+  const bought = current.players.flatMap(p => p.development).filter(card => !kept.has(card.id));
+  if (!bought.length) return;
+  restored.developmentDeck = shuffled(
+    [...current.developmentDeck, ...bought.map(card => ({ ...card, boughtTurn: -1 }))],
+    random,
+  );
+}
+
+function resolveProposal(state: GameState, now: number, random: () => number): GameState {
   const proposal = state.proposal!;
   if (!proposal.required.every(id => proposal.accepted.includes(id))) return state;
   if (proposal.kind === 'pause') {
@@ -43,6 +59,7 @@ function resolveProposal(state: GameState, now: number): GameState {
       undoHistory: history,
       proposal: null,
     };
+    returnBoughtCards(state, restored, random);
     shiftClocks(restored, now - undo.at);
     addLog(restored, `The players undid: ${undo.description}`);
     return restored;
@@ -57,6 +74,7 @@ export function socialAction(
   playerId: string,
   action: GameAction,
   now: number,
+  random: () => number,
   online?: string[],
 ): GameState | null {
   if (action.type !== 'chat' && action.type !== 'propose' && action.type !== 'vote') return null;
@@ -117,7 +135,7 @@ export function socialAction(
               ? 'Pause the game and its clocks'
               : 'Resume the game',
       };
-      next = resolveProposal(next, now);
+      next = resolveProposal(next, now, random);
     } else {
       const proposal = next.proposal;
       requireRule(
@@ -130,7 +148,7 @@ export function socialAction(
       );
       if (action.accept) {
         proposal.accepted.push(playerId);
-        next = resolveProposal(next, now);
+        next = resolveProposal(next, now, random);
       } else {
         addLog(next, `${member.name} declined the ${proposal.kind} proposal.`);
         proposal.rejected.push(playerId);
@@ -164,5 +182,15 @@ export function idleResume(state: GameState, now: number): GameState {
   next.updatedAt = now;
   next.version++;
   addLog(next, 'Resumed.');
+  return next;
+}
+
+/** Note in the log that a person connected or disconnected; nothing else changes (no-op outside a game). */
+export function logPresence(state: GameState, playerId: string, online: boolean): GameState {
+  const player = state.players.find(p => p.id === playerId && !p.bot);
+  if (!ACTIVE_PHASES(state) || !player) return state;
+  const next = cloneState(state);
+  next.version++;
+  addLog(next, `${player.name} ${online ? 'connected' : 'disconnected'}.`, { kind: 'presence', playerId, online });
   return next;
 }

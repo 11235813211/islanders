@@ -60,6 +60,13 @@ test('a game is saved only when every person agreed, and the saved game replays'
     const end = replayRecord(record);
     expect(end.phase).toBe('finished');
     expect(end.version).toBe(record.finalVersion);
+
+    // An exporter can delete it; then it's gone from the list and can't be fetched.
+    expect([401, 403]).toContain((await request.delete(`${server}/api/records/${latest.id}`)).status());
+    expect((await request.delete(`${server}/api/records/${latest.id}`, { headers: exporter })).status()).toBe(200);
+    expect((await listed()).some(item => item.id === latest.id)).toBe(false);
+    expect((await request.get(`${server}/api/records/${latest.id}`, { headers: exporter })).status()).toBe(404);
+    expect((await request.delete(`${server}/api/records/${latest.id}`, { headers: exporter })).status()).toBe(404);
   } finally {
     host.dispose();
     guest.dispose();

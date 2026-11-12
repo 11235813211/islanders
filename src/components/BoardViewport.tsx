@@ -1,13 +1,14 @@
 import { Maximize, Minus, Plus } from 'lucide-react';
+import { type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef } from 'react';
 import {
-  type ReactNode,
-  type PointerEvent as ReactPointerEvent,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
-import { boardFrame, type Camera, cameraGesture, initialCamera, type Point, previewCamera } from '../lib/boardCamera';
+  boardFrame,
+  type Camera,
+  cameraGesture,
+  cameraViewBox,
+  initialCamera,
+  type Point,
+  previewCamera,
+} from '../lib/boardCamera';
 import Board, { type BoardProps } from './Board';
 
 const center = (points: Point[]) => ({
@@ -18,13 +19,15 @@ const distance = (points: Point[]) =>
   points.length < 2 ? 1 : Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y));
 /** Pixels a single finger or mouse may wander before a press counts as a drag rather than a tap. */
 const TAP_SLOP = 6;
-/** How long after the last wheel tick the camera is handed back to React. */
+/** How long after the last wheel tick the board is redrawn for the new camera. */
 const WHEEL_SETTLE_MS = 150;
 
 /**
  * Pan and zoom wrapper around the board. During a gesture the drawn board is only moved with a CSS
  * transform once per frame (redrawing the illustrated SVG per finger move is too slow on phones);
- * React state, and the SVG's viewBox, catch up once when the gesture ends.
+ * when the gesture ends the SVG's viewBox is set directly, without a React render. The board itself
+ * only re-renders when what it shows changes, not on every tick of the table's clock, so the main
+ * thread stays free for the fingers.
  */
 export default function BoardViewport({
   children,
@@ -32,26 +35,20 @@ export default function BoardViewport({
   ...props
 }: Omit<BoardProps, 'camera'> & { children?: ReactNode; corner?: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
-  const [camera, setCamera] = useState(initialCamera);
-  const current = useRef(camera);
+  /** The camera shown now (during a gesture, ahead of the drawn one). */
+  const current = useRef(initialCamera);
+  /** The camera the board SVG is drawn for; gestures show other cameras by moving that drawing. */
+  const drawn = useRef(initialCamera);
   const animationFrame = useRef(0);
   const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pointers = useRef(new Map<number, Point>());
-  const baseline = useRef({ camera, points: [] as Point[] });
+  const baseline = useRef({ camera: initialCamera, points: [] as Point[] });
   const dragged = useRef(false);
   const suppressClick = useRef(false);
   const frame = useRef(boardFrame(props.view.board.hexes));
   frame.current = boardFrame(props.view.board.hexes);
 
-  /** The camera the board SVG is drawn for; gestures show other cameras by moving that drawing. */
-  const drawn = useRef(camera);
   const svg = () => root.current?.querySelector<SVGSVGElement>('.board-svg') ?? null;
-  // A committed camera is drawn for real (new viewBox), so the gesture's transform comes off.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: svg() reads a ref; only a new camera matters.
-  useLayoutEffect(() => {
-    drawn.current = camera;
-    previewCamera(svg(), camera, camera, frame.current);
-  }, [camera]);
 
   /** Show a camera now without re-rendering the board: the drawing moves, and is redrawn on commit. */
   const preview = (next: Camera) => {
@@ -63,12 +60,19 @@ export default function BoardViewport({
       root.current?.setAttribute('data-zoom', current.current.zoom.toFixed(2));
     });
   };
+  /** Draw the shown camera for real: a new viewBox, and the gesture's transform comes off. */
   const commit = () => {
     clearTimeout(settle.current);
-    setCamera(current.current);
+    cancelAnimationFrame(animationFrame.current);
+    animationFrame.current = 0;
+    drawn.current = current.current;
+    const element = svg();
+    element?.setAttribute('viewBox', cameraViewBox(drawn.current, frame.current));
+    previewCamera(element, drawn.current, drawn.current, frame.current);
+    root.current?.setAttribute('data-zoom', drawn.current.zoom.toFixed(2));
   };
   const update = (next: Camera) => {
-    preview(next);
+    current.current = next;
     commit();
   };
   const rebase = () => {
@@ -169,6 +173,36 @@ export default function BoardViewport({
     if (pointers.current.size > 1) suppressClick.current = dragged.current = true;
     rebase();
   }
+  // Callbacks are read through a ref so the table's new closures each render don't redraw the board.
+  const latest = useRef(props);
+  latest.current = props;
+  const handlers = useMemo(
+    () => ({
+      onVertex: (id: string) => latest.current.onVertex(id),
+      onEdge: (id: string) => latest.current.onEdge(id),
+      onHex: (id: string) => latest.current.onHex(id),
+      onConfirm: (kind: Parameters<NonNullable<BoardProps['onConfirm']>>[0]) => latest.current.onConfirm?.(kind),
+      onRobberConfirm: (confirm: boolean) => latest.current.onRobberConfirm?.(confirm),
+    }),
+    [],
+  );
+  const { view, mode, disabled, selected, moveFrom, robberPick } = props;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: drawn is a ref read at render; commit() keeps the DOM in step.
+  const board = useMemo(
+    () => (
+      <Board
+        view={view}
+        mode={mode}
+        disabled={disabled}
+        selected={selected}
+        moveFrom={moveFrom}
+        robberPick={robberPick}
+        camera={drawn.current}
+        {...handlers}
+      />
+    ),
+    [view, mode, disabled, selected, moveFrom, robberPick, handlers],
+  );
   const zoom = (factor: number) => {
     const rect = root.current!.getBoundingClientRect();
     const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -179,7 +213,7 @@ export default function BoardViewport({
     <div
       ref={root}
       className="board-viewport"
-      data-zoom={camera.zoom.toFixed(2)}
+      data-zoom={drawn.current.zoom.toFixed(2)}
       onPointerDown={down}
       onClickCapture={event => {
         if (suppressClick.current && !ignored(event.target)) {
@@ -189,7 +223,7 @@ export default function BoardViewport({
         suppressClick.current = false;
       }}
     >
-      <Board {...props} camera={camera} />
+      {board}
       <div className="board-notices">{children}</div>
       {corner && <div className="board-corner">{corner}</div>}
       <div className="zoom-controls" aria-label="Board navigation">

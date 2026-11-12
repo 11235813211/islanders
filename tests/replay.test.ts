@@ -77,6 +77,12 @@ describe('recording consent', () => {
 });
 
 describe('game records', () => {
+  it('keeps connect and disconnect steps under seat ids, and drops spectators', () => {
+    const ids = seatIds(makeLobby(2));
+    const step = { kind: 'disconnected' as const, actor: 'p1', now: TEST_NOW, random: [] };
+    expect(toStep(ids, step)).toEqual({ ...step, actor: ids.p1 });
+    expect(toStep(ids, { ...step, actor: 'watcher' })).toBeNull();
+  });
   it('replays to the identical final state', () => {
     const { record, final } = recordGame(11);
     expect(record.steps.length).toBeGreaterThan(100);

@@ -153,8 +153,21 @@
 .bank-counts > span:first-child {
   padding: 0 3px;
 }
+/* Extra supplies (jungle discoveries) on their own row, each chip as wide as a resource chip. */
+.bank-extras {
+  margin-top: 3px;
+  padding-top: 0;
+  border-top: 0;
+}
+.bank-extras .bank-count {
+  flex: 0 1 calc((100% - 50px) / 5);
+}
+.bank-label-spacer {
+  visibility: hidden;
+}
 .bank-count {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -213,13 +226,13 @@
   margin-top: 2px;
   font-weight: 600;
 }
-.offline-dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #a7a6a2;
-  margin-left: 3px;
+/* A disconnected person: the row fades and a crossed-out signal leads their name. */
+.player-table tr.offline > * {
+  opacity: 0.55;
+}
+.offline-mark {
+  flex: none;
+  margin-right: 3px;
 }
 .player-table .points {
   font-weight: 900;
@@ -284,10 +297,12 @@
   border-radius: 0;
 }
 /* During a gesture the drawing is moved by a transform (see previewCamera); painting past the SVG's
-   box keeps the board's edges filled in while it is dragged. The frame still clips it. */
+   box keeps the board's edges filled in while it is dragged. The frame still clips it. The SVG stays
+   on its own layer so a gesture starts moving it at once instead of first promoting it. */
 .board-viewport .board-svg {
   overflow: visible;
   transform-origin: 50% 50%;
+  will-change: transform;
 }
 .terrain-art {
   filter: saturate(1.65) contrast(1.04);
@@ -612,6 +627,37 @@
     display: flex;
   }
 }
+/* Asks before a development card is bought: a card just above the Dev Card button. */
+.buy-confirm {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff9df;
+  border: 1px solid #89a6af;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px #30566a33;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+}
+.buy-confirm-recipe,
+.buy-confirm-buttons {
+  display: flex;
+  gap: 6px;
+}
+.buy-confirm-buttons button {
+  min-width: 52px;
+  min-height: 40px;
+}
+.recipe-control.confirming .recipe-tooltip {
+  display: none !important;
+}
 .turn-action {
   min-height: 0;
   height: 100%;
@@ -729,9 +775,98 @@
   font-size: 12px;
   overscroll-behavior: contain;
 }
-.activity-list li {
-  padding: 9px 0;
+.log-turn {
+  margin-bottom: 8px;
+}
+.log-turn > h4 {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4b6670;
+  background: #eef4f2;
+  border-left: 4px solid var(--seat, #b9c9c5);
+  border-radius: 4px;
+}
+.log-turn > h4 .log-name {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.log-turn > ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.log-entry {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  padding: 6px 2px 6px 6px;
   border-bottom: 1px solid #e0e8e6;
+}
+.log-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--seat, #8aa1a7);
+}
+.log-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.6;
+}
+.log-name {
+  font-weight: 700;
+  color: var(--seat);
+  filter: brightness(0.8);
+}
+.log-cards {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  vertical-align: middle;
+}
+.log-cards > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+.log-cards b {
+  font-size: 11px;
+}
+.log-detail {
+  white-space: nowrap;
+}
+.log-gains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.log-gains > span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.log-presence .log-icon,
+.log-takeover .log-icon {
+  background: #6d7f86;
+}
+.log-eruption .log-icon {
+  background: #c8473b;
+}
+.log-iceberg .log-icon {
+  background: #5a9bb8;
+}
+.log-win .log-icon {
+  background: #d6a21c;
 }
 .compact-tracker {
   padding: 14px;
@@ -954,9 +1089,10 @@
   .board-notices {
     inset: 5px 5px auto;
   }
+  /* Room around the answer chips: the confirm chip's glow mustn't touch the card's edge. */
   .trade-notice {
-    padding: 5px;
-    gap: 5px;
+    padding: 8px 10px;
+    gap: 8px;
   }
   .offer-pie {
     height: 18px;
@@ -1209,7 +1345,7 @@
   }
   .trade-notice,
   .proposal-notice {
-    padding: 4px 6px;
+    padding: 6px 8px;
     font-size: 10px;
   }
   .offer-from {
@@ -1310,6 +1446,38 @@
   .recipe-tooltip {
     left: auto;
     right: 0;
+  }
+  /* The turn button lives in the turn line here (see LANDSCAPE_PHONE), so the build bar fills its column. */
+  .table-turn .turn-action {
+    flex: none;
+    height: 27px;
+    min-height: 0;
+    padding: 0 12px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .table-actions > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .table-actions .recipe-control .build-compact {
+    width: 100%;
+  }
+  /* Bank counts stay on one row inside the scoreboard: smaller chips, smaller icons. */
+  .bank-counts {
+    gap: 2px;
+    font-size: 11px;
+  }
+  .bank-counts > span:first-child {
+    padding: 0 1px;
+  }
+  .bank-count {
+    gap: 1px;
+    padding: 1px 2px;
+  }
+  .bank-count svg {
+    width: 13px;
+    height: 13px;
   }
 }
 /* Color is encoded in the SVG itself, consistently across desktop and mobile. */ .terrain-art {

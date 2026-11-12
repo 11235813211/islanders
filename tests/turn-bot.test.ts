@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { chooseBotAction } from '../shared/bots';
-import { advanceTime, applyAction, getActivePlayerId, getView, normalizeGame, resourceCount } from '../shared/engine';
+import {
+  advanceTime,
+  applyAction,
+  getActivePlayerId,
+  getView,
+  logPresence,
+  normalizeGame,
+  resourceCount,
+} from '../shared/engine';
 import { type GameState, type Phase, RESOURCES } from '../shared/types';
 import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
@@ -120,6 +128,9 @@ describe('server-side turn completion', () => {
       g = advanceTime(g, now + 1, seeded(seed));
       expect(g.log.some(entry => entry.event?.kind === 'roll')).toBe(true);
       expect(g.log.some(entry => entry.text === 'Player 0 ran out of time.')).toBe(true);
+      expect(g.log.some(entry => entry.event?.kind === 'takeover' && entry.text === 'A bot rolled for Player 0.')).toBe(
+        true,
+      );
       expect(g.turnIndex).toBe(1);
       expect(g.roads).toEqual(pieces.roads);
       expect(g.buildings).toEqual(pieces.buildings);
@@ -127,6 +138,19 @@ describe('server-side turn completion', () => {
       expect(g.pendingDiscards).toEqual({});
       expect(conserved(g)).toBe(true);
     }
+  });
+  it('logs people connecting and disconnecting during a game, never bots or the lobby', () => {
+    const g = settled();
+    const left = logPresence(g, 'p1', false);
+    expect(left.log.at(-1)).toMatchObject({
+      text: 'Player 1 disconnected.',
+      event: { kind: 'presence', playerId: 'p1', online: false },
+    });
+    expect(logPresence(left, 'p1', true).log.at(-1)!.text).toBe('Player 1 connected.');
+    g.players[2]!.bot = 'advanced';
+    expect(logPresence(g, 'p2', false)).toBe(g);
+    const lobby = makeLobby(2);
+    expect(logPresence(lobby, 'p1', false)).toBe(lobby);
   });
   it('a bot seat whose turn times out still plays it', () => {
     let g = settled();

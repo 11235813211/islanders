@@ -1,4 +1,4 @@
-import { advanceTime, applyAction, idlePause, idleResume } from './engine';
+import { advanceTime, applyAction, idlePause, idleResume, logPresence } from './engine';
 import type { BotLevel, GameAction, GameState } from './types';
 
 /**
@@ -9,10 +9,10 @@ import type { BotLevel, GameAction, GameState } from './types';
 
 export const RECORD_FORMAT = 1;
 
-export type StepKind = 'action' | 'time' | 'idle-pause' | 'idle-resume';
+export type StepKind = 'action' | 'time' | 'idle-pause' | 'idle-resume' | 'connected' | 'disconnected';
 export interface RecordedStep {
   kind: StepKind;
-  /** Seat id (`s0`, `s1`, ...) of whoever acted; set for 'action' only. */
+  /** Seat id (`s0`, `s1`, ...) of whoever acted (or connected or disconnected). */
   actor?: string;
   action?: GameAction;
   now: number;
@@ -32,6 +32,15 @@ export interface GameRecord {
   winnerSeat: number | null;
   turns: number;
   finalVersion: number;
+}
+/** One saved record as the list at /api/records describes it. */
+export interface RecordInfo {
+  id: string;
+  endedAt: number;
+  seats: GameRecord['seats'];
+  turns: number;
+  steps: number;
+  bytes: number;
 }
 /** Real player id → seat id. */
 export type SeatIds = Record<string, string>;
@@ -73,7 +82,8 @@ export function anonymizeLobby(lobby: GameState, ids: SeatIds): GameState {
 
 /** One step for storage, or null when it came from someone without a seat (spectators). Chat text is dropped. */
 export function toStep(ids: SeatIds, step: RecordedStep): RecordedStep | null {
-  if (step.kind === 'action' && !(step.actor && ids[step.actor])) return null;
+  const seated = step.kind === 'action' || step.kind === 'connected' || step.kind === 'disconnected';
+  if (seated && !(step.actor && ids[step.actor])) return null;
   const online = step.online?.flatMap(id => (ids[id] ? [ids[id]!] : []));
   const action = step.action && renameIds(step.action, ids);
   return {
@@ -131,6 +141,8 @@ function runStep(state: GameState, step: RecordedStep, random: () => number): Ga
   if (step.kind === 'time') return advanceTime(state, step.now, random);
   if (step.kind === 'idle-pause') return idlePause(state, step.now);
   if (step.kind === 'idle-resume') return idleResume(state, step.now);
+  if (step.kind === 'connected' || step.kind === 'disconnected')
+    return logPresence(state, step.actor!, step.kind === 'connected');
   return applyAction(state, step.actor!, step.action!, random, step.now, { online: step.online });
 }
 

@@ -4,6 +4,7 @@ import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
 import { type GameState, type GameView, RESOURCES, type Resource } from '../types';
 import {
+  discoveriesLeft,
   emptyBag,
   emptyStats,
   getActivePlayerId,
@@ -104,6 +105,11 @@ export function getView(state: GameState, selfId: string): GameView {
       boolean
     >,
     bankCounts: bankShown(state.settings, state.players.length) ? state.bank : null,
+    discoveryInSupply: discoveriesLeft(state) > 0,
+    discoveryBank:
+      bankShown(state.settings, state.players.length) && state.board.hexes.some(h => h.terrain === 'jungle')
+        ? discoveriesLeft(state)
+        : null,
     jungle: state.board.hexes.some(h => h.terrain === 'jungle'),
     activePlayerId: active,
     turnPlayerId: ['lobby', 'finished'].includes(state.phase) ? null : (state.players[state.turnIndex]?.id ?? null),

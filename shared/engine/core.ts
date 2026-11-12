@@ -66,6 +66,17 @@ export function bankFor(players: number): ResourceBag {
   const n = isLargeGame(players) ? 24 : 19;
   return { wood: n, brick: n, sheep: n, wheat: n, ore: n };
 }
+/**
+ * Jungle discoveries in the supply at the start: 12, grown for 5–6 players by the same share as the
+ * resource bank (19 → 24), so 15.
+ */
+export function discoverySupply(players: number): number {
+  return isLargeGame(players) ? 15 : 12;
+}
+/** Discoveries still in the supply: the total less what players hold (spent ones come back). */
+export function discoveriesLeft(state: Pick<GameState, 'players'>): number {
+  return Math.max(0, discoverySupply(state.players.length) - state.players.reduce((n, p) => n + p.discoveries, 0));
+}
 export const BUILD_COSTS: Record<'road' | 'ship' | 'settlement' | 'city' | 'development', ResourceBag> = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 },
   ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0 },

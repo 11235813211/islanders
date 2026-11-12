@@ -269,3 +269,12 @@
     display: none;
   }
 }
+
+/* Confirm cards on the board are twice the size on phones, grown from their pointer tip so they
+   still point at the picked spot. */
+@media (max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px) {
+  .map-confirm-body {
+    transform: scale(2);
+    transform-origin: 0 26px;
+  }
+}

@@ -2,7 +2,16 @@ import { shuffled } from '../board';
 import { linksAnywhere } from '../rules';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type ResourceBag } from '../types';
-import { addLog, bumpStat, emptyBag, ownBoard, PIECE_LIMITS, pieceCounts, resourceCount } from './core';
+import {
+  addLog,
+  bumpStat,
+  discoveriesLeft,
+  emptyBag,
+  ownBoard,
+  PIECE_LIMITS,
+  pieceCounts,
+  resourceCount,
+} from './core';
 
 /**
  * Pay out a roll. Resource tiles pay cards (if the bank can't cover everyone owed a resource,
@@ -46,7 +55,13 @@ export function produce(state: GameState, total: number): Record<string, Resourc
     const owed = Math.min(count, resourceCount(state.bank));
     if (owed > 0) state.pendingGold[id] = owed;
   }
-  for (const [id, count] of Object.entries(finds)) {
+  // Discoveries follow the bank's rule: when the supply can't cover everyone, nobody gets one.
+  const found = Object.values(finds).reduce((n, count) => n + count, 0);
+  const left = discoveriesLeft(state);
+  for (const [id, wanted] of Object.entries(finds)) {
+    if (Object.keys(finds).length > 1 && found > left) break;
+    const count = Math.min(wanted, left);
+    if (!count) continue;
     const player = state.players.find(p => p.id === id)!;
     player.discoveries += count;
     addLog(state, `${player.name} made ${count === 1 ? 'a discovery' : `${count} discoveries`} in the jungle.`);
@@ -65,11 +80,14 @@ export function eruptingVolcanoes(state: GameState, total: number): string[] {
     .map(hex => hex.id);
 }
 
-/** The eruption die for a volcano: random, or (balanced) the next face from its shuffled set of six. */
+/** Each volcano's balanced deck holds every face twice: repeats can happen, long droughts can't. */
+const VOLCANO_DECK = [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6];
+
+/** The eruption die for a volcano: random, or (balanced) the next card from its shuffled deck of 12. */
 export function volcanoDie(state: GameState, hexId: string, random: () => number): number {
   if (state.settings.volcanoDice !== 'balanced') return Math.floor(random() * 6) + 1;
   let faces = state.volcanoDecks[hexId] ?? [];
-  if (!faces.length) faces = shuffled([1, 2, 3, 4, 5, 6], random);
+  if (!faces.length) faces = shuffled(VOLCANO_DECK, random);
   const [die, ...rest] = faces;
   state.volcanoDecks[hexId] = rest;
   return die!;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getActivePlayerId, getView, normalizeGame } from '../shared/engine';
+import { discoverySupply } from '../shared/engine/core';
 import { sinkShip } from '../shared/engine/production';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { longestRoad, victoryPoints } from '../shared/rules';
@@ -200,6 +201,7 @@ describe('gold, volcanoes, and jungles', () => {
     let g = building(g => {
       const volcano = hexOf(g, 'volcano');
       g.buildings[volcano.vertexIds[ERUPTION_CORNER[1]]!] = { playerId: 'p1', kind: 'city' };
+      g.settings.volcanoDice = 'random'; // a plain die, so the sequence below names the corner
     });
     g.phase = 'roll';
     g = act(g, 'p0', { type: 'roll' }, sequence(0.2, 0.2)); // 2 + 2
@@ -242,6 +244,25 @@ describe('gold, volcanoes, and jungles', () => {
     expect(g.players[0]!.discoveries).toBe(0);
     expect(g.players[0]!.resources.ore).toBe(0);
     expect(getView(g, 'p1').players[0]!.discoveries).toBe(0);
+  });
+
+  it('discoveries come from a supply of 12 (15 for 5–6 players), which spent ones go back to', () => {
+    let g = building(g => {
+      g.buildings[hexOf(g, 'jungle').vertexIds[1]!] = { playerId: 'p0', kind: 'city' };
+      g.settings.showBank = 'always';
+    });
+    expect(discoverySupply(4)).toBe(12);
+    expect(discoverySupply(5)).toBe(15);
+    g.players[1]!.discoveries = 11;
+    expect(getView(g, 'p0').discoveryBank).toBe(1);
+    g.phase = 'roll';
+    g = act(g, 'p0', { type: 'roll' }, sequence(0.7, 0.9)); // 5 + 6: a city owed 2, only 1 left
+    expect(g.players[0]!.discoveries).toBe(1);
+    expect(getView(g, 'p0').discoveryBank).toBe(0);
+    expect(getView(g, 'p0').discoveryInSupply).toBe(false);
+    grant(g, 'p0', { wheat: 1, ore: 1 });
+    g = act(g, 'p0', { type: 'buy-development' });
+    expect(getView(g, 'p0').discoveryBank).toBe(1);
   });
 });
 

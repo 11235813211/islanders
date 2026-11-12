@@ -14,7 +14,7 @@ export {
 } from './core';
 export { addPlayer, addSpectator, createGame } from './lobby';
 export { normalizeGame, SCHEMA_VERSION } from './migrations';
-export { idlePause, idleResume } from './social';
+export { idlePause, idleResume, logPresence } from './social';
 export {
   advanceTime,
   BOT_THINK_MS,

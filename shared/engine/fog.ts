@@ -1,6 +1,6 @@
 import { boardIndex, isLandTerrain, terrainResource } from '../seafaring';
 import type { GameState } from '../types';
-import { addLog, bumpStat, ownBoard } from './core';
+import { addLog, bumpStat, discoveriesLeft, ownBoard } from './core';
 
 /**
  * Fog (the Fog Islands rules): placing a road or ship that touches a corner of a fog tile reveals
@@ -58,7 +58,7 @@ function reward(next: GameState, playerId: string, terrain: GameState['board']['
     next.bank[resource]--;
     player.resources[resource]++;
     bumpStat(next, playerId, 'gained');
-  } else if (terrain === 'jungle') player.discoveries++;
+  } else if (terrain === 'jungle' && discoveriesLeft(next) > 0) player.discoveries++;
   else if ((terrain === 'gold' || terrain === 'volcano') && next.phase === 'build') {
     next.pendingGold[playerId] = (next.pendingGold[playerId] ?? 0) + 1;
     next.phase = 'gold';
