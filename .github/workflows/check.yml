@@ -53,3 +53,29 @@ jobs:
           name: browser-test-results-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
+
+  # Tests that play whole games in real time: one runner of their own so they don't hold up the others.
+  browsers-slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium webkit
+      - if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium webkit
+      - run: npm run test:e2e:slow
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results-slow
+          path: test-results/
+          retention-days: 7

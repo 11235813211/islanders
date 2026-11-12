@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { join, PlayerConnection } from './server-helpers';
 
-test('durable turn alarms place setup pieces and complete a normal turn without client commands', async ({
-  request,
-}) => {
+test('durable turn alarms place setup pieces and complete a normal turn without client commands', {
+  tag: '@slow',
+}, async ({ request }) => {
   test.setTimeout(100_000);
   const h = await join(request, 'Timer host'),
     f = await join(request, 'Timer friend', h.roomId);

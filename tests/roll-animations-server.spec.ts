@@ -20,10 +20,9 @@ interface Seen {
  * every roll's dice and every drifting iceberg must play to the end, never cut off or restarted,
  * and the dice must tumble through the middle of the board every time (not just the first roll).
  */
-test('in a real room, every roll tumbles through the middle and every iceberg drift plays out in full', async ({
-  page,
-  request,
-}) => {
+test('in a real room, every roll tumbles through the middle and every iceberg drift plays out in full', {
+  tag: '@slow',
+}, async ({ page, request }) => {
   test.setTimeout(120_000);
   const session = await join(request, 'Watcher');
   const host = new PlayerConnection(session.roomId);

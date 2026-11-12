@@ -7,7 +7,9 @@ interface Listed {
   steps: number;
 }
 
-test('a game is saved only when every person agreed, and the saved game replays', async ({ request }) => {
+test('a game is saved only when every person agreed, and the saved game replays', { tag: '@slow' }, async ({
+  request,
+}) => {
   test.setTimeout(120_000);
   const exporter = await registerAccount(request);
   const listed = async () =>
@@ -73,7 +75,7 @@ test('a game is saved only when every person agreed, and the saved game replays'
   }
 });
 
-test('a game is not saved when someone did not agree', async ({ request }) => {
+test('a game is not saved when someone did not agree', { tag: '@slow' }, async ({ request }) => {
   test.setTimeout(120_000);
   const exporter = await registerAccount(request);
   const count = async () =>

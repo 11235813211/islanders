@@ -11,6 +11,7 @@ export function seeded(seed = 42) {
 }
 export function makeLobby(count = 3) {
   let game = createGame('HARBOR42', seeded());
+  game.settings.friendlyRobber = false; // Most rules tests expect the robber to hit anyone.
   for (let i = 0; i < count; i++) game = addPlayer(game, { id: `p${i}`, name: `Player ${i}` });
   return game;
 }

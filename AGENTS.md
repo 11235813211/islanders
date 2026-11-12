@@ -36,6 +36,7 @@ Which published rules are in, which are room variations, and their tests: `docs/
 - Never write throwaway test scripts elsewhere. Add or extend a file in `tests/` so the next person (or agent) can rerun it instead of rebuilding it. Shared setup goes in `tests/fixtures.ts`, `tests/ui-harness.ts`, `tests/server-helpers.ts`, or `tests/bot-harness.ts`.
 - `npm test`: rules, bots, and protocol unit tests (seconds). Run first after any `shared/` or `server/protocol.ts` change.
 - `npx playwright test tests/<file>.spec.ts`: browser and real-server tests (starts wrangler and Vite). Run the relevant file, not the whole suite, while iterating.
+- Tests that play whole games in real time are tagged `@slow` (`{ tag: '@slow' }`); `npm run test:e2e` skips them and CI runs them as a separate job (`npm run test:e2e:slow`).
 - `npx playwright test --project=iphone`: phone checks (`tests/phone.spec.ts`).
 - Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`. It and `art-compare.spec.ts` only take screenshots, so CI skips them (`playwright.config.ts`); CI splits the rest across two runners.
 - Server tests that need a seat to keep playing can call `PlayerConnection.autoPlay()` (`tests/server-helpers.ts`) instead of waiting out turn clocks. Sea tiles and pieces: `tests/sea-art.spec.ts` writes `test-results/sea-art.png`.

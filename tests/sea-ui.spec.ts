@@ -204,6 +204,9 @@ test('a roll that moves an iceberg plays out in full even when the turn ends str
 test('undoing an end of turn brings the dice back at rest: the roll does not play again', async ({ page }) => {
   const g = seaGame();
   Object.assign(g, { phase: 'roll' });
+  // The seeded roll would be a 7 (discard, robber); this test is about undo, so deal a 5.
+  g.settings.diceMode = 'balanced';
+  g.diceDeck = Array.from({ length: 20 }, () => [2, 3] as [number, number]);
   const game = await mountGame(page, g);
   await page.getByLabel('Follow current turn').uncheck();
   await page.getByRole('button', { name: 'Roll dice' }).click();

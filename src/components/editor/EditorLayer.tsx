@@ -21,13 +21,19 @@ const LINK_COLORS = ['#00a8c6', '#d4128a', '#7a45ff', '#1740c9', '#7bb800', '#1b
 const LINK_HINT = 'Resource coupled to other hexes or harbors.';
 
 /** A colored edge around a linked hex or harbor; hover explains it is not a resource. */
-function LinkRim({ piece, children }: { piece: { link?: string; notLink?: string }; children: ReactNode }) {
+function LinkRim({
+  piece,
+  children,
+}: {
+  piece: { link?: string; notLink?: string };
+  children: (color: string) => ReactNode;
+}) {
   const letter = piece.link ?? piece.notLink;
   if (!letter) return null;
   return (
     <g className="link-rim">
       <title>{LINK_HINT}</title>
-      {children}
+      {children(linkColor(letter))}
       <desc>{`Link ${letter}`}</desc>
     </g>
   );
@@ -207,15 +213,17 @@ export default function EditorLayer({
         <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
           <Tile uid={uid} terrain={tile.kind} />
           <LinkRim piece={tile}>
-            <polygon
-              points={hexPoints(52)}
-              fill="none"
-              stroke={linkColor((tile.link ?? tile.notLink)!)}
-              strokeWidth="6"
-              strokeDasharray={tile.link ? undefined : '10 5'}
-              strokeLinejoin="round"
-              pointerEvents="stroke"
-            />
+            {color => (
+              <polygon
+                points={hexPoints(52)}
+                fill="none"
+                stroke={color}
+                strokeWidth="6"
+                strokeDasharray={tile.link ? undefined : '10 5'}
+                strokeLinejoin="round"
+                pointerEvents="stroke"
+              />
+            )}
           </LinkRim>
           {tile.bonus && <SEA.BonusChip points={tile.bonus} />}
           {!readOnly && <LinkBadge piece={tile} x={-25} y={27} />}
@@ -262,16 +270,18 @@ export default function EditorLayer({
               <Harbor resource={harbor.kind} at={geometry.at} corners={geometry.corners} />
             )}
             <LinkRim piece={harbor}>
-              <circle
-                cx={geometry.at.x}
-                cy={geometry.at.y - 8}
-                r="24"
-                fill="none"
-                stroke={linkColor((harbor.link ?? harbor.notLink)!)}
-                strokeWidth="5"
-                strokeDasharray={harbor.link ? undefined : '8 4'}
-                pointerEvents="stroke"
-              />
+              {color => (
+                <circle
+                  cx={geometry.at.x}
+                  cy={geometry.at.y - 8}
+                  r="24"
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="5"
+                  strokeDasharray={harbor.link ? undefined : '8 4'}
+                  pointerEvents="stroke"
+                />
+              )}
             </LinkRim>
             {!readOnly && <LinkBadge piece={harbor} x={geometry.at.x + 17} y={geometry.at.y - 22} />}
           </g>

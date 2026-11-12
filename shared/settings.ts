@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   trackDice: true,
   numberLayout: 'ordered',
   turnSeconds: 120,
-  friendlyRobber: false,
+  friendlyRobber: true,
   discardLimit: 7,
   victoryPoints: 10,
   pieceStyle: 'classic',

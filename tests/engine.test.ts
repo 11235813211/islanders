@@ -23,6 +23,7 @@ function seeded(seed = 42): () => number {
 
 function lobby(count = 3): GameState {
   let state = createGame('ABCDEF', seeded());
+  state.settings.friendlyRobber = false;
   for (let i = 0; i < count; i++) state = addPlayer(state, { id: `p${i}`, name: `Player ${i}` });
   return state;
 }
