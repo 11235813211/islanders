@@ -1,7 +1,11 @@
 name: Deploy Islanders
 on:
-  # By hand only (Actions → Deploy Islanders → Run workflow); pushes to main no longer deploy.
-  # Still requires a passing Verify on the commit.
+  # Every push to main deploys once Verify passes on it. Can also be run by hand
+  # (Actions → Deploy Islanders → Run workflow), which still requires a passing Verify on the commit.
+  workflow_run:
+    workflows: [Verify game]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,10 +16,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # After Verify: only a successful run for a push to main (not a pull request).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     environment: production
     timeout-minutes: 10
     env:
-      SHA: ${{ github.sha }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Require a passing Verify run for this commit
         env:
