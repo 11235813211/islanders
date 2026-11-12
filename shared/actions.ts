@@ -46,6 +46,8 @@ const SPEC = {
   'play-again': {},
   configure: { settings: 'settings' },
   'choose-color': { color: 'color' },
+  'ask-color-swap': { playerId: 'id' },
+  'answer-color-swap': { playerId: 'id', accept: 'bool' },
   'remove-player': { playerId: 'id' },
   'transfer-host': { playerId: 'id' },
   'add-bot': { level: 'botLevel' },

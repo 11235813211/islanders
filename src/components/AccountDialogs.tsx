@@ -1,9 +1,54 @@
-import { Check, Copy, KeyRound, LoaderCircle, Trash2, X } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff, KeyRound, LoaderCircle, Trash2, X } from 'lucide-react';
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { AccountSession } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
 
 type Account = ReturnType<typeof useAccount>;
+
+/** Password field with a button to show what was typed. */
+function PasswordInput({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  placeholder,
+  minLength,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  placeholder?: string;
+  minLength?: number;
+}) {
+  const [shown, setShown] = useState(false);
+  return (
+    <label>
+      {label}
+      <span className="password-field">
+        <input
+          type={shown ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          minLength={minLength}
+          maxLength={128}
+          placeholder={placeholder}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          required
+        />
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={shown ? 'Hide password' : 'Show password'}
+          aria-pressed={shown}
+          onClick={() => setShown(!shown)}
+        >
+          {shown ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </span>
+    </label>
+  );
+}
 
 export function Modal({ title, children, close }: { title: string; children: ReactNode; close: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -147,19 +192,14 @@ export function SignInDialog({
             />
           </label>
         )}
-        <label>
-          {mode === 'recover' ? 'New password' : 'Password'}
-          <input
-            type="password"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            minLength={12}
-            maxLength={128}
-            placeholder="At least 12 characters"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-          />
-        </label>
+        <PasswordInput
+          label={mode === 'recover' ? 'New password' : 'Password'}
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          minLength={12}
+          placeholder="At least 12 characters"
+          value={password}
+          onChange={setPassword}
+        />
         {error && (
           <p role="alert" className="inline-alert">
             {error}
@@ -254,17 +294,7 @@ export function AccountDialog({
               <input autoComplete="off" value={confirm} onChange={e => setConfirm(e.target.value)} required />
             </label>
           )}
-          <label>
-            Password
-            <input
-              type="password"
-              autoComplete="current-password"
-              maxLength={128}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </label>
+          <PasswordInput label="Password" autoComplete="current-password" value={password} onChange={setPassword} />
           {error && (
             <p role="alert" className="inline-alert">
               {error}

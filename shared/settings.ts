@@ -1,8 +1,11 @@
 import { GUEST_NAMES } from './guest-names';
 import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
 
+/** Automatic dice roll delays the lobby offers (0 is off). */
+export const AUTO_ROLL_SECONDS = [0, 5, 8, 10, 15, 30];
+
 export const DEFAULT_SETTINGS: GameSettings = {
-  autoRollSeconds: 5,
+  autoRollSeconds: 8,
   trackDice: true,
   numberLayout: 'ordered',
   turnSeconds: 120,
@@ -15,6 +18,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   discoveries: 'kept',
   volcanoGold: true,
   seafarers: false,
+  diceMode: 'balanced',
   volcanoStart: true,
   volcanoDice: 'balanced',
   routeLinks: 'anywhere',
@@ -85,7 +89,7 @@ export function validSettings(
     Number.isInteger(field) && Number(field) >= min && Number(field) <= max;
   return (
     Object.keys(s).every(key => Object.hasOwn(DEFAULT_SETTINGS, key)) &&
-    [0, 5, 10, 15, 30].includes(s.autoRollSeconds as number) &&
+    AUTO_ROLL_SECONDS.includes(s.autoRollSeconds as number) &&
     typeof s.trackDice === 'boolean' &&
     (s.numberLayout === undefined || ['random', 'ordered'].includes(s.numberLayout as string)) &&
     (s.turnSeconds === undefined || integerIn(s.turnSeconds, 15, 900)) &&
@@ -98,6 +102,7 @@ export function validSettings(
     (s.discoveries === undefined || Object.hasOwn(DISCOVERY_RULES, s.discoveries as string)) &&
     (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&
     (s.seafarers === undefined || typeof s.seafarers === 'boolean') &&
+    (s.diceMode === undefined || ['random', 'balanced'].includes(s.diceMode as string)) &&
     (s.volcanoStart === undefined || typeof s.volcanoStart === 'boolean') &&
     (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string)) &&
     (s.routeLinks === undefined || ['anywhere', 'settlement'].includes(s.routeLinks as string))

@@ -956,3 +956,13 @@ fieldset.dot-limit {
   border: 0;
   padding: 0;
 }
+
+.password-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.password-field input {
+  flex: 1;
+  min-width: 0;
+}

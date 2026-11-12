@@ -73,7 +73,7 @@ function App() {
     try {
       const target = roomCode.trim().toUpperCase();
       // A blank guest name is filled in by the server from shared/guest-names.ts.
-      const displayName = account.account?.username ?? name.trim();
+      const displayName = account.account?.displayName ?? account.account?.username ?? name.trim();
       const cached = kind === 'join' && !account.account ? savedSession(target) : null;
       const watching =
         kind === 'join' &&
@@ -185,7 +185,7 @@ function App() {
               onClick={() => setDialog('account')}
             >
               <UserRound size={18} />
-              <span>{account.account.username}</span>
+              <span>{account.account.displayName ?? account.account.username}</span>
               {!account.hasRecoveryCode && <span className="attention-dot" title="Make a recovery code" />}
             </button>
             <button className="text-button" aria-label="Sign out" onClick={() => void signOut()} disabled={loading}>

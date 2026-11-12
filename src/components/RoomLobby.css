@@ -161,12 +161,51 @@
 .color-swatch[aria-checked="true"] {
   box-shadow: 0 0 0 3px var(--player-accent);
 }
-.color-swatch:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.color-swatch {
+  font-size: 14px;
+  font-weight: 700;
 }
-.color-swatch[aria-checked="true"]:disabled {
-  opacity: 1;
+/* Taken: still clearly its own color, with the owner's initial. */
+.color-swatch.taken {
+  opacity: 0.8;
+  box-shadow: 0 0 0 1px #6b8792 inset;
+}
+.color-slot {
+  position: relative;
+}
+.color-ask {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 8px;
+  border: 1px solid #6b8792;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.color-swap-notice {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: min(92vw, 460px);
+  padding: 10px 12px;
+  transform: translateX(-50%);
+  border: 1px solid #6b8792;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+}
+.color-swap-notice span {
+  flex: 1 1 100%;
 }
 .setting-group .setting-row > select,
 .setting-group .setting-row > input,

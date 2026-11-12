@@ -1069,6 +1069,14 @@
   .build-compact > svg {
     width: 20px;
   }
+  /* The base game has only four buttons, so they can fill the row; sea maps keep the smaller ones. */
+  .table-actions:not(.sea) .build-compact {
+    min-width: 54px;
+    padding: 8px 10px;
+  }
+  .table-actions:not(.sea) .build-compact > svg {
+    width: 26px;
+  }
   .turn-action {
     font-size: 12px;
     padding: 5px 9px;
@@ -1927,4 +1935,43 @@
   color: var(--muted);
   font-size: 14px;
   font-weight: 800;
+}
+
+.settings-summary {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+}
+.settings-summary section {
+  border-left: 5px solid var(--tone);
+  border-radius: 8px;
+  background: var(--tone-soft);
+  padding: 6px 10px;
+}
+.settings-summary h4 {
+  margin: 0 0 4px;
+  color: var(--tone);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.settings-summary dl {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+.settings-summary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.settings-summary dt {
+  color: #3b525c;
+}
+.settings-summary dd {
+  margin: 0;
+  font-weight: 800;
+  text-align: right;
 }

@@ -107,7 +107,7 @@ function hintFor(
 ): string {
   if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
-  if (edges) return mode === 'ship' ? 'Choose a highlighted sea edge' : 'Choose a highlighted edge';
+  if (edges) return mode === 'ship' ? 'Place your ship' : 'Place your road';
   return mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner';
 }
 

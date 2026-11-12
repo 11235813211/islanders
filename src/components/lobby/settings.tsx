@@ -17,7 +17,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { DISCOVERY_RULES, TRADE_SECONDS, VICTORY_POINT_RANGE } from '../../../shared/settings';
+import { AUTO_ROLL_SECONDS, DISCOVERY_RULES, TRADE_SECONDS, VICTORY_POINT_RANGE } from '../../../shared/settings';
 import type { DiscoveryRule, GameSettings, GameView } from '../../../shared/types';
 
 /**
@@ -200,7 +200,7 @@ export const CATEGORIES: Category[] = [
         icon: <Dices size={20} />,
         control: {
           kind: 'select',
-          options: [0, 5, 10, 15, 30].map(n => ({ value: n, label: n ? `${n} seconds` : 'Off' })),
+          options: AUTO_ROLL_SECONDS.map(n => ({ value: n, label: n ? `${n} seconds` : 'Off' })),
         },
       },
       {
@@ -224,6 +224,19 @@ export const CATEGORIES: Category[] = [
     title: 'Table',
     tone: 'ore',
     settings: [
+      {
+        key: 'diceMode',
+        label: 'Dice',
+        hint: 'Balanced: rolls come from a shuffled deck of all 36 combinations, with fewer repeats in a row.',
+        icon: <Dices size={20} />,
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'balanced', label: 'Balanced' },
+            { value: 'random', label: 'Random' },
+          ],
+        },
+      },
       {
         key: 'trackDice',
         label: 'Dice results tracker',

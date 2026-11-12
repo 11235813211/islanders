@@ -12,9 +12,8 @@ import {
   Users,
   Wifi,
 } from 'lucide-react';
-import { type CSSProperties, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BOTS } from '../../shared/bots';
-import { PLAYER_COLORS, playerVars } from '../../shared/colors';
 import { MAX_PLAYERS } from '../../shared/engine';
 import {
   BOT_LEVELS,
@@ -23,12 +22,12 @@ import {
   type GameAction,
   type GameSettings,
   type GameView,
-  PLAYER_COLOR_IDS,
   type RecordingStatus,
 } from '../../shared/types';
 import type { Connection } from '../hooks/useRoom';
 import HelpButton from './help/HelpButton';
 import { lobbyHelp } from './help/helpContent';
+import ColorPicker, { ColorSwapNotice } from './lobby/ColorPicker';
 import LobbySeat from './lobby/LobbySeat';
 import MapChoice from './lobby/MapChoice';
 import { CATEGORIES, SettingControl } from './lobby/settings';
@@ -63,7 +62,6 @@ export default function RoomLobby({
 }: RoomLobbyProps) {
   const host = playerId === view.hostId;
   const self = view.players.find(p => p.id === view.selfId);
-  const takenBy = new Map(view.players.map(p => [p.color, p]));
   const change = (next: Partial<GameSettings>) => send({ type: 'configure', settings: { ...view.settings, ...next } });
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
   const [copied, setCopied] = useState(false);
@@ -83,6 +81,7 @@ export default function RoomLobby({
   }
   return (
     <main className="room-setup">
+      <ColorSwapNotice view={view} busy={busy} send={send} />
       <div className="page-heading">
         <div>
           <span className="section-kicker">{view.testMode ? 'SOLO TEST ROOM' : 'GAME ROOM'}</span>
@@ -136,30 +135,7 @@ export default function RoomLobby({
             send={send}
           />
         ))}
-        {self && (
-          <div className="color-picker" role="radiogroup" aria-label="Your color">
-            {PLAYER_COLOR_IDS.map(color => {
-              const owner = takenBy.get(color);
-              const mine = owner?.id === self.id;
-              return (
-                <button
-                  key={color}
-                  type="button"
-                  role="radio"
-                  aria-checked={mine}
-                  aria-label={`${PLAYER_COLORS[color].label}${owner && !mine ? ` (taken by ${owner.name})` : ''}`}
-                  title={owner && !mine ? `Taken by ${owner.name}` : PLAYER_COLORS[color].label}
-                  className="color-swatch"
-                  style={playerVars(color) as CSSProperties}
-                  disabled={busy || (!!owner && !mine)}
-                  onClick={() => !mine && send({ type: 'choose-color', color })}
-                >
-                  {mine && <Check size={16} />}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <ColorPicker view={view} busy={busy} send={send} />
         {host && view.players.length < MAX_PLAYERS && (
           <div className="add-bot">
             <Bot size={22} />

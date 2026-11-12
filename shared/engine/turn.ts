@@ -20,6 +20,7 @@ import {
   requireRule,
   tally,
 } from './core';
+import { rollDice } from './dice';
 import { revealFog } from './fog';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { drift, eruptingVolcanoes, produce } from './production';
@@ -179,7 +180,7 @@ export const turnHandlers: Pick<
 
   roll({ next, player, playerId, random }) {
     needPhase(next, 'roll');
-    const dice: [number, number] = [Math.floor(random() * 6) + 1, Math.floor(random() * 6) + 1];
+    const dice = rollDice(next, random);
     next.dice = dice;
     const total = dice[0] + dice[1];
     next.rollDeadline = null;

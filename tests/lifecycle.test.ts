@@ -140,23 +140,14 @@ describe('bot scheduling', () => {
     expect(Object.keys(g.roads)).toHaveLength(roads - 1);
   });
 
-  it('undoes buying a development card: the card goes back into a reshuffled deck', () => {
+  it('cannot undo buying a development card: the buyer has seen it', () => {
     let g = settled(3);
     g.testMode = true;
     g.phase = 'build';
     grant(g, 'p0', { sheep: 1, wheat: 1, ore: 1 });
-    const deck = g.developmentDeck.map(card => card.id);
-    const hand = { ...g.players[0]!.resources };
     g = act(g, 'p0', { type: 'buy-development' });
-    const bought = g.players[0]!.development[0]!;
-    expect(bought.id).toBe(deck.at(-1));
-    g = applyAction(g, 'p0', { type: 'propose', kind: 'undo' }, seeded(7), now);
-    expect(g.players[0]!.development).toEqual([]);
-    expect(g.players[0]!.resources).toEqual(hand);
-    expect(g.developmentDeck.map(card => card.id).sort()).toEqual([...deck].sort());
-    expect(g.developmentDeck.find(card => card.id === bought.id)!.boughtTurn).toBe(-1);
-    // Reshuffled: buying again needn't give the same card, so undo can't be used to peek.
-    expect(g.developmentDeck.map(card => card.id)).not.toEqual(deck);
+    expect(g.undo).toBeNull();
+    expect(() => applyAction(g, 'p0', { type: 'propose', kind: 'undo' }, seeded(7), now)).toThrow(GameError);
   });
 
   it('has a bot answer an offer sent to it, and leaves people alone', () => {

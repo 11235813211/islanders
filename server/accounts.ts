@@ -6,6 +6,8 @@ import { hashToken, randomToken } from './protocol';
 
 export interface AccountIdentity {
   username: string;
+  /** What other players see: the registered capitalisation of `username`. */
+  displayName: string;
   playerId: string;
   sessionHash: string;
   expiresAt: number;
@@ -20,6 +22,8 @@ interface SavedLogin {
 interface AccountRecord {
   version: 1;
   username: string;
+  /** Username with the capitals the person registered with. */
+  displayName?: string;
   playerId: string;
   salt: string;
   passwordHash: string;
@@ -91,12 +95,17 @@ export class AccountStore extends DurableObject<Env> {
     const expiresAt = Date.now() + LOGIN_LIFETIME;
     const kept = sessions.filter(s => s.expiresAt > Date.now()).slice(-(MAX_LOGINS - 1));
     return {
-      session: { username: this.account!.username, token, expiresAt },
+      session: {
+        username: this.account!.username,
+        displayName: this.account!.displayName ?? this.account!.username,
+        token,
+        expiresAt,
+      },
       sessions: [...kept, { tokenHash: await hashToken(token), createdAt: Date.now(), expiresAt }],
     };
   }
 
-  async authenticate(username: string, password: string, register: boolean): Promise<AuthResult> {
+  async authenticate(username: string, displayName: string, password: string, register: boolean): Promise<AuthResult> {
     return this.serial(async () => {
       if (register && this.account) return { ok: false, status: 409, error: 'That username is already taken.' };
       if (register) {
@@ -105,6 +114,7 @@ export class AccountStore extends DurableObject<Env> {
         this.account = {
           version: 1,
           username,
+          displayName,
           playerId: crypto.randomUUID(),
           salt,
           passwordHash: await derivePassword(password, salt),
@@ -187,6 +197,7 @@ export class AccountStore extends DurableObject<Env> {
       return {
         identity: {
           username: this.account.username,
+          displayName: this.account.displayName ?? this.account.username,
           playerId: this.account.playerId,
           sessionHash,
           expiresAt: session.expiresAt,

@@ -59,7 +59,6 @@ export const emptyStats = (): PlayerStats => ({
 export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
 
-export const AUTO_ROLL_SECONDS = [0, 5, 10, 15, 30];
 export const MAX_PLAYERS = 6;
 /** Seconds everyone has to pick gold or volcano resources before a choice is made for them. */
 export const GOLD_SECONDS = 25;

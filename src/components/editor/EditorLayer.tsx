@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { hexCenter, hexCorner } from '../../../shared/board';
 import { type BoardDesign, type DesignHarbor, type DesignTile, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
@@ -6,12 +7,30 @@ import { Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import { tileVariant } from '../BoardScene';
 import IslandRims from '../IslandRims';
+import { oddsLabel } from '../maps/numberOdds';
 import type { EditorSelection } from './EditorCanvas';
 
 /** A stable color per link letter, so linked tiles and harbors are easy to match by eye. */
 export function linkColor(letter: string): string {
-  const hues = [12, 205, 140, 280, 45, 330, 175, 95];
-  return `hsl(${hues[(letter.charCodeAt(0) - 65) % hues.length]} 70% 42%)`;
+  return LINK_COLORS[(letter.charCodeAt(0) - 65) % LINK_COLORS.length]!;
+}
+
+/** Link colors A–H. Early letters avoid the resource hues (brick red, wood green, wheat gold, ore gray). */
+const LINK_COLORS = ['#00a8c6', '#d4128a', '#7a45ff', '#1740c9', '#7bb800', '#1b2530', '#ff77c8', '#3fcfb8'];
+
+const LINK_HINT = 'Resource coupled to other hexes or harbors.';
+
+/** A colored edge around a linked hex or harbor; hover explains it is not a resource. */
+function LinkRim({ piece, children }: { piece: { link?: string; notLink?: string }; children: ReactNode }) {
+  const letter = piece.link ?? piece.notLink;
+  if (!letter) return null;
+  return (
+    <g className="link-rim">
+      <title>{LINK_HINT}</title>
+      {children}
+      <desc>{`Link ${letter}`}</desc>
+    </g>
+  );
 }
 
 /** A link letter in its color; "Not A" shows as ≠A on a striped badge. */
@@ -97,6 +116,7 @@ function NumberSlot({
   readOnly: boolean;
   stepNumber: (q: number, r: number, delta: 1 | -1) => void;
 }) {
+  const odds = oddsLabel(tile.pips);
   return (
     // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
     <g
@@ -116,8 +136,8 @@ function NumberSlot({
       ) : (
         <g transform="translate(0 8)">
           <circle r="18" fill="#fff9e7" fillOpacity=".8" stroke="#8f7c55" strokeWidth="1.4" strokeDasharray="3 3" />
-          <text textAnchor="middle" y="6.5" fontSize="18" fontWeight="800" fill="#6b6650">
-            ?
+          <text textAnchor="middle" y={odds ? 4.5 : 6.5} fontSize={odds ? 12 : 18} fontWeight="800" fill="#6b6650">
+            {odds ?? '?'}
           </text>
         </g>
       )}
@@ -186,6 +206,17 @@ export default function EditorLayer({
       {land.map(tile => (
         <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
           <Tile uid={uid} terrain={tile.kind} />
+          <LinkRim piece={tile}>
+            <polygon
+              points={hexPoints(52)}
+              fill="none"
+              stroke={linkColor((tile.link ?? tile.notLink)!)}
+              strokeWidth="6"
+              strokeDasharray={tile.link ? undefined : '10 5'}
+              strokeLinejoin="round"
+              pointerEvents="stroke"
+            />
+          </LinkRim>
           {tile.bonus && <SEA.BonusChip points={tile.bonus} />}
           {!readOnly && <LinkBadge piece={tile} x={-25} y={27} />}
           {design.robber?.q === tile.q && design.robber.r === tile.r && <Robber />}
@@ -230,6 +261,18 @@ export default function EditorLayer({
             ) : (
               <Harbor resource={harbor.kind} at={geometry.at} corners={geometry.corners} />
             )}
+            <LinkRim piece={harbor}>
+              <circle
+                cx={geometry.at.x}
+                cy={geometry.at.y - 8}
+                r="24"
+                fill="none"
+                stroke={linkColor((harbor.link ?? harbor.notLink)!)}
+                strokeWidth="5"
+                strokeDasharray={harbor.link ? undefined : '8 4'}
+                pointerEvents="stroke"
+              />
+            </LinkRim>
             {!readOnly && <LinkBadge piece={harbor} x={geometry.at.x + 17} y={geometry.at.y - 22} />}
           </g>
         );

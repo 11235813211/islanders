@@ -97,6 +97,7 @@ async function handleAccounts(operation: string, request: Request, env: Env, req
     await checkLimit(env.AUTH_LIMITER, `account:${input.username}`);
     const result = await accountStub(env, input.username).authenticate(
       input.username,
+      input.displayName,
       input.password,
       operation === 'register',
     );
@@ -221,7 +222,7 @@ async function handleRooms(url: URL, request: Request, env: Env): Promise<Respon
   if (url.pathname === '/api/rooms' && request.method === 'POST') {
     const body = await readBody(request);
     const identity = await accountFor(request, env);
-    const name = identity?.username ?? parseOptionalName(body);
+    const name = identity?.displayName ?? parseOptionalName(body);
     if (!record(body)) throw new ProtocolError('Invalid room request.');
     if (body.playtest !== undefined && typeof body.playtest !== 'boolean')
       throw new ProtocolError('Invalid playtest setting.');
@@ -252,7 +253,7 @@ async function handleRooms(url: URL, request: Request, env: Env): Promise<Respon
   if (operation === 'join') {
     const body = await readBody(request);
     const identity = await accountFor(request, env);
-    const name = identity?.username ?? parseOptionalName(body);
+    const name = identity?.displayName ?? parseOptionalName(body);
     return stub.fetch(
       new Request('https://room.internal/join', {
         method: 'POST',

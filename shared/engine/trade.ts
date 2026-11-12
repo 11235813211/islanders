@@ -67,12 +67,20 @@ function exchange(next: GameState, a: Player, b: Player, aGives: TradeBag, bGive
   next.tradeOffer = null;
 }
 
-/** In bot games an offer everyone turned down closes at once instead of waiting out its clock. */
-function closeIfRefused(next: GameState): void {
+/** With people at the table, an offer everyone turned down stays this long so they can see it, then fades. */
+const REFUSED_LINGER_MS = 2500;
+
+/**
+ * An offer everyone turned down stops waiting out its clock: in bot games it closes at once, and
+ * otherwise it expires after a moment (see advanceTime).
+ */
+function closeIfRefused(next: GameState, now: number): void {
   const offer = next.tradeOffer;
   if (!offer || !offer.to.every(id => offer.declinedBy.includes(id))) return;
-  next.tradeOffer = null;
-  addLog(next, 'Nobody took the trade.');
+  if (isBotGame(next)) {
+    next.tradeOffer = null;
+    addLog(next, 'Nobody took the trade.');
+  } else offer.expiresAt = Math.min(offer.expiresAt, now + REFUSED_LINGER_MS);
 }
 
 /** Drop the offer if its author can no longer pay, and any answers whose authors can't. */
@@ -177,7 +185,7 @@ export const tradeHandlers: Pick<
       const offer = next.tradeOffer;
       for (const id of offer.to)
         if (!canAfford(next.players.find(p => p.id === id)!, offer.want)) offer.declinedBy.push(id);
-      closeIfRefused(next);
+      closeIfRefused(next, now);
     }
   },
 
@@ -260,7 +268,7 @@ export const tradeHandlers: Pick<
     requireRule(offer.to.includes(playerId), 'This offer was not sent to you.');
     clearAnswer(offer, playerId);
     offer.declinedBy.push(playerId);
-    if (isBotGame(next)) closeIfRefused(next);
+    closeIfRefused(next, now);
   },
 
   'cancel-trade'({ next, player, playerId }, action) {

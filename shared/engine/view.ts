@@ -75,6 +75,7 @@ export function getView(state: GameState, selfId: string): GameView {
     version: state.version,
     board: null as unknown as GameView['board'],
     hostId: state.hostId,
+    colorSwaps: state.colorSwaps,
     players: state.players.map(candidate => {
       const pieces = pieceCounts(state, candidate.id);
       return {

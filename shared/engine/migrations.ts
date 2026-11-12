@@ -2,9 +2,9 @@ import { generateHarbors } from '../board';
 import { firstFreeColor, isPlayerColor } from '../colors';
 import { playerRanges } from '../maps/types';
 import { developmentDeck, updateAwards } from '../rules';
-import { DEFAULT_SETTINGS } from '../settings';
+import { AUTO_ROLL_SECONDS, DEFAULT_SETTINGS } from '../settings';
 import type { GameSettings, GameState } from '../types';
-import { AUTO_ROLL_SECONDS, emptyDiceCounts, emptyStats } from './core';
+import { emptyDiceCounts, emptyStats } from './core';
 import { startHandGuess } from './hands';
 
 /**
@@ -129,6 +129,16 @@ const MIGRATIONS: Migration[] = [
       stats.trades = old.trades ?? 0;
       s.stats[id] = stats;
     }
+  },
+  // 10 → 11: lobby color swap requests.
+  s => {
+    s.colorSwaps ??= [];
+  },
+  // 11 → 12: balanced dice deck. Existing rooms keep their dice as they were.
+  s => {
+    s.diceDeck ??= [];
+    s.lastRollTotal ??= null;
+    s.settings.diceMode ??= 'random';
   },
 ];
 

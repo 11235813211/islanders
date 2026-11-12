@@ -492,7 +492,7 @@ export default function GameTable({
           </ResourceHand>
         </section>
       )}
-      <div className="table-actions">
+      <div className={`table-actions${view.seafaring ? ' sea' : ''}`}>
         {!spectator && self && (
           <BuildBar
             view={view}

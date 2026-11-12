@@ -36,6 +36,8 @@ const OFF_TURN = new Set<GameAction['type']>([
   'start',
   'configure',
   'choose-color',
+  'ask-color-swap',
+  'answer-color-swap',
   'leave',
   'remove-player',
   'transfer-host',
@@ -62,8 +64,6 @@ const REVERSIBLE = new Set<GameAction['type']>([
   'move-ship',
   'build-settlement',
   'build-city',
-  // The card goes back into a reshuffled deck on undo (see returnBoughtCards), so undoing can't be used to peek.
-  'buy-development',
   'trade',
   'bank-trade',
   'confirm-trade',
@@ -93,7 +93,7 @@ export function applyAction(
   context: { online?: string[]; design?: BoardDesign } = {},
 ): GameState {
   const action = parseAction(rawAction);
-  const social = socialAction(state, playerId, action, now, random, context.online);
+  const social = socialAction(state, playerId, action, now, context.online);
   if (social) return social;
 
   // Spectators are not players, so the two actions they can take skip the player checks below.

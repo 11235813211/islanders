@@ -1,9 +1,10 @@
-import { BarChart3, ChevronDown, ChevronUp, MessageCircle, ScrollText, Send } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, MessageCircle, ScrollText, Send, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { GameAction, GameView } from '../../../shared/types';
 import ActivityLog from './ActivityLog';
+import SettingsSummary from './SettingsSummary';
 
-export type PanelTab = 'chat' | 'activity' | 'dice';
+export type PanelTab = 'chat' | 'activity' | 'dice' | 'settings';
 
 export function DiceTracker({ view }: { view: GameView }) {
   const counts = Object.values(view.diceCounts);
@@ -61,6 +62,7 @@ export default function TablePanel({
     { id: 'chat', Icon: MessageCircle },
     { id: 'activity', Icon: ScrollText },
     { id: 'dice', Icon: BarChart3 },
+    { id: 'settings', Icon: SlidersHorizontal },
   ] as const;
   return (
     <section className={`chat-panel ${panel ? 'is-open' : ''}`} aria-label="Room conversation">
@@ -129,8 +131,10 @@ export default function TablePanel({
             </>
           ) : panel === 'activity' ? (
             <ActivityLog view={view} />
-          ) : (
+          ) : panel === 'dice' ? (
             <DiceTracker view={view} />
+          ) : (
+            <SettingsSummary view={view} />
           )}
         </div>
       )}

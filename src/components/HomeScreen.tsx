@@ -99,7 +99,7 @@ export default function HomeScreen({
           </label>
         ) : (
           <p>
-            Playing as <strong>{account.account.username}</strong>
+            Playing as <strong>{account.account.displayName ?? account.account.username}</strong>
           </p>
         )}
         <button className="button primary create-button" disabled={loading} onClick={() => enter('create')}>

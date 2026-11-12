@@ -235,6 +235,8 @@ export interface GameSettings {
   volcanoGold: boolean;
   /** Seafarers rules: ships and the pirate. On the standard island this adds a ring of sea. */
   seafarers: boolean;
+  /** Dice: plain random, or balanced (draws from a shuffled deck of the 36 combinations). */
+  diceMode: 'random' | 'balanced';
   /** Setup settlements may touch a volcano. */
   volcanoStart: boolean;
   /** Eruption dice: plain random, or balanced (each volcano draws from its own shuffled deck holding each face twice). */
@@ -273,6 +275,11 @@ export interface Proposal {
   expiresAt: number;
   description: string;
 }
+/** A lobby request from one player to take another's color (the two trade colors if accepted). */
+export interface ColorSwap {
+  from: string;
+  to: string;
+}
 export interface UndoRecord {
   actorId: string;
   description: string;
@@ -296,7 +303,9 @@ export interface UndoRecord {
     | 'design'
     | 'map'
     | 'volcanoDecks'
+    | 'diceDeck'
     | 'fog'
+    | 'colorSwaps'
   >;
 }
 export interface GameState {
@@ -308,6 +317,8 @@ export interface GameState {
   players: Player[];
   spectators: Spectator[];
   hostId: string;
+  /** Lobby color swap requests waiting for an answer. */
+  colorSwaps: ColorSwap[];
   phase: Phase;
   buildings: Record<string, Building>;
   roads: Record<string, string>;
@@ -339,6 +350,10 @@ export interface GameState {
   fog: Record<string, { terrain: Terrain; number: number | null }>;
   /** Balanced volcano dice: faces left for each volcano. Hidden, like the deck. */
   volcanoDecks: Record<string, number[]>;
+  /** Balanced dice: combinations not yet drawn, next first. Never sent to clients. */
+  diceDeck: [number, number][];
+  /** Total of the last roll (balanced dice make a repeat less likely). */
+  lastRollTotal: number | null;
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -441,6 +456,7 @@ export interface GameView {
   players: PublicPlayer[];
   spectators: Spectator[];
   hostId: string;
+  colorSwaps: ColorSwap[];
   phase: Phase;
   buildings: Record<string, Building>;
   roads: Record<string, string>;
@@ -505,6 +521,8 @@ export type GameAction =
   | { type: 'start' }
   | { type: 'configure'; settings: Partial<GameSettings> & Pick<GameSettings, 'autoRollSeconds' | 'trackDice'> }
   | { type: 'choose-color'; color: PlayerColor }
+  | { type: 'ask-color-swap'; playerId: string }
+  | { type: 'answer-color-swap'; playerId: string; accept: boolean }
   | { type: 'leave' }
   | { type: 'switch-role' }
   | { type: 'remove-player'; playerId: string }
@@ -560,6 +578,8 @@ export interface Session {
 }
 export interface AccountSession {
   username: string;
+  /** The username as typed when registering (capitals kept); `username` is the lowercase login key. */
+  displayName?: string;
   token: string;
   expiresAt: number;
 }

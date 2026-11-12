@@ -737,13 +737,13 @@ describe('trust boundary and immutability', () => {
 describe('room settings and automatic roll scheduling', () => {
   it('lets only the host configure supported settings before a game starts', () => {
     const state = lobby();
-    expect(state.settings).toMatchObject({ autoRollSeconds: 5, trackDice: true });
+    expect(state.settings).toMatchObject({ autoRollSeconds: 8, trackDice: true });
     const action = { type: 'configure', settings: { autoRollSeconds: 10, trackDice: false } } as const;
     expect(() => applyAction(state, 'p1', action)).toThrow(/host/);
     const next = applyAction(state, 'p0', action);
     expect(next.settings).toMatchObject(action.settings);
     expect(next.version).toBe(state.version + 1);
-    expect(state.settings).toMatchObject({ autoRollSeconds: 5, trackDice: true });
+    expect(state.settings).toMatchObject({ autoRollSeconds: 8, trackDice: true });
     expect(() => applyAction(setup(), 'p0', action)).toThrow(/not available/);
   });
 
@@ -773,13 +773,13 @@ describe('room settings and automatic roll scheduling', () => {
           : { type: 'place-road', edgeId: legal.roads[0] };
       state = applyAction(state, actor, action, seeded(), 1_000);
     }
-    expect(state.rollDeadline).toBe(6_000);
-    expect(getView(state, 'p1').rollDeadline).toBe(6_000);
+    expect(state.rollDeadline).toBe(9_000);
+    expect(getView(state, 'p1').rollDeadline).toBe(9_000);
     const rolled = applyAction(state, 'p0', { type: 'roll' }, () => 0, 2_000);
     expect(rolled.rollDeadline).toBeNull();
     expect(rolled.diceCounts[2]).toBe(1);
     const next = applyAction(rolled, 'p0', { type: 'end-turn' }, seeded(), 5_000);
-    expect(next.rollDeadline).toBe(10_000);
+    expect(next.rollDeadline).toBe(13_000);
   });
 
   it('keeps auto-roll disabled independently from dice tracking', () => {
@@ -803,14 +803,14 @@ describe('room settings and automatic roll scheduling', () => {
       delete legacyRecord[key];
     const original = structuredClone(legacy);
     const normalized = normalizeGame(legacy, 20_000);
-    expect(normalized.settings).toMatchObject({ autoRollSeconds: 5, trackDice: true });
-    expect(normalized.rollDeadline).toBe(25_000);
+    expect(normalized.settings).toMatchObject({ autoRollSeconds: 8, trackDice: true });
+    expect(normalized.rollDeadline).toBe(28_000);
     expect(normalized.tradeOffer).toBeNull();
     expect(normalized.testMode).toBe(false);
     expect(Object.keys(normalized.diceCounts)).toHaveLength(11);
     expect(legacy).toEqual(original);
-    expect(normalizeGame(normalized, 60_000).rollDeadline).toBe(25_000);
-    const next = applyAction(normalized, 'p0', { type: 'roll' }, () => 0, 25_000);
+    expect(normalizeGame(normalized, 60_000).rollDeadline).toBe(28_000);
+    const next = applyAction(normalized, 'p0', { type: 'roll' }, () => 0, 28_000);
     expect(next.phase).toBe('build');
     expect(normalizeGame(next, 60_000).rollDeadline).toBeNull();
   });

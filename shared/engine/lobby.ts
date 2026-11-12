@@ -81,6 +81,7 @@ export function createGame(
     players: [],
     spectators: [],
     hostId: '',
+    colorSwaps: [],
     phase: 'lobby',
     buildings: {},
     roads: {},
@@ -101,6 +102,8 @@ export function createGame(
     robberDeadline: null,
     eruption: null,
     volcanoDecks: {},
+    diceDeck: [],
+    lastRollTotal: null,
     fog: {},
     shipsBuilt: [],
     shipMoved: false,
@@ -221,10 +224,18 @@ function reassignHost(next: GameState): void {
   if (host) addLog(next, `${host.name} is now the host.`);
 }
 
+/** Trade two players' colors and drop any requests the swap makes stale. */
+function swapColors(a: Player, b: Player, next: GameState): void {
+  [a.color, b.color] = [b.color, a.color];
+  next.colorSwaps = next.colorSwaps.filter(s => ![a.id, b.id].includes(s.from) && ![a.id, b.id].includes(s.to));
+}
+
 export const lobbyHandlers: Pick<
   Handlers,
   | 'configure'
   | 'choose-color'
+  | 'ask-color-swap'
+  | 'answer-color-swap'
   | 'start'
   | 'leave'
   | 'remove-player'
@@ -303,6 +314,27 @@ export const lobbyHandlers: Pick<
       'Another player already has that color.',
     );
     player.color = action.color;
+    next.colorSwaps = next.colorSwaps.filter(swap => swap.from !== playerId);
+  },
+
+  /** Ask another player for their color. A bot always agrees. */
+  'ask-color-swap'({ next, player, playerId }, action) {
+    needPhase(next, 'lobby');
+    const target = next.players.find(other => other.id === action.playerId);
+    requireRule(!!target && target.id !== playerId, 'Choose another player.');
+    next.colorSwaps = next.colorSwaps.filter(swap => swap.from !== playerId);
+    if (target!.bot) return swapColors(player, target!, next);
+    next.colorSwaps.push({ from: playerId, to: target!.id });
+  },
+
+  /** The asked player accepts (colors swap) or declines. */
+  'answer-color-swap'({ next, player, playerId }, action) {
+    needPhase(next, 'lobby');
+    const swap = next.colorSwaps.find(s => s.from === action.playerId && s.to === playerId);
+    requireRule(!!swap, 'That request is gone.');
+    const asker = next.players.find(other => other.id === action.playerId);
+    next.colorSwaps = next.colorSwaps.filter(s => s !== swap);
+    if (action.accept && asker) swapColors(asker, player, next);
   },
 
   /** The board is drawn here, so nobody sees the layout before the game begins. */
@@ -324,6 +356,7 @@ export const lobbyHandlers: Pick<
   leave({ next, player }) {
     if (next.phase === 'lobby') {
       next.players = next.players.filter(p => p.id !== player.id);
+      next.colorSwaps = next.colorSwaps.filter(s => s.from !== player.id && s.to !== player.id);
       delete next.stats[player.id];
       addLog(next, `${player.name} left.`);
     } else {
@@ -346,6 +379,7 @@ export const lobbyHandlers: Pick<
     const target = next.players.find(p => p.id === action.playerId);
     requireRule(target, 'That player is not in this room.');
     next.players = next.players.filter(p => p.id !== target.id);
+    next.colorSwaps = next.colorSwaps.filter(s => s.from !== target.id && s.to !== target.id);
     delete next.stats[target.id];
     addLog(next, `${target.name} was removed.`);
   },

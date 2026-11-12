@@ -1,5 +1,3 @@
-
-
 Need to add a thing where a player can look at the password that they type when making / typing in a password.
 
 Usernames should have capitals in them, like my username is "BentoBox" i believe but it shows up "bentobox"
@@ -23,7 +21,7 @@ If i have multiple trades out, then they should appear one below each other, isn
 
 Trades should fade away after a couple seconds if all players resopnded no.
 
-Save the setting  "do you want to allow your games to train bots", so that it defaults to last choice
+Save the setting "do you want to allow your games to train bots", so that it defaults to last choice
 
 Instead of "Choose a highlighted edge" say "Place your road"
 

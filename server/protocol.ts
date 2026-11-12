@@ -23,15 +23,16 @@ export function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function parseCredentials(body: unknown): { username: string; password: string } {
+export function parseCredentials(body: unknown): { username: string; displayName: string; password: string } {
   if (!record(body) || typeof body.username !== 'string' || typeof body.password !== 'string')
     throw new ProtocolError('Enter a username and password.');
-  const username = body.username.trim().toLowerCase();
+  const displayName = body.username.trim();
+  const username = displayName.toLowerCase();
   if (!USERNAME_PATTERN.test(username))
     throw new ProtocolError('Use a username of 3–24 letters, numbers, or underscores.');
   if (body.password.length < 12 || body.password.length > 128)
     throw new ProtocolError('Use a password of 12–128 characters.');
-  return { username, password: body.password };
+  return { username, displayName, password: body.password };
 }
 
 export function parseAuthorization(header: string | null): { username: string; token: string } | null {
