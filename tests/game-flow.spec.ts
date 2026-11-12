@@ -43,6 +43,8 @@ test('the end-of-game screen shows standings and lets the host play again', asyn
   initial.winnerId = 'p0';
   initial.finishedAt = Date.now();
   initial.turnDeadline = null;
+  initial.stats.p1!.rolls = { 7: 3, 8: 2 };
+  initial.stats.p1!.cardsOut = { steal: 2, discard: 4 };
   const game = await mountGame(page, initial);
   const results = page.getByRole('dialog', { name: 'Game over' });
   await expect(results.getByRole('heading', { name: 'You win' })).toBeVisible();
@@ -51,8 +53,17 @@ test('the end-of-game screen shows standings and lets the host play again', asyn
   await results.getByRole('button', { name: 'View board' }).click();
   await expect(results).toHaveCount(0);
   await page.getByRole('button', { name: 'Results' }).click();
+  // Stats come in categories: the dice tab lists each player's totals.
+  await results.getByRole('tab', { name: 'Dice' }).click();
+  const p1 = results.locator('tbody tr', { hasText: 'Player 1' });
+  await expect(results.getByRole('table', { name: 'Dice' }).locator('thead th')).toHaveCount(14);
+  await expect(p1.locator('td').first()).toHaveText('5');
+  await results.getByRole('tab', { name: 'Cards lost' }).click();
+  await expect(p1.locator('td').last()).toHaveText('6');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/end-game-phone.png' });
+  await results.getByRole('tab', { name: 'Dice' }).click();
+  await page.screenshot({ path: 'test-results/end-game-phone-dice.png' });
   await page.getByRole('button', { name: 'Play again' }).click();
   await expect.poll(() => game.state().phase).toBe('lobby');
   await expect(page.getByRole('heading', { name: 'Game settings' })).toBeVisible();

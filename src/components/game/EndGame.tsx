@@ -1,10 +1,11 @@
 import { Bot, LogOut, Map as MapIcon, RotateCcw, Trophy } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import type { GameAction, GameView } from '../../../shared/types';
+import { STAT_CATEGORIES, type StatCategory, visibleColumns } from './endStats';
 import { DiceTracker } from './TablePanel';
 
-/** Final standings with hidden points revealed, simple stats, and what to do next. */
+/** Final standings with hidden points revealed, stats by category, and what to do next. */
 export default function EndGame({
   view,
   busy,
@@ -19,7 +20,7 @@ export default function EndGame({
   hide: () => void;
 }) {
   const winner = view.players.find(p => p.id === view.winnerId);
-  const standings = [...view.players].sort((a, b) => b.points - a.points);
+  const [category, setCategory] = useState(STAT_CATEGORIES[0]!);
   const host = view.hostId === view.selfId;
   return (
     <section className="end-game" role="dialog" aria-label="Game over">
@@ -35,38 +36,9 @@ export default function EndGame({
         </div>
       </header>
       <div className="end-game-scroll">
-        <table className="end-standings">
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th title="Victory points">VP</th>
-              <th title="Cards collected from rolls">Collected</th>
-              <th title="Cards taken with the robber / lost to it">Robber</th>
-              <th title="Trades with other players">Trades</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map(p => (
-              <tr key={p.id} style={playerVars(p.color) as CSSProperties}>
-                <th>
-                  <span className="player-name">
-                    <span className="player-name-text">
-                      {p.bot && <Bot size={13} aria-label="Bot" />}
-                      {p.name}
-                    </span>
-                  </span>
-                </th>
-                <td className="points">{p.points}</td>
-                <td>{p.stats.gained}</td>
-                <td>
-                  +{p.stats.stolen} / −{p.stats.lost}
-                </td>
-                <td>{p.stats.trades}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <DiceTracker view={view} />
+        <StatTabs selected={category} select={setCategory} />
+        <StatTable view={view} category={category} />
+        {category.id === 'dice' && <DiceTracker view={view} />}
       </div>
       <footer>
         <button className="button secondary" onClick={hide}>
@@ -88,5 +60,65 @@ export default function EndGame({
           ))}
       </footer>
     </section>
+  );
+}
+
+/** Buttons choosing which category of stats the table shows. */
+function StatTabs({ selected, select }: { selected: StatCategory; select: (category: StatCategory) => void }) {
+  return (
+    <div className="stat-tabs" role="tablist" aria-label="Stats">
+      {STAT_CATEGORIES.map(category => (
+        <button
+          key={category.id}
+          role="tab"
+          aria-selected={category.id === selected.id}
+          className={category.id === selected.id ? 'selected' : ''}
+          onClick={() => select(category)}
+        >
+          {category.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** One category's numbers: a row per player, best score first. */
+function StatTable({ view, category }: { view: GameView; category: StatCategory }) {
+  const standings = [...view.players].sort((a, b) => b.points - a.points);
+  const columns = visibleColumns(category, view);
+  return (
+    <div className="end-table-scroll">
+      <table className="end-standings" aria-label={category.label}>
+        <thead>
+          <tr>
+            <th>Player</th>
+            {columns.map((column, index) => (
+              <th key={index} title={column.title}>
+                {column.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {standings.map(p => (
+            <tr key={p.id} style={playerVars(p.color) as CSSProperties}>
+              <th>
+                <span className="player-name">
+                  <span className="player-name-text">
+                    {p.bot && <Bot size={13} aria-label="Bot" />}
+                    {p.name}
+                  </span>
+                </span>
+              </th>
+              {columns.map((column, index) => (
+                <td key={index} className={column.total ? 'points' : undefined}>
+                  {column.value(p, view)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

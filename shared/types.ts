@@ -91,13 +91,42 @@ export interface Player {
   /** Set for bot seats, including humans who left mid-game (their seat is taken over). */
   bot?: BotLevel;
 }
-/** Public per-player totals, shown on the end-of-game screen. */
+/** Where a player's cards came from (counts only, so a stolen card's kind stays hidden). */
+export const CARD_SOURCES = [
+  'roll',
+  'gold',
+  'setup',
+  'explore',
+  'steal',
+  'monopoly',
+  'plenty',
+  'bank',
+  'trade',
+] as const;
+export type CardSource = (typeof CARD_SOURCES)[number];
+/** Where a player's cards went. */
+export const CARD_LOSSES = ['build', 'discard', 'steal', 'monopoly', 'bank', 'trade'] as const;
+export type CardLoss = (typeof CARD_LOSSES)[number];
+export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development';
+/** Public per-player totals for the whole game, shown on the end-of-game screen. */
 export interface PlayerStats {
-  gained: number;
-  stolen: number;
-  lost: number;
-  discarded: number;
+  cardsIn: Partial<Record<CardSource, number>>;
+  cardsOut: Partial<Record<CardLoss, number>>;
+  /** Resources paid by rolls and gold choices, by kind. */
+  produced: Partial<ResourceBag>;
+  /** This player's own dice totals. Hidden until the end when the room doesn't track dice. */
+  rolls: Partial<Record<number, number>>;
+  /** Pieces placed (setup included) and development cards bought. */
+  built: Partial<Record<BuiltPiece, number>>;
+  played: Partial<Record<DevelopmentType, number>>;
+  /** Cards a robber kept from this player's buildings on rolls. */
+  blocked: number;
+  robberMoves: number;
+  /** Completed trades with other players, and with the bank or a harbor. */
   trades: number;
+  bankTrades: number;
+  /** Settlements and cities a volcano damaged. */
+  erupted: number;
 }
 export interface Spectator {
   id: string;

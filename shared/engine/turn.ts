@@ -18,6 +18,7 @@ import {
   pay,
   pieceCounts,
   requireRule,
+  tally,
 } from './core';
 import { revealFog } from './fog';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
@@ -37,8 +38,8 @@ export function stealResource(state: GameState, actorId: string, victimId: strin
       const one = { ...emptyBag(), [resource]: 1 };
       addBag(victim, one, -1);
       addBag(player, one);
-      bumpStat(state, actorId, 'stolen');
-      bumpStat(state, victimId, 'lost');
+      tally(state, actorId, 'cardsIn', 'steal');
+      tally(state, victimId, 'cardsOut', 'steal');
       addLog(state, `${player.name} took one resource from ${victim.name}.`, {
         kind: 'steal',
         thiefId: actorId,
@@ -145,6 +146,7 @@ export const turnHandlers: Pick<
     );
     next.buildings[action.vertexId] = { playerId, kind: 'settlement' };
     next.lastSettlement = action.vertexId;
+    tally(next, playerId, 'built', 'settlement');
     visitIsland(next, playerId, action.vertexId, true);
     // The second setup settlement collects one of each adjacent resource.
     if (next.setupIndex >= next.players.length) {
@@ -154,7 +156,7 @@ export const turnHandlers: Pick<
         if (resource && next.bank[resource] > 0) {
           next.bank[resource]--;
           player.resources[resource]++;
-          bumpStat(next, playerId, 'gained');
+          tally(next, playerId, 'cardsIn', 'setup');
         }
       }
     }
@@ -169,6 +171,7 @@ export const turnHandlers: Pick<
       'Connect this road to the settlement you just placed.',
     );
     next.roads[action.edgeId] = playerId;
+    tally(next, playerId, 'built', 'road');
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
     revealFog(next, action.edgeId, playerId);
     finishSetupLink(next);
@@ -181,6 +184,7 @@ export const turnHandlers: Pick<
     const total = dice[0] + dice[1];
     next.rollDeadline = null;
     next.diceCounts[total]++;
+    tally(next, playerId, 'rolls', total);
     if (total === 7) {
       next.pendingDiscards = {};
       next.stealHex = null;
@@ -213,7 +217,7 @@ export const turnHandlers: Pick<
     addBag(player, action.resources, -1);
     for (const r of RESOURCES) next.bank[r] += action.resources[r];
     delete next.pendingDiscards[playerId];
-    bumpStat(next, playerId, 'discarded', amount);
+    tally(next, playerId, 'cardsOut', 'discard', amount);
     if (!Object.keys(next.pendingDiscards).length) next.phase = 'robber';
     addLog(next, `${player.name} discarded ${amount} resources.`, {
       kind: 'discard',
@@ -226,6 +230,7 @@ export const turnHandlers: Pick<
     needPhase(next, 'robber');
     requireRule(legalMoves(next, playerId).robberHexes.includes(action.hexId), 'Move the robber to a different hex.');
     const pirate = boardIndex(next.board).hex.get(action.hexId)!.terrain === 'sea';
+    bumpStat(next, playerId, 'robberMoves');
     if (pirate) next.pirate = action.hexId;
     else next.robber = action.hexId;
     next.stealHex = action.hexId;
@@ -254,6 +259,7 @@ export const turnHandlers: Pick<
     const paid = next.phase === 'free-roads' ? undefined : BUILD_COSTS.road;
     if (paid) pay(next, player, paid);
     next.roads[action.edgeId] = playerId;
+    tally(next, playerId, 'built', 'road');
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road', ...(paid && { paid }) });
     if (next.phase === 'free-roads') afterFreePiece(next, playerId);
     revealFog(next, action.edgeId, playerId);
@@ -267,6 +273,7 @@ export const turnHandlers: Pick<
     );
     pay(next, player, BUILD_COSTS.settlement);
     next.buildings[action.vertexId] = { playerId, kind: 'settlement' };
+    tally(next, playerId, 'built', 'settlement');
     addLog(next, `${player.name} founded a settlement.`, {
       kind: 'build',
       playerId,
@@ -284,6 +291,7 @@ export const turnHandlers: Pick<
     );
     pay(next, player, BUILD_COSTS.city);
     next.buildings[action.vertexId] = { playerId, kind: 'city' };
+    tally(next, playerId, 'built', 'city');
     addLog(next, `${player.name} upgraded a settlement to a city.`, {
       kind: 'build',
       playerId,

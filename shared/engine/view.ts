@@ -2,7 +2,7 @@ import { copyData } from '../copy';
 import { boardExpansions, FOG_POOL, type Pool } from '../maps/types';
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
-import { type GameState, type GameView, RESOURCES, type Resource } from '../types';
+import { type GameState, type GameView, type PlayerStats, RESOURCES, type Resource } from '../types';
 import {
   discoveriesLeft,
   emptyBag,
@@ -56,6 +56,12 @@ function freezeBoard(board: GameView['board']): GameView['board'] {
   return board;
 }
 
+/** A player's stats; their dice totals stay hidden mid-game in rooms that don't track dice. */
+function publicStats(state: GameState, playerId: string): PlayerStats {
+  const stats = state.stats[playerId] ?? emptyStats();
+  return state.settings.trackDice || state.phase === 'finished' ? stats : { ...stats, rolls: {} };
+}
+
 /** Explicit projection: internal state and opponents' hands never reach clients. */
 export function getView(state: GameState, selfId: string): GameView {
   const player = state.players.find(candidate => candidate.id === selfId);
@@ -88,7 +94,7 @@ export function getView(state: GameState, selfId: string): GameView {
         shipsLeft: PIECE_LIMITS.ships - pieces.ships,
         settlementsLeft: PIECE_LIMITS.settlements - pieces.settlements,
         citiesLeft: PIECE_LIMITS.cities - pieces.cities,
-        stats: state.stats[candidate.id] ?? emptyStats(),
+        stats: publicStats(state, candidate.id),
       };
     }),
     phase: state.phase,

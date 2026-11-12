@@ -11,6 +11,7 @@ import {
   PIECE_LIMITS,
   pieceCounts,
   resourceCount,
+  tally,
 } from './core';
 
 /**
@@ -23,7 +24,11 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   const choices: Record<string, number> = {};
   const finds: Record<string, number> = {};
   for (const hex of state.board.hexes) {
-    if (hex.number !== total || hex.id === state.robber) continue;
+    if (hex.number !== total) continue;
+    if (hex.id === state.robber) {
+      noteBlocked(state, hex);
+      continue;
+    }
     // Without the gold variant a volcano only erupts.
     if (hex.terrain === 'volcano' && state.settings.volcanoGold === false) continue;
     const resource = terrainResource(hex.terrain);
@@ -49,7 +54,10 @@ export function produce(state: GameState, total: number): Record<string, Resourc
       gains[player.id]![resource] += amount;
     }
   }
-  for (const [id, bag] of Object.entries(gains)) bumpStat(state, id, 'gained', resourceCount(bag));
+  for (const [id, bag] of Object.entries(gains)) {
+    tally(state, id, 'cardsIn', 'roll', resourceCount(bag));
+    for (const resource of RESOURCES) tally(state, id, 'produced', resource, bag[resource]);
+  }
   state.pendingGold = {};
   for (const [id, count] of Object.entries(choices)) {
     const owed = Math.min(count, resourceCount(state.bank));
@@ -67,6 +75,15 @@ export function produce(state: GameState, total: number): Record<string, Resourc
     addLog(state, `${player.name} made ${count === 1 ? 'a discovery' : `${count} discoveries`} in the jungle.`);
   }
   return gains;
+}
+
+/** Count the cards a robber on this resource hex kept from its buildings. */
+function noteBlocked(state: GameState, hex: GameState['board']['hexes'][number]): void {
+  if (!terrainResource(hex.terrain)) return;
+  for (const vertexId of hex.vertexIds) {
+    const building = state.buildings[vertexId];
+    if (building) bumpStat(state, building.playerId, 'blocked', building.kind === 'city' ? 2 : 1);
+  }
 }
 
 /**
@@ -114,6 +131,7 @@ export function eruptAt(state: GameState, hexId: string, die: number): void {
     damage = 'settlement';
     text = `The volcano erupted toward corner ${die}: ${owner!.name}'s ${building.kind} was destroyed.`;
   }
+  if (owner && damage !== 'none') bumpStat(state, owner.id, 'erupted');
   addLog(state, text, {
     kind: 'eruption',
     hexId,

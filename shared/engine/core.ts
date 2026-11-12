@@ -43,7 +43,19 @@ export function addBag(player: Player, bag: TradeBag, sign: 1 | -1 = 1): void {
   for (const r of RESOURCES) player.resources[r] += sign * bag[r];
   player.discoveries += sign * (bag.discovery ?? 0);
 }
-export const emptyStats = (): PlayerStats => ({ gained: 0, stolen: 0, lost: 0, discarded: 0, trades: 0 });
+export const emptyStats = (): PlayerStats => ({
+  cardsIn: {},
+  cardsOut: {},
+  produced: {},
+  rolls: {},
+  built: {},
+  played: {},
+  blocked: 0,
+  robberMoves: 0,
+  trades: 0,
+  bankTrades: 0,
+  erupted: 0,
+});
 export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
 
@@ -108,9 +120,27 @@ export function addLog(state: GameState, text: string, event?: GameEvent): void 
   if (state.log.length > 60) state.log = state.log.slice(-60);
 }
 
-export function bumpStat(state: GameState, playerId: string, key: keyof PlayerStats, amount = 1): void {
+type FlatStat = { [K in keyof PlayerStats]: PlayerStats[K] extends number ? K : never }[keyof PlayerStats];
+type GroupStat = Exclude<keyof PlayerStats, FlatStat>;
+
+/** Add to one of a player's single-number stats. */
+export function bumpStat(state: GameState, playerId: string, key: FlatStat, amount = 1): void {
   state.stats[playerId] ??= emptyStats();
   state.stats[playerId][key] += amount;
+}
+
+/** Add to one entry of a player's grouped stats (cards in by source, rolls by total, …). */
+export function tally<G extends GroupStat>(
+  state: GameState,
+  playerId: string,
+  group: G,
+  key: keyof PlayerStats[G] & (string | number),
+  amount = 1,
+): void {
+  if (!amount) return;
+  state.stats[playerId] ??= emptyStats();
+  const counts = state.stats[playerId][group] as Record<string | number, number>;
+  counts[key] = (counts[key] ?? 0) + amount;
 }
 
 export function getActivePlayerId(state: GameState): string | null {
@@ -141,8 +171,10 @@ export function canAfford(player: Player, cost: TradeBag): boolean {
   );
 }
 
+/** Pay a build cost into the bank. */
 export function pay(state: GameState, player: Player, cost: ResourceBag): void {
   requireRule(canAfford(player, cost), 'You do not have enough resources.');
+  tally(state, player.id, 'cardsOut', 'build', resourceCount(cost));
   for (const resource of RESOURCES) {
     player.resources[resource] -= cost[resource];
     state.bank[resource] += cost[resource];

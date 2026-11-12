@@ -119,6 +119,17 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.handGuess ??= startHandGuess(s);
   },
+  // 9 → 10: detailed end-of-game stats. Old totals carry over where they map onto the new ones.
+  s => {
+    for (const [id, old] of Object.entries(s.stats ?? {}) as [string, Record<string, number>][]) {
+      if ('cardsIn' in old) continue;
+      const stats = emptyStats();
+      stats.cardsIn = { roll: old.gained ?? 0, steal: old.stolen ?? 0 };
+      stats.cardsOut = { steal: old.lost ?? 0, discard: old.discarded ?? 0 };
+      stats.trades = old.trades ?? 0;
+      s.stats[id] = stats;
+    }
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

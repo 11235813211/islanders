@@ -255,8 +255,9 @@ describe('events and stats', () => {
     expect(event('p0')).toMatchObject({ resource: 'ore' });
     expect(event('p1')).toMatchObject({ resource: 'ore' });
     expect(event('p2')).toMatchObject({ resource: null });
-    expect(stolen.stats.p0!.stolen).toBe(1);
-    expect(stolen.stats.p1!.lost).toBe(1);
-    expect(getView(stolen, 'p2').players[0]!.stats.stolen).toBe(1);
+    expect(stolen.stats.p0!.cardsIn.steal).toBe(1);
+    expect(stolen.stats.p1!.cardsOut.steal).toBe(1);
+    expect(stolen.stats.p0!.robberMoves).toBe(1);
+    expect(getView(stolen, 'p2').players[0]!.stats.cardsIn.steal).toBe(1);
   });
 });

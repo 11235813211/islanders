@@ -14,6 +14,8 @@ import {
   type Handlers,
   needPhase,
   requireRule,
+  resourceCount,
+  tally,
 } from './core';
 
 function requireFairShape(next: GameState, give: TradeBag, want: TradeBag): void {
@@ -58,6 +60,10 @@ function exchange(next: GameState, a: Player, b: Player, aGives: TradeBag, bGive
   addBag(a, bGives);
   bumpStat(next, a.id, 'trades');
   bumpStat(next, b.id, 'trades');
+  tally(next, a.id, 'cardsOut', 'trade', bagCount(aGives));
+  tally(next, a.id, 'cardsIn', 'trade', bagCount(bGives));
+  tally(next, b.id, 'cardsOut', 'trade', bagCount(bGives));
+  tally(next, b.id, 'cardsIn', 'trade', bagCount(aGives));
   next.tradeOffer = null;
 }
 
@@ -98,6 +104,9 @@ function bankExchange({ next, player, playerId }: ActionContext, give: ResourceB
   addBag(player, give, -1);
   addBag(player, receive);
   for (const r of RESOURCES) next.bank[r] += give[r] - receive[r];
+  bumpStat(next, playerId, 'bankTrades');
+  tally(next, playerId, 'cardsOut', 'bank', resourceCount(give));
+  tally(next, playerId, 'cardsIn', 'bank', resourceCount(receive));
   addLog(next, `${player.name} traded ${describeBag(give)} for ${describeBag(receive)}.`, {
     kind: 'bank-trade',
     playerId,

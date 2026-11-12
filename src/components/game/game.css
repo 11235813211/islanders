@@ -74,14 +74,46 @@
 }
 .end-standings tbody th {
   text-align: left;
-  width: 40%;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Wide categories (dice) scroll sideways with the names pinned. */
+.end-table-scroll {
+  overflow-x: auto;
+}
+.end-standings th:first-child {
+  position: sticky;
+  left: 0;
+  background: #fffdf4;
+}
+.stat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.stat-tabs button {
+  border: 1px solid #d8cca4;
+  background: #f6f0dc;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 750;
+  color: #52717d;
+}
+.stat-tabs button.selected {
+  background: #1389ab;
+  border-color: #1389ab;
+  color: white;
 }
 .end-standings tbody tr + tr {
   border-top: 1px solid #e3e9e6;
 }
 .end-standings .points {
   font-weight: 900;
-  font-size: 18px;
+  font-size: 16px;
 }
 .end-game .compact-tracker {
   margin-top: 10px;

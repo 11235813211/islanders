@@ -14,6 +14,7 @@ import {
   pieceCounts,
   requireRule,
   resourceCount,
+  tally,
 } from './core';
 import { roadSites, shipSites } from './legal';
 
@@ -47,6 +48,7 @@ function finishPlay(
   player.development.splice(index, 1);
   next.developmentPlayed = true;
   const card = CARD_FOR[type];
+  tally(next, playerId, 'played', card);
   addLog(next, `${player.name} played ${card.replaceAll('-', ' ')}.`, { kind: 'development', playerId, card, gains });
 }
 
@@ -79,6 +81,8 @@ export const developmentHandlers: Pick<
     for (const r of RESOURCES) cost[r] -= covered[r];
     pay(next, player, cost);
     player.discoveries -= resourceCount(covered);
+    tally(next, playerId, 'cardsOut', 'build', resourceCount(covered));
+    tally(next, playerId, 'built', 'development');
     player.development.push({ ...next.developmentDeck.pop()!, boughtTurn: next.turn });
     addLog(next, `${player.name} bought a development card.`, {
       kind: 'build',
@@ -127,6 +131,8 @@ export const developmentHandlers: Pick<
       };
       addBag(other, taken, -1);
       addBag(player, taken);
+      tally(next, other.id, 'cardsOut', 'monopoly', bagCount(taken));
+      tally(next, playerId, 'cardsIn', 'monopoly', bagCount(taken));
       gains[resource] = (gains[resource] ?? 0) + (taken[resource] ?? 0);
     }
     finishPlay(ctx, index, action.type, gains);
@@ -150,6 +156,7 @@ export const developmentHandlers: Pick<
     requireRule(finds <= left, 'There are not that many discoveries left.');
     for (const r of RESOURCES) next.bank[r] -= action.resources[r];
     addBag(player, action.resources);
+    tally(next, player.id, 'cardsIn', 'plenty', bagCount(action.resources));
     finishPlay(ctx, index, action.type, action.resources);
   },
 };

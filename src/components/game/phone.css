@@ -64,6 +64,13 @@
   .end-standings {
     font-size: 13px;
   }
+  .end-standings th,
+  .end-standings td {
+    padding: 5px 3px;
+  }
+  .end-standings tbody th {
+    max-width: 96px;
+  }
 }
 
 /* Narrow phones in a solo test room: give the seat picker the room code's space. */

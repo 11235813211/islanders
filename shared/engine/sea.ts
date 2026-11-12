@@ -1,5 +1,5 @@
 import { RESOURCES } from '../types';
-import { addLog, BUILD_COSTS, bumpStat, type Handlers, needPhase, pay, requireRule, resourceCount } from './core';
+import { addLog, BUILD_COSTS, type Handlers, needPhase, pay, requireRule, resourceCount, tally } from './core';
 import { revealFog } from './fog';
 import { legalMoves } from './legal';
 import { eruptAt, volcanoDie } from './production';
@@ -23,6 +23,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
         'Connect this ship to the settlement you just placed.',
       );
       next.ships[action.edgeId] = playerId;
+      tally(next, playerId, 'built', 'ship');
       addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship' });
       revealFog(next, action.edgeId, playerId);
       finishSetupLink(next);
@@ -38,6 +39,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       if (paid) pay(next, player, paid);
       next.ships[action.edgeId] = playerId;
       next.shipsBuilt.push(action.edgeId);
+      tally(next, playerId, 'built', 'ship');
       addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship', ...(paid && { paid }) });
       if (next.phase === 'free-roads') afterFreePiece(next, playerId);
       revealFog(next, action.edgeId, playerId);
@@ -70,8 +72,9 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       for (const r of RESOURCES) {
         next.bank[r] -= action.resources[r];
         player.resources[r] += action.resources[r];
+        tally(next, playerId, 'produced', r, action.resources[r]);
       }
-      bumpStat(next, playerId, 'gained', owed);
+      tally(next, playerId, 'cardsIn', 'gold', owed);
       delete next.pendingGold[playerId];
       // Anyone else still owed may now be owed less if the bank ran low.
       for (const [id, count] of Object.entries(next.pendingGold))
