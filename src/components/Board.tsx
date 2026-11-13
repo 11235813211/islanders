@@ -9,11 +9,13 @@ import BoardScene, { type Drift } from './BoardScene';
 import { ConfirmCard, keyboardActivate, RobberConfirm } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
-import ChartTargets, { type ChartPicking } from './game/ChartTargets';
+import ShipPieces from './game/ShipPieces';
+import SurveyTargets from './game/SurveyTargets';
+import TileTargets, { type TilePicking } from './game/TileTargets';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'survey';
-export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | null;
+export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | 'chart' | 'split' | null;
 /** Pieces that go on an edge. */
 export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city';
 /** A picked spot waiting for confirmation. `choices` lists both pieces when a coastal edge takes either. */
@@ -33,13 +35,13 @@ export interface BoardProps {
   camera?: { x: number; y: number; zoom: number };
   selected?: Selection | null;
   onConfirm?: (kind: PlaceKind) => void;
-  /** While moving a ship: the ship being moved, once picked. */
+  /** While moving a ship or fitting out a survey ship: that ship, once picked. */
   moveFrom?: string | null;
   /** The tile the robber or pirate was just moved to, waiting for confirm or cancel. */
   robberPick?: string | null;
   onRobberConfirm?: (confirm: boolean) => void;
-  /** Cartographers, after a 7: tiles to chart and the ones picked so far. */
-  chart?: ChartPicking | null;
+  /** Cartographers: tiles the chart, split, or survey tool can pick, and the one picked. */
+  tiles?: TilePicking | null;
 }
 
 /**
@@ -93,11 +95,9 @@ function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null
   if (mode === 'road') return legal.roads;
   if (mode === 'ship') return legal.ships;
   if (mode === 'relay') return legal.relays;
-  if (mode === 'survey') return legal.surveys;
   const linking = view.phase === 'setup-road' || view.phase === 'free-roads';
   // Relay station spots are road spots too, so a tap there asks which to build.
-  if (mode === null && (linking || buildingPhase(view)))
-    return [...legal.roads, ...legal.ships, ...legal.relays, ...legal.surveys];
+  if (mode === null && (linking || buildingPhase(view))) return [...legal.roads, ...legal.ships, ...legal.relays];
   return [];
 }
 
@@ -107,13 +107,13 @@ function hintFor(
   hexes: number,
   edges: number,
   moveFrom: string | null | undefined,
-  charting: boolean,
 ): string {
-  if (charting && !hexes && !edges) return 'Choose tiles to chart';
+  if (mode === 'chart') return 'Choose a tile to chart';
+  if (mode === 'split') return 'Choose a tile to split';
+  if (mode === 'survey') return moveFrom ? 'Choose the tile it collects from' : 'Choose a ship out at sea';
   if (mode === 'peek') return 'Choose a fog tile to peek at';
   if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
-  if (mode === 'survey') return 'Choose a ship out at sea';
   if (mode === 'relay') return 'Place your relay station';
   if (edges) return mode === 'ship' ? 'Place your ship' : 'Place your road';
   return mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner';
@@ -133,7 +133,7 @@ export default function Board({
   moveFrom,
   robberPick = null,
   onRobberConfirm,
-  chart = null,
+  tiles = null,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const picked = robberPick ? view.board.hexes.find(h => h.id === robberPick) : undefined;
@@ -171,8 +171,6 @@ export default function Board({
   const edgeLabel = (edgeId: string) => {
     if (mode === 'move-ship') return moveFrom ? `Move ship to ${edgeId}` : `Move the ship at ${edgeId}`;
     if (mode === 'relay') return `Build relay station at ${edgeId}`;
-    if (mode === 'survey') return `Make the ship at ${edgeId} a survey ship`;
-    if (!mode && view.legal.surveys.includes(edgeId)) return `Make the ship at ${edgeId} a survey ship`;
     if (!mode && view.legal.relays.includes(edgeId)) return `Build relay station at ${edgeId}`;
     const road = view.legal.roads.includes(edgeId) && mode !== 'ship';
     const ship = view.legal.ships.includes(edgeId) && mode !== 'road';
@@ -187,9 +185,10 @@ export default function Board({
       : vertices.get(selected.id)
     : null;
   const choices = selected?.choices ?? (selected ? [selected.kind] : []);
-  const chartable = chart?.hexes.length ?? 0;
-  const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + chartable > 0;
-  const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected;
+  // In survey mode the ships themselves are the first targets.
+  const pickable = (tiles?.hexes.length ?? 0) + (mode === 'survey' ? view.legal.surveys.length : 0);
+  const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + pickable > 0;
+  const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected && !tiles?.picked;
   return (
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
       <svg
@@ -235,32 +234,17 @@ export default function Board({
               </g>
             );
           })}
-          {Object.entries(view.ships).map(([edgeId, owner]) => {
-            const [a, b] = edgeEnds(edgeId);
-            // Your ships that may move this turn can be picked up straight from the board.
-            const movable = !disabled && mode !== 'move-ship' && !!view.legal.shipMoves[edgeId];
-            return (
-              // biome-ignore lint/a11y/noStaticElementInteractions: role is set when the ship can be picked up.
-              <g
-                key={edgeId}
-                className={`board-ship-piece${moveFrom === edgeId ? ' board-ship-moving' : ''}${movable ? ' board-ship-movable' : ''}`}
-                aria-label={movable ? `Move the ship at ${edgeId}` : `${playerName(owner)}'s ship`}
-                role={movable ? 'button' : undefined}
-                tabIndex={movable ? 0 : undefined}
-                onClick={movable ? () => onEdge(edgeId) : undefined}
-                onKeyDown={movable ? event => keyboardActivate(event, () => onEdge(edgeId)) : undefined}
-              >
-                <title>
-                  {playerName(owner)}&apos;s {view.surveys.includes(edgeId) ? 'survey ship' : 'ship'}
-                </title>
-                {view.surveys.includes(edgeId) ? (
-                  <CARTOGRAPHERS.SurveyShip from={a} to={b} color={color(owner)} />
-                ) : (
-                  <SEA.Ship from={a} to={b} color={color(owner)} />
-                )}
-              </g>
-            );
-          })}
+          <ShipPieces
+            view={view}
+            mode={mode}
+            disabled={disabled}
+            picked={moveFrom}
+            ends={edgeEnds}
+            color={color}
+            playerName={playerName}
+            onShip={onEdge}
+          />
+          <SurveyTargets view={view} color={color} playerName={playerName} />
           {view.board.hexes
             .filter(hex => hexTargets.has(hex.id))
             .map(hex => {
@@ -363,7 +347,7 @@ export default function Board({
                 </g>
               );
             })}
-          {chart && <ChartTargets view={view} chart={chart} />}
+          {tiles && <TileTargets view={view} tiles={tiles} />}
           <BoardEffects view={view} rolled={rolled} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
           {[...vertexTargets].map(vertexId => {
             const vertex = vertices.get(vertexId)!;
@@ -404,7 +388,7 @@ export default function Board({
       {showHint && (
         <div className="board-placement-hint" role="status">
           <span />
-          {hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom, chartable > 0)}
+          {hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom)}
         </div>
       )}
     </div>

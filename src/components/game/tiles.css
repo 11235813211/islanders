@@ -1,0 +1,28 @@
+/* The Cartographers tile panel (chart, split, survey target): one line naming the tile and what
+   changes, then (for a split) the resource cards. Lives in the board corner like the trade panel. */
+.tile-pick {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 2px 2px 8px;
+}
+.tile-pick-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 800;
+}
+.tile-pick-change {
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6a4a8a;
+}
+.tile-pick + .trade-palette {
+  padding-bottom: 6px;
+}

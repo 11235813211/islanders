@@ -1,11 +1,16 @@
-import { RESOURCES } from '../types';
+import { choiceFits, choiceGroups, choiceLimit } from '../choices';
+import { type GameState, RESOURCES } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, pay, requireRule, resourceCount, tally } from './core';
 import { revealFog } from './fog';
 import { legalMoves } from './legal';
 import { eruptAt, volcanoDie } from './production';
 import { afterFreePiece, afterProduction, finishSetupLink } from './turn';
 
-/** Ships (sea maps) and choosing resources from gold fields and volcanoes. */
+/** What a player still picks: any resource from gold and volcanoes, one of two from split tiles. */
+const owedGroups = (state: GameState, playerId: string) =>
+  choiceGroups(state.pendingGold[playerId] ?? 0, state.pendingSplit[playerId]);
+
+/** Ships (sea maps) and choosing resources from gold fields, volcanoes, and split tiles. */
 export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-ship' | 'choose-gold' | 'roll-volcanoes'> =
   {
     /** The player who rolled rolls a die for each erupting volcano, in board order. */
@@ -59,16 +64,18 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       revealFog(next, action.to, playerId);
     },
 
-    /** Off-turn too: everyone owed a gold or volcano pick chooses at the same time. */
+    /** Off-turn too: everyone owed a gold, volcano, or split-tile pick chooses at the same time. */
     'choose-gold'({ next, player, playerId }, action) {
       needPhase(next, 'gold');
-      const owed = Math.min(next.pendingGold[playerId] ?? 0, resourceCount(next.bank));
-      requireRule(owed > 0, 'You have no gold to collect.');
+      const groups = owedGroups(next, playerId);
+      const owed = Math.min(next.pendingGold[playerId] ?? 0, choiceLimit(groups, next.bank));
+      requireRule(owed > 0, 'You have no resources to choose.');
       requireRule(resourceCount(action.resources) === owed, `Choose exactly ${owed} resource${owed === 1 ? '' : 's'}.`);
       requireRule(
         RESOURCES.every(r => next.bank[r] >= action.resources[r]),
         'The bank does not have those resources.',
       );
+      requireRule(choiceFits(action.resources, groups), 'A split tile pays only one of its two resources.');
       for (const r of RESOURCES) {
         next.bank[r] -= action.resources[r];
         player.resources[r] += action.resources[r];
@@ -76,10 +83,14 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       }
       tally(next, playerId, 'cardsIn', 'gold', owed);
       delete next.pendingGold[playerId];
+      delete next.pendingSplit[playerId];
       // Anyone else still owed may now be owed less if the bank ran low.
-      for (const [id, count] of Object.entries(next.pendingGold))
-        if (Math.min(count, resourceCount(next.bank)) === 0) delete next.pendingGold[id];
-      addLog(next, `${player.name} took ${owed} resource${owed === 1 ? '' : 's'} from gold.`, {
+      for (const id of Object.keys(next.pendingGold))
+        if (Math.min(next.pendingGold[id]!, choiceLimit(owedGroups(next, id), next.bank)) === 0) {
+          delete next.pendingGold[id];
+          delete next.pendingSplit[id];
+        }
+      addLog(next, `${player.name} took ${owed} resource${owed === 1 ? '' : 's'} of their choice.`, {
         kind: 'gold',
         playerId,
         resources: action.resources,

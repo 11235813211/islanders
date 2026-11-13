@@ -4,8 +4,8 @@ import { emptyBag, resourceCount } from './core';
 /**
  * A public count of each player's cards: what anyone at the table could work out by watching.
  * Every change to a hand is public (production, building, trades, discards, gold, monopoly) except
- * which card a steal took, so those count exactly; a steal moves one card spread over what the
- * victim probably held.
+ * which card a steal took and what a survey ship found under the fog, so those count exactly; a
+ * steal moves one card spread over what the victim probably held, a find one spread over every kind.
  *
  * `seen` holds the real hands as of the last update (hidden; never sent), so this can catch up
  * after any change without knowing where it came from. Bots see `likely` (getView).
@@ -44,6 +44,13 @@ export function trackHands(state: GameState): void {
     if (steal.kind !== 'steal' || !steal.resource || steal.resource === 'discovery') continue;
     if (delta[steal.victimId]) delta[steal.victimId]![steal.resource] += 1;
     if (delta[steal.thiefId]) delta[steal.thiefId]![steal.resource] -= 1;
+  }
+  // A survey ship's find under the fog is one card of a kind nobody else knows: count it as a spread.
+  const finds = state.log.filter(e => e.id > old.logId && e.event?.kind === 'survey-find').map(e => e.event!);
+  for (const find of finds) {
+    if (find.kind !== 'survey-find' || !find.resource || !delta[find.playerId]) continue;
+    delta[find.playerId]![find.resource] -= 1;
+    for (const r of RESOURCES) delta[find.playerId]![r] += 1 / RESOURCES.length;
   }
   for (const p of state.players) for (const r of RESOURCES) next.likely[p.id]![r] += delta[p.id]![r];
   for (const steal of steals) {

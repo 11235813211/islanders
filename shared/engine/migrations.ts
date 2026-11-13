@@ -167,6 +167,15 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.fogPeeks ??= {};
   },
+  // 17 → 18: Cartographers charting moves from 7s to a paid move on your turn; survey ships collect
+  // from a target tile (older ones have none); split tiles leave picks like gold.
+  s => {
+    delete s.pendingCharts;
+    delete s.chartDeadline;
+    if (s.phase === 'charting') s.phase = 'build';
+    s.surveyTargets ??= {};
+    s.pendingSplit ??= {};
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

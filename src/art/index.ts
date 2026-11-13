@@ -6,7 +6,8 @@ import type { CardColors, CartographersArt, SeaArt, SeaTileKind } from './types'
 import { sea as fallbackSea } from './v7/sea';
 import { FogTile as FallbackFogTile } from './v12/sea/fog';
 import { cartographers as fallbackCartographers } from './v14/cartographers';
-import { art } from './v15';
+import { art } from './v16';
+import { cartographers as splitCartographers } from './v16/cartographers';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
@@ -15,6 +16,9 @@ export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, Buildin
 /** Cartographers art: the active version's, or v14's for versions made before it. */
 export const CARTOGRAPHERS: CartographersArt =
   (art as { cartographers?: CartographersArt }).cartographers ?? fallbackCartographers;
+/** Survey targets and split seams: the active version's, or v16's for versions made before them. */
+export const SurveyTarget = CARTOGRAPHERS.SurveyTarget ?? splitCartographers.SurveyTarget!;
+export const SplitSeam = CARTOGRAPHERS.SplitSeam ?? splitCartographers.SplitSeam!;
 export const CARD_COLORS: Record<Resource, CardColors> = { ...art.cardColors, lodestone: CARTOGRAPHERS.cardColors };
 
 /** A resource's small icon (card corners, harbors, logs). */

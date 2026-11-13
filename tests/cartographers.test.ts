@@ -1,43 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTime, applyAction, createGame, getView, normalizeGame } from '../shared/engine';
+import { createGame, getView, normalizeGame } from '../shared/engine';
 import { pieceCounts } from '../shared/engine/core';
 import { produce } from '../shared/engine/production';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { buildBoard } from '../shared/maps/generate';
-import { chartedNumbers, hexNumbers, longestRoad, tradeRates, victoryPoints } from '../shared/rules';
+import { chartedNumbers, longestRoad, tradeRates, victoryPoints } from '../shared/rules';
 import { boardIndex } from '../shared/seafaring';
-import type { GameAction, GameState, Hex, Terrain } from '../shared/types';
+import type { GameState, Hex } from '../shared/types';
 import { playBotGame } from './bot-harness';
-import { conserved, grant, inSeatOrder, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import {
+  act,
+  cartographersGame,
+  conserved,
+  grant,
+  hexOf,
+  inSeatOrder,
+  openSeaEdges,
+  seaLobby,
+  seeded,
+  TEST_NOW,
+} from './fixtures';
 
-/**
- * Home island: wood 6 beside lodestone 5, then sheep 9 and wheat 8, then gold 8, ore 10, and a
- * volcano 4. Open sea to the east for ships and survey ships. Lodestone makes it a Cartographers map.
- */
-const DESIGN = testDesign([
-  '~ ~ ~ ~ ~ ~ ~ ~',
-  ' ~ w6 m5 ~ ~ ~ ~ ~',
-  '~ s9 h8 ~ ~ ~ ~ ~',
-  ' ~ g8 o10 v4 ~ ~ ~@ ~',
-  '~ ~ ~ ~ ~ ~ ~ ~',
-]);
-
-const act = (g: GameState, id: string, action: GameAction, random = seeded()) =>
-  applyAction(g, id, action, random, TEST_NOW);
-const hexOf = (g: GameState, terrain: Terrain): Hex => g.board.hexes.find(h => h.terrain === terrain)!;
-/** Random source returning these values in turn (random dice use floor(v * 6) + 1). */
-const sequence = (...values: number[]) => {
-  let i = 0;
-  return () => values[i++ % values.length]!;
-};
-
-/** Started game in the build phase with p0 to move. Pieces are placed directly. */
-function building(): GameState {
-  const g = inSeatOrder(act(seaLobby(DESIGN, 2), 'p0', { type: 'start' }));
-  Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
-  g.settings.diceMode = 'random';
-  return g;
-}
+const building = cartographersGame;
+const seaEdges = openSeaEdges;
 
 /** The edge between two tiles, and its two corners. */
 function between(g: GameState, a: Hex, b: Hex) {
@@ -61,17 +46,6 @@ function withRoadToRelay() {
   return { g, relay, road, town };
 }
 
-/** Open sea edges (sea on both sides), the first `count` of them along the map. */
-function seaEdges(g: GameState): string[] {
-  const index = boardIndex(g.board);
-  return g.board.edges
-    .filter(e => {
-      const hexes = index.edgeHexes.get(e.id)!;
-      return hexes.length === 2 && hexes.every(h => h.terrain === 'sea' && h.id !== g.pirate);
-    })
-    .map(e => e.id);
-}
-
 describe('lodestone', () => {
   it('is in the bank only on Cartographers maps, and the view says so', () => {
     const plain = inSeatOrder(
@@ -89,7 +63,7 @@ describe('lodestone', () => {
     const g = building();
     const lode = hexOf(g, 'lodestone');
     g.buildings[lode.vertexIds[0]!] = { playerId: 'p1', kind: 'city' };
-    expect(produce(g, 5).p1?.lodestone).toBe(2);
+    expect(produce(g, 5).gains.p1?.lodestone).toBe(2);
   });
 
   it('random harbors draw lodestone only on Cartographers maps', () => {
@@ -111,7 +85,9 @@ describe('lodestone', () => {
     expect(up.bank.lodestone).toBe(0);
     expect(up.relays).toEqual([]);
     expect(up.surveys).toEqual([]);
-    expect(up.pendingCharts).toEqual({});
+    expect(up.surveyTargets).toEqual({});
+    expect(up.pendingSplit).toEqual({});
+    expect(up).not.toHaveProperty('pendingCharts');
     expect(up.settings.chartSpecial).toBe(false);
   });
 });
@@ -148,15 +124,16 @@ describe('relay stations', () => {
     expect(legal.relays.some(id => [index.edge.get(id)!.a, index.edge.get(id)!.b].includes(town))).toBe(false);
   });
 
-  it('pay one card from each tile beside them, and the robber blocks its tile', () => {
+  it('pay one card from each tile beside them, even with the robber on it', () => {
     const { g, relay } = withRoadToRelay();
-    const before = produce(structuredClone(g), 5).p0?.lodestone ?? 0;
+    const before = produce(structuredClone(g), 5).gains.p0?.lodestone ?? 0;
     g.roads[relay.id] = 'p0';
     g.relays = [relay.id];
-    expect((produce(structuredClone(g), 5).p0?.lodestone ?? 0) - before).toBe(1);
-    const wood = produce(structuredClone(g), 6).p0?.wood ?? 0;
+    expect((produce(structuredClone(g), 5).gains.p0?.lodestone ?? 0) - before).toBe(1);
+    const wood = produce(structuredClone(g), 6).gains.p0?.wood ?? 0;
     g.robber = hexOf(g, 'lodestone').id;
-    expect(produce(structuredClone(g), 5).p0?.lodestone ?? 0).toBe(0);
+    // The robber still keeps settlements and cities on the tile from collecting.
+    expect(produce(structuredClone(g), 5).gains.p0?.lodestone ?? 0).toBe(1);
     expect(wood).toBeGreaterThanOrEqual(1);
   });
 
@@ -177,8 +154,10 @@ describe('survey ships', () => {
     g.ships[edgeId!] = 'p0';
     grant(g, 'p0', { lodestone: 2, ore: 1 });
     expect(getView(g, 'p0').legal.surveys).toEqual([edgeId]);
-    const next = act(g, 'p0', { type: 'build-survey', edgeId: edgeId! });
+    const hexId = hexOf(g, 'wheat').id;
+    const next = act(g, 'p0', { type: 'build-survey', edgeId: edgeId!, hexId });
     expect(next.surveys).toEqual([edgeId]);
+    expect(next.surveyTargets).toEqual({ [edgeId!]: hexId });
     expect(victoryPoints(next, 'p0')).toBe(victoryPoints(g, 'p0') + 1);
     expect(pieceCounts(next, 'p0')).toMatchObject({ ships: 0, surveys: 1 });
     expect(getView(next, 'p0').legal.shipMoves[edgeId!]).toBeUndefined();
@@ -220,93 +199,43 @@ describe('charting', () => {
     const wood = hexOf(g, 'wood');
     g.buildings[wood.vertexIds[0]!] = { playerId: 'p1', kind: 'settlement' };
     wood.extra = [6];
-    expect(produce(structuredClone(g), 6).p1?.wood).toBe(2);
+    expect(produce(structuredClone(g), 6).gains.p1?.wood).toBe(2);
     wood.extra = [8];
-    expect(produce(structuredClone(g), 8).p1?.wood).toBe(1);
-  });
-
-  it('after a 7 and the robber, everyone with survey ships charts, one tile per ship', () => {
-    let g = building();
-    const [a, b] = seaEdges(g).filter((id, i, all) => {
-      const index = boardIndex(g.board);
-      return i === 0 || !index.edgeHexes.get(id)!.some(h => index.edgeHexes.get(all[0]!)!.includes(h));
-    });
-    g.ships[a!] = 'p1';
-    g.ships[b!] = 'p1';
-    g.surveys = [a!, b!];
-    g.phase = 'roll';
-    const lode = hexOf(g, 'lodestone');
-    // Random dice: 0.4 → 3 and 0.55 → 4.
-    g = act(g, 'p0', { type: 'roll' }, sequence(0.4, 0.55));
-    expect(g.dice).toEqual([3, 4]);
-    expect(g.pendingCharts).toEqual({ p1: 2 });
-    // Tiles show during the robber, so a choice can be lined up; it's sent once charting opens.
-    expect(getView(g, 'p1').legal.chartHexes).toContain(lode.id);
-    expect(() => act(g, 'p1', { type: 'chart-hexes', hexIds: [lode.id] })).toThrow(/not available/);
-    g = act(g, 'p0', { type: 'move-robber', hexId: hexOf(g, 'ore').id });
-    expect(g.phase).toBe('charting');
-    expect(g.chartDeadline).toBe(TEST_NOW + 30_000);
-    expect(() => act(g, 'p1', { type: 'chart-hexes', hexIds: [lode.id, lode.id, lode.id] })).toThrow(/up to 2/);
-    g = act(g, 'p1', { type: 'chart-hexes', hexIds: [lode.id, lode.id] }, sequence(0.2));
-    expect(hexNumbers(g.board.hexes.find(h => h.id === lode.id)!)).toEqual([6, 2]);
-    expect(g.phase).toBe('build');
-    expect(g.log.filter(l => l.event?.kind === 'chart')).toHaveLength(2);
+    expect(produce(structuredClone(g), 8).gains.p1?.wood).toBe(1);
   });
 
   it('a room can keep gold fields and volcanoes from being charted', () => {
     const g = building();
-    g.pendingCharts = { p1: 1 };
+    grant(g, 'p0', { lodestone: 2 });
     g.settings.chartSpecial = true;
-    const hexes = getView(g, 'p1').legal.chartHexes;
+    const hexes = getView(g, 'p0').legal.chartHexes;
     expect(hexes).toContain(hexOf(g, 'gold').id);
     g.settings.chartSpecial = false;
-    const plain = getView(g, 'p1').legal.chartHexes;
+    const plain = getView(g, 'p0').legal.chartHexes;
     expect(plain).not.toContain(hexOf(g, 'gold').id);
     expect(plain).not.toContain(hexOf(g, 'volcano').id);
     expect(plain).toContain(hexOf(g, 'wheat').id);
-  });
-
-  it('when charting time runs out, people who have not charted pass', () => {
-    let g = building();
-    g.phase = 'charting';
-    g.pendingCharts = { p0: 1, p1: 1 };
-    g.chartDeadline = TEST_NOW + 1000;
-    const numbers = g.board.hexes.map(hexNumbers);
-    g = advanceTime(g, TEST_NOW + 1000, seeded());
-    expect(g.phase).toBe('build');
-    expect(g.board.hexes.map(hexNumbers)).toEqual(numbers);
-  });
-
-  it('bots chart a tile they earn from', () => {
-    let g = building();
-    g.players[1]!.bot = 'beginner';
-    const lode = hexOf(g, 'lodestone');
-    g.buildings[lode.vertexIds[0]!] = { playerId: 'p1', kind: 'settlement' };
-    g.phase = 'charting';
-    g.pendingCharts = { p1: 1 };
-    g.chartDeadline = TEST_NOW + 30_000;
-    g.updatedAt = TEST_NOW;
-    g = advanceTime(g, TEST_NOW + 5000, seeded());
-    expect(g.phase).toBe('build');
-    expect(g.log.at(-1)?.event).toMatchObject({ kind: 'chart', playerId: 'p1' });
   });
 });
 
 describe('bots on Cartographers maps', () => {
   for (const id of ['compass-sea', 'magnetic-north']) {
-    it(`${id} plays to the end with relay stations and survey ships`, () => {
+    it(`${id} plays to the end with relay stations, survey ships, charts, and splits`, () => {
       const design = BUILTIN_BOARDS.find(b => b.id === id)!;
       const levels =
         id === 'magnetic-north'
           ? (['advanced', 'intermediate', 'beginner', 'advanced', 'intermediate'] as const)
           : (['advanced', 'intermediate', 'beginner'] as const);
       let built = 0;
+      let tiles = 0;
       for (const seed of [1, 2, 3]) {
         const g = playBotGame([...levels], seed, 8000, design);
         expect(g.phase).toBe('finished');
         built += Object.values(g.stats).reduce((n, s) => n + (s.built.relay ?? 0) + (s.built.survey ?? 0), 0);
+        tiles += g.log.filter(l => l.event?.kind === 'chart' || l.event?.kind === 'split').length;
       }
       expect(built).toBeGreaterThan(0);
+      expect(tiles).toBeGreaterThan(0);
       // Three whole bot games: well under a second each alone, but slower beside the rest of the suite.
     }, 60_000);
   }

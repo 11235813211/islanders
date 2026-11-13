@@ -13,6 +13,7 @@ export {
   ownBoard,
   resourceCount,
 } from './core';
+export { affordsSplit, splitCost } from './legal';
 export { addPlayer, addSpectator, createGame } from './lobby';
 export { normalizeGame, SCHEMA_VERSION } from './migrations';
 export { idlePause, idleResume, logPresence } from './social';

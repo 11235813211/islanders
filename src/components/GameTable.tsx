@@ -12,7 +12,6 @@ import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
 import BankFlights from './game/BankFlights';
 import BuildBar from './game/BuildBar';
-import { ChartPanel, useChartPicks } from './game/ChartPanel';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
@@ -24,6 +23,7 @@ import PlayerPanel from './game/PlayerPanel';
 import ResourceFlights, { useLandedView } from './game/ResourceFlights';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
+import { useTileTools } from './game/TileTools';
 import { TradeNotice } from './game/TradeNotice';
 import ResourceHand from './ResourceHand';
 import TradeComposer, { addTradeResource, counterDraft, type TradeDraft } from './TradePanel';
@@ -89,10 +89,6 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
         : 'Choosing gold…';
     case 'eruption':
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
-    case 'charting':
-      return view.pendingCharts[view.selfId]
-        ? `Chart your tiles${countdown(secondsUntil(view.chartDeadline, clock))}`
-        : 'Charting…';
     case 'special-build':
       return ownTurn ? 'Special build: no trading' : `${active?.name} is building…`;
     default:
@@ -132,7 +128,6 @@ export default function GameTable({
   /** Where the robber or pirate was just put, before confirming. */
   const [robberPick, setRobberPick] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
-  const charts = useChartPicks(view);
   const [now, setNow] = useState(Date.now());
   // Players on phones start with the chat closed; spectators always have it open (it stands in for a hand).
   const [panel, setPanel] = useState<PanelTab | null>(() =>
@@ -154,6 +149,7 @@ export default function GameTable({
     setSelected(null);
     setMoveFrom(null);
   };
+  const tiles = useTileTools(view, mode, setMode, send, busy);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(id);
@@ -236,7 +232,8 @@ export default function GameTable({
     if (kind === 'road') send({ type: setup ? 'place-road' : 'build-road', edgeId: id });
     else if (kind === 'ship') send({ type: setup ? 'place-ship' : 'build-ship', edgeId: id });
     else if (kind === 'relay') send({ type: 'build-relay', edgeId: id });
-    else if (kind === 'survey') send({ type: 'build-survey', edgeId: id });
+    else if (kind === 'survey')
+      return; // fitted out from TileTools, once its target is picked
     else
       send({
         type:
@@ -257,9 +254,16 @@ export default function GameTable({
       send({ type: 'move-ship', from: moveFrom, to: id });
       return setMode(null);
     }
-    if (mode === 'relay' || mode === 'survey') return place(mode, id);
-    // Tapping one of your movable ships picks it up, as the Move button would (unless it can become a survey ship).
-    if (view.legal.shipMoves[id] && (mode || !view.legal.surveys.includes(id))) {
+    if (mode === 'survey') return tiles.pickShip(id);
+    if (mode === 'relay') return place(mode, id);
+    // Tapping a ship that can become a survey ship starts fitting it out (Move still moves it).
+    if (!mode && view.legal.surveys.includes(id)) {
+      setSelected(null);
+      setModeState('survey');
+      return tiles.pickShip(id);
+    }
+    // Tapping one of your movable ships picks it up, as the Move button would.
+    if (view.legal.shipMoves[id]) {
       setSelected(null);
       setModeState('move-ship');
       return setMoveFrom(id);
@@ -268,7 +272,6 @@ export default function GameTable({
     if (mode !== 'ship' && view.legal.roads.includes(id)) choices.push('road');
     if (mode !== 'road' && view.legal.ships.includes(id)) choices.push('ship');
     if (!mode && view.legal.relays.includes(id)) choices.push('relay');
-    if (!mode && view.legal.surveys.includes(id)) choices.push('survey');
     if (!choices.length) return;
     if (mode && choices.length === 1) return place(choices[0]!, id);
     setSelected({ kind: choices[0]!, id, ...(choices.length > 1 ? { choices } : {}) });
@@ -301,17 +304,7 @@ export default function GameTable({
     const close = () => setDevKind(null);
     if (discarding)
       return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
-    if (charts.picking)
-      return (
-        <ChartPanel
-          view={view}
-          picks={charts.picks}
-          clear={charts.clear}
-          busy={busy}
-          send={send}
-          secondsLeft={secondsUntil(view.chartDeadline, clock)}
-        />
-      );
+    if (tiles.panel) return tiles.panel;
     if (choosingGold)
       return (
         <GoldPanel
@@ -458,7 +451,7 @@ export default function GameTable({
         mode={view.phase === 'robber' ? 'robber' : mode}
         disabled={blocked}
         selected={selected}
-        moveFrom={moveFrom}
+        moveFrom={mode === 'survey' ? tiles.ship : moveFrom}
         onConfirm={kind => selected && place(kind, selected.id)}
         onVertex={pickVertex}
         onEdge={pickEdge}
@@ -469,7 +462,7 @@ export default function GameTable({
           setMode(null);
         }}
         robberPick={robberPick}
-        chart={busy ? null : charts.picking}
+        tiles={busy ? null : tiles.picking}
         onRobberConfirm={confirm => {
           if (confirm && robberPick) send({ type: 'move-robber', hexId: robberPick });
           setRobberPick(null);

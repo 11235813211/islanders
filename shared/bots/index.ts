@@ -3,7 +3,8 @@ import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, RESOU
 import { advanced } from './advanced';
 import { goldChoice, specialBuild } from './analysis';
 import { beginner } from './beginner';
-import { cartographersTurn, chartChoice, keepsLodestone } from './cartographers';
+import { cartographersTurn, keepsLodestone } from './cartographers';
+import { splitGoldChoice } from './charting';
 import { intermediate } from './strategic';
 import type { BotOptions, Brain, TurnOptions } from './types';
 
@@ -35,10 +36,12 @@ export function actWith(brain: Brain, view: GameView, options: TurnOptions = {})
     if (owed > cards) return { type: 'discard', resources: { ...view.hand, discovery: owed - cards } };
     return brain.discard(view);
   }
-  if (view.phase === 'gold') return (brain.gold ?? goldChoice)(view);
+  if (view.phase === 'gold') {
+    const gold = brain.gold ?? goldChoice;
+    return view.pendingSplit[view.selfId]?.length ? splitGoldChoice(view, gold) : gold(view);
+  }
   if (view.phase === 'special-build') return (brain.specialBuild ?? specialBuild)(view);
   if (view.phase === 'eruption') return { type: 'roll-volcanoes' };
-  if (view.phase === 'charting') return chartChoice(view);
   if (offer && view.phase === 'build') {
     if (offer.fromId === view.selfId) return brain.review(view, offer);
     const answered = hasAnswered(offer, view.selfId);

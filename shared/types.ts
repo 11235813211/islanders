@@ -29,8 +29,10 @@ export interface Hex {
   y: number;
   terrain: Terrain;
   number: number | null;
-  /** Numbers a survey ship charted onto the tile (Cartographers), after `number`. See hexNumbers. */
+  /** Numbers charted onto the tile (Cartographers), after `number`. See hexNumbers. */
   extra?: number[];
+  /** Cartographers: a split tile also pays this resource; whoever it pays picks either half. */
+  split?: Resource;
   /** Corner vertices in order: lower right, bottom, lower left, upper left, top, upper right. */
   vertexIds: string[];
   /** Land tiles on sea maps: which island (connected land) the tile belongs to. */
@@ -39,6 +41,11 @@ export interface Hex {
   bonus?: number;
   /** No setup settlements may touch this tile's island. */
   noSetup?: boolean;
+}
+/** Cards from split tiles: each of `count` is one of the two `options`. */
+export interface SplitChoice {
+  options: [Resource, Resource];
+  count: number;
 }
 export interface Vertex {
   id: string;
@@ -150,8 +157,6 @@ export type Phase =
   | 'gold'
   /** Volcanoes showing the roll erupt: the roller rolls a die for each (after any gold choices). */
   | 'eruption'
-  /** Cartographers, after a 7's robber: everyone with survey ships charts numbers at the same time. */
-  | 'charting'
   | 'free-roads'
   | 'build'
   /** Five or six players: after each turn, the others may build in order (no trading). */
@@ -200,8 +205,15 @@ export type GameEvent =
   | { kind: 'discover'; playerId: string; hexId: string; terrain: Terrain }
   /** Which fog tile someone peeked at; what it hides stays theirs alone. */
   | { kind: 'peek'; playerId: string; hexId: string }
-  /** A survey ship charted a tile: `numbers` is what it shows now. */
+  /** Someone charted a tile: `numbers` is what it shows now. */
   | { kind: 'chart'; playerId: string; hexId: string; numbers: number[] }
+  /** Someone split a tile: it now pays `resource` too. */
+  | { kind: 'split'; playerId: string; hexId: string; resource: Resource }
+  /**
+   * A survey ship's target under the fog paid a card. Only its owner sees which (see getView);
+   * `resource` is null for everyone else.
+   */
+  | { kind: 'survey-find'; playerId: string; hexId: string; resource: Resource | null }
   /** A person's connection came or went (logged by the room, see logPresence). */
   | { kind: 'presence'; playerId: string; online: boolean }
   /** A person ran out of time and the game made a forced choice for them (see engine/time.ts). */
@@ -365,8 +377,10 @@ export interface GameState {
   turn: number;
   dice: [number, number] | null;
   pendingDiscards: Record<string, number>;
-  /** Players choosing resources from gold fields or volcanoes, and how many each. */
+  /** Players choosing resources from gold fields, volcanoes, or split tiles, and how many each. */
   pendingGold: Record<string, number>;
+  /** The part of each player's `pendingGold` that split tiles limit to their two resources. */
+  pendingSplit: Record<string, SplitChoice[]>;
   /** When gold choices are made for whoever hasn't chosen. */
   goldDeadline: number | null;
   /** When the robber (or pirate) is placed for a player who hasn't moved it. */
@@ -386,10 +400,8 @@ export interface GameState {
   /** Cartographers: edges in `roads` that hold relay stations, and in `ships` that hold survey ships. */
   relays: string[];
   surveys: string[];
-  /** Charts each player still makes after this 7 (one per survey ship they had when it was rolled). */
-  pendingCharts: Record<string, number>;
-  /** When charting ends for whoever hasn't charted. */
-  chartDeadline: number | null;
+  /** Each survey ship's target tile (survey ship edge → hex id), set when it is fitted out. */
+  surveyTargets: Record<string, string>;
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -465,10 +477,15 @@ export interface LegalMoves {
   /** Land hexes for the robber and, on sea maps, sea hexes for the pirate. */
   robberHexes: string[];
   stealTargets: string[];
-  /** Cartographers: edges for a relay station, ships that may become survey ships, tiles to chart. */
+  /**
+   * Cartographers: edges for a relay station, ships that may become survey ships and the tiles
+   * one may target, and tiles you can chart or split now.
+   */
   relays: string[];
   surveys: string[];
+  surveyTargets: string[];
   chartHexes: string[];
+  splitHexes: string[];
   /** Fog tiles you may pay a lodestone to peek at. */
   peekHexes: string[];
   /** Ship edge → edges it may move to this turn. */
@@ -509,11 +526,10 @@ export interface GameView {
   ships: Record<string, string>;
   relays: string[];
   surveys: string[];
-  pendingCharts: Record<string, number>;
-  chartDeadline: number | null;
-  /** Cartographers rules are in play: lodestone, relay stations, survey ships, and charting. */
+  surveyTargets: Record<string, string>;
+  /** Cartographers rules are in play: lodestone, relay stations, survey ships, charts, and splits. */
   cartographers: boolean;
-  /** Fog tiles you peeked at, and what each hides. Only ever your own. */
+  /** Fog tiles you peeked at, and what each hides. Only ever your own (all of them once the game ends). */
   fogPeeks: Record<string, { terrain: Terrain; number: number | null }>;
   robber: string;
   pirate: string | null;
@@ -535,6 +551,7 @@ export interface GameView {
   dice: [number, number] | null;
   pendingDiscards: Record<string, number>;
   pendingGold: Record<string, number>;
+  pendingSplit: Record<string, SplitChoice[]>;
   goldDeadline: number | null;
   robberDeadline: number | null;
   eruption: string[] | null;
@@ -606,12 +623,14 @@ export type GameAction =
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
   | { type: 'build-relay'; edgeId: string }
-  /** Turn one of your ships into a survey ship. */
-  | { type: 'build-survey'; edgeId: string }
+  /** Turn one of your ships into a survey ship that collects from `hexId` from then on. */
+  | { type: 'build-survey'; edgeId: string; hexId: string }
   /** Cartographers: pay a lodestone to see what a fog tile hides (only you see it). */
   | { type: 'peek-fog'; hexId: string }
-  /** Off-turn, in the charting phase: one tile per chart owed (a tile may repeat); empty passes. */
-  | { type: 'chart-hexes'; hexIds: string[] }
+  /** Cartographers: pay lodestone to step a tile's number toward 7. */
+  | { type: 'chart-hex'; hexId: string }
+  /** Cartographers: pay lodestone and one `resource` to make a tile pay that resource too. */
+  | { type: 'split-hex'; hexId: string; resource: Resource }
   /** Bank or harbor trade: `count` times the rate of `give` for `count` of `receive`. */
   | { type: 'trade'; give: Resource; receive: Resource; count?: number }
   /** A bank trade mixing rates: see bankTradeSize in rules.ts. */

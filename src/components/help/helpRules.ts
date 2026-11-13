@@ -138,7 +138,7 @@ function cartographers(view: GameView): HelpSection[] {
         'Cost: 1 lodestone, 1 grain, 1 lumber. 4 each. No points.',
         'Goes on an edge joined to your road, like a road, and counts toward Longest Road. It reveals fog like a road.',
         'No settlement or city at either end, and no two relay stations (anyone’s) may share a corner. A settlement can’t later go at a relay station’s end.',
-        'When a tile beside it rolls, it earns 1 card from that tile. On a coast it earns from its one land tile. The robber blocks it.',
+        'When a tile beside it rolls, it earns 1 card from that tile, even with the robber on it. On a coast it earns from its one land tile.',
         'On a harbor’s edge it gives you that harbor’s rate, as a settlement there would. Beside the harbor edge it does not.',
       ],
     },
@@ -147,6 +147,8 @@ function cartographers(view: GameView): HelpSection[] {
       title: 'Survey ships',
       lines: [
         'Cost: 2 lodestone, 1 ore. Upgrades one of your ships with water on both sides. 4 each. 1 point.',
+        'When you fit it out, pick a target: any tile with a number, or a fog tile you peeked at. It can’t be changed later.',
+        'Whenever the target’s number rolls, you get 1 card from it (the robber blocks it). From a fog tile only you see which card.',
         'It can’t move afterward and still counts in your trade route. The pirate blocks upgrading a ship beside it.',
         'No two survey ships (anyone’s) may border the same tile.',
       ],
@@ -155,7 +157,7 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Charting',
       lines: [
-        'On a 7, after discards and the robber or pirate, everyone charts one tile per survey ship, all at once. You have 30 seconds; then you pass.',
+        'On your turn after the roll, pay 2 lodestone to chart any tile with a number.',
         'A charted number steps toward 7 (5 becomes 6, 12 becomes 11). A 6 or 8 gains a 2 or 12 at random, which steps the same way later.',
         'A tile holds up to 3 numbers and pays once for each that rolls.',
         view.settings.chartSpecial
@@ -165,11 +167,20 @@ function cartographers(view: GameView): HelpSection[] {
     },
     {
       tab: 'cartographers',
+      title: 'Splitting a tile',
+      lines: [
+        'On your turn after the roll, pay 3 lodestone and 1 card of another resource to split a resource tile. It then pays either one.',
+        'Everyone who collects from it (settlements, cities, relay stations, survey targets) picks which, card by card, like gold. Players who build there later pick too.',
+        'A tile can be split once.',
+      ],
+    },
+    {
+      tab: 'cartographers',
       title: 'Peeking under the fog',
       lines: [
         'On your turn after the roll, pay 1 lodestone to see what one fog tile hides.',
         'Only you see it: the tile shows faintly through the fog with a purple ring. Everyone sees which tile you peeked at.',
-        'A peek can’t be undone. The tile is still revealed the usual way, by building next to it.',
+        'A peek can’t be undone. The tile is still revealed the usual way, by building next to it. Every fog tile shows what it hid when the game ends.',
       ],
     },
   ];

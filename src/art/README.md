@@ -26,6 +26,8 @@ import from `src/art` and never draw art themselves.
   stations, survey ships, and charted numbers. Versions before v14 borrow it (`CARTOGRAPHERS` in index.ts).
   `v15/` redraws the relay station's hut as a small 3D gabled house (the settlement's solids) with no ground
   shadow, its flag on a taller post beside it.
+  `v16/` adds the survey ship's target marker (a small compass rose in the seat's color) and the seam
+  down a split tile; older versions borrow both.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Review Cartographers art: `npx playwright test tests/cartographers-art.spec.ts` writes

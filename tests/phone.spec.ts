@@ -202,10 +202,11 @@ test('a Cartographers game: the build bar fits relay and survey buttons, each ea
   const room = await mountGame(page, g);
   const bar = page.locator('.table-actions');
   await expectNoSpill(bar);
-  for (const name of ['Build relay station', 'Make a ship a survey ship', 'Build road', 'Buy development card']) {
+  const names = ['Build relay station', 'Make a ship a survey ship', 'Build road', 'Buy development card'];
+  for (const name of [...names, /^Chart a tile/, /^Split a tile/]) {
     const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
-    expect(box.width, name).toBeGreaterThanOrEqual(30);
-    expect(box.height, name).toBeGreaterThanOrEqual(36);
+    expect(box.width, String(name)).toBeGreaterThanOrEqual(30);
+    expect(box.height, String(name)).toBeGreaterThanOrEqual(36);
   }
   // No button may sit on top of its neighbor (squeezed buttons overlap without spilling out).
   const boxes = await bar.locator(':scope > *').evaluateAll(items => items.map(item => item.getBoundingClientRect()));
@@ -215,22 +216,24 @@ test('a Cartographers game: the build bar fits relay and survey buttons, each ea
   expect(room.errors).toEqual([]);
 });
 
-test('the charting panel fits a phone and its buttons are reachable', async ({ page }) => {
+test('the split panel fits a phone and its buttons are reachable', async ({ page }) => {
   const g = seaSettled(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!, 3);
-  g.phase = 'charting';
-  g.pendingCharts = { p0: 2 };
-  g.chartDeadline = Date.now() + 30_000;
+  g.testMode = true;
+  g.phase = 'build';
+  g.rollDeadline = null;
   g.turnDeadline = Date.now() + 120_000;
+  grant(g, 'p0', { lodestone: 3, ore: 1, wood: 1 });
   const room = await mountGame(page, g);
-  const panel = page.getByRole('dialog', { name: 'Chart 2 tiles' });
+  await page.getByRole('button', { name: /^Split a tile/ }).click();
   await page
-    .getByRole('button', { name: /^Chart .*, number / })
+    .getByRole('button', { name: /^Split a tile: / })
     .first()
     .click();
+  const panel = page.getByRole('dialog', { name: 'Split a tile' });
+  await panel.getByRole('button', { name: 'Add Ore' }).click();
   await expectNoSpill(panel);
-  await expect(panel.getByRole('button', { name: 'Chart', exact: true })).toBeInViewport();
-  await expect(panel.getByRole('button', { name: 'Pass' })).toBeInViewport();
-  await page.screenshot({ path: 'test-results/phone-charting.png' });
+  await expect(panel.getByRole('button', { name: 'Split', exact: true })).toBeInViewport();
+  await page.screenshot({ path: 'test-results/phone-split.png' });
   expect(room.errors).toEqual([]);
 });
 

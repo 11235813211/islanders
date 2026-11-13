@@ -67,9 +67,7 @@ export const ROBBER_SECONDS = 15;
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
 export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
   state.settings.seafarers !== false && boardIndex(state.board).seafaring;
-/** Seconds everyone has to chart after a 7 before the rest pass. */
-export const CHART_SECONDS = 30;
-/** Cartographers rules (lodestone, relay stations, survey ships, charting): the map asks for them. */
+/** Cartographers rules (lodestone, relay stations, survey ships, charts, splits): the map asks for them. */
 export const cartographersRules = (state: Pick<GameState, 'design'>): boolean =>
   !!state.design && boardExpansions(state.design).includes('cartographers');
 /** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
@@ -94,7 +92,7 @@ export function discoveriesLeft(state: Pick<GameState, 'players'>): number {
   return Math.max(0, discoverySupply(state.players.length) - state.players.reduce((n, p) => n + p.discoveries, 0));
 }
 export const BUILD_COSTS: Record<
-  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey' | 'peek',
+  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey' | 'peek' | 'chart' | 'split',
   ResourceBag
 > = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
@@ -106,6 +104,10 @@ export const BUILD_COSTS: Record<
   survey: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 2 },
   /** Cartographers: a look under one fog tile, for your eyes only. */
   peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
+  /** Cartographers: one step toward 7 on any tile. */
+  chart: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 2 },
+  /** Cartographers: the lodestone for a split; one card of the resource being added is paid too. */
+  split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 3 },
 };
 export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
 

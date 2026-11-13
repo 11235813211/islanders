@@ -30,8 +30,7 @@ type Field =
   | 'botLevel'
   | 'proposalKind'
   | 'settings'
-  | 'players'
-  | 'hexes';
+  | 'players';
 type FieldSpec = Field | `${Field}?`;
 
 const SPEC = {
@@ -64,9 +63,10 @@ const SPEC = {
   'build-settlement': { vertexId: 'id' },
   'build-city': { vertexId: 'id' },
   'build-relay': { edgeId: 'id' },
-  'build-survey': { edgeId: 'id' },
+  'build-survey': { edgeId: 'id', hexId: 'id' },
   'peek-fog': { hexId: 'id' },
-  'chart-hexes': { hexIds: 'hexes' },
+  'chart-hex': { hexId: 'id' },
+  'split-hex': { hexId: 'id', resource: 'resource' },
   'place-road': { edgeId: 'id' },
   'build-road': { edgeId: 'id' },
   'place-ship': { edgeId: 'id' },
@@ -183,9 +183,6 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
     case 'players':
       if (!Array.isArray(value) || value.length < 1 || value.length >= MAX_PLAYERS || !value.every(isIdentifier))
         fail('Choose who receives the offer.');
-      return;
-    case 'hexes':
-      if (!Array.isArray(value) || value.length > 8 || !value.every(isIdentifier)) fail('Choose tiles to chart.');
       return;
   }
 }

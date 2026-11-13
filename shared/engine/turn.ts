@@ -1,6 +1,5 @@
 import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
 import { type GameState, RESOURCES, type Tradable } from '../types';
-import { afterRobber, owedCharts } from './cartographers';
 import {
   addBag,
   addLog,
@@ -53,6 +52,12 @@ export function stealResource(state: GameState, actorId: string, victimId: strin
     index -= holding(victim, resource);
   }
   afterRobber(state);
+}
+
+/** The robber (or pirate) is done: back to what the 7 or knight interrupted. */
+export function afterRobber(state: GameState): void {
+  state.phase = state.resumePhase ?? 'build';
+  state.resumePhase = null;
 }
 
 export function finishFreeRoads(next: GameState): void {
@@ -186,9 +191,7 @@ export const turnHandlers: Pick<
     next.rollDeadline = null;
     next.diceCounts[total]++;
     tally(next, playerId, 'rolls', total);
-    next.pendingCharts = {};
     if (total === 7) {
-      next.pendingCharts = owedCharts(next);
       next.pendingDiscards = {};
       next.stealHex = null;
       for (const candidate of next.players) {
@@ -198,8 +201,13 @@ export const turnHandlers: Pick<
       next.phase = Object.keys(next.pendingDiscards).length ? 'discard' : 'robber';
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains: {} });
     } else {
-      const gains = produce(next, total);
+      const { gains, finds } = produce(next, total);
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains });
+      for (const find of finds)
+        addLog(next, `${next.players.find(p => p.id === find.playerId)!.name}'s survey ship brought in a card.`, {
+          kind: 'survey-find',
+          ...find,
+        });
       drift(next, total, random);
       const volcanoes = eruptingVolcanoes(next, total);
       next.eruption = volcanoes.length ? volcanoes : null;

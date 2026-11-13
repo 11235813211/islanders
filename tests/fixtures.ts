@@ -9,7 +9,8 @@ import {
 } from '../shared/engine';
 import { BASE_POOL, type BoardDesign } from '../shared/maps';
 import { parseGrid } from '../shared/maps/builtin';
-import { type GameAction, type GameState, RESOURCES, type ResourceBag } from '../shared/types';
+import { boardIndex } from '../shared/seafaring';
+import { type GameAction, type GameState, type Hex, RESOURCES, type ResourceBag, type Terrain } from '../shared/types';
 export const TEST_NOW = 1_800_000_000_000;
 export function seeded(seed = 42) {
   return () => {
@@ -132,4 +133,48 @@ export function seaSettled(design: BoardDesign, count = 3) {
     game = applyAction(game, id, action, seeded(), TEST_NOW);
   }
   return game;
+}
+
+/**
+ * Cartographers rules tests. Home island: wood 6 beside lodestone 5, then sheep 9 and wheat 8, then
+ * gold 8, ore 10, and a volcano 4. Open sea to the east for ships and survey ships.
+ */
+export const CARTOGRAPHERS_DESIGN = testDesign([
+  '~ ~ ~ ~ ~ ~ ~ ~',
+  ' ~ w6 m5 ~ ~ ~ ~ ~',
+  '~ s9 h8 ~ ~ ~ ~ ~',
+  ' ~ g8 o10 v4 ~ ~ ~@ ~',
+  '~ ~ ~ ~ ~ ~ ~ ~',
+]);
+
+/** Apply a move at TEST_NOW. */
+export const act = (game: GameState, id: string, action: GameAction, random = seeded()) =>
+  applyAction(game, id, action, random, TEST_NOW);
+
+/** The first tile of this terrain. */
+export const hexOf = (game: GameState, terrain: Terrain): Hex => game.board.hexes.find(h => h.terrain === terrain)!;
+
+/** Random source returning these values in turn (random dice use floor(v * 6) + 1). */
+export function sequence(...values: number[]) {
+  let i = 0;
+  return () => values[i++ % values.length]!;
+}
+
+/** A two-seat Cartographers game in the build phase with p0 to move. Tests place pieces directly. */
+export function cartographersGame(): GameState {
+  const game = inSeatOrder(applyAction(seaLobby(CARTOGRAPHERS_DESIGN, 2), 'p0', { type: 'start' }, seeded(), TEST_NOW));
+  Object.assign(game, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
+  game.settings.diceMode = 'random';
+  return game;
+}
+
+/** Open sea edges (sea on both sides, away from the pirate). */
+export function openSeaEdges(game: GameState): string[] {
+  const index = boardIndex(game.board);
+  return game.board.edges
+    .filter(e => {
+      const hexes = index.edgeHexes.get(e.id)!;
+      return hexes.length === 2 && hexes.every(h => h.terrain === 'sea' && h.id !== game.pirate);
+    })
+    .map(e => e.id);
 }

@@ -68,6 +68,10 @@ export interface CartographersArt {
   SurveyShip: (props: { from: { x: number; y: number }; to: { x: number; y: number }; color: string }) => ReactElement;
   /** A tile's charted numbers, beside its number token (drawn at the token's origin). */
   ExtraNumbers: (props: { numbers: number[] }) => ReactElement;
+  /** A survey ship's target marker, centered at the origin. Versions before v16 borrow v16's. */
+  SurveyTarget?: (props: { color: string }) => ReactElement;
+  /** The seam between a split tile's halves, drawn at the tile's center. Versions before v16 borrow v16's. */
+  SplitSeam?: () => ReactElement;
 }
 
 /** A rectangle in board units. */

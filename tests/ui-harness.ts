@@ -11,6 +11,8 @@ export async function mountGame(page: Page, initial: GameState) {
   let game = structuredClone(initial),
     selfId = game.players[0].id;
   const errors: string[] = [];
+  /** Sends the latest view over the open socket (set once the page connects). */
+  let push = () => {};
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/api/rooms', route =>
     route.fulfill({
@@ -21,6 +23,7 @@ export async function mountGame(page: Page, initial: GameState) {
   );
   await page.routeWebSocket(/\/api\/rooms\/.+\/socket$/, socket => {
     const send = (message: ServerMessage) => socket.send(JSON.stringify(message));
+    push = () => send({ type: 'state', state: getView(game, selfId), online: game.players.map(p => p.id) });
     socket.onMessage(raw => {
       if (raw === 'ping') {
         socket.send('pong');
@@ -57,7 +60,17 @@ export async function mountGame(page: Page, initial: GameState) {
     .evaluateAll(async elements =>
       Promise.all(elements.flatMap(element => element.getAnimations().map(animation => animation.finished))),
     );
-  return { state: () => game, errors };
+  return {
+    state: () => game,
+    errors,
+    /** Change the game outside the rules (as a test setup step) and show it on the page. */
+    update(change: (game: GameState) => void) {
+      game = structuredClone(game);
+      change(game);
+      game.version++;
+      push();
+    },
+  };
 }
 /** A seat color's CSS value as the browser reports it, e.g. accent('blue') → 'rgb(31, 79, 214)'. */
 export function seatRgb(color: PlayerColor, tone: 'fill' | 'accent' = 'accent'): string {

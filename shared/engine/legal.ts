@@ -8,8 +8,9 @@ import {
   isShipEdge,
   isWater,
   otherEnd,
+  terrainResource,
 } from '../seafaring';
-import { type GameState, type LegalMoves, type Player, RESOURCES } from '../types';
+import { type GameState, type LegalMoves, type Player, RESOURCES, type Resource, type ResourceBag } from '../types';
 import {
   BUILD_COSTS,
   canAfford,
@@ -116,7 +117,36 @@ export function surveySpots(
   });
 }
 
-/** Tiles a survey ship may chart: producing land with room for another step (see chartedNumbers). */
+/**
+ * Tiles a new survey ship may collect from: any producing tile with a number, and fog tiles this
+ * player peeked at that hide one.
+ */
+export function surveyTargetHexes(state: Pick<GameState, 'board' | 'fog' | 'fogPeeks'>, playerId: string): string[] {
+  const open = state.board.hexes.filter(h => isProducing(h.terrain) && h.number !== null).map(h => h.id);
+  const peeked = (state.fogPeeks[playerId] ?? []).filter(id => {
+    const hidden = state.fog[id];
+    return hidden && isProducing(hidden.terrain) && hidden.number !== null;
+  });
+  return [...open, ...peeked];
+}
+
+/** Tiles that can be split: a resource tile with a number, not split yet. */
+export function splitHexes(state: Pick<GameState, 'board'>): string[] {
+  return state.board.hexes.filter(h => terrainResource(h.terrain) && h.number !== null && !h.split).map(h => h.id);
+}
+
+/** A split that adds `resource`: the lodestone plus one card of that resource. */
+export function splitCost(resource: Resource): ResourceBag {
+  return { ...BUILD_COSTS.split, [resource]: BUILD_COSTS.split[resource] + 1 };
+}
+
+/** Can this hand pay for a split that adds `resource`? */
+export function affordsSplit(hand: ResourceBag, resource: Resource): boolean {
+  const cost = splitCost(resource);
+  return RESOURCES.every(r => hand[r] >= cost[r]);
+}
+
+/** Tiles that can be charted: producing land with room for another step (see chartedNumbers). */
 export function chartHexes(state: Pick<GameState, 'board' | 'settings'>): string[] {
   return state.board.hexes
     .filter(hex => {
@@ -252,14 +282,14 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     stealTargets: [],
     relays: [],
     surveys: [],
+    surveyTargets: [],
     chartHexes: [],
+    splitHexes: [],
     peekHexes: [],
     shipMoves: {},
     development: false,
   };
   const player = state.players.find(candidate => candidate.id === selfId);
-  // Charting is off-turn; tiles show from the 7 on, so a choice can be lined up during the robber.
-  if (player && state.pendingCharts[selfId] && state.pausedAt === null) legal.chartHexes = chartHexes(state);
   if (!player || getActivePlayerId(state) !== selfId || state.pausedAt !== null) return legal;
   const pieces = pieceCounts(state, selfId);
   if (state.phase === 'setup-settlement') legal.settlements = settlementSites(state, selfId, true);
@@ -288,10 +318,17 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     }
     if (pieces.relays < PIECE_LIMITS.relays && canAfford(player, BUILD_COSTS.relay))
       legal.relays = relaySites(state, selfId);
-    if (pieces.surveys < PIECE_LIMITS.surveys && canAfford(player, BUILD_COSTS.survey))
-      legal.surveys = surveySites(state, selfId);
-    if (state.phase === 'build') legal.shipMoves = shipMoves(state, selfId);
-    if (state.phase === 'build') legal.peekHexes = peekHexes(state, player);
+    if (pieces.surveys < PIECE_LIMITS.surveys && canAfford(player, BUILD_COSTS.survey)) {
+      legal.surveyTargets = cartographersRules(state) ? surveyTargetHexes(state, selfId) : [];
+      if (legal.surveyTargets.length) legal.surveys = surveySites(state, selfId);
+    }
+    if (state.phase === 'build') {
+      legal.shipMoves = shipMoves(state, selfId);
+      legal.peekHexes = peekHexes(state, player);
+      if (cartographersRules(state) && canAfford(player, BUILD_COSTS.chart)) legal.chartHexes = chartHexes(state);
+      if (cartographersRules(state) && RESOURCES.some(r => affordsSplit(player.resources, r)))
+        legal.splitHexes = splitHexes(state);
+    }
   }
   return legal;
 }

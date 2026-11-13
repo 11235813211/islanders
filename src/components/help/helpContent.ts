@@ -43,7 +43,9 @@ function rightNow(view: GameView, v: Verbs): string | null {
   if (view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0)
     return `A 7 was rolled and you hold too many cards. ${v.tap} cards in your hand to discard the number shown, then confirm in the panel.`;
   if (view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0)
-    return 'Choose the resources your gold tile pays in the panel on the board.';
+    return view.pendingSplit[view.selfId]?.length
+      ? 'Choose the resources your gold or split tiles pay in the panel on the board.'
+      : 'Choose the resources your gold tile pays in the panel on the board.';
   if (view.phase === 'finished') return 'The game is over. The results panel shows the final scores.';
   if (!own) {
     const name = view.players.find(p => p.id === view.activePlayerId)?.name ?? 'another player';
@@ -64,10 +66,6 @@ function rightNow(view: GameView, v: Verbs): string | null {
       return 'Choose the player to take a card from.';
     case 'eruption':
       return 'Press Roll volcanoes.';
-    case 'charting':
-      return view.pendingCharts[view.selfId]
-        ? `Chart your tiles: ${v.tap.toLowerCase()} tiles, then Chart. Pass skips.`
-        : 'Players with survey ships are charting.';
     case 'special-build':
       return 'Build or buy cards (no trading), then press Done building.';
     case 'free-roads':
@@ -143,8 +141,9 @@ function seaSections(view: GameView, v: Verbs): HelpSection[] {
   if (view.jungle) lines.push('With discoveries in hand, Dev Card asks which resources they cover.');
   if (view.features.volcano) lines.push('When a volcano’s number rolls, the roller presses Roll volcanoes.');
   if (view.cartographers) {
-    lines.push(`Relay and Survey are on the build bar. ${v.hold} one to see its cost.`);
-    lines.push(`On a 7, ${v.tap.toLowerCase()} tiles to chart, then Chart. Pass skips.`);
+    lines.push(`Relay, Survey, Chart, and Split are on the build bar. ${v.hold} one to see its cost.`);
+    lines.push(`Survey: ${v.tap.toLowerCase()} a ship at sea, then the tile it collects from.`);
+    lines.push(`Chart and Split: ${v.tap.toLowerCase()} a tile, then confirm in the panel.`);
     if (hasTerrain(view, 'fog'))
       lines.push(`Peek, then ${v.tap.toLowerCase()} a fog tile, spends a lodestone to see under it.`);
   }

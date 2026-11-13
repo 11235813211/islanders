@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
-import type { Board, GameView, Hex } from '../../shared/types';
-import { CARTOGRAPHERS, type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, Tile } from '../art';
+import type { Board, GameView, Hex, Resource } from '../../shared/types';
+import { CARTOGRAPHERS, type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, SplitSeam, Tile } from '../art';
 import { hexPoints } from '../lib/geometry';
 import IslandRims, { rimTiles } from './IslandRims';
 
@@ -42,6 +42,35 @@ function PeekedFog({ uid, hex, peek }: { uid: string; hex: Hex; peek: GameView['
       </g>
       <polygon points={hexPoints(47)} fill="none" stroke="#7b4fb0" strokeWidth="5" strokeDasharray="9 6" />
     </g>
+  );
+}
+
+/** A split tile (Cartographers): its own terrain on the left half, the added resource's on the right. */
+function SplitTile({ uid, hex, split }: { uid: string; hex: Hex; split: Resource }) {
+  return (
+    <g aria-label={`Split tile: ${hex.terrain} or ${split}`}>
+      <g clipPath={`url(#${uid}-half-left)`}>
+        <Tile uid={uid} terrain={hex.terrain} />
+      </g>
+      <g clipPath={`url(#${uid}-half-right)`}>
+        <Tile uid={uid} terrain={split} />
+      </g>
+      <SplitSeam />
+    </g>
+  );
+}
+
+/** Clip paths for split tiles' halves, in each tile's own coordinates. */
+function HalfClips({ uid }: { uid: string }) {
+  return (
+    <defs>
+      <clipPath id={`${uid}-half-left`}>
+        <rect x="-70" y="-70" width="70" height="140" />
+      </clipPath>
+      <clipPath id={`${uid}-half-right`}>
+        <rect x="0" y="-70" width="70" height="140" />
+      </clipPath>
+    </defs>
   );
 }
 
@@ -87,6 +116,7 @@ export default function BoardScene({
   return (
     <>
       <SeaBackdrop uid={uid} hexes={seaMap ? [] : board.hexes} frame={frame} />
+      {board.hexes.some(h => h.split) && <HalfClips uid={uid} />}
       {water.map(hex => {
         const drift = drifts.find(d => d.to === hex.id);
         const from = drift && board.hexes.find(h => h.id === drift.from);
@@ -123,7 +153,7 @@ export default function BoardScene({
       {land.map(hex => (
         <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
           <g {...rumbleProps(rumbles.find(r => r.hexId === hex.id))}>
-            <Tile uid={uid} terrain={hex.terrain} />
+            {hex.split ? <SplitTile uid={uid} hex={hex} split={hex.split} /> : <Tile uid={uid} terrain={hex.terrain} />}
             {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
             {!!hex.extra?.length && (
               <g transform="translate(0 8)">

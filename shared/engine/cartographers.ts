@@ -1,48 +1,14 @@
 import { chartedNumbers, hexNumbers } from '../rules';
-import { boardIndex } from '../seafaring';
-import type { GameState } from '../types';
-import {
-  addLog,
-  BUILD_COSTS,
-  cartographersRules,
-  type Handlers,
-  needPhase,
-  ownBoard,
-  pay,
-  requireRule,
-  tally,
-} from './core';
+import { boardIndex, terrainResource } from '../seafaring';
+import { addLog, BUILD_COSTS, type Handlers, needPhase, ownBoard, pay, requireRule, tally } from './core';
 import { revealFog } from './fog';
-import { chartHexes, legalMoves, peekHexes } from './legal';
+import { chartHexes, legalMoves, peekHexes, splitCost, splitHexes } from './legal';
 
-/**
- * On a 7 in a Cartographers game, everyone with survey ships is owed one chart per ship. Counted
- * when the 7 is rolled (nothing can be built until charting is over), so the table sees it at once.
- */
-export function owedCharts(state: GameState): Record<string, number> {
-  if (!cartographersRules(state)) return {};
-  const owed: Record<string, number> = {};
-  for (const id of state.surveys) {
-    const owner = state.ships[id];
-    if (owner) owed[owner] = (owed[owner] ?? 0) + 1;
-  }
-  return owed;
-}
-
-/** The robber (or pirate) is done: chart if this 7 owes charts, otherwise back to what it interrupted. */
-export function afterRobber(state: GameState): void {
-  state.phase = Object.keys(state.pendingCharts).length ? 'charting' : (state.resumePhase ?? 'build');
-  state.resumePhase = null;
-}
-
-/** Everyone has charted (or passed): the turn goes on. */
-function finishCharting(state: GameState): void {
-  state.pendingCharts = {};
-  state.phase = 'build';
-}
-
-/** Relay stations, survey ships, and charting tiles' numbers. */
-export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'build-survey' | 'chart-hexes' | 'peek-fog'> = {
+/** Relay stations, survey ships, peeks, charts, and splits. */
+export const cartographersHandlers: Pick<
+  Handlers,
+  'build-relay' | 'build-survey' | 'peek-fog' | 'chart-hex' | 'split-hex'
+> = {
   'build-relay'({ next, player, playerId }, action) {
     needPhase(next, 'build', 'special-build');
     requireRule(
@@ -62,14 +28,21 @@ export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'build-survey
     revealFog(next, action.edgeId, playerId);
   },
 
+  /** A ship out at sea becomes a survey ship and picks the tile it collects from for good. */
   'build-survey'({ next, player, playerId }, action) {
     needPhase(next, 'build', 'special-build');
+    const legal = legalMoves(next, playerId);
     requireRule(
-      legalMoves(next, playerId).surveys.includes(action.edgeId),
+      legal.surveys.includes(action.edgeId),
       'Choose your ship out at sea, away from the pirate and from tiles another survey ship borders.',
+    );
+    requireRule(
+      legal.surveyTargets.includes(action.hexId),
+      'Choose a tile with a number, or a fog tile you peeked at that hides one.',
     );
     pay(next, player, BUILD_COSTS.survey);
     next.surveys.push(action.edgeId);
+    next.surveyTargets[action.edgeId] = action.hexId;
     tally(next, playerId, 'built', 'survey');
     addLog(next, `${player.name} fitted out a survey ship.`, {
       kind: 'build',
@@ -92,29 +65,38 @@ export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'build-survey
     });
   },
 
-  /** Off-turn: each player owed charts sends them all at once, in order; fewer (or none) passes the rest. */
-  'chart-hexes'({ next, player, playerId, random }, action) {
-    needPhase(next, 'charting');
-    const owed = next.pendingCharts[playerId] ?? 0;
-    requireRule(owed > 0, 'You have no charts to make.');
-    requireRule(action.hexIds.length <= owed, `Choose up to ${owed} tile${owed === 1 ? '' : 's'}.`);
-    if (action.hexIds.length) ownBoard(next);
-    const index = boardIndex(next.board);
-    for (const hexId of action.hexIds) {
-      requireRule(chartHexes(next).includes(hexId), 'Choose a tile with a number that can still be charted.');
-      const hex = index.hex.get(hexId)!;
-      const [first, ...extra] = chartedNumbers(hexNumbers(hex), random() < 0.5)!;
-      hex.number = first!;
-      hex.extra = extra.length ? extra : undefined;
-      addLog(next, `${player.name} charted a tile: it now pays on ${hexNumbers(hex).join(', ')}.`, {
-        kind: 'chart',
-        playerId,
-        hexId,
-        numbers: hexNumbers(hex),
-      });
-    }
-    if (!action.hexIds.length) addLog(next, `${player.name} passed on charting.`);
-    delete next.pendingCharts[playerId];
-    if (!Object.keys(next.pendingCharts).length) finishCharting(next);
+  /** Lodestone to step one tile's number toward 7 (a 6 or 8 gains a 2 or 12 at random). */
+  'chart-hex'({ next, player, playerId, random }, action) {
+    needPhase(next, 'build');
+    requireRule(chartHexes(next).includes(action.hexId), 'Choose a tile with a number that can still be charted.');
+    pay(next, player, BUILD_COSTS.chart);
+    ownBoard(next);
+    const hex = boardIndex(next.board).hex.get(action.hexId)!;
+    const [first, ...extra] = chartedNumbers(hexNumbers(hex), random() < 0.5)!;
+    hex.number = first!;
+    hex.extra = extra.length ? extra : undefined;
+    addLog(next, `${player.name} charted a tile: it now pays on ${hexNumbers(hex).join(', ')}.`, {
+      kind: 'chart',
+      playerId,
+      hexId: action.hexId,
+      numbers: hexNumbers(hex),
+    });
+  },
+
+  /** Lodestone and one card of a resource: the tile pays that resource too, at each owner's pick. */
+  'split-hex'({ next, player, playerId }, action) {
+    needPhase(next, 'build');
+    requireRule(splitHexes(next).includes(action.hexId), 'Choose a resource tile with a number that isn’t split.');
+    const own = terrainResource(boardIndex(next.board).hex.get(action.hexId)!.terrain);
+    requireRule(action.resource !== own, 'Choose a different resource from the one the tile pays.');
+    pay(next, player, splitCost(action.resource));
+    ownBoard(next);
+    boardIndex(next.board).hex.get(action.hexId)!.split = action.resource;
+    addLog(next, `${player.name} split a tile: it pays ${own} or ${action.resource}.`, {
+      kind: 'split',
+      playerId,
+      hexId: action.hexId,
+      resource: action.resource,
+    });
   },
 };

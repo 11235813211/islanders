@@ -2,6 +2,7 @@
 // gold, Year of Plenty, and Monopoly. Each picks resources by tapping cards, then confirms with one button.
 import { ArrowDown, ArrowUp, Check, X } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
+import { choiceFits, choiceGroups, choiceLimit } from '../../../shared/choices';
 import { emptyBag, resourceCount } from '../../../shared/engine';
 import {
   type GameAction,
@@ -137,7 +138,8 @@ export function Palette({
           onClick={() => pick(r)}
         >
           <TradableIcon item={r} size={28} />
-          <span>{tradableLabel(r)}</span>
+          {/* Lodestone and Discovery need a smaller size to fit the card. */}
+          <span className={tradableLabel(r).length > 7 ? 'long-label' : undefined}>{tradableLabel(r)}</span>
           {count?.(r) != null && <strong className="bank-badge">{count(r)}</strong>}
         </button>
       ))}
@@ -304,14 +306,20 @@ export function GoldPanel({
   secondsLeft: number | null;
 }) {
   const [bag, setBag] = useState(emptyBag);
+  const total = view.pendingGold[view.selfId] ?? 0;
+  const splits = view.pendingSplit[view.selfId] ?? [];
+  const groups = choiceGroups(total, splits);
   // The engine pays no more than the bank holds (exact counts are known only when the room shows them).
   const stock = view.bankCounts;
-  const owed = Math.min(view.pendingGold[view.selfId] ?? 0, stock ? resourceCount(stock) : Number.POSITIVE_INFINITY);
+  const known = Object.fromEntries(RESOURCES.map(r => [r, stock ? stock[r] : view.bank[r] ? total : 0]));
+  const owed = Math.min(total, choiceLimit(groups, known as Record<Resource, number>));
   const picked = resourceCount(bag);
   const outOf = (r: Resource) => (stock ? bag[r] >= stock[r] : !view.bank[r]);
+  // A split tile pays one of its two: a card that wouldn't fit any owed pick stays off.
+  const fits = (r: Resource) => choiceFits(withItem(bag, r, 1), groups);
   return (
     <Panel
-      title="Gold"
+      title={splits.length ? 'Choose resources' : 'Gold'}
       status={`${picked} / ${owed} chosen${secondsLeft === null ? '' : ` · ${secondsLeft}s`}`}
       action={
         <button
@@ -324,11 +332,16 @@ export function GoldPanel({
         </button>
       }
     >
+      {splits.map(split => (
+        <p key={split.options.join()} className="trade-hint">
+          Split tile: {split.options.map(tradableLabel).join(' or ')} × {split.count}
+        </p>
+      ))}
       <Palette
         items={resourcesIn(view)}
         label="Choose resources from gold"
         name={r => `Take one more ${tradableLabel(r)}`}
-        disabled={r => busy || picked >= owed || (r !== 'discovery' && outOf(r))}
+        disabled={r => busy || picked >= owed || r === 'discovery' || outOf(r) || !fits(r)}
         count={r => (r === 'discovery' ? null : (view.bankCounts?.[r] ?? null))}
         pick={r => setBag(withItem(bag, r, 1))}
       />

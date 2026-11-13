@@ -1,60 +1,22 @@
 import { BUILD_COSTS } from '../engine/core';
 import { relaySpots, surveySpots } from '../engine/legal';
-import { chartedNumbers, hexNumbers } from '../rules';
+import { hexNumbers } from '../rules';
 import { boardIndex, isLandVertex } from '../seafaring';
-import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type TradeOffer } from '../types';
+import { type GameAction, type GameView, RESOURCES, type Resource, type TradeOffer } from '../types';
+import { chartMove, splitMove, surveyTarget, tileDots } from './charting';
 
 /**
  * Cartographers for every bot level, kept simple and cheap: survey ships whenever affordable (a
- * point each), lodestone kept while there is a ship at sea or a good relay spot, a relay station
- * (or the trade that completes one) before ending a turn, and charts on the tiles that pay the bot
- * most. The trained Advanced bot's own plans don't know these pieces.
+ * point each), lodestone kept while there is a ship at sea or a good relay spot, splits and charts
+ * on the bot's own tiles when there is no ship to fit out, and a relay station (or the trade that
+ * completes one) before ending a turn. The trained Advanced bot's own plans don't know these pieces.
  */
 
-/** Dots on a number token: how many of the 36 rolls hit it. */
-const dots = (n: number) => 6 - Math.abs(7 - n);
-const tileDots = (numbers: number[]) => numbers.reduce((sum, n) => sum + dots(n), 0);
-
-/** How much of a tile's payout goes to this seat: 1 per settlement or relay station, 2 per city. */
-function share(view: GameView, hex: Hex): number {
-  const index = boardIndex(view.board);
-  let owned = 0;
-  for (const id of hex.vertexIds) {
-    const building = view.buildings[id];
-    if (building?.playerId === view.selfId) owned += building.kind === 'city' ? 2 : 1;
-  }
-  for (const id of view.relays)
-    if (view.roads[id] === view.selfId && index.edgeHexes.get(id)!.some(h => h.id === hex.id)) owned++;
-  return owned;
-}
-
-/** The charts this seat makes after a 7: its best tiles, or none (a pass) when nothing pays it. */
-export function chartChoice(view: GameView): GameAction {
-  const owed = view.pendingCharts[view.selfId] ?? 0;
-  const index = boardIndex(view.board);
-  // Numbers as they would read after the picks so far (a tile may be picked more than once).
-  const numbers = new Map(view.legal.chartHexes.map(id => [id, hexNumbers(index.hex.get(id)!)]));
-  const picks: string[] = [];
-  for (let i = 0; i < owed; i++) {
-    let best: { id: string; gain: number } | null = null;
-    for (const [id, now] of numbers) {
-      // A new number is a 2 or a 12 either way, so `low` doesn't change the gain.
-      const after = chartedNumbers(now, true);
-      if (!after) continue;
-      const gain = (tileDots(after) - tileDots(now)) * share(view, index.hex.get(id)!);
-      if (gain > 0 && (!best || gain > best.gain)) best = { id, gain };
-    }
-    if (!best) break;
-    picks.push(best.id);
-    numbers.set(best.id, chartedNumbers(numbers.get(best.id)!, true)!);
-  }
-  return { type: 'chart-hexes', hexIds: picks };
-}
-
-/** A survey ship whenever one can be fitted out. */
+/** A survey ship whenever one can be fitted out, aimed at the best target. */
 export function surveyMove(view: GameView): GameAction | null {
   const edgeId = view.legal.surveys[0];
-  return edgeId ? { type: 'build-survey', edgeId } : null;
+  const hexId = surveyTarget(view);
+  return edgeId && hexId ? { type: 'build-survey', edgeId, hexId } : null;
 }
 
 /** Fewest dots a relay station's two tiles must have between them to be worth building. */
@@ -80,10 +42,8 @@ function bestRelay(view: GameView, spots: string[]): string | null {
   for (const edgeId of spots) {
     const edge = index.edge.get(edgeId)!;
     if (settleable(view, edge.a) || settleable(view, edge.b)) continue;
-    const value = index.edgeHexes
-      .get(edgeId)!
-      .filter(h => h.id !== view.robber)
-      .reduce((sum, h) => sum + tileDots(hexNumbers(h)), 0);
+    // Relay stations collect under the robber too.
+    const value = index.edgeHexes.get(edgeId)!.reduce((sum, h) => sum + tileDots(hexNumbers(h)), 0);
     if (value >= RELAY_MIN_DOTS && (!best || value > best.value)) best = { edgeId, value };
   }
   return best?.edgeId ?? null;
@@ -128,14 +88,19 @@ function tradeToward(view: GameView, piece: 'survey' | 'relay'): GameAction | nu
 }
 
 /**
- * Cartographers on a bot's own turn: a survey ship first (a point); lodestone kept while it has a
- * use; and before ending the turn, a relay station or the trade that completes one of the two.
+ * Cartographers on a bot's own turn: a survey ship first (a point), else a split or chart on its
+ * tiles; lodestone kept while it has a use; and before ending the turn, a relay station or the trade that completes one of the two.
  */
 export function cartographersTurn(view: GameView, planned: GameAction): GameAction {
   if (!view.cartographers || view.phase !== 'build' || view.activePlayerId !== view.selfId) return planned;
   const survey = surveyMove(view);
   if (survey) return survey;
   const use = lodestoneUse(view);
+  // With no ship to fit out, lodestone goes on the bot's own tiles.
+  if (use !== 'survey') {
+    const tile = splitMove(view) ?? chartMove(view);
+    if (tile) return tile;
+  }
   const finish = () => relayMove(view) ?? (use ? tradeToward(view, use) : null);
   if (use && givesLodestone(planned)) return finish() ?? { type: 'end-turn' };
   return planned.type === 'end-turn' ? (finish() ?? planned) : planned;

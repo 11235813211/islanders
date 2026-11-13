@@ -3,11 +3,10 @@ import { copyData } from '../copy';
 import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
-import { afterRobber, cartographersHandlers } from './cartographers';
+import { cartographersHandlers } from './cartographers';
 import {
   type ActionContext,
   addLog,
-  CHART_SECONDS,
   cloneState,
   GOLD_SECONDS,
   getActivePlayerId,
@@ -23,7 +22,7 @@ import { lobbyHandlers, switchRole } from './lobby';
 import { seaHandlers } from './sea';
 import { socialAction } from './social';
 import { pruneTradeOffer, reproposeDeferred, tradeHandlers } from './trade';
-import { turnHandlers } from './turn';
+import { afterRobber, turnHandlers } from './turn';
 
 const HANDLERS: Handlers = {
   ...lobbyHandlers,
@@ -50,7 +49,6 @@ const OFF_TURN = new Set<GameAction['type']>([
   'choose-map',
   'discard',
   'choose-gold',
-  'chart-hexes',
   'request-special-build',
   'accept-trade',
   'decline-trade',
@@ -171,8 +169,6 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   } else if (!rolling(next.phase)) next.rollDeadline = null;
   if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + GOLD_SECONDS * 1000;
   else if (next.phase !== 'gold') next.goldDeadline = null;
-  if (next.phase === 'charting' && state.phase !== 'charting') next.chartDeadline = now + CHART_SECONDS * 1000;
-  else if (next.phase !== 'charting') next.chartDeadline = null;
   if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + ROBBER_SECONDS * 1000;
   else if (next.phase !== 'robber') next.robberDeadline = null;
   const newSeat =
