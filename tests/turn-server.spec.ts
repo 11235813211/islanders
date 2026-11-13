@@ -14,12 +14,15 @@ test('durable turn alarms place setup pieces and complete a normal turn without 
     await friend.authenticate(f);
     await host.action({ type: 'configure', settings: { autoRollSeconds: 0, trackDice: true, turnSeconds: 15 } });
     await host.action({ type: 'start' });
-    await expect.poll(() => host.state.activePlayerId, { timeout: 20_000 }).toBe(f.playerId);
-    expect(Object.values(host.state.buildings).filter(b => b.playerId === h.playerId)).toHaveLength(1);
-    expect(Object.values(host.state.roads).filter(id => id === h.playerId)).toHaveLength(1);
-    await expect.poll(() => friend.state.phase).toBe('setup-settlement');
+    // Seats are drawn at random on start: the first seat's setup times out and is placed for it.
+    const [first, second] = host.state.players.map(p => p.id) as [string, string];
+    const seat = (id: string) => (id === h.playerId ? host : friend);
+    await expect.poll(() => host.state.activePlayerId, { timeout: 20_000 }).toBe(second);
+    expect(Object.values(host.state.buildings).filter(b => b.playerId === first)).toHaveLength(1);
+    expect(Object.values(host.state.roads).filter(id => id === first)).toHaveLength(1);
+    await expect.poll(() => seat(second).state.phase).toBe('setup-settlement');
     for (let i = 0; i < 3; i++) {
-      const player = i < 2 ? friend : host;
+      const player = seat(i < 2 ? second : first);
       await expect.poll(() => player.state.legal.settlements.length).toBeGreaterThan(0);
       await player.action({ type: 'place-settlement', vertexId: player.state.legal.settlements[0] });
       await player.action({ type: 'place-road', edgeId: player.state.legal.roads[0] });
@@ -27,7 +30,7 @@ test('durable turn alarms place setup pieces and complete a normal turn without 
     expect(host.state.turn).toBe(1);
     expect(host.state.phase).toBe('roll');
     await expect.poll(() => host.state.turn, { timeout: 20_000 }).toBe(2);
-    expect(host.state.activePlayerId).toBe(f.playerId);
+    expect(host.state.activePlayerId).toBe(second);
     expect(host.state.phase).toBe('roll');
     expect(Object.values(host.state.diceCounts).reduce((n, x) => n + x, 0)).toBe(1);
     expect(host.state.turnDeadline! - Date.now()).toBeGreaterThan(10_000);
