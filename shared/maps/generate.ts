@@ -21,7 +21,7 @@ import {
 } from './balance';
 import { fogMayBeSea } from './edit';
 import { autoHarbors, harborTarget } from './harbors';
-import { numberLeanings } from './numbers';
+import { fogIslandsOf, islandLevels, numberLeanings } from './numbers';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -536,7 +536,8 @@ function exactFog(counts: Map<FogKind, number>, size: number, random: () => numb
 
 /**
  * What lies under each fog tile, drawn now and kept hidden (the face-down stack): a balanced draw
- * from the design's fog mix, and a number for any land that will produce.
+ * from the design's fog mix, and a number for any land that will produce. Each fog island's
+ * number levels (set in the editor, per terrain) shift the numbers its land draws, as on land.
  */
 function drawFog(design: BoardDesign, board: Board, random: () => number): GameState['fog'] {
   const hexes = board.hexes.filter(h => h.terrain === 'fog');
@@ -548,13 +549,21 @@ function drawFog(design: BoardDesign, board: Board, random: () => number): GameS
   const kinds = design.fogExact
     ? exactFog(weights, hexes.length, random)
     : shuffled(apportion(hexes.length, weights, new Map(), random), random);
-  const producing = kinds.filter(k => isProducing(k)).length;
-  const mix = numberMix(0, !!design.noTwoTwelve);
-  const numbers = shuffled(apportion(producing, mix, new Map(), random), random);
+  const levels = new Map(
+    fogIslandsOf(design).flatMap(island => island.map(t => [tileKey(t.q, t.r), islandLevels(island)] as const)),
+  );
+  const levelAt = (i: number) => levels.get(tileKey(hexes[i]!.q, hexes[i]!.r))?.[kinds[i] as FillKind] ?? 0;
+  // One pool per level, sized to the producing tiles at that level, as balancedNumbers does for land.
+  const pools = new Map<number, number[]>();
+  const producing = hexes.flatMap((_, i) => (isProducing(kinds[i]!) ? [i] : []));
+  for (const level of new Set(producing.map(levelAt))) {
+    const count = producing.filter(i => levelAt(i) === level).length;
+    pools.set(level, shuffled(apportion(count, numberMix(level, !!design.noTwoTwelve), new Map(), random), random));
+  }
   return Object.fromEntries(
     hexes.map((hex, i) => {
       const terrain = kinds[i]!;
-      return [hex.id, { terrain, number: isProducing(terrain) ? (numbers.pop() ?? null) : null }];
+      return [hex.id, { terrain, number: isProducing(terrain) ? (pools.get(levelAt(i))!.pop() ?? null) : null }];
     }),
   );
 }

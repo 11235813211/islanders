@@ -4,7 +4,7 @@ import { buildBoard, designFor, parseDesign, tileKey } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
 import { noStartPoints, toggleNoStart } from '../shared/maps/edit';
 import { setNotLinks } from '../shared/maps/fill';
-import { setIslandLevels } from '../shared/maps/numbers';
+import { fogIslandsOf, randomTerrains, setIslandLevels } from '../shared/maps/numbers';
 import type { BoardDesign } from '../shared/maps/types';
 import type { GameState } from '../shared/types';
 import { fogOutlook } from '../src/components/maps/FogSummary';
@@ -260,5 +260,46 @@ describe('number richness by terrain', () => {
     expect(() =>
       parseDesign({ ...leaning, tiles: leaning.tiles.map(t => ({ ...t, numberLevels: { ore: 4 } })) }, ['seafaring']),
     ).toThrow();
+  });
+});
+
+describe('number levels on fog', () => {
+  /** A home island, and two fog islands of seven tiles each that hide only wheat. */
+  function foggyDesign(): BoardDesign {
+    const d = testDesign([
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+      ' ~ w6 h8 ~ L L ~ ~ L L ~',
+      '~ s9 o5 ~ L L L ~ L L L ~',
+      ' ~ b4 h10 ~ L L ~ ~ L L ~',
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+    ]);
+    return {
+      ...d,
+      fogPool: { wheat: 1 },
+      fogExact: false,
+      tiles: d.tiles.map(t => (t.kind === 'land' ? { ...t, kind: 'fog' as const } : t)),
+    };
+  }
+  const hidden = (design: BoardDesign, seed: number) => {
+    const { board, fog } = buildBoard(design, seeded(seed));
+    return board.hexes.filter(h => fog[h.id]).map(h => ({ q: h.q, number: fog[h.id]!.number! }));
+  };
+
+  it('each fog island draws its hidden numbers from its own levels, and the levels survive saving', () => {
+    const design = foggyDesign();
+    const [west, east] = fogIslandsOf(design);
+    expect(west).toHaveLength(7);
+    expect(east).toHaveLength(7);
+    const keys = (island: typeof west) => new Set(island!.map(t => tileKey(t.q, t.r)));
+    const leaning = setIslandLevels(setIslandLevels(design, keys(west), { wheat: 3 }), keys(east), { wheat: -3 });
+    const westQ = new Set(west!.map(t => t.q));
+    for (let seed = 1; seed < 20; seed++)
+      for (const { q, number } of hidden(leaning, seed)) {
+        if (westQ.has(q)) expect([6, 8]).toContain(number);
+        else expect([2, 3, 11, 12]).toContain(number);
+      }
+    const saved = parseDesign(leaning, ['seafaring']);
+    expect(saved.tiles.find(t => t.kind === 'fog')!.numberLevels).toBeTruthy();
+    expect(randomTerrains(leaning, west!)).toEqual(['wheat']);
   });
 });

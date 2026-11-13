@@ -1,10 +1,11 @@
-import { NUMBER_LEVELS } from './balance';
+import { NUMBER_LEVELS, neighborKeys } from './balance';
 import { closedTiles, isLand, islandOf } from './edit';
 import {
   BASE_POOL,
   type BoardDesign,
   type DesignTile,
   type FillKind,
+  FOG_POOL,
   NUMBER_KINDS,
   type NumberLevels,
   tileKey,
@@ -27,6 +28,47 @@ export function islandsOf(design: BoardDesign): DesignTile[][] {
   }
   return islands;
 }
+
+/** The fog tiles joined to the fog tile at (q, r): one fog island, whose hidden land shares its levels. */
+export function fogIslandOf(design: BoardDesign, q: number, r: number): DesignTile[] {
+  const byKey = new Map(design.tiles.filter(t => t.kind === 'fog').map(t => [tileKey(t.q, t.r), t]));
+  const start = byKey.get(tileKey(q, r));
+  if (!start) return [];
+  const found = new Map([[tileKey(q, r), start]]);
+  const queue = [start];
+  while (queue.length) {
+    for (const key of neighborKeys(queue.pop()!)) {
+      const next = byKey.get(key);
+      if (next && !found.has(key)) {
+        found.set(key, next);
+        queue.push(next);
+      }
+    }
+  }
+  return [...found.values()];
+}
+
+/** Every fog island of the layout, in tile order. */
+export function fogIslandsOf(design: BoardDesign): DesignTile[][] {
+  const seen = new Set<string>();
+  const islands: DesignTile[][] = [];
+  for (const tile of design.tiles) {
+    if (tile.kind !== 'fog' || seen.has(tileKey(tile.q, tile.r))) continue;
+    const island = fogIslandOf(design, tile.q, tile.r);
+    for (const t of island) seen.add(tileKey(t.q, t.r));
+    islands.push(island);
+  }
+  return islands;
+}
+
+/** The land island or fog island holding the tile at (q, r), or [] for sea and icebergs. */
+export const regionOf = (design: BoardDesign, q: number, r: number): DesignTile[] => {
+  const land = islandOf(design, q, r);
+  return land.length ? land : fogIslandOf(design, q, r);
+};
+
+/** Land islands and fog islands: everything that carries number levels. */
+const regionsOf = (design: BoardDesign) => [...islandsOf(design), ...fogIslandsOf(design)];
 
 /** The levels an island's random numbers follow. */
 export const islandLevels = (island: DesignTile[]): NumberLevels =>
@@ -57,7 +99,7 @@ export const sameLevels = (a: NumberLevels, b: NumberLevels) => NUMBER_KINDS.eve
 /** Give the islands holding `keys` these levels (every one of their tiles). */
 export function setIslandLevels(design: BoardDesign, keys: Set<string>, levels: NumberLevels): BoardDesign {
   const members = new Set<string>();
-  for (const island of islandsOf(design))
+  for (const island of regionsOf(design))
     if (island.some(t => keys.has(tileKey(t.q, t.r)))) for (const t of island) members.add(tileKey(t.q, t.r));
   const cleaned = cleanLevels(levels);
   return {
@@ -72,6 +114,10 @@ export function setIslandLevels(design: BoardDesign, keys: Set<string>, levels: 
 
 /** Terrains that will get a random number on this island: unnumbered tiles, and what its random land may become. */
 export function randomTerrains(design: BoardDesign, island: DesignTile[]): FillKind[] {
+  if (island[0]?.kind === 'fog') {
+    const pool = design.fogPool ?? FOG_POOL;
+    return NUMBER_KINDS.filter(k => ((pool as Partial<Record<string, number>>)[k] ?? 0) > 0);
+  }
   const open = island.filter(t => t.number === undefined);
   const kinds = new Set<string>(open.map(t => t.kind));
   if (kinds.has('land')) {
@@ -83,8 +129,9 @@ export function randomTerrains(design: BoardDesign, island: DesignTile[]): FillK
   return NUMBER_KINDS.filter(k => kinds.has(k));
 }
 
-/** Land tile keys of all islands, those closed to starting settlements, or those open to them. */
-export function islandSet(design: BoardDesign, which: 'all' | 'closed' | 'open'): Set<string> {
+/** Land tile keys of all islands, those closed to starting settlements, or those open to them; or every fog tile. */
+export function islandSet(design: BoardDesign, which: 'all' | 'closed' | 'open' | 'fog'): Set<string> {
+  if (which === 'fog') return new Set(design.tiles.filter(t => t.kind === 'fog').map(t => tileKey(t.q, t.r)));
   const land = design.tiles.filter(t => isLand(t.kind)).map(t => tileKey(t.q, t.r));
   if (which === 'all') return new Set(land);
   const closed = closedTiles(design);

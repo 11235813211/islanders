@@ -1,6 +1,6 @@
 import { HEX_RADIUS, hexCenter } from '../../../shared/board';
 import type { BoardDesign, FillKind, NumberLevels } from '../../../shared/maps';
-import { islandLevels, islandsOf, randomTerrains } from '../../../shared/maps/numbers';
+import { fogIslandsOf, islandLevels, islandsOf, randomTerrains } from '../../../shared/maps/numbers';
 import { tileKey } from '../../../shared/maps/types';
 import { TileIcon } from './BrushPicker';
 import { levelName, levelTone } from './levels';
@@ -26,9 +26,9 @@ function labelLines(levels: NumberLevels, kinds: FillKind[]): Leaning['lines'] {
   return [...(usual ? [{ kinds: [], level: usual }] : []), ...rest.map(([level, on]) => ({ kinds: on, level }))];
 }
 
-/** Islands whose random numbers lean off the usual mix, with a label spot above each one's top row. */
+/** Islands (and fog islands) whose random numbers lean off the usual mix, with a label spot above each one's top row. */
 function leanings(design: BoardDesign): Leaning[] {
-  return islandsOf(design).flatMap(island => {
+  return [...islandsOf(design), ...fogIslandsOf(design)].flatMap(island => {
     const kinds = randomTerrains(design, island);
     const levels = islandLevels(island);
     if (!kinds.some(k => levels[k])) return [];

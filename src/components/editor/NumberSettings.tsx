@@ -2,12 +2,13 @@ import { Check, Minus, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { type BoardDesign, type FillKind, NUMBER_KINDS, type NumberLevels } from '../../../shared/maps';
 import { NUMBER_LEVELS } from '../../../shared/maps/balance';
-import { islandOf } from '../../../shared/maps/edit';
 import {
+  fogIslandsOf,
   islandLevels,
   islandSet,
   islandsOf,
   randomTerrains,
+  regionOf,
   sameLevels,
   setIslandLevels,
 } from '../../../shared/maps/numbers';
@@ -24,6 +25,7 @@ const SETS = [
   { which: 'all', label: 'All islands' },
   { which: 'closed', label: 'Closed islands' },
   { which: 'open', label: 'Open islands' },
+  { which: 'fog', label: 'Fog' },
 ] as const;
 
 /** One labeled − value + control. A null value shows "Mixed" and steps from `from`. */
@@ -74,16 +76,18 @@ function Stepper({
   );
 }
 
-/** The selected tile's island, if a land tile is selected. */
+/** The selected tile's island (land, or a patch of fog), if one is selected. */
 function selectedIsland(design: BoardDesign, selection: EditorSelection): DesignTile[] | null {
   if (selection?.kind !== 'tile') return null;
-  const island = islandOf(design, selection.q, selection.r);
+  const island = regionOf(design, selection.q, selection.r);
   return island.length ? island : null;
 }
 
 /** Whether every island holding `keys` already has these levels. */
 function allHave(design: BoardDesign, keys: Set<string>, levels: NumberLevels): boolean {
-  const islands = islandsOf(design).filter(island => island.some(t => keys.has(tileKey(t.q, t.r))));
+  const islands = [...islandsOf(design), ...fogIslandsOf(design)].filter(island =>
+    island.some(t => keys.has(tileKey(t.q, t.r))),
+  );
   return islands.length > 0 && islands.every(island => sameLevels(islandLevels(island), levels));
 }
 
@@ -135,19 +139,22 @@ export default function NumberSettings({
   const group = `numbers-${island ? tileKey(island[0]!.q, island[0]!.r) : ''}`;
   const write = (next: NumberLevels) => edit(d => setIslandLevels(d, keys, next), group);
   const all = overall(levels, kinds);
+  const fog = island?.[0]?.kind === 'fog';
   const randomCount = island?.filter(t => t.number === undefined).length ?? 0;
 
   return (
     <section className="inspector-section number-settings" aria-label="Random numbers">
       <h3>Random numbers</h3>
-      {!island && <p className="inspector-hint">Select an island to set how rich its random numbers are.</p>}
+      {!island && <p className="inspector-hint">Select an island or fog to set how rich its random numbers are.</p>}
       {island && !kinds.length && <p className="inspector-hint">Every number on this island is set.</p>}
       {island && kinds.length > 0 && (
         <div className="number-profile">
           <div className="number-profile-head">
-            <strong>This island</strong>
+            <strong>{fog ? 'This fog' : 'This island'}</strong>
             <span>
-              {randomCount} random number{randomCount === 1 ? '' : 's'}
+              {fog
+                ? `${randomCount} fog tile${randomCount === 1 ? '' : 's'}`
+                : `${randomCount} random number${randomCount === 1 ? '' : 's'}`}
             </span>
             <button
               type="button"

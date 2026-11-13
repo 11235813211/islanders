@@ -164,6 +164,56 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   expect((await page.request.delete(`${server}/api/boards/${saved.id}`, { headers })).status()).toBe(200);
 });
 
+test('fog takes number levels like an island: select it, lean a terrain, copy to all fog, and save', async ({
+  page,
+}) => {
+  const headers = await signIn(page);
+  const stale = ((await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary).boards.filter(
+    b => b.name === 'Fog numbers board',
+  );
+  for (const board of stale) await page.request.delete(`${server}/api/boards/${board.id}`, { headers });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Board editor' }).click();
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'New blank board' }).first().click();
+  await page.getByLabel('Board name').fill('Fog numbers board');
+  // Two fog patches apart from each other, and a land tile.
+  await drag(page, [[0, 0]], 'Shift');
+  await page.getByRole('button', { name: /^Brush:/ }).click();
+  await page.getByRole('menuitemradio', { name: 'Fog' }).click();
+  await drag(
+    page,
+    [
+      [2, 0],
+      [3, 0],
+    ],
+    'Control',
+  );
+  await drag(page, [[-1, 0]], 'Control');
+  await page.getByRole('button', { name: 'Move', exact: true }).click();
+  const fog = await cellPoint(page, 2, 0);
+  await page.mouse.click(fog.x, fog.y);
+  const numbers = page.getByRole('region', { name: 'Random numbers' });
+  await expect(numbers.getByText('This fog')).toBeVisible();
+  await expect(numbers.getByText('2 fog tiles')).toBeVisible();
+  await numbers.getByRole('button', { name: 'Fields richer' }).click();
+  await expect(numbers.getByRole('group', { name: 'Fields' })).toContainText('Rich');
+  await numbers.getByRole('button', { name: 'Fog', exact: true }).click();
+  await expect(numbers.getByRole('button', { name: 'Fog', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.island-leaning')).toHaveCount(2);
+  await expectNoSpill(numbers);
+  await numbers.screenshot({ path: 'test-results/editor-fog-numbers.png' });
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
+  const saved = ((await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary).boards.find(
+    b => b.name === 'Fog numbers board',
+  ) as BoardDesign;
+  const fogTiles = saved.tiles.filter(t => t.kind === 'fog');
+  expect(fogTiles).toHaveLength(3);
+  for (const tile of fogTiles) expect(tile.numberLevels).toEqual({ wheat: 1 });
+  expect(saved.tiles.find(t => t.kind !== 'fog' && t.kind !== 'sea')?.numberLevels).toBeUndefined();
+  expect((await page.request.delete(`${server}/api/boards/${saved.id}`, { headers })).status()).toBe(200);
+});
+
 test('boards move between categories by drag and drop, and categories can be added', async ({ page }) => {
   const headers = await signIn(page);
   // Empty categories left by an interrupted earlier run (the local library persists).

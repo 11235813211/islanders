@@ -97,7 +97,7 @@ function parseTile(v: unknown): DesignTile {
   }
   if (t.numberLevels !== undefined) {
     const levels = parseNumberLevels(t.numberLevels);
-    if (Object.keys(levels).length && isLandKind(tile.kind)) tile.numberLevels = levels;
+    if (Object.keys(levels).length && (isLandKind(tile.kind) || tile.kind === 'fog')) tile.numberLevels = levels;
   }
   return tile;
 }
