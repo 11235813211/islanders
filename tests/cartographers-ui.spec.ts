@@ -16,7 +16,7 @@ function game(): GameState {
   g.phase = 'build';
   g.rollDeadline = null;
   g.turnDeadline = Date.now() + 120_000;
-  grant(g, 'p0', { lodestone: 4, wood: 2, sheep: 2, wheat: 1 });
+  grant(g, 'p0', { lodestone: 4, wood: 2, sheep: 2, wheat: 1, ore: 1 });
   return g;
 }
 

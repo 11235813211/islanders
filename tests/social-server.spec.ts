@@ -53,9 +53,10 @@ test('private spectators join a started room, see no hands, chat, and cannot bui
 test('pause excludes disconnected seats, blocks moves, and undo votes restore a setup move', async ({ request }) => {
   const h = await join(request, 'Host');
   const f = await join(request, 'Friend', h.roomId);
-  await join(request, 'Away', h.roomId);
+  const a = await join(request, 'Away', h.roomId);
   const host = new PlayerConnection(h.roomId),
-    friend = new PlayerConnection(h.roomId);
+    friend = new PlayerConnection(h.roomId),
+    away = new PlayerConnection(h.roomId);
   try {
     await host.authenticate(h);
     await friend.authenticate(f);
@@ -75,17 +76,27 @@ test('pause excludes disconnected seats, blocks moves, and undo votes restore a 
     await expect.poll(() => host.state.proposal?.kind).toBe('resume');
     await host.action({ type: 'vote', proposalId: host.state.proposal!.id, accept: true });
     expect(host.state.pausedAt).toBeNull();
-    await host.action({ type: 'place-settlement', vertexId: host.state.legal.settlements[0] });
-    await host.action({ type: 'propose', kind: 'undo' });
-    expect(host.state.proposal!.required).toHaveLength(3); // Undo still requires every player.
-    await expect.poll(() => friend.state.proposal?.kind).toBe('undo');
-    await friend.action({ type: 'vote', proposalId: friend.state.proposal!.id, accept: false });
-    await expect.poll(() => host.state.proposal?.rejected).toEqual([f.playerId]);
-    await host.action({ type: 'propose', kind: 'undo' });
-    expect(host.state.proposal?.accepted).toEqual([h.playerId]);
-    expect(host.state.phase).toBe('setup-road');
+    // Turn order is drawn at random: the first seat places, and another seat votes on its undo.
+    await away.authenticate(a);
+    const seats = [
+      { session: h, connection: host },
+      { session: f, connection: friend },
+      { session: a, connection: away },
+    ];
+    const mover = seats.find(seat => seat.session.playerId === host.state.activePlayerId)!;
+    const voter = seats.find(seat => seat !== mover)!;
+    await mover.connection.action({ type: 'place-settlement', vertexId: mover.connection.state.legal.settlements[0] });
+    await mover.connection.action({ type: 'propose', kind: 'undo' });
+    expect(mover.connection.state.proposal!.required).toHaveLength(3); // Undo still requires every player.
+    await expect.poll(() => voter.connection.state.proposal?.kind).toBe('undo');
+    await voter.connection.action({ type: 'vote', proposalId: voter.connection.state.proposal!.id, accept: false });
+    await expect.poll(() => mover.connection.state.proposal?.rejected).toEqual([voter.session.playerId]);
+    await mover.connection.action({ type: 'propose', kind: 'undo' });
+    expect(mover.connection.state.proposal?.accepted).toEqual([mover.session.playerId]);
+    expect(mover.connection.state.phase).toBe('setup-road');
   } finally {
     host.dispose();
     friend.dispose();
+    away.dispose();
   }
 });
