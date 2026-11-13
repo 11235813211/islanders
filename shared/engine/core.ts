@@ -94,7 +94,7 @@ export function discoveriesLeft(state: Pick<GameState, 'players'>): number {
   return Math.max(0, discoverySupply(state.players.length) - state.players.reduce((n, p) => n + p.discoveries, 0));
 }
 export const BUILD_COSTS: Record<
-  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey',
+  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey' | 'peek',
   ResourceBag
 > = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
@@ -104,6 +104,8 @@ export const BUILD_COSTS: Record<
   development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
   relay: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0, lodestone: 2 },
   survey: { wood: 0, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 2 },
+  /** Cartographers: a look under one fog tile, for your eyes only. */
+  peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
 };
 export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
 

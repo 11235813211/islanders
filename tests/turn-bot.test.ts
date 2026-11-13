@@ -3,6 +3,8 @@ import { chooseBotAction } from '../shared/bots';
 import {
   advanceTime,
   applyAction,
+  BOT_OFFER_WAIT_MS,
+  botDueAt,
   getActivePlayerId,
   getView,
   logPresence,
@@ -25,6 +27,33 @@ function consent(g: GameState, at: number) {
     g = applyAction(g, id, { type: 'vote', proposalId: g.proposal!.id, accept: true }, seeded(), at);
   return g;
 }
+describe('bot trade offers', () => {
+  it('waits for people to answer before picking a partner, unless everyone has answered', () => {
+    let g = settled();
+    clearHands(g);
+    g.players[0]!.bot = 'beginner';
+    g.players[1]!.bot = 'beginner';
+    g.phase = 'build';
+    g.rollDeadline = null;
+    grant(g, 'p0', { wood: 2 });
+    grant(g, 'p1', { ore: 2 });
+    grant(g, 'p2', { ore: 2 });
+    const terms = {
+      give: { ...g.players[0]!.resources, wood: 1 },
+      want: { ...g.players[0]!.resources, wood: 0, ore: 1 },
+    };
+    g = applyAction(g, 'p0', { type: 'offer-trade', ...terms }, seeded(), now);
+    g = applyAction(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffer!.id }, seeded(), now + 100);
+    expect(botDueAt(g)).toBe(now + BOT_OFFER_WAIT_MS);
+    expect(advanceTime(g, now + 1000, seeded())).toBe(g);
+    const answered = applyAction(g, 'p2', { type: 'decline-trade', offerId: g.tradeOffer!.id }, seeded(), now + 2000);
+    expect(botDueAt(answered)).toBeLessThan(now + BOT_OFFER_WAIT_MS);
+    const traded = advanceTime(g, now + BOT_OFFER_WAIT_MS, seeded());
+    expect(traded.tradeOffer).toBeNull();
+    expect(traded.players[0]!.resources.ore).toBe(1);
+  });
+});
+
 describe('server-side turn completion', () => {
   it('finishes just one setup placement, including the last placement, when alarms are late', () => {
     let g = inSeatOrder(applyAction(makeLobby(4), 'p0', { type: 'start' }, seeded(), now));

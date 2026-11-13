@@ -22,7 +22,7 @@ import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
 import { seaHandlers } from './sea';
 import { socialAction } from './social';
-import { pruneTradeOffer, tradeHandlers } from './trade';
+import { pruneTradeOffer, reproposeDeferred, tradeHandlers } from './trade';
 import { turnHandlers } from './turn';
 
 const HANDLERS: Handlers = {
@@ -55,6 +55,11 @@ const OFF_TURN = new Set<GameAction['type']>([
   'accept-trade',
   'decline-trade',
   'counter-trade',
+  // Anyone may offer a trade during someone's turn (see engine/trade.ts).
+  'offer-trade',
+  'confirm-trade',
+  'accept-counter',
+  'cancel-trade',
 ]);
 /** Allowed while paused or after the game ends. */
 const ALWAYS = new Set<GameAction['type']>(['leave', 'transfer-host', 'play-again']);
@@ -156,6 +161,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     });
   }
   pruneTradeOffer(next);
+  reproposeDeferred(next, now);
 
   const playing = !['lobby', 'finished'].includes(next.phase);
   // The dice and the volcano dice both roll themselves after the room's auto-roll wait.

@@ -203,7 +203,7 @@ describe('trades and counter-offers', () => {
     });
     const counter = g.tradeOffer!.counters[0]!;
     expect(() => act(g, 'p1', { type: 'accept-counter', offerId: g.tradeOffer!.id, counterId: counter.id })).toThrow(
-      /your turn/,
+      /offering player/,
     );
     const before = structuredClone(g.players);
     g = act(g, 'p0', { type: 'accept-counter', offerId: g.tradeOffer!.id, counterId: counter.id });

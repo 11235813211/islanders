@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { applyAction, ownBoard } from '../shared/engine';
 import { grant, richGame, seeded, settled, TEST_NOW } from './fixtures';
-import { mountGame } from './ui-harness';
+import { expectNoSpill, mountGame } from './ui-harness';
 
 async function fits(page: Page) {
   const boxes = await page.evaluate(() =>
@@ -408,4 +408,43 @@ test('on a wide screen the scoreboard has no fold button', async ({ page }) => {
   await mountGame(page, richGame());
   await expect(page.locator('.player-table')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fold the scoreboard' })).toBeHidden();
+});
+
+test('an off-turn offer to five players shows every answer, the counter, and the off-turn note at every width', async ({
+  page,
+}) => {
+  const game = settled(6);
+  game.testMode = true;
+  game.phase = 'build';
+  game.rollDeadline = null;
+  game.turnDeadline = Date.now() + 120_000;
+  grant(game, 'p2', { wood: 3 });
+  grant(game, 'p3', { ore: 2 });
+  const bag = (wood: number, ore: number) => ({ wood, brick: 0, sheep: 0, wheat: 0, ore, lodestone: 0 });
+  game.tradeOffer = {
+    id: 'trade-wide',
+    fromId: 'p2',
+    give: bag(2, 0),
+    want: bag(0, 1),
+    to: ['p0', 'p1', 'p3', 'p4', 'p5'],
+    acceptedBy: ['p3'],
+    declinedBy: ['p1', 'p4'],
+    counters: [{ id: 'counter-wide', fromId: 'p5', give: bag(0, 1), want: bag(3, 0) }],
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 600_000,
+  };
+  await mountGame(page, game);
+  await page.getByLabel('Follow current turn').uncheck();
+  const notice = page.getByRole('region', { name: 'Trade offer' });
+  for (const seat of ['p2', 'p0']) {
+    await page.getByLabel('Play as', { exact: true }).selectOption(seat);
+    await expect(notice.getByRole('img', { name: /declined$/ })).toHaveCount(2);
+    await expect(notice.getByText(/counters$/)).toBeVisible();
+    await expect(notice.getByText(/next turn of either player/)).toHaveCount(seat === 'p0' ? 0 : 1);
+    for (const width of [1600, 1280, 1024, 820, 390]) {
+      await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
+      await expectNoSpill(notice);
+      await notice.screenshot({ path: `test-results/trade-offturn-${seat}-${width}.png` });
+    }
+  }
 });

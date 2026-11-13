@@ -13,7 +13,7 @@ import ChartTargets, { type ChartPicking } from './game/ChartTargets';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'survey';
-export type BoardMode = PlaceKind | 'robber' | 'move-ship' | null;
+export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | null;
 /** Pieces that go on an edge. */
 export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city';
 /** A picked spot waiting for confirmation. `choices` lists both pieces when a coastal edge takes either. */
@@ -109,6 +109,7 @@ function hintFor(
   charting: boolean,
 ): string {
   if (charting && !hexes && !edges) return 'Choose tiles to chart';
+  if (mode === 'peek') return 'Choose a fog tile to peek at';
   if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
   if (mode === 'survey') return 'Choose a ship out at sea';
@@ -159,7 +160,9 @@ export default function Board({
             : [],
   );
   const edgeTargets = new Set(disabled ? [] : edgeTargetsFor(view, mode, moveFrom));
-  const hexTargets = new Set(disabled || !robberMode ? [] : view.legal.robberHexes);
+  const hexTargets = new Set(
+    disabled ? [] : mode === 'peek' ? view.legal.peekHexes : robberMode ? view.legal.robberHexes : [],
+  );
   const edgeEnds = (edgeId: string) => {
     const edge = edges.get(edgeId)!;
     return [vertices.get(edge.a)!, vertices.get(edge.b)!] as const;
@@ -212,6 +215,7 @@ export default function Board({
             showClosed={view.phase === 'setup-settlement'}
             drifts={icebergDrifts(rolled)}
             rumbles={volcanoRumbles(view, rolled)}
+            peeks={view.fogPeeks}
           />
           {Object.entries(view.roads).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);
@@ -264,7 +268,11 @@ export default function Board({
                   className={`board-target board-hex-target${pirate ? ' board-sea-target' : ''}`}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Move ${pirate ? 'pirate' : 'robber'} to ${TERRAIN[hex.terrain].name}${hex.number ? `, number ${hex.number}` : ''}`}
+                  aria-label={
+                    mode === 'peek'
+                      ? `Peek at the fog tile ${hex.id}`
+                      : `Move ${pirate ? 'pirate' : 'robber'} to ${TERRAIN[hex.terrain].name}${hex.number ? `, number ${hex.number}` : ''}`
+                  }
                   onClick={() => onHex(hex.id)}
                   onKeyDown={event => keyboardActivate(event, () => onHex(hex.id))}
                   transform={`translate(${hex.x} ${hex.y})`}

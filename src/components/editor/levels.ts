@@ -13,8 +13,8 @@ export function levelHint(level: number, noEnds: boolean): string {
   if (level <= -NUMBER_LEVELS) return `Only ${edges}`;
   if (level >= NUMBER_LEVELS) return 'Only 6 or 8';
   if (level === 0) return 'The usual mix';
-  const share = Math.abs(level) === 1 ? 'About half are' : 'About 3 in 4 are';
-  return `${share} ${level > 0 ? '6 or 8' : edges}`;
+  if (level > 0) return level === 1 ? 'A few more 5, 6, 8 and 9' : 'Mostly 5, 6, 8 and 9';
+  return `${level === -1 ? 'About half are' : 'About 3 in 4 are'} ${edges}`;
 }
 
 /** Class for a level's color: poor (red), rich (green), or none. */

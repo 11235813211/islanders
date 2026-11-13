@@ -26,8 +26,17 @@ export function developmentDeck(random: () => number, large = false): Developmen
 }
 
 export function tradeRates(state: GameState, playerId: string): Record<Resource, number> {
-  const owned = state.board.harbors.filter(port =>
-    port.vertices.some(id => state.buildings[id]?.playerId === playerId),
+  // Cartographers: a relay station built on a harbor's edge uses that harbor too.
+  const relayCorners = new Set(
+    (state.relays ?? [])
+      .filter(id => state.roads[id] === playerId)
+      .map(id => boardIndex(state.board).edge.get(id))
+      .map(edge => (edge ? [edge.a, edge.b].sort().join(':') : '')),
+  );
+  const owned = state.board.harbors.filter(
+    port =>
+      port.vertices.some(id => state.buildings[id]?.playerId === playerId) ||
+      relayCorners.has([...port.vertices].sort().join(':')),
   );
   return Object.fromEntries(
     RESOURCES.map(resource => [

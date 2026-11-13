@@ -1,6 +1,14 @@
 import { bankTradeSize, tradeRates } from '../rules';
 import { isBotGame } from '../settings';
-import { type GameState, type Player, RESOURCES, type ResourceBag, type TradeBag, type TradeOffer } from '../types';
+import {
+  type DeferredTrade,
+  type GameState,
+  type Player,
+  RESOURCES,
+  type ResourceBag,
+  type TradeBag,
+  type TradeOffer,
+} from '../types';
 import {
   type ActionContext,
   addBag,
@@ -37,10 +45,7 @@ const clean = (bag: TradeBag): TradeBag => {
 
 function openOffer(next: GameState, offerId: string, now: number): TradeOffer {
   const offer = next.tradeOffer;
-  requireRule(
-    offer && offer.id === offerId && offer.expiresAt > now && offer.fromId === getActivePlayerId(next),
-    'This trade offer is no longer available.',
-  );
+  requireRule(offer && offer.id === offerId && offer.expiresAt > now, 'This trade offer is no longer available.');
   return offer;
 }
 
@@ -67,20 +72,69 @@ function exchange(next: GameState, a: Player, b: Player, aGives: TradeBag, bGive
   next.tradeOffer = null;
 }
 
-/** With people at the table, an offer everyone turned down stays this long so they can see it, then fades. */
+/** An offer everyone turned down stays this long so everyone can see the answers, then fades. */
 const REFUSED_LINGER_MS = 2500;
 
-/**
- * An offer everyone turned down stops waiting out its clock: in bot games it closes at once, and
- * otherwise it expires after a moment (see advanceTime).
- */
+/** An offer everyone turned down stops waiting out its clock: it expires after a moment (see advanceTime). */
 function closeIfRefused(next: GameState, now: number): void {
   const offer = next.tradeOffer;
   if (!offer || !offer.to.every(id => offer.declinedBy.includes(id))) return;
-  if (isBotGame(next)) {
-    next.tradeOffer = null;
-    addLog(next, 'Nobody took the trade.');
-  } else offer.expiresAt = Math.min(offer.expiresAt, now + REFUSED_LINGER_MS);
+  offer.expiresAt = Math.min(offer.expiresAt, now + REFUSED_LINGER_MS);
+}
+
+/**
+ * Trade now if the player whose turn it is takes part; otherwise the two agreed off turn and the
+ * trade waits for the next turn of either (reproposeDeferred).
+ */
+function tradeOrDefer(next: GameState, from: Player, other: Player, give: TradeBag, want: TradeBag, log: string): void {
+  const active = getActivePlayerId(next);
+  if (from.id === active || other.id === active) {
+    exchange(next, from, other, give, want);
+    addLog(next, log, { kind: 'player-trade', fromId: from.id, toId: other.id, give, get: want });
+    return;
+  }
+  requireRule(canAfford(from, give) && canAfford(other, want), 'Both players must have the resources in the offer.');
+  next.deferredTrades.push({ id: `deferred-${next.version + 1}`, fromId: from.id, toId: other.id, give, want });
+  next.tradeOffer = null;
+  addLog(next, `${from.name} and ${other.name} agreed to trade. It will be offered again on the next turn of either.`);
+}
+
+/**
+ * At the start of a turn (and whenever no offer is open during it), an agreed off-turn trade with
+ * the player whose turn it is comes back as their offer, already accepted by the other player.
+ */
+export function reproposeDeferred(next: GameState, now: number): void {
+  const active = getActivePlayerId(next);
+  if (next.phase !== 'build' || next.tradeOffer || !active) return;
+  const index = next.deferredTrades.findIndex(d => d.fromId === active || d.toId === active);
+  if (index < 0) return;
+  const [deferred] = next.deferredTrades.splice(index, 1) as [DeferredTrade];
+  const mine = deferred.fromId === active;
+  const partnerId = mine ? deferred.toId : deferred.fromId;
+  const author = next.players.find(p => p.id === active)!;
+  const partner = next.players.find(p => p.id === partnerId);
+  if (!partner) return;
+  const give = mine ? deferred.give : deferred.want;
+  const want = mine ? deferred.want : deferred.give;
+  next.tradeOffer = {
+    id: `trade-${next.version + 1}`,
+    fromId: active,
+    give,
+    want,
+    to: [partnerId],
+    acceptedBy: canAfford(partner, want) ? [partnerId] : [],
+    declinedBy: [],
+    counters: [],
+    createdAt: now,
+    expiresAt: now + next.settings.tradeSeconds * 1000,
+  };
+  addLog(next, `${author.name}’s trade agreed with ${partner.name} is offered again.`, {
+    kind: 'offer',
+    playerId: active,
+    give,
+    want,
+    to: [partnerId],
+  });
 }
 
 /** Drop the offer if its author can no longer pay, and any answers whose authors can't. */
@@ -154,8 +208,14 @@ export const tradeHandlers: Pick<
     bankExchange(context, action.give, action.receive);
   },
 
+  /** Anyone may offer during a turn; only the player whose turn it is replaces someone else's open offer. */
   'offer-trade'({ next, player, playerId, now }, action) {
     needPhase(next, 'build');
+    const open = next.tradeOffer;
+    requireRule(
+      !open || open.fromId === playerId || open.expiresAt <= now || getActivePlayerId(next) === playerId,
+      'Wait for the open trade offer to close.',
+    );
     requireFairShape(next, action.give, action.want);
     requireRule(canAfford(player, action.give), 'You do not have the resources you are offering.');
     const others = next.players.filter(p => p.id !== playerId).map(p => p.id);
@@ -180,7 +240,7 @@ export const tradeHandlers: Pick<
       want: next.tradeOffer.want,
       to: next.tradeOffer.to,
     });
-    // Against bots, nobody waits on an answer that can only be no.
+    // Against bots, nobody waits on an answer that can only be no (the no still shows for a moment).
     if (isBotGame(next)) {
       const offer = next.tradeOffer;
       for (const id of offer.to)
@@ -229,14 +289,7 @@ export const tradeHandlers: Pick<
     requireRule(offer.fromId === playerId, 'Only the offering player can complete this trade.');
     requireRule(offer.acceptedBy.includes(action.playerId), 'That player has not accepted this offer.');
     const other = next.players.find(p => p.id === action.playerId)!;
-    exchange(next, player, other, offer.give, offer.want);
-    addLog(next, `${player.name} traded with ${other.name}.`, {
-      kind: 'player-trade',
-      fromId: playerId,
-      toId: other.id,
-      give: offer.give,
-      get: offer.want,
-    });
+    tradeOrDefer(next, player, other, offer.give, offer.want, `${player.name} traded with ${other.name}.`);
   },
 
   'accept-counter'({ next, player, playerId, now }, action) {
@@ -246,14 +299,14 @@ export const tradeHandlers: Pick<
     const counter = offer.counters.find(c => c.id === action.counterId);
     requireRule(counter, 'That counter-offer is no longer available.');
     const other = next.players.find(p => p.id === counter.fromId)!;
-    exchange(next, player, other, counter.want, counter.give);
-    addLog(next, `${player.name} accepted ${other.name}’s counter-offer.`, {
-      kind: 'player-trade',
-      fromId: playerId,
-      toId: other.id,
-      give: counter.want,
-      get: counter.give,
-    });
+    tradeOrDefer(
+      next,
+      player,
+      other,
+      counter.want,
+      counter.give,
+      `${player.name} accepted ${other.name}’s counter-offer.`,
+    );
   },
 
   /** A recipient says no. The offer stays open, so they can still change their answer. */

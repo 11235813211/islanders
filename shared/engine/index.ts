@@ -18,6 +18,7 @@ export { normalizeGame, SCHEMA_VERSION } from './migrations';
 export { idlePause, idleResume, logPresence } from './social';
 export {
   advanceTime,
+  BOT_OFFER_WAIT_MS,
   BOT_THINK_MS,
   botDueAt,
   nextDueAt,

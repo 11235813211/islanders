@@ -1,10 +1,22 @@
 import { isLargeGame } from '../../../shared/engine';
 import type { GameView, Terrain } from '../../../shared/types';
+import { ruleSections } from './helpRules';
 
-/** One heading and its lines in the help dialog. */
+/** The help dialog's tabs: how to use this site, then the rules of the base game and each expansion. */
+export const HELP_TABS = [
+  { id: 'ui', label: 'How to' },
+  { id: 'base', label: 'Base' },
+  { id: 'seafarers', label: 'Seafarers' },
+  { id: 'tropics', label: 'Tropics' },
+  { id: 'cartographers', label: 'Cartographers' },
+] as const;
+export type HelpTab = (typeof HELP_TABS)[number]['id'];
+
+/** One heading and its lines in the help dialog, on its tab (How to when absent). */
 export interface HelpSection {
   title: string;
   lines: string[];
+  tab?: HelpTab;
 }
 
 /** Words that differ between touch screens and a mouse. */
@@ -83,10 +95,11 @@ function building(view: GameView, v: Verbs): HelpSection {
 
 function trading(view: GameView, v: Verbs): HelpSection {
   const lines = [
-    `After you roll, ${v.tap.toLowerCase()} a card in your hand to open a trade. It goes in Give.`,
+    `After the roll, ${v.tap.toLowerCase()} a card in your hand to open a trade. It goes in Give. The panel stays open through rolls and turns.`,
     `${v.tap} cards in the row at the top of the panel to ask for them. ${v.tap} a chosen card to take it back out.`,
-    'Send the offer to everyone, or pick players first. Each answers yes, no, or with a counter-offer.',
-    'Bank trades at your rates (4:1, 3:1, or 2:1 harbors), several at once: give each kind in a multiple of its rate, one card for each.',
+    'Send the offer to everyone, or pick players first. Each answers yes, no, or with a counter-offer, and everyone sees every answer.',
+    'You can offer off turn. A deal with the player whose turn it is happens at once; one between two others comes back at the start of the next turn of either.',
+    'Bank trades, on your own turn, use your rates (4:1, 3:1, or 2:1 harbors), several at once: give each kind in a multiple of its rate, one card for each.',
   ];
   if (view.phase === 'special-build' || isLargeGame(view.players.length))
     lines.push('There is no trading during the special build phase.');
@@ -116,67 +129,26 @@ function table(v: Verbs): HelpSection {
   };
 }
 
-/** Sections for the sea-map features this board has. */
+/** How the sea-map pieces are used here, for the features this board has (their rules are on the other tabs). */
 function seaSections(view: GameView, v: Verbs): HelpSection[] {
-  const sections: HelpSection[] = [];
-  if (view.seafaring)
-    sections.push({
-      title: 'Ships and the pirate',
-      lines: [
-        'Ships cost wood and sheep and go on edges beside water. A line of ships counts like a road.',
-        'On a coast edge that takes either piece, you choose road or ship when you confirm.',
-        `Once per turn after rolling, you can move the open end ship of a line: ${v.tap.toLowerCase()} Move (or the ship), then where it goes. Not a ship built this turn.`,
-        'On a 7 or a knight you move the robber or the pirate. The pirate steals from ship owners beside it and stops ships there from being built or moved.',
-        'Your first settlement on each new island earns bonus points.',
-      ],
-    });
+  const lines: string[] = [];
+  if (view.seafaring) {
+    lines.push('On a coast edge that takes either piece, you choose road or ship when you confirm.');
+    lines.push(
+      `To move a ship, ${v.tap.toLowerCase()} Move (or the ship), then where it goes. On a 7, ${v.tap.toLowerCase()} a sea tile to move the pirate.`,
+    );
+  }
   if (hasTerrain(view, 'gold') || view.features.fogLand > 0)
-    sections.push({
-      title: 'Gold',
-      lines: ['A gold tile pays any resource you choose: 1 per settlement, 2 per city. Pick in the panel.'],
-    });
-  if (view.features.fogLand > 0 || hasTerrain(view, 'fog'))
-    sections.push({
-      title: 'Fog',
-      lines: [
-        'Fog hides tiles. A road or ship touching a fog tile reveals it.',
-        'Revealed land pays you one card of what it produces.',
-      ],
-    });
-  if (view.jungle)
-    sections.push({
-      title: 'Jungle',
-      lines: [
-        'A jungle pays discoveries instead of cards. Each discovery pays for one resource of a development card.',
-        'With discoveries in hand, Dev Card asks which resources they cover.',
-      ],
-    });
-  if (view.features.volcano)
-    sections.push({
-      title: 'Volcanoes',
-      lines: [
-        'When a volcano’s number is rolled, the roller presses Roll volcanoes. The corner the die names loses its settlement; a city drops to a settlement.',
-        'The robber on a volcano stops it erupting.',
-      ],
-    });
-  if (hasTerrain(view, 'iceberg'))
-    sections.push({
-      title: 'Icebergs',
-      lines: [
-        'When an iceberg’s number is rolled, it drifts one tile into open sea. A ship on the side it hits sinks.',
-      ],
-    });
-  if (view.cartographers)
-    sections.push({
-      title: 'Cartographers',
-      lines: [
-        'Lodestone is a resource like the others. It comes from moor tiles.',
-        'Relay station: 2 lodestone, 1 lumber, 1 wool. Goes on an edge joined to your road, with nothing built at either end and no relay station touching it. It counts toward Longest Road and earns 1 card from each tile beside it. No points.',
-        'Survey ship: 2 lodestone, 1 grain. Turns one of your ships out at sea into a survey ship, worth 1 point. It no longer moves. No two survey ships may border the same tile.',
-        `On a 7, after the robber, each survey ship charts one tile. A number steps toward 7 (5 becomes 6, 12 becomes 11). A 6 or 8 gains a 2 or 12 at random, which steps the same way. A tile holds up to 3 numbers and pays on each${view.settings.chartSpecial ? '' : '; gold fields and volcanoes can’t be charted in this room'}.`,
-      ],
-    });
-  return sections;
+    lines.push('Gold pays what you pick in the panel on the board.');
+  if (view.jungle) lines.push('With discoveries in hand, Dev Card asks which resources they cover.');
+  if (view.features.volcano) lines.push('When a volcano’s number rolls, the roller presses Roll volcanoes.');
+  if (view.cartographers) {
+    lines.push(`Relay and Survey are on the build bar. ${v.hold} one to see its cost.`);
+    lines.push(`On a 7, ${v.tap.toLowerCase()} tiles to chart, then Chart. Pass skips.`);
+    if (hasTerrain(view, 'fog'))
+      lines.push(`Peek, then ${v.tap.toLowerCase()} a fog tile, spends a lodestone to see under it.`);
+  }
+  return lines.length ? [{ title: 'This map', lines }] : [];
 }
 
 function specialBuild(): HelpSection {
@@ -197,6 +169,7 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
       { title: 'Watching', lines: ['You are watching. Player hands stay hidden.'] },
       table(v),
       ...seaSections(view, v),
+      ...ruleSections(view),
     ];
   const now = rightNow(view, v);
   return [
@@ -207,6 +180,7 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
     ...seaSections(view, v),
     ...(isLargeGame(view.players.length) ? [specialBuild()] : []),
     table(v),
+    ...ruleSections(view),
   ];
 }
 
@@ -236,5 +210,6 @@ export function lobbyHelp(view: GameView): HelpSection[] {
       title: 'Once the game starts',
       lines: ['Open this help again from the info button at the top of the table for how to play.'],
     },
+    ...ruleSections(view),
   ];
 }

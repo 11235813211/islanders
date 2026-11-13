@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { GUEST_NAMES } from '../shared/guest-names';
+import { seaLobby, testDesign } from './fixtures';
+import { expectNoSpill, mountGame } from './ui-harness';
 
 test('a guest without a name gets one from the list, picks a color, and sets the points target', async ({ page }) => {
   await page.goto('/');
@@ -45,4 +47,32 @@ test('the copy button beside the room code copies just the code, which the join 
   await page.getByRole('button', { name: 'Leave room' }).click();
   await page.getByLabel('Room code or invite link').fill(`https://play.islandersgame.workers.dev/#room=${code}`);
   await expect(page.getByLabel('Room code or invite link')).toHaveValue(code);
+});
+
+test('Variations group volcano and jungle settings in red and Cartographers in purple, fitting every width', async ({
+  page,
+}) => {
+  const design = testDesign([
+    '~ ~ ~ ~ ~ ~ ~',
+    ' ~ w6 m5 j9 ~ ~',
+    '~ s9 h8 v4 ~ ~',
+    ' ~ g8 o10 b3 ~ ~',
+    '~ ~ ~ ~ ~ ~ ~',
+  ]);
+  const room = await mountGame(page, seaLobby(design, 2));
+  const variations = page.locator('.setting-group').filter({ hasText: 'Variations' });
+  const tropics = variations.getByRole('group', { name: 'Volcanoes and jungles' });
+  const cartographers = variations.getByRole('group', { name: 'Cartographers' });
+  await expect(tropics).toContainText('Jungle discoveries');
+  await expect(tropics).toContainText('Volcanoes pay');
+  await expect(cartographers).toContainText('Chart gold and volcanoes');
+  const tone = (group: typeof tropics) => group.evaluate(el => getComputedStyle(el).getPropertyValue('--tone').trim());
+  expect(await tone(tropics)).toBe('#c2412d');
+  expect(await tone(cartographers)).toBe('#7b4fb0');
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(variations);
+  }
+  await variations.screenshot({ path: 'test-results/lobby-variations.png' });
+  expect(room.errors).toEqual([]);
 });

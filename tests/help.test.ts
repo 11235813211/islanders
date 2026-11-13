@@ -4,8 +4,14 @@ import { BUILTIN_BOARDS } from '../shared/maps';
 import { gameHelp, lobbyHelp } from '../src/components/help/helpContent';
 import { makeLobby, seaSettled, settled } from './fixtures';
 
-const titles = (sections: { title: string }[]) => sections.map(s => s.title);
-const text = (sections: { lines: string[] }[]) => sections.flatMap(s => s.lines).join(' ');
+type Sections = ReturnType<typeof gameHelp>;
+/** The How to tab only: the other tabs are rules that every game shows. */
+const howTo = (sections: Sections) => sections.filter(s => (s.tab ?? 'ui') === 'ui');
+const titles = (sections: Sections) => howTo(sections).map(s => s.title);
+const text = (sections: Sections) =>
+  howTo(sections)
+    .flatMap(s => s.lines)
+    .join(' ');
 
 describe('help', () => {
   it('fits the base game: no ship, sea, or special build sections', () => {
@@ -34,7 +40,21 @@ describe('help', () => {
     const design = BUILTIN_BOARDS.find(b => b.categoryId === 'seafaring')!;
     const view = getView(seaSettled(design, 3), 'p0');
     expect(view.seafaring).toBe(true);
-    expect(titles(gameHelp(view, true))).toContain('Ships and the pirate');
+    expect(text(gameHelp(view, true))).toMatch(/Move/);
+  });
+
+  it('has a tab for the base game and each expansion, with the Cartographers edge cases', () => {
+    const help = gameHelp(getView(settled(3), 'p0'), true);
+    expect(new Set(help.map(s => s.tab ?? 'ui'))).toEqual(
+      new Set(['ui', 'base', 'seafarers', 'tropics', 'cartographers']),
+    );
+    const cartographers = help
+      .filter(s => s.tab === 'cartographers')
+      .flatMap(s => s.lines)
+      .join(' ');
+    expect(cartographers).toMatch(/harbor’s edge/);
+    expect(cartographers).toMatch(/1 lodestone to see what one fog tile hides/);
+    expect(cartographers).toMatch(/Gold fields and volcanoes can’t be charted/);
   });
 
   it('explains the special build phase only with 5 or 6 players', () => {

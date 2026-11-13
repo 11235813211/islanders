@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
-import type { Board, Hex } from '../../shared/types';
+import type { Board, GameView, Hex } from '../../shared/types';
 import { CARTOGRAPHERS, type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, Tile } from '../art';
 import { hexPoints } from '../lib/geometry';
 import IslandRims, { rimTiles } from './IslandRims';
@@ -28,6 +28,23 @@ function rumbleProps(rumble: Rumble | undefined): { className?: string; style?: 
   return { className: 'volcano-quake', style: { animationDelay: `${rumble.delay}s` } };
 }
 
+/**
+ * A fog tile you peeked at: the hidden tile and its number under a thin veil of fog, ringed in
+ * lodestone purple so it's clear which tile you know.
+ */
+function PeekedFog({ uid, hex, peek }: { uid: string; hex: Hex; peek: GameView['fogPeeks'][string] }) {
+  return (
+    <g className="peeked-fog" aria-label="A fog tile you peeked at">
+      <Tile uid={uid} terrain={peek.terrain} variant={tileVariant(hex)} />
+      {peek.number !== null && <NumberToken uid={uid} number={peek.number} />}
+      <g opacity={0.62}>
+        <Tile uid={uid} terrain="fog" variant={tileVariant(hex)} />
+      </g>
+      <polygon points={hexPoints(47)} fill="none" stroke="#7b4fb0" strokeWidth="5" strokeDasharray="9 6" />
+    </g>
+  );
+}
+
 /** A stable small integer per tile, so repeated sea tiles vary their waves. */
 export const tileVariant = (hex: Pick<Hex, 'q' | 'r'>) => Math.abs(hex.q * 7 + hex.r * 13);
 
@@ -44,10 +61,13 @@ export default function BoardScene({
   showClosed = false,
   drifts = [],
   rumbles = [],
+  peeks = {},
   children,
 }: {
   uid: string;
   board: Board;
+  /** Fog tiles this viewer peeked at: what each hides shows faintly through the fog. */
+  peeks?: GameView['fogPeeks'];
   frame: Frame;
   robber?: string;
   pirate?: string | null;
@@ -81,7 +101,11 @@ export default function BoardScene({
                 from ? ({ '--dx': `${from.x - hex.x}px`, '--dy': `${from.y - hex.y}px` } as CSSProperties) : undefined
               }
             >
-              <Tile uid={uid} terrain={hex.terrain} variant={tileVariant(hex)} />
+              {peeks[hex.id] ? (
+                <PeekedFog uid={uid} hex={hex} peek={peeks[hex.id]!} />
+              ) : (
+                <Tile uid={uid} terrain={hex.terrain} variant={tileVariant(hex)} />
+              )}
               {hex.terrain === 'iceberg' && hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
             </g>
             {drift && (

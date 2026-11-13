@@ -263,6 +263,8 @@ async function handleRooms(url: URL, request: Request, env: Env): Promise<Respon
           identity,
           spectate: record(body) && body.spectate === true,
           autoSpectate: record(body) && body.autoSpectate === true,
+          // A guest who just signed in: their guest session's token, so the seat becomes the account's.
+          claim: record(body) && typeof body.claim === 'string' ? body.claim.slice(0, 128) : undefined,
         }),
       }),
     );

@@ -890,7 +890,7 @@ describe('player trade offers', () => {
     expect(yes.tradeOffer!.acceptedBy).toEqual(['p1']);
     expect(yes.players).toEqual(offered.players);
     expect(() => applyAction(yes, 'p0', { type: 'confirm-trade', offerId, playerId: 'p2' })).toThrow(/not accepted/);
-    expect(() => applyAction(yes, 'p1', { type: 'confirm-trade', offerId, playerId: 'p1' })).toThrow(/turn/);
+    expect(() => applyAction(yes, 'p1', { type: 'confirm-trade', offerId, playerId: 'p1' })).toThrow(/offering player/);
     const accepted = applyAction(yes, 'p0', { type: 'confirm-trade', offerId, playerId: 'p1' });
     expect(accepted.players[0].resources).toEqual({ ...emptyBag(), wood: 2, brick: 1, ore: 1 });
     expect(accepted.players[1].resources).toEqual({ ...emptyBag(), wood: 2, ore: 2 });
@@ -901,9 +901,8 @@ describe('player trade offers', () => {
     assertConserved(accepted);
   });
 
-  it('allows only the active player to offer during the build phase and rejects gifts or overlapping types', () => {
+  it('allows offers only during the build phase and rejects gifts or overlapping types', () => {
     const state = tradingGame();
-    expect(() => applyAction(state, 'p1', { type: 'offer-trade', give: want, want: give })).toThrow(/turn/);
     expect(() => applyAction({ ...state, phase: 'roll' }, 'p0', { type: 'offer-trade', give, want })).toThrow(
       /not available/,
     );
@@ -964,11 +963,48 @@ describe('player trade offers', () => {
     expect(changed.tradeOffer!.acceptedBy).toEqual([]);
     expect(changed.tradeOffer!.declinedBy).toEqual(['p2', 'p1']);
     expect(() => applyAction(offered, 'p0', { type: 'decline-trade', offerId })).toThrow(/Cancel/);
-    expect(() => applyAction(offered, 'p1', { type: 'cancel-trade', offerId })).toThrow(/turn/);
+    expect(() => applyAction(offered, 'p1', { type: 'cancel-trade', offerId })).toThrow(/offering player/);
     expect(applyAction(declined, 'p0', { type: 'cancel-trade', offerId }).tradeOffer).toBeNull();
     const ended = applyAction(offered, 'p0', { type: 'end-turn' });
     expect(ended.tradeOffer).toBeNull();
     expect(() => applyAction(ended, 'p1', { type: 'accept-trade', offerId })).toThrow(/not available/);
+  });
+
+  it('lets anyone offer during a turn; the active player trades at once, two others trade on either one’s turn', () => {
+    const state = tradingGame();
+    grant(state, 'p1', { brick: 1 });
+    // p1 offers off turn to p0 (whose turn it is): the trade happens now.
+    let g = applyAction(state, 'p1', {
+      type: 'offer-trade',
+      give: { ...emptyBag(), ore: 1 },
+      want: { ...emptyBag(), wood: 1 },
+    });
+    expect(g.tradeOffer!.to).toEqual(['p0', 'p2']);
+    expect(() => applyAction(g, 'p2', { type: 'offer-trade', give: { ...emptyBag(), wheat: 1 }, want })).toThrow(
+      /Wait for the open/,
+    );
+    g = applyAction(g, 'p0', { type: 'accept-trade', offerId: g.tradeOffer!.id });
+    g = applyAction(g, 'p1', { type: 'confirm-trade', offerId: g.tradeOffer!.id, playerId: 'p0' });
+    expect(g.players[1].resources.wood).toBe(1);
+    expect(g.deferredTrades).toEqual([]);
+    assertConserved(g);
+    // p1 and p2 agree while it is p0's turn: nothing moves until one of their turns.
+    const terms = { give: { ...emptyBag(), ore: 1 }, want: { ...emptyBag(), wheat: 2 } };
+    g = applyAction(g, 'p1', { type: 'offer-trade', ...terms, to: ['p2'] });
+    g = applyAction(g, 'p2', { type: 'accept-trade', offerId: g.tradeOffer!.id });
+    const before = structuredClone(g.players);
+    g = applyAction(g, 'p1', { type: 'confirm-trade', offerId: g.tradeOffer!.id, playerId: 'p2' });
+    expect(g.players).toEqual(before);
+    expect(g.tradeOffer).toBeNull();
+    expect(g.deferredTrades).toMatchObject([{ fromId: 'p1', toId: 'p2', ...terms }]);
+    expect(g.log.at(-1)!.text).toMatch(/next turn of either/);
+    // p1's turn: once rolled, the trade is p1's offer to p2, already accepted.
+    g = rollTotal(applyAction(g, 'p0', { type: 'end-turn' }), 12);
+    expect(g.tradeOffer).toMatchObject({ fromId: 'p1', to: ['p2'], acceptedBy: ['p2'], ...terms });
+    expect(g.deferredTrades).toEqual([]);
+    const traded = applyAction(g, 'p1', { type: 'confirm-trade', offerId: g.tradeOffer!.id, playerId: 'p2' });
+    expect(traded.players[1].resources.wheat - g.players[1].resources.wheat).toBe(2);
+    assertConserved(traded);
   });
 
   it('automatically closes an offer if spending makes it unaffordable, but preserves an affordable offer', () => {

@@ -7,6 +7,7 @@ import {
   RESOURCES,
   type Tradable,
   type TradeBag,
+  type TradeCounter,
   type TradeOffer,
 } from '../../../shared/types';
 import { bagHas, held, TradableIcon, tradableLabel, tradableStyle } from './tradables';
@@ -175,10 +176,76 @@ function AnswerButtons({
   );
 }
 
+/** A counter-offer, shown to everyone: from your side if it involves you, otherwise as "gives … for …". */
+function CounterRow({
+  view,
+  offer,
+  counter,
+  canAccept,
+  send,
+}: {
+  view: GameView;
+  offer: TradeOffer;
+  counter: TradeCounter;
+  canAccept: boolean;
+  send: (a: GameAction) => void;
+}) {
+  const name = view.players.find(p => p.id === counter.fromId)?.name ?? 'Someone';
+  const mine = offer.fromId === view.selfId;
+  const own = counter.fromId === view.selfId;
+  return (
+    <div className="offer-counter">
+      <span className="offer-from">{own ? 'Your counter' : `${name} counters`}</span>
+      <div className="offer-exchange">
+        {mine || own ? (
+          <>
+            <Side bag={mine ? counter.give : counter.want} side="get" />
+            <Side bag={mine ? counter.want : counter.give} side="give" />
+          </>
+        ) : (
+          <NeutralTerms give={counter.give} want={counter.want} />
+        )}
+        {mine && (
+          <button
+            type="button"
+            className="answer-button yes tip-end"
+            aria-label={`Accept ${name}'s counter-offer`}
+            data-tip="Accept this counter-offer"
+            disabled={!canAccept}
+            onClick={() => send({ type: 'accept-counter', offerId: offer.id, counterId: counter.id })}
+          >
+            <Check size={19} strokeWidth={3} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Terms between two other players: what the proposer gives, then what they ask for. */
+function NeutralTerms({ give, want }: { give: TradeBag; want: TradeBag }) {
+  return (
+    <>
+      <Bundle bag={give} side="give" />
+      <span className="offer-for">for</span>
+      <Bundle bag={want} side="get" />
+    </>
+  );
+}
+
+/** The heading: whose offer, and to whom when it wasn't sent to everyone. */
+function offerTitle(view: GameView, offer: TradeOffer, asked: boolean): string {
+  const name = (id: string) => view.players.find(p => p.id === id)?.name ?? 'Someone';
+  const everyone = offer.to.length === view.players.length - 1;
+  const recipients = everyone || asked ? '' : ` to ${offer.to.map(name).join(', ')}`;
+  return offer.fromId === view.selfId ? `Your offer${recipients}` : `${name(offer.fromId)} offers${recipients}`;
+}
+
 /**
- * An open offer, as seen by its author or by a player it was sent to, always from the viewer's
- * side: what you get (green, down) and what you give (red, up). Recipients keep seeing it after
- * answering, so they can change their answer until it closes.
+ * An open offer, as seen by everyone at the table. Its author and the players it was sent to see
+ * it from their side: what you get (green, down) and what you give (red, up). Recipients keep
+ * seeing it after answering, so they can change their answer until it closes. Every answer and
+ * counter shows to everyone.
  */
 export function TradeNotice({
   view,
@@ -196,23 +263,19 @@ export function TradeNotice({
   const offer = view.tradeOffer;
   if (!offer) return null;
   const mine = offer.fromId === view.selfId;
-  // Everyone sees the offer and the answers; only recipients answer it.
   const asked = offer.to.includes(view.selfId) && view.role !== 'spectator';
   const name = (id: string) => view.players.find(p => p.id === id)?.name ?? 'Someone';
   const clock = view.pausedAt ?? now;
   const progress = Math.max(0, Math.min(1, (offer.expiresAt - clock) / (offer.expiresAt - offer.createdAt)));
   if (!progress) return null;
   const paused = view.pausedAt !== null;
-  const everyone = offer.to.length === view.players.length - 1;
   const answer = answerOf(offer, view.selfId);
+  // Off-turn offers say how a deal without the player whose turn it is works (that player needn't be told).
+  const offTurn = offer.fromId !== view.activePlayerId && view.selfId !== view.activePlayerId;
   return (
     <section className="trade-notice" aria-label="Trade offer">
       <div className="offer-content">
-        <span className="offer-from">
-          {mine
-            ? `Your offer${everyone ? '' : ` to ${offer.to.map(name).join(', ')}`}`
-            : `${name(offer.fromId)} offers${asked || everyone ? '' : ` to ${offer.to.map(name).join(', ')}`}`}
-        </span>
+        <span className="offer-from">{offerTitle(view, offer, asked)}</span>
         <div className="offer-exchange">
           {mine || asked ? (
             <>
@@ -220,36 +283,9 @@ export function TradeNotice({
               <Side bag={mine ? offer.give : offer.want} side="give" />
             </>
           ) : (
-            <>
-              <Bundle bag={offer.give} side="give" />
-              <span className="offer-for">for</span>
-              <Bundle bag={offer.want} side="get" />
-            </>
+            <NeutralTerms give={offer.give} want={offer.want} />
           )}
         </div>
-        <Answers view={view} offer={offer} canConfirm={mine && !busy && !paused} send={send} />
-        {mine &&
-          offer.counters.map(c => (
-            <div className="offer-counter" key={c.id}>
-              <span className="offer-from">{name(c.fromId)} counters</span>
-              <div className="offer-exchange">
-                <Side bag={c.give} side="get" />
-                <Side bag={c.want} side="give" />
-                <button
-                  type="button"
-                  className="answer-button yes"
-                  aria-label={`Accept ${name(c.fromId)}'s counter-offer`}
-                  data-tip="Accept this counter-offer"
-                  disabled={busy || paused}
-                  onClick={() => send({ type: 'accept-counter', offerId: offer.id, counterId: c.id })}
-                >
-                  <Check size={19} strokeWidth={3} />
-                </button>
-              </div>
-            </div>
-          ))}
-        {!mine && answer === 'yes' && <span className="offer-from">Waiting for {name(offer.fromId)}.</span>}
-        {!mine && answer === 'counter' && <span className="offer-from">You countered. Waiting for an answer.</span>}
       </div>
       {mine ? (
         <div className="offer-actions">
@@ -270,7 +306,7 @@ export function TradeNotice({
             <X size={19} strokeWidth={3} />
           </button>
         </div>
-      ) : !asked ? null : (
+      ) : asked ? (
         <AnswerButtons
           view={view}
           offer={offer}
@@ -279,7 +315,17 @@ export function TradeNotice({
           send={send}
           counter={counter}
         />
+      ) : null}
+      <Answers view={view} offer={offer} canConfirm={mine && !busy && !paused} send={send} />
+      {offTurn && (
+        <p className="offer-note">
+          A trade without {name(view.activePlayerId ?? '')} happens on the next turn of either player.
+        </p>
       )}
+      {offer.counters.map(c => (
+        <CounterRow key={c.id} view={view} offer={offer} counter={c} canAccept={!busy && !paused} send={send} />
+      ))}
+      {!mine && answer === 'yes' && <p className="offer-note">Waiting for {name(offer.fromId)}.</p>}
     </section>
   );
 }

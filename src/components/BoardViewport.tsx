@@ -53,6 +53,8 @@ export default function BoardViewport({
   /** Show a camera now without re-rendering the board: the drawing moves, and is redrawn on commit. */
   const preview = (next: Camera) => {
     current.current = next;
+    // Only while moving is the board its own layer: kept as one, it paints in blurry tiles first.
+    root.current?.classList.add('board-moving');
     if (animationFrame.current) return;
     animationFrame.current = requestAnimationFrame(() => {
       animationFrame.current = 0;
@@ -70,6 +72,7 @@ export default function BoardViewport({
     element?.setAttribute('viewBox', cameraViewBox(drawn.current, frame.current));
     previewCamera(element, drawn.current, drawn.current, frame.current);
     root.current?.setAttribute('data-zoom', drawn.current.zoom.toFixed(2));
+    root.current?.classList.remove('board-moving');
   };
   const update = (next: Camera) => {
     current.current = next;

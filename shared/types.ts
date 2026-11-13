@@ -198,6 +198,8 @@ export type GameEvent =
       toHexId: string | null;
     }
   | { kind: 'discover'; playerId: string; hexId: string; terrain: Terrain }
+  /** Which fog tile someone peeked at; what it hides stays theirs alone. */
+  | { kind: 'peek'; playerId: string; hexId: string }
   /** A survey ship charted a tile: `numbers` is what it shows now. */
   | { kind: 'chart'; playerId: string; hexId: string; numbers: number[] }
   /** A person's connection came or went (logged by the room, see logPresence). */
@@ -277,6 +279,18 @@ export interface TradeOffer {
   counters: TradeCounter[];
   createdAt: number;
   expiresAt: number;
+}
+/**
+ * A trade two players agreed on while neither was taking their turn. It is offered again,
+ * already accepted by the other, at the start of the next turn of either player.
+ */
+export interface DeferredTrade {
+  id: string;
+  /** Who gives `give` and receives `want`. */
+  fromId: string;
+  toId: string;
+  give: TradeBag;
+  want: TradeBag;
 }
 export interface Proposal {
   id: string;
@@ -361,6 +375,8 @@ export interface GameState {
   eruption: string[] | null;
   /** Fog hex id → what it will turn out to be. Hidden, like the deck, until revealed. */
   fog: Record<string, { terrain: Terrain; number: number | null }>;
+  /** Cartographers: fog tiles each player has peeked at (hidden; each sees only their own). */
+  fogPeeks: Record<string, string[]>;
   /** Balanced volcano dice: faces left for each volcano. Hidden, like the deck. */
   volcanoDecks: Record<string, number[]>;
   /** Balanced dice: combinations not yet drawn, next first. Never sent to clients. */
@@ -391,6 +407,8 @@ export interface GameState {
   rollDeadline: number | null;
   diceCounts: Record<number, number>;
   tradeOffer: TradeOffer | null;
+  /** Off-turn trades waiting for either player's turn (engine/trade.ts reproposeDeferred). */
+  deferredTrades: DeferredTrade[];
   testMode: boolean;
   developmentDeck: DevelopmentCard[];
   developmentPlayed: boolean;
@@ -451,6 +469,8 @@ export interface LegalMoves {
   relays: string[];
   surveys: string[];
   chartHexes: string[];
+  /** Fog tiles you may pay a lodestone to peek at. */
+  peekHexes: string[];
   /** Ship edge → edges it may move to this turn. */
   shipMoves: Record<string, string[]>;
   /** Can buy a development card now (jungle discoveries count toward the cost). */
@@ -493,6 +513,8 @@ export interface GameView {
   chartDeadline: number | null;
   /** Cartographers rules are in play: lodestone, relay stations, survey ships, and charting. */
   cartographers: boolean;
+  /** Fog tiles you peeked at, and what each hides. Only ever your own. */
+  fogPeeks: Record<string, { terrain: Terrain; number: number | null }>;
   robber: string;
   pirate: string | null;
   /** Bots only (null for people): each player's likely cards, counted from public moves. */
@@ -586,6 +608,8 @@ export type GameAction =
   | { type: 'build-relay'; edgeId: string }
   /** Turn one of your ships into a survey ship. */
   | { type: 'build-survey'; edgeId: string }
+  /** Cartographers: pay a lodestone to see what a fog tile hides (only you see it). */
+  | { type: 'peek-fog'; hexId: string }
   /** Off-turn, in the charting phase: one tile per chart owed (a tile may repeat); empty passes. */
   | { type: 'chart-hexes'; hexIds: string[] }
   /** Bank or harbor trade: `count` times the rate of `give` for `count` of `receive`. */

@@ -124,7 +124,10 @@ function App() {
     if (signedIn.recoveryCode) setRecoveryCode(signedIn.recoveryCode);
     if (session) {
       try {
-        setSession(await enterRoom(signedIn.username, session.roomId, signedIn, false, false, true));
+        // The guest seat becomes the account's (host role included) rather than a second seat.
+        setSession(
+          await enterRoom(signedIn.username, session.roomId, signedIn, false, false, true, undefined, session.token),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not reconnect your account to this room.');
       }

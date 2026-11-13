@@ -212,6 +212,28 @@ function twoLayouts(): BoardDesign {
 }
 
 describe('number richness by terrain', () => {
+  it('keeps reds apart even when terrains have different levels', () => {
+    const design = testDesign([
+      '~ ~ ~ ~ ~ ~ ~',
+      ' ~ s w h b o ~',
+      '~ o s w h b s w ~',
+      ' ~ b o s w h ~',
+      '~ h w s o b ~',
+      '~ ~ ~ ~ ~ ~ ~',
+    ]);
+    const leaning = setIslandLevels(design, new Set(design.tiles.map(t => tileKey(t.q, t.r))), { sheep: 1, ore: 1 });
+    for (let seed = 1; seed < 60; seed++) {
+      const { board } = buildBoard(leaning, seeded(seed));
+      const red = (n: number | null) => n === 6 || n === 8;
+      for (const hex of board.hexes.filter(h => red(h.number)))
+        for (const other of board.hexes.filter(h => h !== hex && red(h.number)))
+          expect(
+            hex.vertexIds.some(v => other.vertexIds.includes(v)),
+            `seed ${seed}`,
+          ).toBe(false);
+    }
+  });
+
   it('a richer terrain gets better numbers on average than a poorer one, and levels survive saving', () => {
     const design = testDesign([
       '~ ~ ~ ~ ~ ~ ~',

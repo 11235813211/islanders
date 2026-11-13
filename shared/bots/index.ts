@@ -42,7 +42,8 @@ export function actWith(brain: Brain, view: GameView, options: TurnOptions = {})
   if (offer && view.phase === 'build') {
     if (offer.fromId === view.selfId) return brain.review(view, offer);
     const answered = hasAnswered(offer, view.selfId);
-    if (offer.to.includes(view.selfId) && !answered && view.activePlayerId !== view.selfId)
+    // The player whose turn it is can be sent an offer too, by someone trading off turn.
+    if (offer.to.includes(view.selfId) && !answered)
       // Bots don't value discoveries, so they pass on offers that include them.
       return offer.give.discovery || offer.want.discovery || keepsLodestone(view, offer)
         ? { type: 'decline-trade', offerId: offer.id }

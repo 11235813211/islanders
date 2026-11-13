@@ -132,14 +132,16 @@ export default function TradeComposer({
   const { give, want, counterOf } = draft;
   const offer = view.tradeOffer;
   const countering = !!counterOf;
-  const active = countering
-    ? offer?.id === counterOf && view.phase === 'build' && view.pausedAt === null
-    : view.phase === 'build' && view.activePlayerId === view.selfId && view.pausedAt === null;
+  const ownTurn = view.activePlayerId === view.selfId;
+  const trading = view.phase === 'build' && view.pausedAt === null;
+  // Off turn, someone else's open offer has to close first; the player whose turn it is replaces it.
+  const othersOffer = !!offer && offer.fromId !== view.selfId && !ownTurn;
+  const active = countering ? offer?.id === counterOf && trading : trading && !othersOffer;
   const valid =
     bagTotal(give) > 0 &&
     bagTotal(want) > 0 &&
     ALL.every(r => bagHas(give, r) <= held(view, r) && !(bagHas(give, r) && bagHas(want, r)));
-  const bank = countering ? null : bankTrade(draft, view);
+  const bank = countering || !ownTurn ? null : bankTrade(draft, view);
   const others = view.players.filter(p => p.id !== view.selfId);
   const recipients = draft.to ?? others.map(p => p.id);
   function toggleRecipient(id: string) {
@@ -159,7 +161,9 @@ export default function TradeComposer({
   const status = !active
     ? countering
       ? 'This offer has closed'
-      : 'Trade after rolling on your turn'
+      : trading
+        ? 'Wait for the open offer to close'
+        : 'Trade after the roll'
     : countering
       ? `Counter to ${view.players.find(p => p.id === offer?.fromId)?.name ?? 'the offer'}`
       : bank
@@ -167,6 +171,7 @@ export default function TradeComposer({
         : draft.to
           ? `Offer to ${recipients.length} of ${others.length}`
           : 'Offer to all players';
+  const activeName = view.players.find(p => p.id === view.activePlayerId)?.name;
   return (
     <section
       className="trade-composer"
@@ -236,6 +241,9 @@ export default function TradeComposer({
           </div>
         </div>
       ))}
+      {!countering && !ownTurn && trading && (
+        <p className="trade-note">Off turn: a trade without {activeName} happens on the next turn of either player.</p>
+      )}
       <footer>
         <span>{status}</span>
         {!countering && (
@@ -243,9 +251,11 @@ export default function TradeComposer({
             className="button secondary"
             disabled={busy || !active || !bank}
             data-tip={
-              bank
-                ? `Trade with the bank at ${ratesUsed(bank.give, view)}`
-                : 'Give each kind in a multiple of its rate (4:1, 3:1, or 2:1), one card for each'
+              !ownTurn
+                ? 'Bank trades only on your turn'
+                : bank
+                  ? `Trade with the bank at ${ratesUsed(bank.give, view)}`
+                  : 'Give each kind in a multiple of its rate (4:1, 3:1, or 2:1), one card for each'
             }
             onClick={tradeWithBank}
           >

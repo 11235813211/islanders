@@ -27,6 +27,7 @@ import type {
   Session,
 } from '../shared/types';
 import type { AccountIdentity } from './accounts';
+import { rekeyPlayer, renameInLobby } from './claim';
 import { accountStub, canPlaytest, checkLimit, type Env, failure, json, libraryStub, logError } from './env';
 import {
   AUTH_TIMEOUT_MS,
@@ -280,6 +281,31 @@ export class GameRoom extends DurableObject<Env> {
     return session;
   }
 
+  /**
+   * Someone in this room as a guest signed in: their seat (and host role) becomes the account's,
+   * instead of the account joining as another player. `claim` is the guest session's token.
+   */
+  private async claimGuestSeat(
+    room: RoomRecord,
+    identity: AccountIdentity | null | undefined,
+    claim: string | undefined,
+    name: string | null,
+  ): Promise<RoomRecord> {
+    if (!identity || typeof claim !== 'string') return room;
+    const members = [...room.game.players, ...room.game.spectators];
+    if (members.some(p => p.id === identity.playerId)) return room;
+    const tokenHash = await hashToken(claim);
+    const guestId = room.sessions.find(s => s.tokenHash === tokenHash && !s.account)?.playerId;
+    if (!guestId || !members.some(p => p.id === guestId)) return room;
+    // Sockets still open as the guest follow the seat until the client reconnects as the account.
+    for (const socket of this.sockets()) {
+      const attachment = this.attachment(socket);
+      if (attachment?.playerId === guestId) socket.serializeAttachment({ ...attachment, playerId: identity.playerId });
+    }
+    const claimed = rekeyPlayer(room, guestId, identity.playerId);
+    return { ...claimed, game: renameInLobby(claimed.game, identity.playerId, name) };
+  }
+
   /** Close the room for everyone and delete its storage. */
   private async destroy(reason: string): Promise<void> {
     for (const socket of this.sockets()) socket.close(4404, reason);
@@ -404,13 +430,14 @@ export class GameRoom extends DurableObject<Env> {
           return json(session, 201);
         }
         if (path === '/join' && request.method === 'POST') {
-          const room = this.requireRoom();
           const body = (await readBody(request)) as {
             name: string | null;
             identity?: AccountIdentity | null;
             spectate?: boolean;
             autoSpectate?: boolean;
+            claim?: string;
           };
+          const room = await this.claimGuestSeat(this.requireRoom(), body.identity, body.claim, body.name);
           const name =
             parseOptionalName(body) ??
             guestName(

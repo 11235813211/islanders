@@ -110,6 +110,9 @@ export function getView(state: GameState, selfId: string): GameView {
     pendingCharts: state.pendingCharts,
     chartDeadline: state.chartDeadline,
     cartographers: cartographersRules(state),
+    fogPeeks: Object.fromEntries(
+      (state.fogPeeks[selfId] ?? []).flatMap(hexId => (state.fog[hexId] ? [[hexId, state.fog[hexId]]] : [])),
+    ),
     robber: state.robber,
     pirate: state.pirate,
     likelyHands: player?.bot ? state.handGuess.likely : null,

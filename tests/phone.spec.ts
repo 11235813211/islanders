@@ -36,6 +36,14 @@ test('the help button opens touch-worded help that fits a phone', async ({ page 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/phone-help.png' });
+  for (const tab of ['Base', 'Seafarers', 'Tropics', 'Cartographers']) {
+    await help.getByRole('tab', { name: tab }).tap();
+    await expect(help.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+    await expectNoSpill(help.getByRole('tablist'));
+    await expectNoSpill(help.getByRole('tabpanel'));
+    await page.screenshot({ path: `test-results/phone-help-${tab.toLowerCase()}.png` });
+  }
+  await expect(help).toContainText('harbor’s edge');
   await help.getByRole('button', { name: 'Close dialog' }).tap();
   await expect(help).toBeHidden();
   expect(game.errors).toEqual([]);
@@ -223,5 +231,35 @@ test('the charting panel fits a phone and its buttons are reachable', async ({ p
   await expect(panel.getByRole('button', { name: 'Chart', exact: true })).toBeInViewport();
   await expect(panel.getByRole('button', { name: 'Pass' })).toBeInViewport();
   await page.screenshot({ path: 'test-results/phone-charting.png' });
+  expect(room.errors).toEqual([]);
+});
+
+test('Cartographers with fog: the Peek button fits the bar, and peeked tiles show through the fog', async ({
+  page,
+}) => {
+  const g = seaSettled(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!, 3);
+  g.testMode = true;
+  g.phase = 'build';
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 120_000;
+  g.board = structuredClone(g.board);
+  const sea = g.board.hexes.filter(h => h.terrain === 'sea' && h.vertexIds.some(v => g.buildings[v]));
+  for (const [i, hex] of sea.slice(0, 2).entries()) {
+    hex.terrain = 'fog';
+    g.fog[hex.id] = i ? { terrain: 'ore', number: 5 } : { terrain: 'wheat', number: 9 };
+  }
+  g.fogPeeks = { p0: [sea[0]!.id] };
+  grant(g, 'p0', { lodestone: 4, wood: 2, sheep: 2, wheat: 1 });
+  const room = await mountGame(page, g);
+  const bar = page.locator('.table-actions');
+  await expectNoSpill(bar);
+  const boxes = await bar.locator(':scope > *').evaluateAll(items => items.map(item => item.getBoundingClientRect()));
+  for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.left).toBeGreaterThanOrEqual(boxes[i - 1]!.right - 1);
+  await expect(page.locator('.peeked-fog')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/phone-peek.png' });
+  await page.getByRole('button', { name: /^Peek at a fog tile/ }).tap();
+  await page.getByRole('button', { name: `Peek at the fog tile ${sea[1]!.id}` }).tap();
+  await expect.poll(() => room.state().fogPeeks.p0?.length).toBe(2);
+  await expect(page.locator('.peeked-fog')).toHaveCount(2);
   expect(room.errors).toEqual([]);
 });

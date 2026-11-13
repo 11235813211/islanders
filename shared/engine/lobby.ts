@@ -123,6 +123,8 @@ export function createGame(
     rollDeadline: null,
     diceCounts: emptyDiceCounts(),
     tradeOffer: null,
+    deferredTrades: [],
+    fogPeeks: {},
     testMode: options.testMode === true,
     developmentDeck: developmentDeck(random),
     developmentPlayed: false,

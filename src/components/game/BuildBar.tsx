@@ -1,4 +1,4 @@
-import { Check, Compass, House, Move, Route, Sailboat, X } from 'lucide-react';
+import { Check, Compass, Eye, House, Move, Route, Sailboat, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BUILD_COSTS } from '../../../shared/engine';
 import { type GameAction, type GameView, type PublicPlayer, RESOURCES, type Resource } from '../../../shared/types';
@@ -9,11 +9,12 @@ import { RESOURCE_LABELS } from '../ResourceHand';
 import { CityIcon, RelayIcon } from './icons';
 
 export type BuildKind = PlaceKind;
+/** Everything with a recipe on the bar: pieces, a development card, and a fog peek. */
+type ButtonKind = BuildKind | 'development' | 'peek';
 /** A piece's cost as one icon per card. */
-const recipe = (kind: BuildKind | 'development'): Resource[] =>
-  RESOURCES.flatMap(r => Array<Resource>(BUILD_COSTS[kind][r]).fill(r));
+const recipe = (kind: ButtonKind): Resource[] => RESOURCES.flatMap(r => Array<Resource>(BUILD_COSTS[kind][r]).fill(r));
 /** Names on the buttons and in their tooltips. */
-const LABELS: Record<BuildKind | 'development', { short: string; long: string }> = {
+const LABELS: Record<ButtonKind, { short: string; long: string }> = {
   road: { short: 'road', long: 'Build road' },
   ship: { short: 'ship', long: 'Build ship' },
   settlement: { short: 'settlement', long: 'Build settlement' },
@@ -21,8 +22,9 @@ const LABELS: Record<BuildKind | 'development', { short: string; long: string }>
   relay: { short: 'relay', long: 'Build relay station' },
   survey: { short: 'survey', long: 'Make a ship a survey ship' },
   development: { short: 'Dev Card', long: 'Buy development card' },
+  peek: { short: 'peek', long: 'Peek at a fog tile (only you see it)' },
 };
-const ICONS: Record<BuildKind | 'development', ReactNode> = {
+const ICONS: Record<ButtonKind, ReactNode> = {
   road: <Route size={23} />,
   ship: <Sailboat size={23} />,
   settlement: <House size={23} />,
@@ -30,6 +32,7 @@ const ICONS: Record<BuildKind | 'development', ReactNode> = {
   relay: <RelayIcon size={23} />,
   survey: <Compass size={23} />,
   development: <span className="development-icon">✦</span>,
+  peek: <Eye size={23} />,
 };
 
 /** Build button. Press and hold (or hover) shows its recipe. */
@@ -41,7 +44,7 @@ function BuildButton({
   onClick,
   children,
 }: {
-  kind: BuildKind | 'development';
+  kind: ButtonKind;
   remaining: number;
   disabled: boolean;
   selected?: boolean;
@@ -163,6 +166,7 @@ export default function BuildBar({
   const [confirming, setConfirming] = useState(false);
   const closeConfirm = useCallback(() => setConfirming(false), []);
   const movable = Object.keys(view.legal.shipMoves).length > 0;
+  const fogLeft = view.board.hexes.filter(h => h.terrain === 'fog').length;
   return (
     <>
       <BuildButton
@@ -223,6 +227,15 @@ export default function BuildBar({
             disabled={blocked || !view.legal.surveys.length}
             onClick={() => toggle('survey')}
           />
+          {fogLeft > 0 && (
+            <BuildButton
+              kind="peek"
+              remaining={fogLeft}
+              selected={mode === 'peek'}
+              disabled={blocked || !view.legal.peekHexes.length}
+              onClick={() => toggle('peek')}
+            />
+          )}
         </>
       )}
       <BuildButton

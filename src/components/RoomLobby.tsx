@@ -30,7 +30,7 @@ import { lobbyHelp } from './help/helpContent';
 import ColorPicker, { ColorSwapNotice } from './lobby/ColorPicker';
 import LobbySeat from './lobby/LobbySeat';
 import MapChoice from './lobby/MapChoice';
-import { CATEGORIES, SettingControl } from './lobby/settings';
+import { CATEGORIES, SettingControl, type SettingDef, THEMES, type Theme } from './lobby/settings';
 
 /** Empty seats to show: up to four, then one more at a time up to six, so a small table looks complete. */
 const openSeats = (seated: number) => Math.min(MAX_PLAYERS, Math.max(4, seated + 1)) - seated;
@@ -63,6 +63,31 @@ export default function RoomLobby({
   const host = playerId === view.hostId;
   const self = view.players.find(p => p.id === view.selfId);
   const change = (next: Partial<GameSettings>) => send({ type: 'configure', settings: { ...view.settings, ...next } });
+  /** One setting: its icon, label and hint, and its control. */
+  function renderSetting(def: SettingDef) {
+    // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
+    const Row = def.control.kind === 'stepper' ? 'div' : 'label';
+    return (
+      <Row className="setting-row" key={def.key}>
+        <span className="setting-label">
+          {def.icon}
+          <span>
+            <strong>{def.label}</strong>
+            <small>{def.hint}</small>
+          </span>
+        </span>
+        <SettingControl
+          def={def}
+          settings={view.settings}
+          disabled={busy || !host}
+          change={next => {
+            const question = def.confirm?.(view, next[def.key]!);
+            if (!question || window.confirm(question)) change(next);
+          }}
+        />
+      </Row>
+    );
+  }
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -206,37 +231,24 @@ export default function RoomLobby({
         </div>
         {/* The map, then its Variations (the first category), then the other settings. */}
         <MapChoice view={view} host={host} busy={busy} send={send} />
-        {CATEGORIES.map(category => (
-          <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
-            <legend>{category.title}</legend>
-            {category.settings
-              .filter(def => def.when?.(view) ?? true)
-              .map(def => {
-                // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
-                const Row = def.control.kind === 'stepper' ? 'div' : 'label';
-                return (
-                  <Row className="setting-row" key={def.key}>
-                    <span className="setting-label">
-                      {def.icon}
-                      <span>
-                        <strong>{def.label}</strong>
-                        <small>{def.hint}</small>
-                      </span>
-                    </span>
-                    <SettingControl
-                      def={def}
-                      settings={view.settings}
-                      disabled={busy || !host}
-                      change={next => {
-                        const question = def.confirm?.(view, next[def.key]!);
-                        if (!question || window.confirm(question)) change(next);
-                      }}
-                    />
-                  </Row>
-                );
+        {CATEGORIES.map(category => {
+          const shown = category.settings.filter(def => def.when?.(view) ?? true);
+          return (
+            <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
+              <legend>{category.title}</legend>
+              {shown.filter(def => !def.theme).map(renderSetting)}
+              {(Object.keys(THEMES) as Theme[]).map(theme => {
+                const rows = shown.filter(def => def.theme === theme);
+                return rows.length ? (
+                  <fieldset key={theme} className={`setting-theme theme-${theme}`} aria-label={THEMES[theme]}>
+                    <span className="setting-theme-title">{THEMES[theme]}</span>
+                    {rows.map(renderSetting)}
+                  </fieldset>
+                ) : null;
               })}
-          </fieldset>
-        ))}
+            </fieldset>
+          );
+        })}
         <div className="setup-start">
           <p>
             {view.players.length < 2

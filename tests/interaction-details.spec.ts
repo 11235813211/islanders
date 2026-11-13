@@ -251,3 +251,15 @@ test('settlements that can become cities are clickable without a marker', async 
   await upgrade.click();
   await expect(page.getByRole('button', { name: 'Confirm city', exact: true })).toBeVisible();
 });
+
+test('a setup spot tapped but not confirmed is placed before the clock runs out', async ({ page }) => {
+  const start = inSeatOrder(applyAction(makeLobby(3), 'p0', { type: 'start' }, seeded(), Date.now()));
+  start.turnDeadline = Date.now() + 4000;
+  const game = await mountGame(page, start);
+  const target = page.getByRole('button', { name: /settlement at/ }).first();
+  await target.click();
+  await expect(page.locator('.map-confirm')).toBeVisible();
+  expect(Object.keys(game.state().buildings)).toHaveLength(0);
+  await expect.poll(() => Object.keys(game.state().buildings).length, { timeout: 6000 }).toBe(1);
+  expect(game.errors).toEqual([]);
+});

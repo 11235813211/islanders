@@ -65,6 +65,7 @@ const SPEC = {
   'build-city': { vertexId: 'id' },
   'build-relay': { edgeId: 'id' },
   'build-survey': { edgeId: 'id' },
+  'peek-fog': { hexId: 'id' },
   'chart-hexes': { hexIds: 'hexes' },
   'place-road': { edgeId: 'id' },
   'build-road': { edgeId: 'id' },

@@ -3,6 +3,7 @@ import { hasAnswered } from '../rules';
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameState, RESOURCES } from '../types';
 import { applyAction } from './apply';
 import { addLog, cloneState, emptyBag, GameError, getActivePlayerId, undoEndsTurn } from './core';
+import { reproposeDeferred } from './trade';
 import { getView } from './view';
 
 /** How long a bot "thinks" before each move, so people can follow along. */
@@ -18,6 +19,8 @@ export const UNDO_GRACE_MS = 3500;
  * dice, drifting icebergs, and cards flying out play out before it builds or ends its turn.
  */
 export const ROLL_SHOW_MS = 3000;
+/** How long a bot's offer stays open for people to answer once someone has already said yes. */
+export const BOT_OFFER_WAIT_MS = 8000;
 /** Safety valve: a bot that has done this much in one turn ends it. */
 const MAX_BOT_STEPS_PER_TURN = 30;
 
@@ -35,7 +38,7 @@ export function pendingBotActor(state: GameState): string | null {
   if (offer && state.phase === 'build') {
     const responder = offer.to.find(id => isBot(state, id) && !hasAnswered(offer, id));
     if (responder) return responder;
-    // A bot that made an offer trades as soon as someone says yes, or waits until everyone has answered.
+    // A bot that made an offer picks a partner once someone says yes (see botDueAt for the wait) or everyone has answered.
     if (isBot(state, offer.fromId))
       return offer.acceptedBy.length || offer.to.every(id => hasAnswered(offer, id)) ? offer.fromId : null;
   }
@@ -55,8 +58,12 @@ export function botDueAt(state: GameState): number | null {
   const actor = pendingBotActor(state);
   if (!actor) return null;
   // Answering someone else's trade offer needs no show of thinking.
-  const answering = state.tradeOffer?.to.includes(actor) && state.tradeOffer.fromId !== actor;
+  const offer = state.tradeOffer;
+  const answering = offer?.to.includes(actor) && offer.fromId !== actor;
   if (answering) return state.updatedAt;
+  // A bot's offer with a yes but people still to answer waits a while, so they can say yes too.
+  if (offer?.fromId === actor && state.phase === 'build' && !offer.to.every(id => hasAnswered(offer, id)))
+    return Math.max(state.updatedAt + BOT_THINK_MS, Math.min(offer.createdAt + BOT_OFFER_WAIT_MS, offer.expiresAt));
   const grace = endTurnUndoable(state) ? UNDO_GRACE_MS : justRolled(state, actor) ? ROLL_SHOW_MS : 0;
   return state.updatedAt + BOT_THINK_MS + grace;
 }
@@ -155,6 +162,7 @@ export function advanceTime(state: GameState, now: number, random: () => number 
   if (next.pausedAt === null) {
     if (next.tradeOffer && next.tradeOffer.expiresAt <= now) {
       next.tradeOffer = null;
+      reproposeDeferred(next, now);
       next.updatedAt = now;
       changed = true;
     }

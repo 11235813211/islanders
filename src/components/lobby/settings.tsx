@@ -38,9 +38,14 @@ export interface SettingDef {
   control: Control;
   /** Show the setting only when this holds (default: always). */
   when?: (view: GameView) => boolean;
+  /** Settings of one expansion share a colored box inside their category (see THEMES). */
+  theme?: Theme;
   /** A question to confirm before this change, or null to apply it straight away. */
   confirm?: (view: GameView, value: GameSettings[keyof GameSettings]) => string | null;
 }
+export type Theme = 'tropics' | 'cartographers';
+/** Titles of the themed boxes, in the order they appear. */
+export const THEMES: Record<Theme, string> = { tropics: 'Volcanoes and jungles', cartographers: 'Cartographers' };
 export interface Category {
   id: string;
   title: string;
@@ -81,6 +86,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'volcanoStart',
+        theme: 'tropics',
         label: 'Start next to volcanoes',
         hint: 'Whether setup settlements may touch a volcano.',
         icon: <Mountain size={20} />,
@@ -89,6 +95,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'volcanoDice',
+        theme: 'tropics',
         label: 'Eruption dice',
         hint: 'Random, or balanced: each volcano draws from its own deck of 12 with every corner twice.',
         icon: <Dices size={20} />,
@@ -103,6 +110,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'volcanoGold',
+        theme: 'tropics',
         label: 'Volcanoes pay',
         hint: 'On: a volcano pays a resource of your choice, then erupts. Off: it only erupts.',
         icon: <Flame size={20} />,
@@ -110,7 +118,23 @@ export const CATEGORIES: Category[] = [
         control: { kind: 'toggle' },
       },
       {
+        key: 'discoveries',
+        theme: 'tropics',
+        label: 'Jungle discoveries',
+        hint: 'Kept safe is the published rule. Tradable: also traded and discarded on a 7. Like a card: also stolen and taken by Monopoly.',
+        icon: <Compass size={20} />,
+        when: view => view.jungle,
+        control: {
+          kind: 'select',
+          options: (Object.keys(DISCOVERY_RULES) as DiscoveryRule[]).map(value => ({
+            value,
+            label: DISCOVERY_RULES[value].label,
+          })),
+        },
+      },
+      {
         key: 'chartSpecial',
+        theme: 'cartographers',
         label: 'Chart gold and volcanoes',
         hint: 'Whether survey ships may chart gold fields and volcanoes after a 7.',
         icon: <Compass size={20} />,
@@ -172,20 +196,6 @@ export const CATEGORIES: Category[] = [
         hint: 'On a 7, anyone holding more than this discards half.',
         icon: <Shield size={20} />,
         control: { kind: 'select', options: [7, 8, 9, 10, 12].map(n => ({ value: n, label: `${n} cards` })) },
-      },
-      {
-        key: 'discoveries',
-        label: 'Jungle discoveries',
-        hint: 'Kept safe is the published rule. Tradable: also traded and discarded on a 7. Like a card: also stolen and taken by Monopoly.',
-        icon: <Compass size={20} />,
-        when: view => view.jungle,
-        control: {
-          kind: 'select',
-          options: (Object.keys(DISCOVERY_RULES) as DiscoveryRule[]).map(value => ({
-            value,
-            label: DISCOVERY_RULES[value].label,
-          })),
-        },
       },
       {
         key: 'friendlyRobber',

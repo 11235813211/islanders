@@ -1,14 +1,66 @@
-/* The help dialog: short sections that scroll inside the dialog on small screens. */
+/* The help dialog: a row of colored tabs, then short sections that scroll inside the dialog. */
+.help-ui {
+  --help: #0a86ab;
+  --help-soft: #e2f3f8;
+}
+.help-base {
+  --help: #b07c12;
+  --help-soft: #fbf2da;
+}
+.help-seafarers {
+  --help: #1f7f8c;
+  --help-soft: #e0f2f1;
+}
+.help-tropics {
+  --help: #c2412d;
+  --help-soft: #fcebe6;
+}
+.help-cartographers {
+  --help: #7b4fb0;
+  --help-soft: #f1eafa;
+}
+.help-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.help-tab {
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 2px solid var(--help);
+  border-radius: 16px;
+  background: var(--help-soft);
+  color: var(--help);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.help-tab[aria-selected="true"] {
+  background: var(--help);
+  color: #fff;
+}
 .help-sections {
-  max-height: min(70vh, 560px);
+  max-height: min(64vh, 520px);
   overflow-y: auto;
+  padding: 2px 4px 2px 0;
 }
-.help-sections h3 {
+.help-sections section {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-left: 4px solid var(--help);
+  border-radius: 6px;
+  background: var(--help-soft);
+}
+.help-sections section h3 {
+  margin: 0 0 6px;
+  color: var(--help);
   font-size: 14px;
-  margin: 16px 0 6px;
-}
-.help-sections section:first-child h3 {
-  margin-top: 0;
 }
 .help-sections ul {
   margin: 0;

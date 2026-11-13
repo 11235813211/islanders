@@ -82,13 +82,13 @@ function cornerKeys(cell: Cell): string[] {
 }
 
 /**
- * How lopsided a numbering is: hot corners, touching reds, repeated neighbors, and terrains whose
- * average strays from the others' (the caller passes cells that share one number level).
+ * How lopsided a numbering is across the whole board: hot corners, touching reds, and repeated
+ * neighbors. Checked over every producing cell, whatever its number level, so a rich tile's red
+ * can't land beside a red from another level.
  */
-function numberingCost(cells: NumberCell[], numbers: Map<string, number>): number {
+function spreadCost(cells: NumberCell[], numbers: Map<string, number>): number {
   let cost = 0;
   const corners = new Map<string, number>();
-  const byTerrain = new Map<string, number[]>();
   for (const cell of cells) {
     const n = numbers.get(key(cell.q, cell.r));
     if (n === undefined) continue;
@@ -99,9 +99,19 @@ function numberingCost(cells: NumberCell[], numbers: Map<string, number>): numbe
       if (isRed(n) && isRed(m)) cost += 40;
       else if (m === n) cost += 3;
     }
-    byTerrain.set(cell.terrain, [...(byTerrain.get(cell.terrain) ?? []), pips(n)]);
   }
   for (const total of corners.values()) if (total > 11) cost += (total - 11) ** 2 * 2;
+  return cost;
+}
+
+/** Terrains whose average strays from the others' (the caller passes cells that share one number level). */
+function evennessCost(cells: NumberCell[], numbers: Map<string, number>): number {
+  let cost = 0;
+  const byTerrain = new Map<string, number[]>();
+  for (const cell of cells) {
+    const n = numbers.get(key(cell.q, cell.r));
+    if (n !== undefined) byTerrain.set(cell.terrain, [...(byTerrain.get(cell.terrain) ?? []), pips(n)]);
+  }
   const averages = [...byTerrain.values()].map(dots => dots.reduce((a, b) => a + b, 0) / dots.length);
   const mean = averages.reduce((a, b) => a + b, 0) / Math.max(1, averages.length);
   for (const average of averages) cost += (average - mean) ** 2 * 2;
@@ -124,13 +134,14 @@ export const NUMBER_LEVELS = 3;
 const allowedSet = (noEnds: boolean) => (noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET);
 
 /**
- * Number weights: the base mix (without 2 and 12 when `noEnds`), shifted by `level` toward 6 and 8
- * (or toward 2, 3, 11 and 12); at ±NUMBER_LEVELS it is only those.
+ * Number weights: the base mix (without 2 and 12 when `noEnds`), shifted by `level` toward 2, 3,
+ * 11 and 12, or toward 5, 6, 8 and 9. Rich levels lean on 5 and 9 too, so a rich island is a bit
+ * better than usual rather than all red; only NUMBER_LEVELS itself is all 6 and 8.
  */
 export function numberMix(level: number, noEnds: boolean): Map<number, number> {
   const set = allowedSet(noEnds);
   const shift = Math.min(1, Math.abs(level) / NUMBER_LEVELS);
-  const toward = level > 0 ? [6, 8] : set.filter(n => pips(n) <= 2);
+  const toward = level >= NUMBER_LEVELS ? [6, 8] : level > 0 ? [5, 6, 8, 9] : set.filter(n => pips(n) <= 2);
   const weights = new Map<number, number>();
   for (const n of set) weights.set(n, (weights.get(n) ?? 0) + (1 - shift) / set.length);
   for (const n of toward) weights.set(n, (weights.get(n) ?? 0) + shift / toward.length);
@@ -221,8 +232,11 @@ export function balancedNumbers(
   let best: { cost: number; numbers: Map<string, number> } | null = null;
   for (let attempt = 0; attempt < tries; attempt++) {
     const numbers = new Map(fixed);
-    for (const { open, pool } of groups) placeNumbers(open, pool, numbers, random);
-    const cost = groups.reduce((sum, { cells }) => sum + numberingCost(cells, numbers), 0);
+    // Rarer levels first, so their reds get the pick of spots and the common mix fills around them.
+    for (const { open, pool } of [...groups].sort((a, b) => a.open.length - b.open.length))
+      placeNumbers(open, pool, numbers, random);
+    const cost =
+      spreadCost(producing, numbers) + groups.reduce((sum, { cells }) => sum + evennessCost(cells, numbers), 0);
     if (!best || cost < best.cost) best = { cost, numbers };
   }
   return best?.numbers ?? new Map(fixed);

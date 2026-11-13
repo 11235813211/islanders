@@ -3,7 +3,10 @@ import { PLAYER_COLORS } from '../shared/colors';
 import { applyAction, getView } from '../shared/engine';
 import type { ClientMessage, GameState, PlayerColor, ServerMessage } from '../shared/types';
 import { seeded } from './fixtures';
-/** Deterministic UI scenarios use the real rules engine, without production debug routes. */
+/**
+ * Deterministic UI scenarios use the real rules engine, without production debug routes. A lobby
+ * has no board, so it waits for the settings instead.
+ */
 export async function mountGame(page: Page, initial: GameState) {
   let game = structuredClone(initial),
     selfId = game.players[0].id;
@@ -44,7 +47,10 @@ export async function mountGame(page: Page, initial: GameState) {
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Create solo test room' }).click();
-  await page.locator('.board-svg').waitFor();
+  await page
+    .locator(initial.phase === 'lobby' ? '.setting-group' : '.board-svg')
+    .first()
+    .waitFor();
   // Let hand cards finish arriving (an empty hand, as in setup, has nothing to wait for).
   await page
     .locator('.cards-physical')

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import WebSocket from 'ws';
 import type { GameAction, Session } from '../shared/types';
-import { join, origin, PlayerConnection, postRoom, server, verifyPrivateView } from './server-helpers';
+import { join, origin, PlayerConnection, postRoom, registerAccount, server, verifyPrivateView } from './server-helpers';
 
 test('real room server enforces authority, serializes concurrent moves, and reconnects without replaying actions', async ({
   request,
@@ -287,6 +287,35 @@ test('accounts reclaim seats across devices and logout revokes only the current 
   } finally {
     one.dispose();
     two.dispose();
+  }
+});
+
+test('a guest who signs in keeps their seat and stays host', async ({ request }) => {
+  const guest = await join(request, 'Guest');
+  const other = await join(request, 'Other', guest.roomId);
+  const headers = await registerAccount(request);
+  const claimed = await request.post(`${server}/api/rooms/${guest.roomId}/join`, {
+    headers,
+    data: { autoSpectate: true, claim: guest.token },
+  });
+  expect(claimed.status(), await claimed.text()).toBe(200);
+  const session = (await claimed.json()) as Session;
+  expect(session.playerId).not.toBe(guest.playerId);
+  const client = new PlayerConnection(guest.roomId);
+  try {
+    const view = await client.authenticate(session);
+    expect(view.players.map(p => p.id)).toEqual([session.playerId, other.playerId]);
+    expect(view.hostId).toBe(session.playerId);
+    // A token that isn't a guest session here claims nothing: the account joins as a new seat.
+    const stranger = await registerAccount(request);
+    const refused = await request.post(`${server}/api/rooms/${guest.roomId}/join`, {
+      headers: stranger,
+      data: { claim: 'f'.repeat(64) },
+    });
+    expect(refused.status()).toBe(201);
+    await expect.poll(() => client.state.players.length).toBe(3);
+  } finally {
+    client.dispose();
   }
 });
 

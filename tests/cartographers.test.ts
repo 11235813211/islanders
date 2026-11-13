@@ -4,7 +4,7 @@ import { pieceCounts } from '../shared/engine/core';
 import { produce } from '../shared/engine/production';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { buildBoard } from '../shared/maps/generate';
-import { chartedNumbers, hexNumbers, longestRoad, victoryPoints } from '../shared/rules';
+import { chartedNumbers, hexNumbers, longestRoad, tradeRates, victoryPoints } from '../shared/rules';
 import { boardIndex } from '../shared/seafaring';
 import type { GameAction, GameState, Hex, Terrain } from '../shared/types';
 import { playBotGame } from './bot-harness';
@@ -112,7 +112,7 @@ describe('lodestone', () => {
     expect(up.relays).toEqual([]);
     expect(up.surveys).toEqual([]);
     expect(up.pendingCharts).toEqual({});
-    expect(up.settings.chartSpecial).toBe(true);
+    expect(up.settings.chartSpecial).toBe(false);
   });
 });
 
@@ -256,6 +256,7 @@ describe('charting', () => {
   it('a room can keep gold fields and volcanoes from being charted', () => {
     const g = building();
     g.pendingCharts = { p1: 1 };
+    g.settings.chartSpecial = true;
     const hexes = getView(g, 'p1').legal.chartHexes;
     expect(hexes).toContain(hexOf(g, 'gold').id);
     g.settings.chartSpecial = false;
@@ -308,4 +309,60 @@ describe('bots on Cartographers maps', () => {
       expect(built).toBeGreaterThan(0);
     });
   }
+});
+
+describe('peeking under the fog', () => {
+  /** p0 to move, with one sea tile turned to fog hiding a wheat 6. */
+  function foggy() {
+    const g = building();
+    g.board = structuredClone(g.board);
+    const hex = g.board.hexes.filter(h => h.terrain === 'sea').at(-1)!;
+    hex.terrain = 'fog';
+    g.fog[hex.id] = { terrain: 'wheat', number: 6 };
+    return { g, hexId: hex.id };
+  }
+
+  it('costs a lodestone, shows the tile only to the player who paid, and is offered once per tile', () => {
+    const { g, hexId } = foggy();
+    expect(getView(g, 'p0').legal.peekHexes).toEqual([]);
+    grant(g, 'p0', { lodestone: 2 });
+    expect(getView(g, 'p0').legal.peekHexes).toEqual([hexId]);
+    const peeked = act(g, 'p0', { type: 'peek-fog', hexId });
+    expect(peeked.players[0]!.resources.lodestone).toBe(1);
+    expect(getView(peeked, 'p0').fogPeeks).toEqual({ [hexId]: { terrain: 'wheat', number: 6 } });
+    expect(getView(peeked, 'p1').fogPeeks).toEqual({});
+    expect(JSON.stringify(getView(peeked, 'p1'))).not.toContain('"wheat","number":6');
+    expect(peeked.log.at(-1)!.event).toEqual({ kind: 'peek', playerId: 'p0', hexId });
+    expect(getView(peeked, 'p0').legal.peekHexes).toEqual([]);
+    expect(() => act(peeked, 'p0', { type: 'peek-fog', hexId })).toThrow(/peeked/);
+    expect(peeked.undo).toBeNull();
+    expect(conserved(peeked)).toBe(true);
+  });
+
+  it('is only during your own build phase', () => {
+    const { g, hexId } = foggy();
+    grant(g, 'p1', { lodestone: 1 });
+    expect(() => act(g, 'p1', { type: 'peek-fog', hexId })).toThrow(/turn/);
+    grant(g, 'p0', { lodestone: 1 });
+    expect(() => act({ ...g, phase: 'roll' }, 'p0', { type: 'peek-fog', hexId })).toThrow();
+  });
+});
+
+describe('relay stations at harbors', () => {
+  it('a relay station on a harbor’s edge trades at that harbor’s rate; one beside it does not', () => {
+    const g = building();
+    const harbor = g.board.harbors[0]!;
+    const onHarbor = g.board.edges.find(e => [e.a, e.b].sort().join() === [...harbor.vertices].sort().join())!;
+    const beside = g.board.edges.find(e => e.id !== onHarbor.id && [e.a, e.b].includes(harbor.vertices[0]))!;
+    const best = (game: GameState) => Math.min(...Object.values(tradeRates(game, 'p0')));
+    expect(best(g)).toBe(4);
+    const near = structuredClone(g);
+    near.roads[beside.id] = 'p0';
+    near.relays.push(beside.id);
+    expect(best(near)).toBe(4);
+    g.roads[onHarbor.id] = 'p0';
+    g.relays.push(onHarbor.id);
+    expect(best(g)).toBe(harbor.resource === 'any' ? 3 : 2);
+    expect(Math.min(...Object.values(tradeRates(g, 'p1')))).toBe(4);
+  });
 });

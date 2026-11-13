@@ -13,7 +13,7 @@ import {
   tally,
 } from './core';
 import { revealFog } from './fog';
-import { chartHexes, legalMoves } from './legal';
+import { chartHexes, legalMoves, peekHexes } from './legal';
 
 /**
  * On a 7 in a Cartographers game, everyone with survey ships is owed one chart per ship. Counted
@@ -42,7 +42,7 @@ function finishCharting(state: GameState): void {
 }
 
 /** Relay stations, survey ships, and charting tiles' numbers. */
-export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'build-survey' | 'chart-hexes'> = {
+export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'build-survey' | 'chart-hexes' | 'peek-fog'> = {
   'build-relay'({ next, player, playerId }, action) {
     needPhase(next, 'build', 'special-build');
     requireRule(
@@ -76,6 +76,19 @@ export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'build-survey
       playerId,
       piece: 'survey',
       paid: BUILD_COSTS.survey,
+    });
+  },
+
+  /** A lodestone to the bank to see what one fog tile hides. Everyone sees which tile; only you see what's there. */
+  'peek-fog'({ next, player, playerId }, action) {
+    needPhase(next, 'build');
+    requireRule(peekHexes(next, player).includes(action.hexId), 'Choose a fog tile you haven’t peeked at.');
+    pay(next, player, BUILD_COSTS.peek);
+    next.fogPeeks[playerId] = [...(next.fogPeeks[playerId] ?? []), action.hexId];
+    addLog(next, `${player.name} spent a lodestone to peek under the fog.`, {
+      kind: 'peek',
+      playerId,
+      hexId: action.hexId,
     });
   },
 

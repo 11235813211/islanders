@@ -159,6 +159,14 @@ const MIGRATIONS: Migration[] = [
     s.pendingCharts ??= {};
     s.chartDeadline ??= null;
   },
+  // 15 → 16: players can trade off turn; trades agreed between two waiting players wait here.
+  s => {
+    s.deferredTrades ??= [];
+  },
+  // 16 → 17: Cartographers players can peek at fog tiles for a lodestone.
+  s => {
+    s.fogPeeks ??= {};
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

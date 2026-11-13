@@ -46,6 +46,8 @@ function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
 
 /** The phone layouts (see phone.css): portrait phones, and landscape screens with little height. */
 /** Landscape phones: the turn button moves into the turn line so the build bar keeps its room. */
+/** How long before the setup clock runs out a tapped but unconfirmed spot is sent. */
+const SETUP_SEND_EARLY_MS = 1200;
 const LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 600px)';
 const PHONE_LAYOUT = '(max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px)';
 
@@ -186,8 +188,10 @@ export default function GameTable({
     setBuying(false);
     setRobberPick(null);
     setDiscard(emptyBag());
-    setTrade(previous => (previous?.counterOf && view.phase === 'build' ? previous : null));
   }, [view.selfId, view.phase]);
+  // A trade draft stays open through rolls and turns, so you can plan one; only a seat change clears it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when the seat changes.
+  useEffect(() => setTrade(null), [view.selfId]);
   // A counter draft closes with its offer.
   useEffect(() => {
     if (trade?.counterOf && view.tradeOffer?.id !== trade.counterOf) setTrade(null);
@@ -268,6 +272,13 @@ export default function GameTable({
     if (mode && choices.length === 1) return place(choices[0]!, id);
     setSelected({ kind: choices[0]!, id, ...(choices.length > 1 ? { choices } : {}) });
   }
+  // A setup spot tapped but not confirmed is placed just before the clock runs out, so a bot doesn't pick another.
+  const setup = view.phase === 'setup-settlement' || view.phase === 'setup-road';
+  const lastMoment = view.turnDeadline !== null && view.turnDeadline - clock < SETUP_SEND_EARLY_MS;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: place reads the same view this checks.
+  useEffect(() => {
+    if (setup && lastMoment && selected && !blocked) place(selected.kind, selected.id);
+  }, [setup, lastMoment, selected, blocked]);
 
   const discarding = view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0 && !paused;
   const choosingGold = view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && !paused;
@@ -451,7 +462,11 @@ export default function GameTable({
         onVertex={pickVertex}
         onEdge={pickEdge}
         corner={cornerPanel()}
-        onHex={setRobberPick}
+        onHex={hexId => {
+          if (mode !== 'peek') return setRobberPick(hexId);
+          send({ type: 'peek-fog', hexId });
+          setMode(null);
+        }}
         robberPick={robberPick}
         chart={busy ? null : charts.picking}
         onRobberConfirm={confirm => {

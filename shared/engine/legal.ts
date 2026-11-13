@@ -226,6 +226,13 @@ function robberHexes(state: GameState, selfId: string): string[] {
     .map(hex => hex.id);
 }
 
+/** Cartographers: fog tiles this player hasn't peeked at, if they hold a lodestone to pay. */
+export function peekHexes(state: GameState, player: Player): string[] {
+  if (!cartographersRules(state) || !canAfford(player, BUILD_COSTS.peek)) return [];
+  const seen = state.fogPeeks[player.id] ?? [];
+  return Object.keys(state.fog).filter(hexId => !seen.includes(hexId));
+}
+
 /** Enough cards for a development card, with jungle discoveries standing in for missing ones. */
 export function affordsDevelopment(state: GameState, player: Player): boolean {
   if (!state.developmentDeck.length) return false;
@@ -246,6 +253,7 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     relays: [],
     surveys: [],
     chartHexes: [],
+    peekHexes: [],
     shipMoves: {},
     development: false,
   };
@@ -283,6 +291,7 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     if (pieces.surveys < PIECE_LIMITS.surveys && canAfford(player, BUILD_COSTS.survey))
       legal.surveys = surveySites(state, selfId);
     if (state.phase === 'build') legal.shipMoves = shipMoves(state, selfId);
+    if (state.phase === 'build') legal.peekHexes = peekHexes(state, player);
   }
   return legal;
 }
