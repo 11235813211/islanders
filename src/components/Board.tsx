@@ -139,6 +139,8 @@ export default function Board({
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const picked = hexPick ? view.board.hexes.find(h => h.id === hexPick) : undefined;
+  // A tile picked by a tool that confirms on the board (the chart tool) gets its card above it.
+  const tileConfirm = tiles?.confirm && tiles.picked ? view.board.hexes.find(h => h.id === tiles.picked) : undefined;
   // A fog tile picked to peek at moves no piece.
   const pickedPiece = !picked
     ? null
@@ -383,6 +385,9 @@ export default function Board({
         {/* Outside the sea clip, so a card by the board's edge is never cut off. */}
         {picked && pickedPiece && onHexConfirm && (
           <HexConfirm at={picked} piece={pickedPiece} onConfirm={onHexConfirm} />
+        )}
+        {tileConfirm && tiles?.confirm && (
+          <HexConfirm at={tileConfirm} piece="chart" text={tiles.confirm.text} onConfirm={tiles.confirm.onConfirm} />
         )}
         {selected && selectedPoint && (
           <ConfirmCard

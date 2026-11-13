@@ -337,6 +337,12 @@
   cursor: pointer;
   filter: drop-shadow(0 3px 3px #0b3e5755);
 }
+.map-confirm-text {
+  fill: #123d54;
+  font-family: "DM Sans Variable", sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+}
 .map-confirm [role="button"]:focus-visible {
   outline: 3px solid #ffcf49;
 }
@@ -561,6 +567,11 @@
   justify-content: center;
   gap: 7px;
   min-width: 0;
+}
+/* More cards than the discard limit: a 7 would make you discard. */
+.table-hand.over-limit {
+  background: linear-gradient(180deg, #ffe3dc, #f9b9ab);
+  border-color: #d2543c;
 }
 /* The build buttons' box: no box of its own, except on phones with Cartographers (phone.css). */
 .build-buttons {

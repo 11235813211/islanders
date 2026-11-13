@@ -448,3 +448,17 @@ test('an off-turn offer to five players shows every answer, the counter, and the
     }
   }
 });
+
+test('the hand turns red once a 7 would make you discard', async ({ page }) => {
+  const g = richGame();
+  g.players[0]!.resources = { wood: 2, brick: 2, sheep: 2, wheat: 1, ore: 0, lodestone: 0 };
+  const game = await mountGame(page, g);
+  const hand = page.locator('.table-hand');
+  await expect(hand).not.toHaveClass(/over-limit/);
+  game.update(next => {
+    next.players[0]!.resources.ore = 1;
+  });
+  await expect(hand).toHaveClass(/over-limit/);
+  await hand.screenshot({ path: 'test-results/hand-over-limit.png' });
+  expect(game.errors).toEqual([]);
+});

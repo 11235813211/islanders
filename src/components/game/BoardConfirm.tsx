@@ -11,25 +11,44 @@ export function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () =
   }
 }
 
-/** Confirm or cancel, just above a picked tile: where the robber or pirate goes, or a fog tile to peek at. */
+/**
+ * Confirm or cancel, just above a picked tile: where the robber or pirate goes, a fog tile to peek
+ * at, or a tile to chart (with `text`, what the chart does to its numbers).
+ */
 export function HexConfirm({
   at,
   piece,
+  text,
   onConfirm,
 }: {
   at: { x: number; y: number };
-  piece: 'robber' | 'pirate' | 'peek';
+  piece: 'robber' | 'pirate' | 'peek' | 'chart';
+  text?: string;
   onConfirm: (confirm: boolean) => void;
 }) {
+  // About 9 board units per character at this size, plus a margin.
+  const textWidth = text ? text.length * 9 + 14 : 0;
+  const half = (92 + textWidth) / 2;
   return (
     <g className="map-confirm robber-confirm" transform={`translate(${at.x} ${at.y - 62})`}>
       <g className="map-confirm-body">
-        <path d="M-46 18H-6L0 26 6 18H46V-20H-46Z" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+        <path d={`M${-half} 18H-6L0 26 6 18H${half}V-20H${-half}Z`} fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
+        {text && (
+          <text
+            className="map-confirm-text"
+            x={-half + textWidth / 2 + 4}
+            y="0"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            {text}
+          </text>
+        )}
         {[true, false].map(yes => (
           // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
           <g
             key={String(yes)}
-            transform={`translate(${yes ? -22 : 22} 0)`}
+            transform={`translate(${yes ? half - 68 : half - 24} 0)`}
             role="button"
             tabIndex={0}
             aria-label={yes ? `Confirm ${piece}` : `Cancel ${piece}`}

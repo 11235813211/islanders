@@ -66,15 +66,17 @@ test('charting a 6 from the build bar adds a second number beside the token', as
     .getByRole('button', { name: /^Chart a tile: .* 6$/ })
     .first()
     .click();
-  const panel = page.getByRole('dialog', { name: 'Chart a tile' });
-  await expect(panel).toContainText('6 → 6, 2');
-  await panel.getByRole('button', { name: 'Chart', exact: true }).click();
+  // The confirm card sits above the tile, not in a corner panel.
+  const card = page.locator('.map-confirm');
+  await expect(card).toContainText('6 → 6, 2');
+  await expect(page.getByRole('dialog', { name: 'Chart a tile' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Confirm chart' }).click();
   await expect.poll(() => room.state().board.hexes.filter(h => hexNumbers(h).length === 2)).toHaveLength(1);
   await expect(page.locator('.board-charts')).toHaveCount(1);
   expect(room.errors).toEqual([]);
 });
 
-test('with lodestone in hand, a tap on a tile opens the chart panel for it', async ({ page }) => {
+test('with lodestone in hand, a tap on a tile opens a chart card above it', async ({ page }) => {
   const initial = game();
   const hexId = getView(initial, 'p0').legal.chartHexes[0]!;
   const before = hexNumbers(initial.board.hexes.find(h => h.id === hexId)!);
@@ -82,9 +84,13 @@ test('with lodestone in hand, a tap on a tile opens the chart panel for it', asy
   // A real tap in the middle of the tile, where its number token is drawn.
   const box = (await page.getByRole('button', { name: `Chart the tile ${hexId}` }).boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  const panel = page.getByRole('dialog', { name: 'Chart a tile' });
-  await expect(panel).toContainText(`${before.join(', ')} →`);
-  await panel.getByRole('button', { name: 'Chart', exact: true }).click();
+  const card = page.locator('.map-confirm');
+  await expect(card).toContainText(`${before.join(', ')} →`);
+  const above = (await card.boundingBox())!;
+  expect(above.y + above.height).toBeLessThan(box.y + box.height / 2 + 4);
+  expect(Math.abs(above.x + above.width / 2 - (box.x + box.width / 2))).toBeLessThan(box.width);
+  await page.screenshot({ path: 'test-results/cartographers-chart-card.png' });
+  await page.getByRole('button', { name: 'Confirm chart' }).click();
   await expect.poll(() => hexNumbers(room.state().board.hexes.find(h => h.id === hexId)!)).not.toEqual(before);
   // Without lodestone, tiles take no taps.
   room.update(g => {

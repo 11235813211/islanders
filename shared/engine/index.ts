@@ -8,6 +8,7 @@ export {
   emptyBag,
   GameError,
   getActivePlayerId,
+  handSize,
   isLargeGame,
   MAX_PLAYERS,
   ownBoard,

@@ -31,10 +31,13 @@ export const resourceCount = (bag: ResourceBag): number => RESOURCES.reduce((sum
 /** Cards plus discoveries in a trade or discard bag. */
 export const bagCount = (bag: TradeBag): number => resourceCount(bag) + (bag.discovery ?? 0);
 /** What this room lets jungle discoveries do (see DISCOVERY_RULES). */
-export const discoveryRule = (state: GameState) => DISCOVERY_RULES[state.settings.discoveries ?? 'kept'];
-/** Cards that count toward the discard limit on a 7. */
-export const handSize = (state: GameState, player: Player): number =>
-  resourceCount(player.resources) + (discoveryRule(state).inHand ? player.discoveries : 0);
+export const discoveryRule = (state: Pick<GameState, 'settings'>) =>
+  DISCOVERY_RULES[state.settings.discoveries ?? 'kept'];
+/** Cards that count toward the discard limit on a 7 (from the game, or a player's own view). */
+export const handSize = (
+  state: Pick<GameState, 'settings'>,
+  player: Pick<Player, 'resources' | 'discoveries'>,
+): number => resourceCount(player.resources) + (discoveryRule(state).inHand ? player.discoveries : 0);
 /** How many of `item` a player holds. */
 export const holding = (player: Player, item: Tradable): number =>
   item === 'discovery' ? player.discoveries : player.resources[item];

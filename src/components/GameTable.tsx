@@ -1,7 +1,7 @@
 import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2 } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
-import { emptyBag, isLargeGame } from '../../shared/engine';
+import { emptyBag, handSize, isLargeGame } from '../../shared/engine';
 import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView, Tradable, TradeBag } from '../../shared/types';
 import { SEA } from '../art';
@@ -139,6 +139,9 @@ export default function GameTable({
   const paused = view.pausedAt !== null;
   const finished = view.phase === 'finished';
   const self = view.players.find(p => p.id === view.selfId);
+  // A 7 would make you discard: the hand's background turns red.
+  const overLimit =
+    !!self && handSize(shown, { resources: shown.hand, discoveries: self.discoveries }) > shown.settings.discardLimit;
   const active = view.players.find(p => p.id === view.activePlayerId);
   const blocked = busy || paused || spectator || !ownTurn;
   useTurnAlerts(view);
@@ -507,7 +510,11 @@ export default function GameTable({
       </div>
       {/* Spectators have no hand: the chat takes its place (see .spectating). */}
       {!spectator && (
-        <section className="table-hand" aria-label="Your hand">
+        <section
+          className={`table-hand${overLimit ? ' over-limit' : ''}`}
+          aria-label="Your hand"
+          title={overLimit ? `Over ${view.settings.discardLimit} cards: a 7 makes you discard half` : undefined}
+        >
           <ResourceHand hand={shown.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
             {!!self?.discoveries && (

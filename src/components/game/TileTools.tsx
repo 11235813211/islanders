@@ -1,5 +1,6 @@
 // Cartographers tools on the board's tiles: chart and split pick a tile; a survey ship, once picked,
-// shows the tiles it will chart around the nearest town. Confirm in a small corner panel.
+// shows the tiles it will chart around the nearest town. A chart is confirmed on a card above the
+// tile; a split (which needs a resource) and a survey ship in a small corner panel.
 import { Check } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { affordsSplit, BUILD_COSTS, chartHexes } from '../../../shared/engine';
@@ -104,9 +105,10 @@ export function useTileTools(
               if (tool === 'survey' && other) setTown(other);
             },
             label: (hex: Hex) => `${TITLES[tool]}: ${tileName(view, hex)}`,
+            confirm: tool === 'chart' && picked ? chartConfirm(view, picked, send, setMode) : null,
           }
         : null,
-    [tool, hexes, picked, view, towns, chosen],
+    [tool, hexes, picked, view, towns, chosen, send, setMode],
   );
   const hex = picked ? view.board.hexes.find(h => h.id === picked) : undefined;
   const close = () => setMode(null);
@@ -127,19 +129,18 @@ export function useTileTools(
         confirm={() => confirm({ type: 'build-survey', edgeId: ship, vertexId: chosen })}
       />
     );
-  else if (tool && tool !== 'survey' && hex)
+  // A chart is confirmed on the board, above the tile (see chartConfirm).
+  else if (tool === 'split' && hex)
     panel = (
-      <TilePanel
+      <SplitPanel
         view={view}
-        tool={tool}
         hex={hex}
         resource={resource}
         setResource={setResource}
         busy={busy}
         close={close}
         confirm={() => {
-          if (tool === 'chart') confirm({ type: 'chart-hex', hexId: hex.id });
-          else if (tool === 'split' && resource) confirm({ type: 'split-hex', hexId: hex.id, resource });
+          if (resource) confirm({ type: 'split-hex', hexId: hex.id, resource });
         }}
       />
     );
@@ -149,6 +150,23 @@ export function useTileTools(
     setMode('chart');
   };
   return { ship, pickShip: setShip, startChart, picking, panel };
+}
+
+/** The card above a tile picked to chart: what the chart does to its numbers, then confirm or cancel. */
+function chartConfirm(
+  view: GameView,
+  hexId: string,
+  send: (action: GameAction) => void,
+  setMode: (mode: BoardMode) => void,
+): NonNullable<TilePicking['confirm']> {
+  const hex = view.board.hexes.find(h => h.id === hexId)!;
+  return {
+    text: chartPreview(hex),
+    onConfirm: yes => {
+      if (yes) send({ type: 'chart-hex', hexId });
+      setMode(null);
+    },
+  };
 }
 
 /** The resources a split may add to this tile: any but its own, and never lodestone. */
@@ -234,10 +252,9 @@ function SurveyPanel({
   );
 }
 
-/** The corner panel for a picked tile: what it is, what the tool does to it, and what it costs. */
-function TilePanel({
+/** The corner panel for a tile picked to split: what it is, the resource to add, and what it costs. */
+function SplitPanel({
   view,
-  tool,
   hex,
   resource,
   setResource,
@@ -246,7 +263,6 @@ function TilePanel({
   confirm,
 }: {
   view: GameView;
-  tool: TileTool;
   hex: Hex;
   resource: Resource | null;
   setResource: (resource: Resource) => void;
@@ -254,44 +270,31 @@ function TilePanel({
   close: () => void;
   confirm: () => void;
 }) {
-  const ready = tool !== 'split' || resource !== null;
-  const cost =
-    tool === 'chart'
-      ? `${BUILD_COSTS.chart.lodestone} lodestone`
-      : `${BUILD_COSTS.split.lodestone} lodestone + 1 ${resource ? tradableLabel(resource).toLowerCase() : 'card'}`;
-  const verb = tool === 'chart' ? 'Chart' : 'Split';
+  const cost = `${BUILD_COSTS.split.lodestone} lodestone + 1 ${resource ? tradableLabel(resource).toLowerCase() : 'card'}`;
   return (
     <Panel
-      title={TITLES[tool]}
+      title={TITLES.split}
       close={close}
       status={cost}
       action={
-        <button className="button primary" disabled={busy || !ready} onClick={confirm}>
+        <button className="button primary" disabled={busy || resource === null} onClick={confirm}>
           <Check size={17} />
-          {verb}
+          Split
         </button>
       }
     >
       <div className="tile-pick">
         <span className="tile-pick-name">{tileName(view, hex)}</span>
-        <span className="tile-pick-change">{tileChange(tool, hex)}</span>
+        <span className="tile-pick-change">Pays either half</span>
       </div>
-      {tool === 'split' && (
-        <Palette
-          items={splitOptions(hex)}
-          label="Resource to add"
-          name={r => `Add ${tradableLabel(r)}`}
-          disabled={r => busy || r === 'discovery' || !affordsSplit(view.hand, r)}
-          pressed={r => r === resource}
-          pick={r => r !== 'discovery' && setResource(r)}
-        />
-      )}
+      <Palette
+        items={splitOptions(hex)}
+        label="Resource to add"
+        name={r => `Add ${tradableLabel(r)}`}
+        disabled={r => busy || r === 'discovery' || !affordsSplit(view.hand, r)}
+        pressed={r => r === resource}
+        pick={r => r !== 'discovery' && setResource(r)}
+      />
     </Panel>
   );
-}
-
-/** One short line on what the tool will do. */
-function tileChange(tool: TileTool, hex: Hex): string {
-  if (tool === 'chart') return chartPreview(hex);
-  return 'Pays either half';
 }

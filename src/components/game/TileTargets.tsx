@@ -9,6 +9,8 @@ export interface TilePicking {
   onPick: (hexId: string) => void;
   /** The accessible name of a tile's target. */
   label: (hex: Hex) => string;
+  /** With a tile picked: a confirm card above it, showing `text` (the chart tool). */
+  confirm?: { text: string; onConfirm: (confirm: boolean) => void } | null;
 }
 
 /** Dashed purple outlines on every tile the tool can pick; the picked one is filled in. */
