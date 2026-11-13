@@ -12,6 +12,7 @@ import MapPreview from '../maps/MapPreview';
 import BoardFields, { BoardName } from './BoardFields';
 import BoardSettings from './BoardSettings';
 import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
+import EditorHelp from './EditorHelp';
 import EditorToolbar from './EditorToolbar';
 import type { Refill } from './FillBar';
 import Inspector from './Inspector';
@@ -280,6 +281,7 @@ export default function BoardEditor({
             }}
           />
           <div className="editor-actions">
+            <EditorHelp />
             <button
               type="button"
               className="icon-button"

@@ -418,3 +418,24 @@ test('the top bar keeps the name and save on one row (phones: two), and nothing 
     await page.screenshot({ path: `test-results/editor-bar-${width}.png`, clip: { x: 0, y: 0, width, height: 260 } });
   }
 });
+
+test('the (i) help teaches the editor by topic, and every tab fits', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.getByRole('button', { name: 'How to use the board editor' }).click();
+    const help = page.getByRole('dialog', { name: 'Board editor' });
+    const tabs = help.getByRole('tab');
+    await expect(tabs).toHaveCount(6);
+    for (let i = 0; i < 6; i++) {
+      await tabs.nth(i).click();
+      await expect(tabs.nth(i)).toHaveAttribute('aria-selected', 'true');
+      await expect(help.locator('.editor-help-row').first()).toBeVisible();
+      await expectNoSpill(help);
+      await help.screenshot({ path: `test-results/editor-help-${width}-${i}.png` });
+    }
+    await help.getByRole('button', { name: 'Close dialog' }).click();
+  }
+});

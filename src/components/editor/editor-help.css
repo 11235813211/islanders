@@ -1,0 +1,126 @@
+/* The board editor's help: colored topic tabs, then rows of icon, keys, and one line each. */
+.ehelp-draw {
+  --help: #2f7d3e;
+  --help-soft: #e5f3e6;
+}
+.ehelp-tools {
+  --help: #0a7fa3;
+  --help-soft: #e2f3f8;
+}
+.ehelp-numbers {
+  --help: #a56f08;
+  --help-soft: #fbf2da;
+}
+.ehelp-land {
+  --help: #1f7f8c;
+  --help-soft: #e0f2f1;
+}
+.ehelp-links {
+  --help: #7b4fb0;
+  --help-soft: #f1eafa;
+}
+.ehelp-save {
+  --help: #b83b28;
+  --help-soft: #fcebe6;
+}
+.editor-help-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.editor-help-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 2px solid var(--help);
+  border-radius: 16px;
+  background: var(--help-soft);
+  color: var(--help);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.editor-help-tab[aria-selected="true"] {
+  background: var(--help);
+  color: #fff;
+}
+.editor-help-rows {
+  display: grid;
+  gap: 8px;
+  max-height: min(64vh, 520px);
+  margin: 0;
+  padding: 2px 4px 2px 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.editor-help-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-left: 4px solid var(--help);
+  border-radius: 6px;
+  background: var(--help-soft);
+}
+.editor-help-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--help);
+}
+.editor-help-text {
+  min-width: 0;
+}
+.editor-help-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.editor-help-title strong {
+  color: var(--help);
+  font-size: 14px;
+}
+.editor-help-keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+.editor-help-keys kbd {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid #0003;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.editor-help-plus {
+  margin: 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.editor-help-text p {
+  margin: 2px 0 0;
+  line-height: 1.4;
+}
