@@ -29,18 +29,17 @@ export interface DesignTile {
   noSetup?: boolean;
   /** Victory points for each player who first settles this tile's island. */
   bonus?: number;
-  /** The number group (key of `numberGroups`) this tile's island follows; absent follows the board's `numbers`. */
-  numberGroup?: string;
+  /** How rich random numbers are on this tile's island, per terrain (see NumberLevels). Every tile of an island carries the same. */
+  numberLevels?: NumberLevels;
 }
 
 /**
- * How random numbers lean on some islands: `level` moves all of them (-NUMBER_LEVELS, mostly 2, 3,
- * 11 and 12, to NUMBER_LEVELS, mostly 6 and 8), and `bias` moves one terrain's against the rest (-2 to 2).
+ * Per terrain, -NUMBER_LEVELS (only 2, 3, 11 and 12) to NUMBER_LEVELS (only 6 and 8); the steps
+ * between shift the usual mix toward those. Absent or 0 is the usual mix.
  */
-export interface NumberProfile {
-  level?: number;
-  bias?: Partial<Record<FillKind, number>>;
-}
+export type NumberLevels = Partial<Record<FillKind, number>>;
+/** Terrains that take random numbers, in the order the editor lists them. */
+export const NUMBER_KINDS: FillKind[] = ['wood', 'sheep', 'wheat', 'brick', 'ore', 'gold', 'jungle', 'volcano'];
 
 /** A harbor on side `side` (0–5, see SIDE_DIRECTIONS) of land tile (q, r). */
 export interface DesignHarbor {
@@ -117,10 +116,6 @@ export interface BoardDesign {
   linkRules?: LinkRule[];
   /** Corners where no starting settlement may go, beyond closed islands. */
   noStart?: CornerKey[];
-  /** How random numbers lean on islands that follow no group. */
-  numbers?: NumberProfile;
-  /** Number leanings shared by the islands whose tiles name them (DesignTile.numberGroup). */
-  numberGroups?: Record<string, NumberProfile>;
   /** Other layouts of this board for other player counts (the first whose range fits is played). */
   versions?: BoardVersion[];
   updatedAt: number;

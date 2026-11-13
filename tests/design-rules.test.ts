@@ -4,6 +4,7 @@ import { buildBoard, designFor, parseDesign, tileKey } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
 import { noStartPoints, toggleNoStart } from '../shared/maps/edit';
 import { setNotLinks } from '../shared/maps/fill';
+import { setIslandLevels } from '../shared/maps/numbers';
 import type { BoardDesign } from '../shared/maps/types';
 import type { GameState } from '../shared/types';
 import { fogOutlook } from '../src/components/maps/FogSummary';
@@ -211,7 +212,7 @@ function twoLayouts(): BoardDesign {
 }
 
 describe('number richness by terrain', () => {
-  it('a richer terrain gets better numbers on average than a poorer one', () => {
+  it('a richer terrain gets better numbers on average than a poorer one, and levels survive saving', () => {
     const design = testDesign([
       '~ ~ ~ ~ ~ ~ ~',
       ' ~ o o o w w ~',
@@ -219,21 +220,23 @@ describe('number richness by terrain', () => {
       ' ~ o o w w w ~',
       '~ ~ ~ ~ ~ ~ ~',
     ]);
-    const average = (bias: NonNullable<BoardDesign['numbers']>['bias'], terrain: string) => {
+    const leaning = setIslandLevels(design, new Set(design.tiles.map(t => tileKey(t.q, t.r))), { ore: 2, wood: -2 });
+    const average = (terrain: string) => {
       let total = 0;
       let count = 0;
       for (let seed = 1; seed < 25; seed++)
-        for (const h of buildBoard({ ...design, numbers: { bias } }, seeded(seed)).board.hexes)
+        for (const h of buildBoard(leaning, seeded(seed)).board.hexes)
           if (h.terrain === terrain && h.number) {
             total += pips(h.number);
             count++;
           }
       return total / count;
     };
-    expect(average({ ore: 2, wood: -2 }, 'ore')).toBeGreaterThan(average({ ore: 2, wood: -2 }, 'wood') + 0.5);
-    expect(parseDesign({ ...design, numbers: { bias: { ore: 2 } } }, ['seafaring']).numbers).toEqual({
-      bias: { ore: 2 },
-    });
-    expect(tileKey(0, 0)).toBe('0,0');
+    expect(average('ore')).toBeGreaterThan(average('wood') + 0.5);
+    const saved = parseDesign(leaning, ['seafaring']);
+    expect(saved.tiles.find(t => t.kind === 'ore')!.numberLevels).toEqual({ ore: 2, wood: -2 });
+    expect(() =>
+      parseDesign({ ...leaning, tiles: leaning.tiles.map(t => ({ ...t, numberLevels: { ore: 4 } })) }, ['seafaring']),
+    ).toThrow();
   });
 });

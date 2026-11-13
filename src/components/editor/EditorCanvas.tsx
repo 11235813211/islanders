@@ -6,6 +6,7 @@ import { cellAt, paint, sideAt, stepNumber, toggleHarbor, toggleNoStart, updateT
 import { ArtDefs, SEA } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import EditorLayer from './EditorLayer';
+import IslandLeanings from './IslandLeanings';
 import { applyLink, linkChoice } from './LinkPicker';
 
 /** Toolbar tools, plus the painting tools held keys switch to (sea, land, brush, erase). */
@@ -315,6 +316,7 @@ export default function EditorCanvas({
           />
         )}
       </svg>
+      <IslandLeanings design={design} view={view} size={size} />
       <div className="zoom-controls" aria-label="Editor view">
         <button type="button" aria-label="Zoom in" onClick={() => zoomCenter(1.25)}>
           <Plus size={18} />

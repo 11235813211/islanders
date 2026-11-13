@@ -1,6 +1,6 @@
 import { VICTORY_POINT_RANGE } from '../settings';
 import { RESOURCES, type Resource, SEA_TERRAINS, type Terrain } from '../types';
-import { BIAS_LEVELS, NUMBER_LEVELS } from './balance';
+import { NUMBER_LEVELS } from './balance';
 import {
   type BoardCategory,
   type BoardDesign,
@@ -13,7 +13,8 @@ import {
   type FillKind,
   type FogKind,
   type LinkRule,
-  type NumberProfile,
+  NUMBER_KINDS,
+  type NumberLevels,
   type Pool,
 } from './types';
 
@@ -94,9 +95,9 @@ function parseTile(v: unknown): DesignTile {
     if (!int(t.bonus, 1, 3)) fail('Island bonuses are 1 to 3 points.');
     tile.bonus = t.bonus as number;
   }
-  if (t.numberGroup !== undefined) {
-    if (typeof t.numberGroup !== 'string' || !GROUP_ID.test(t.numberGroup)) fail('Invalid number group.');
-    tile.numberGroup = t.numberGroup as string;
+  if (t.numberLevels !== undefined) {
+    const levels = parseNumberLevels(t.numberLevels);
+    if (Object.keys(levels).length && isLandKind(tile.kind)) tile.numberLevels = levels;
   }
   return tile;
 }
@@ -120,42 +121,18 @@ function parseHarbor(v: unknown): DesignHarbor {
   return harbor;
 }
 
-const GROUP_ID = /^\d{1,2}$/;
+const isLandKind = (kind: DesignKind) => kind !== 'sea' && kind !== 'iceberg' && kind !== 'fog';
 
-/** A number profile: an overall level and a bias per terrain, zeros dropped. */
-function parseProfile(value: unknown): NumberProfile {
-  if (!record(value)) return fail('Invalid number profile.');
-  const profile: NumberProfile = {};
-  if (value.level !== undefined) {
-    if (!int(value.level, -NUMBER_LEVELS, NUMBER_LEVELS)) fail('Invalid number level.');
-    if (value.level) profile.level = value.level as number;
+/** Number levels per terrain, zeros dropped. */
+function parseNumberLevels(value: unknown): NumberLevels {
+  if (!record(value)) return fail('Invalid number levels.');
+  const levels: NumberLevels = {};
+  for (const [kind, level] of Object.entries(value)) {
+    if (!NUMBER_KINDS.includes(kind as FillKind) || !int(level, -NUMBER_LEVELS, NUMBER_LEVELS))
+      fail(`Number levels run from -${NUMBER_LEVELS} to ${NUMBER_LEVELS}.`);
+    if (level) levels[kind as FillKind] = level as number;
   }
-  if (value.bias !== undefined) {
-    if (!record(value.bias)) fail('Invalid number richness.');
-    const bias: NumberProfile['bias'] = {};
-    for (const [kind, level] of Object.entries(value.bias as Record<string, unknown>)) {
-      if (!FILL_KINDS.includes(kind as FillKind) || !int(level, -BIAS_LEVELS, BIAS_LEVELS))
-        fail(`Number richness runs from -${BIAS_LEVELS} to ${BIAS_LEVELS}.`);
-      if (level) bias[kind as FillKind] = level as number;
-    }
-    if (Object.keys(bias).length) profile.bias = bias;
-  }
-  return profile;
-}
-
-/** Number groups some tile still follows (in any layout); tiles naming a missing group follow the board. */
-function parseNumberGroups(value: unknown, layouts: { tiles: DesignTile[] }[]): Record<string, NumberProfile> {
-  if (value === undefined) value = {};
-  if (!record(value) || Object.keys(value).length > 40) fail('Invalid number groups.');
-  const groups: Record<string, NumberProfile> = {};
-  for (const [id, profile] of Object.entries(value as Record<string, unknown>)) {
-    if (!GROUP_ID.test(id)) fail('Invalid number group.');
-    groups[id] = parseProfile(profile);
-  }
-  const used = new Set(layouts.flatMap(l => l.tiles.map(t => t.numberGroup)));
-  for (const layout of layouts)
-    for (const tile of layout.tiles) if (tile.numberGroup && !groups[tile.numberGroup]) delete tile.numberGroup;
-  return Object.fromEntries(Object.entries(groups).filter(([id]) => used.has(id)));
+  return levels;
 }
 
 /** Check an untrusted design (from the editor) and return a clean copy, or throw DesignError. */
@@ -190,11 +167,9 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   )
     fail('Unknown expansion.');
   const linkRules = value.linkRules === undefined ? [] : parseLinkRules(value.linkRules);
-  const numbers = value.numbers === undefined ? undefined : parseProfile(value.numbers);
   if (value.versions !== undefined && (!Array.isArray(value.versions) || value.versions.length > 4))
     fail('A board has at most four versions.');
   const versions = ((value.versions as unknown[] | undefined) ?? []).map(v => parseLayout(record(v) ? v : {}));
-  const numberGroups = parseNumberGroups(value.numberGroups, [layout, ...versions]);
   return {
     id: value.id as string,
     name,
@@ -208,8 +183,6 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     ...(value.noTwoTwelve ? { noTwoTwelve: true } : {}),
     ...(expansions ? { expansions: [...new Set(expansions as Expansion[])] } : {}),
     ...(linkRules.length ? { linkRules } : {}),
-    ...(numbers && Object.keys(numbers).length ? { numbers } : {}),
-    ...(Object.keys(numberGroups).length ? { numberGroups } : {}),
     ...(versions.length ? { versions } : {}),
     updatedAt: 0,
   };

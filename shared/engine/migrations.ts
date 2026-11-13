@@ -145,6 +145,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     if (s.design) s.design = upgradeDesign(s.design);
   },
+  // 13 → 14: each island holds its own number level per terrain (no shared groups or overall level).
+  s => {
+    if (s.design) s.design = upgradeDesign(s.design);
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

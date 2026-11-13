@@ -103,3 +103,42 @@
   opacity: 0.45;
   cursor: default;
 }
+
+/* Labels over islands whose numbers lean richer or poorer. Same type as the stepper values; they
+   fade under the pointer so they never hide the board, and presses fall through to the canvas. */
+.island-leanings {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.island-leaning {
+  position: absolute;
+  display: grid;
+  gap: 1px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.88);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  transition: opacity 0.12s;
+}
+.island-leaning:hover {
+  opacity: 0;
+}
+.island-leaning span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.island-leaning .poor {
+  color: #9a3b2a;
+}
+.island-leaning .rich {
+  color: #2e6b3c;
+}

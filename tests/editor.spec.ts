@@ -105,7 +105,7 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   await page.getByRole('checkbox', { name: '2:1 Lumber' }).uncheck();
   await page.screenshot({ path: 'test-results/editor-fills.png' });
   await page.keyboard.press('Escape');
-  // A corner closed to starting settlements, a link rule, and wood numbers made richer.
+  // A corner closed to starting settlements, a link rule, and gold numbers made richer.
   await page.getByRole('button', { name: 'No start', exact: true }).click();
   const corner = await cellPoint(page, 1, 0, 0, -60);
   await page.mouse.click(corner.x, corner.y);
@@ -118,9 +118,13 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   await rules.getByRole('button', { name: 'Add rule' }).click();
   await expect(rules.getByText('in Mountains')).toBeVisible();
   const numbers = page.getByRole('region', { name: 'Random numbers' });
-  await numbers.getByRole('button', { name: 'Forest better' }).click();
-  await numbers.getByRole('button', { name: 'Forest better' }).click();
-  await expect(numbers.getByRole('group', { name: 'Forest' })).toContainText('Richer');
+  const island = await cellPoint(page, 0, 1, 0, 32);
+  await page.mouse.click(island.x, island.y);
+  // Only the gold tile takes a random number here (the linked land has a 12).
+  await numbers.getByRole('button', { name: 'Gold richer' }).click();
+  await numbers.getByRole('button', { name: 'Gold richer' }).click();
+  await expect(numbers.getByRole('group', { name: 'Gold' })).toContainText('Richer');
+  await expect(page.locator('.island-leaning')).toHaveText('Richer');
   // A version of the board for five and six players.
   await page.getByRole('button', { name: 'Add a version for other player counts' }).click();
   await expect(page.getByRole('tab', { name: '5–6' })).toHaveAttribute('aria-selected', 'true');
@@ -143,7 +147,7 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   expect(saved.harborExclude).toEqual(['wood']);
   expect(saved.noStart).toHaveLength(1);
   expect(saved.linkRules).toEqual([{ kind: 'in', links: ['A'], terrains: ['ore'] }]);
-  expect(saved.numbers).toEqual({ bias: { wood: 2 } });
+  expect(at(0, 1)?.numberLevels).toEqual({ gold: 2 });
   expect(saved.versions?.[0]?.players).toEqual({ min: 5, max: 6 });
   expect(at(2, 0)?.kind).toBe('sea');
   expect(at(2, 1)).toBeUndefined();
@@ -211,21 +215,41 @@ test('the settings panel fits without sideways scrolling, folds away, and a boar
   const point = await cellPoint(page, land.q, land.r, 0, 32);
   await page.mouse.click(point.x, point.y);
   await expect(panel.getByRole('group', { name: 'Random number may have' })).toBeVisible();
-  // Random numbers: the island gets its own profile, made better, then shared with the closed islands.
+  // Random numbers: All numbers sets every terrain, one terrain is tuned from there, and the
+  // levels are copied to every island. Islands off the usual mix get a label that hides under the pointer.
   const numbers = panel.getByRole('region', { name: 'Random numbers' });
-  const follows = numbers.getByRole('radiogroup', { name: 'Island follows' });
-  await expect(follows.getByRole('radio', { name: 'Board' })).toBeChecked();
-  await numbers.getByRole('button', { name: 'Own' }).click();
-  await expect(follows.getByRole('radio', { name: 'Group 1' })).toBeChecked();
-  await numbers.getByRole('button', { name: 'All numbers better' }).click();
-  await expect(numbers.getByRole('group', { name: 'All numbers' })).toContainText('A bit better');
-  await numbers.getByRole('button', { name: 'Closed islands' }).click();
-  await expect(numbers.getByRole('button', { name: 'Closed islands' })).toHaveAttribute('aria-pressed', 'true');
-  await numbers.getByRole('button', { name: 'Mountains worse' }).click();
+  const all = numbers.getByRole('group', { name: 'All numbers' });
+  await expect(all).toContainText('Normal');
+  await expect(page.locator('.island-leaning')).toHaveCount(0);
+  await numbers.getByRole('button', { name: 'All numbers richer' }).click();
+  await expect(all).toContainText('Rich');
+  await expect(numbers.getByRole('group', { name: 'Mountains' })).toContainText('Rich');
+  await expect(page.locator('.island-leaning')).toHaveText('Rich');
+  await numbers.getByRole('button', { name: 'Mountains poorer' }).click();
+  await numbers.getByRole('button', { name: 'Mountains poorer' }).click();
   await expect(numbers.getByRole('group', { name: 'Mountains' })).toContainText('Poor');
+  await expect(all).toContainText('Mixed');
+  const label = page.locator('.island-leaning');
+  await expect(label).toContainText('Poor');
+  await expect(label.locator('svg')).not.toHaveCount(0);
+  const copy = numbers.getByRole('button', { name: 'All islands' });
+  await copy.click();
+  await expect(copy).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.locator('.island-leaning').count()).toBeGreaterThan(1);
+  await page.screenshot({ path: 'test-results/editor-leanings.png' });
+  await page.locator('.island-leaning').first().hover();
+  await expect(page.locator('.island-leaning').first()).toHaveCSS('opacity', '0');
+  await all.getByRole('button', { name: 'All numbers poorer' }).click();
+  await expect(all).toContainText('Normal');
+  await all.getByRole('button', { name: 'All numbers poorer' }).click();
+  await all.getByRole('button', { name: 'All numbers poorer' }).click();
+  await all.getByRole('button', { name: 'All numbers poorer' }).click();
+  await expect(all).toContainText('2/3/11/12');
+  await expect(all.getByRole('button', { name: 'All numbers poorer' })).toBeDisabled();
   const noEnds = numbers.getByRole('button', { name: 'No 2s or 12s anywhere' });
   await noEnds.click();
   await expect(noEnds).toHaveAttribute('aria-pressed', 'true');
+  await expect(all).toContainText('3/11');
   await expectNoSpill(panel);
   await numbers.screenshot({ path: 'test-results/editor-numbers.png' });
   await page.screenshot({ path: 'test-results/editor-panel.png' });

@@ -2,18 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, emptyBag, getView, normalizeGame } from '../shared/engine';
 import { buildBoard, parseDesign, tileKey } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
-import { closedTiles } from '../shared/maps/edit';
+import { closedTiles, islandOf } from '../shared/maps/edit';
 import { fillNumbers } from '../shared/maps/fill';
-import {
-  assignGroup,
-  followers,
-  islandGroups,
-  islandSet,
-  profileOf,
-  setProfile,
-  splitGroup,
-  upgradeDesign,
-} from '../shared/maps/numbers';
+import { islandLevels, islandSet, randomTerrains, setIslandLevels, upgradeDesign } from '../shared/maps/numbers';
 import { type BoardDesign, type BoardVersion, VERSION_FIELDS } from '../shared/maps/types';
 import type { DiscoveryRule, GameAction, GameState, Terrain } from '../shared/types';
 import { grant, makeLobby, seaLobby, seeded, settled, TEST_NOW, testDesign } from './fixtures';
@@ -254,14 +245,14 @@ describe('map options', () => {
 
   const reds = (n: number | null | undefined) => n === 6 || n === 8;
 
-  /** ROWS with every closed island following a group at `level`. */
+  /** ROWS with every terrain on the closed island at `level`. */
   const closedAt = (level: number, extra: Partial<BoardDesign> = {}) => {
     const d = testDesign(ROWS, { pool: { wood: 1 }, ...extra });
-    return splitGroup(d, islandSet(d, 'closed'), { level }).design;
+    return setIslandLevels(d, islandSet(d, 'closed'), { wood: level });
   };
 
-  it('richer closed islands get 6s and 8s without taking them from the rest', () => {
-    const rich = closedAt(4);
+  it('the 6/8 level gives a closed island only 6s and 8s without taking them from the rest', () => {
+    const rich = closedAt(3);
     for (let seed = 1; seed < 6; seed++) {
       const { board } = buildBoard(rich, seeded(seed));
       const closed = board.hexes.filter(h => h.noSetup && h.number);
@@ -274,37 +265,49 @@ describe('map options', () => {
     expect(filled.tiles.filter(t => t.noSetup).every(t => reds(t.number))).toBe(true);
   });
 
-  it('the worst level gives nearly all 2, 3, 11 and 12', () => {
-    const poor = closedAt(-4);
-    for (let seed = 1; seed < 6; seed++)
-      for (const h of buildBoard(poor, seeded(seed)).board.hexes.filter(h => h.noSetup && h.number))
-        expect(pips(h.number!)).toBeLessThanOrEqual(2);
+  it('the 2/3/11/12 level gives only those, and only 3 and 11 without 2s and 12s', () => {
+    for (const noTwoTwelve of [false, true])
+      for (let seed = 1; seed < 6; seed++)
+        for (const h of buildBoard(closedAt(-3, { noTwoTwelve }), seeded(seed)).board.hexes.filter(
+          h => h.noSetup && h.number,
+        ))
+          expect(noTwoTwelve ? [3, 11] : [2, 3, 11, 12]).toContain(h.number);
   });
 
-  it('islands following one group share it; an island given its own copy changes alone', () => {
-    const d = testDesign(ROWS, { pool: { wood: 1 } });
-    const all = islandSet(d, 'all');
-    const { design: grouped, group } = splitGroup(d, all, { level: 2 });
-    expect(followers(grouped).get(group)).toBe(2);
-    // Land drawn onto an island later follows the island's group.
-    const added = grouped.tiles.find(t => t.numberGroup && !t.noSetup)!;
-    const { numberGroup: _g, ...bare } = added;
-    const grown = { ...grouped, tiles: grouped.tiles.map(t => (t === added ? bare : t)) };
-    expect(islandGroups(grown).get(tileKey(added.q, added.r))).toBe(group);
-    // One island splits off with a copy; changing the copy leaves the other on level 2.
-    const closed = islandSet(grown, 'closed');
-    const split = splitGroup(grown, closed, profileOf(grown, group));
-    const changed = setProfile(split.design, split.group, { level: -1 });
-    expect(profileOf(changed, group).level).toBe(2);
-    expect(profileOf(changed, islandGroups(changed).get([...closed][0]!)!).level).toBe(-1);
-    // Back to the board's profile: groups nobody follows are dropped on save.
-    const back = assignGroup(changed, islandSet(changed, 'all'), null);
-    expect(parseDesign(back, ['seafaring']).numberGroups).toBeUndefined();
+  it('each island keeps its own levels; land joining an island takes them; copying writes them out', () => {
+    const d = testDesign(ROWS, { pool: { wood: 1, ore: 1 } });
+    const closed = islandSet(d, 'closed');
+    const leaning = setIslandLevels(d, closed, { wood: 2, ore: -1 });
+    const open = leaning.tiles.find(t => t.kind === 'land' && !t.noSetup)!;
+    expect(islandLevels(islandOf(leaning, open.q, open.r))).toEqual({});
+    const closedTile = leaning.tiles.find(t => t.noSetup)!;
+    // A tile without levels on the island follows the island's.
+    const bare = leaning.tiles.map(t => (t === closedTile ? { ...t, numberLevels: undefined } : t));
+    expect(islandLevels(islandOf({ ...leaning, tiles: bare }, closedTile.q, closedTile.r))).toEqual({
+      wood: 2,
+      ore: -1,
+    });
+    const copied = setIslandLevels(leaning, islandSet(leaning, 'all'), { wood: 2, ore: -1 });
+    expect(copied.tiles.filter(t => t.kind === 'land').every(t => t.numberLevels?.wood === 2)).toBe(true);
+    expect(parseDesign(copied, ['seafaring']).tiles.find(t => t.kind === 'land')!.numberLevels).toEqual({
+      wood: 2,
+      ore: -1,
+    });
+    expect(
+      parseDesign(setIslandLevels(copied, islandSet(copied, 'all'), {}), ['seafaring']).tiles.some(t => t.numberLevels),
+    ).toBe(false);
+  });
+
+  it('an island lists the terrains that get random numbers: unset tiles and its random land mix', () => {
+    const d = testDesign(['~ ~ ~ ~ ~', ' ~ o w L ~', '~ ~ ~ ~ ~'], { pool: { wheat: 1, desert: 1 } });
+    const set = d.tiles.find(t => t.kind === 'wood')!;
+    d.tiles = d.tiles.map(t => (t === set ? { ...t, number: 5 } : t));
+    expect(randomTerrains(d, islandOf(d, set.q, set.r))).toEqual(['wheat', 'ore']);
   });
 
   it('a terrain leaning richer on one island gets better numbers there', () => {
     const d = testDesign(['~ ~ ~ ~ ~ ~ ~', ' ~ o o o w w ~', '~ o o o w w w ~', ' ~ o o w w w ~', '~ ~ ~ ~ ~ ~ ~']);
-    const leaning = splitGroup(d, islandSet(d, 'all'), { bias: { ore: 2, wood: -2 } }).design;
+    const leaning = setIslandLevels(d, islandSet(d, 'all'), { ore: 2, wood: -2 });
     const average = (terrain: string) => {
       const dots: number[] = [];
       for (let seed = 1; seed < 25; seed++)
@@ -331,16 +334,29 @@ describe('map options', () => {
     expect(others.every(t => pips(t.number!) > 1)).toBe(true);
   });
 
-  it('boards saved before number profiles keep their closed-island level and terrain bias', () => {
-    const old = { ...testDesign(ROWS), richIslands: 3, numberBias: { ore: 2 } };
+  it('boards saved before islands held their own levels keep their richness', () => {
+    const old = { ...testDesign(ROWS), richIslands: 4, numberBias: { ore: 2 } };
     old.versions = [{ ...pick(old), players: { min: 5, max: 6 } }];
     const up = upgradeDesign(old);
     expect('richIslands' in up || 'numberBias' in up).toBe(false);
-    expect(up.numbers).toEqual({ bias: { ore: 2 } });
-    expect(up.numberGroups).toEqual({ 1: { level: 3 } });
     for (const layout of [up, ...up.versions!])
-      for (const t of layout.tiles)
-        if (t.kind === 'land') expect(t.numberGroup).toBe(closedTiles(up).has(tileKey(t.q, t.r)) ? '1' : undefined);
+      for (const t of layout.tiles) {
+        if (t.kind !== 'land') continue;
+        const closed = closedTiles({ ...up, tiles: layout.tiles }).has(tileKey(t.q, t.r));
+        expect(t.numberLevels).toEqual(
+          closed ? { wood: 3, sheep: 3, wheat: 3, brick: 3, ore: 3, gold: 3, jungle: 3, volcano: 3 } : { ore: 2 },
+        );
+      }
+    // Shared groups and a board-wide level (the step between) land on the tiles that followed them.
+    const grouped = testDesign(ROWS) as BoardDesign & Record<string, unknown>;
+    grouped.numbers = { bias: { wood: -1 } };
+    grouped.numberGroups = { 1: { level: -4 } };
+    grouped.tiles = grouped.tiles.map(t => (t.noSetup ? { ...t, numberGroup: '1' } : t));
+    const upGrouped = upgradeDesign(grouped);
+    expect('numberGroups' in upGrouped || 'numbers' in upGrouped).toBe(false);
+    expect(upGrouped.tiles.find(t => t.noSetup)!.numberLevels?.ore).toBe(-3);
+    expect(upGrouped.tiles.find(t => t.kind === 'land' && !t.noSetup)!.numberLevels).toEqual({ wood: -1 });
+    expect(upgradeDesign(upGrouped)).toBe(upGrouped);
   });
 
   it('a board without harbors gets them at random spots each game', () => {

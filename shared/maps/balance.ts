@@ -81,17 +81,14 @@ function cornerKeys(cell: Cell): string[] {
   });
 }
 
-/** How many dots each step of a terrain's number bias (-2 to 2) moves its average. */
-const BIAS_PIPS = 0.9;
-
 /**
  * How lopsided a numbering is: hot corners, touching reds, repeated neighbors, and terrains whose
- * average strays from where their bias aims (cells with the same terrain and bias average together).
+ * average strays from the others' (the caller passes cells that share one number level).
  */
 function numberingCost(cells: NumberCell[], numbers: Map<string, number>): number {
   let cost = 0;
   const corners = new Map<string, number>();
-  const byResource = new Map<string, { bias: number; dots: number[] }>();
+  const byTerrain = new Map<string, number[]>();
   for (const cell of cells) {
     const n = numbers.get(key(cell.q, cell.r));
     if (n === undefined) continue;
@@ -102,41 +99,34 @@ function numberingCost(cells: NumberCell[], numbers: Map<string, number>): numbe
       if (isRed(n) && isRed(m)) cost += 40;
       else if (m === n) cost += 3;
     }
-    const group = `${cell.terrain}:${cell.bias ?? 0}`;
-    const entry = byResource.get(group) ?? { bias: cell.bias ?? 0, dots: [] };
-    entry.dots.push(pips(n));
-    byResource.set(group, entry);
+    byTerrain.set(cell.terrain, [...(byTerrain.get(cell.terrain) ?? []), pips(n)]);
   }
   for (const total of corners.values()) if (total > 11) cost += (total - 11) ** 2 * 2;
-  const averages = [...byResource.values()].map(({ bias, dots }) => ({
-    bias,
-    average: dots.reduce((a, b) => a + b, 0) / dots.length,
-  }));
-  const mean = averages.reduce((a, b) => a + b.average, 0) / Math.max(1, averages.length);
-  // Richer terrains aim above the group's average, poorer ones below.
-  for (const { bias, average } of averages) cost += (average - mean - bias * BIAS_PIPS) ** 2 * 2;
+  const averages = [...byTerrain.values()].map(dots => dots.reduce((a, b) => a + b, 0) / dots.length);
+  const mean = averages.reduce((a, b) => a + b, 0) / Math.max(1, averages.length);
+  for (const average of averages) cost += (average - mean) ** 2 * 2;
   return cost;
 }
 
 /**
  * A producing cell to number. `pips` limits a random number to these dot counts (1–5); `level`
- * (-NUMBER_LEVELS to NUMBER_LEVELS) shifts its mix; `bias` (-2 to 2) aims its terrain above or below the rest.
+ * (-NUMBER_LEVELS to NUMBER_LEVELS) shifts its mix toward the edges or toward 6 and 8.
  */
 export interface NumberCell extends Cell {
   terrain: string;
   pips?: number[];
   level?: number;
-  bias?: number;
 }
 
-/** Steps each way a number profile's level goes: -4 is nearly all 2, 3, 11, 12; 4 nearly all 6 and 8. */
-export const NUMBER_LEVELS = 4;
-/** Steps each way a terrain's bias goes. */
-export const BIAS_LEVELS = 2;
+/** Steps each way a number level goes: -3 is only 2, 3, 11 and 12; 3 is only 6 and 8. */
+export const NUMBER_LEVELS = 3;
 
 const allowedSet = (noEnds: boolean) => (noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET);
 
-/** Number weights: the base mix (without 2 and 12 when `noEnds`), shifted toward 6 and 8 (or the edges) by `level`. */
+/**
+ * Number weights: the base mix (without 2 and 12 when `noEnds`), shifted by `level` toward 6 and 8
+ * (or toward 2, 3, 11 and 12); at ±NUMBER_LEVELS it is only those.
+ */
 export function numberMix(level: number, noEnds: boolean): Map<number, number> {
   const set = allowedSet(noEnds);
   const shift = Math.min(1, Math.abs(level) / NUMBER_LEVELS);
@@ -229,8 +219,7 @@ export function balancedNumbers(
     return { cells, open, pool: apportion(open.length, numberMix(level, noTwoTwelve), fixedCounts, random) };
   });
   let best: { cost: number; numbers: Map<string, number> } | null = null;
-  const attempts = producing.some(c => c.bias) ? tries * 3 : tries;
-  for (let attempt = 0; attempt < attempts; attempt++) {
+  for (let attempt = 0; attempt < tries; attempt++) {
     const numbers = new Map(fixed);
     for (const { open, pool } of groups) placeNumbers(open, pool, numbers, random);
     const cost = groups.reduce((sum, { cells }) => sum + numberingCost(cells, numbers), 0);
