@@ -19,6 +19,7 @@ export const CARTOGRAPHERS: CartographersArt =
 /** Survey targets and split seams: the active version's, or v16's for versions made before them. */
 export const SurveyTarget = CARTOGRAPHERS.SurveyTarget ?? splitCartographers.SurveyTarget!;
 export const SplitSeam = CARTOGRAPHERS.SplitSeam ?? splitCartographers.SplitSeam!;
+export const PeekVeil = CARTOGRAPHERS.PeekVeil ?? splitCartographers.PeekVeil!;
 export const CARD_COLORS: Record<Resource, CardColors> = { ...art.cardColors, lodestone: CARTOGRAPHERS.cardColors };
 
 /** A resource's small icon (card corners, harbors, logs). */

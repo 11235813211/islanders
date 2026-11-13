@@ -262,6 +262,7 @@ test('Cartographers with fog: the Peek button fits the bar, and peeked tiles sho
   await page.screenshot({ path: 'test-results/phone-peek.png' });
   await page.getByRole('button', { name: /^Peek at a fog tile/ }).tap();
   await page.getByRole('button', { name: `Peek at the fog tile ${sea[1]!.id}` }).tap();
+  await page.getByRole('button', { name: 'Confirm peek' }).tap();
   await expect.poll(() => room.state().fogPeeks.p0?.length).toBe(2);
   await expect(page.locator('.peeked-fog')).toHaveCount(2);
   expect(room.errors).toEqual([]);

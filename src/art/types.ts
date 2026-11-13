@@ -72,6 +72,8 @@ export interface CartographersArt {
   SurveyTarget?: (props: { color: string }) => ReactElement;
   /** The seam between a split tile's halves, drawn at the tile's center. Versions before v16 borrow v16's. */
   SplitSeam?: () => ReactElement;
+  /** Edge mist and cloud banks over a fog tile you peeked at. Versions before v16 borrow v16's. */
+  PeekVeil?: (props: { uid: string }) => ReactElement;
 }
 
 /** A rectangle in board units. */

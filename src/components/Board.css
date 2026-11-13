@@ -86,7 +86,8 @@
 }
 
 .board-hex-target:hover polygon,
-.board-hex-target:focus-visible polygon {
+.board-hex-target:focus-visible polygon,
+.board-hex-target.board-target-selected polygon {
   stroke: #ffedb8;
   stroke-width: 4px;
   fill: #fff5d71c;

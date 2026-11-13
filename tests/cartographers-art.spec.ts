@@ -10,6 +10,7 @@ import {
   CARD_COLORS,
   CARTOGRAPHERS,
   NumberToken,
+  PeekVeil,
   ResourceArt,
   ResourceIcon,
   ROAD_INSET,
@@ -72,6 +73,36 @@ function tiles(uid: string, width: number) {
             { y: 76, textAnchor: 'middle', fill: '#fff', fontSize: 11 },
             `${terrain} ${[number, ...extra].join('-')}`,
           ),
+        ),
+      ),
+    ),
+  );
+}
+
+/** Fog as everyone sees it, then fog tiles you peeked at: the hidden tile under edge mist. */
+const PEEKS: [Terrain, number][] = [
+  ['wheat', 9],
+  ['ore', 6],
+  ['sheep', 4],
+  ['lodestone', 10],
+  ['wood', 8],
+];
+function fog(uid: string, width: number) {
+  const count = PEEKS.length + 1;
+  return renderToStaticMarkup(
+    h(
+      'svg',
+      { className: 'row', xmlns: 'http://www.w3.org/2000/svg', viewBox: `0 -70 ${count * CELL} 140`, width },
+      h('defs', null, h(ArtDefs, { uid }), h(SEA.Defs, { uid })),
+      h('rect', { x: 0, y: -70, width: count * CELL, height: 140, fill: '#1c9fc5' }),
+      h('g', { transform: `translate(${CELL / 2} 0)` }, h(Tile, { uid, terrain: 'fog' })),
+      ...PEEKS.map(([terrain, number], i) =>
+        h(
+          'g',
+          { key: terrain, transform: `translate(${(i + 1) * CELL + CELL / 2} 0)` },
+          h(Tile, { uid, terrain }),
+          h(PeekVeil, { uid }),
+          h(NumberToken, { uid, number }),
         ),
       ),
     ),
@@ -150,6 +181,7 @@ test('render Cartographers art for review', async ({ page }) => {
     `${STYLE}<h1>Cartographers · ${ART_VERSION}</h1>
     <h2>Tiles and charted numbers</h2>${tiles('tiles', 1060)}
     <h2>Board scale</h2>${tiles('small', 560)}
+    <h2>Fog, then fog tiles you peeked at</h2>${fog('fog', 1060)}
     <h2>Relay stations and survey ships</h2>${pieces('pieces', 1060)}
     <h2>Cards</h2>${hand()}`,
   );
@@ -157,7 +189,7 @@ test('render Cartographers art for review', async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 700 });
   await page.setContent(
-    `${STYLE}<h1>Phone scale</h1>${tiles('phone', 358)}${pieces('phone-pieces', 358)}
+    `${STYLE}<h1>Phone scale</h1>${tiles('phone', 358)}${fog('phone-fog', 358)}${pieces('phone-pieces', 358)}
     <div style="transform:scale(.8);transform-origin:0 0">${hand()}</div>`,
   );
   await page.screenshot({ path: 'test-results/cartographers-art-phone.png', fullPage: true });

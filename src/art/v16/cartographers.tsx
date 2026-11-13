@@ -2,6 +2,7 @@
 // target markers; the extra numbers charted onto tiles; and the seam of a split tile. Colors sit at the top so they are easy to tweak.
 import { hexPoints } from '../../lib/geometry';
 import type { CartographersArt } from '../types';
+import { FOG } from './sea/fog';
 import { Ship } from './sea/ship';
 import { arch, gabledHouse, outlineTone, Solids, tone } from './solids';
 
@@ -266,6 +267,50 @@ function SurveyTarget({ color }: { color: string }) {
   );
 }
 
+/** Cloud puffs near a peeked tile's rim: [x, y, radius] for each circle, three small banks. */
+const PEEK_PUFFS: [number, number, number][] = [
+  [-46, -20, 11],
+  [-36, -30, 9],
+  [-50, -6, 8],
+  [44, 14, 10],
+  [50, 2, 8],
+  [36, 24, 8],
+  [-8, 52, 9],
+  [6, 54, 10],
+  [-20, 48, 7],
+];
+
+/**
+ * Over a fog tile you peeked at: mist that thickens toward the rim and a few cloud banks at the
+ * edges, so the tile still reads as fog while what it hides shows clearly in the middle.
+ */
+function PeekVeil({ uid }: { uid: string }) {
+  const rim = hexPoints(60.6);
+  return (
+    <g className="peek-veil" aria-hidden="true">
+      <defs>
+        <radialGradient id={`${uid}-peek-mist`}>
+          <stop offset=".5" stopColor={FOG.center} stopOpacity="0" />
+          <stop offset=".8" stopColor={FOG.center} stopOpacity=".28" />
+          <stop offset="1" stopColor={FOG.rim} stopOpacity=".7" />
+        </radialGradient>
+        <clipPath id={`${uid}-peek-clip`}>
+          <polygon points={rim} />
+        </clipPath>
+      </defs>
+      <polygon points={rim} fill={`url(#${uid}-peek-mist)`} />
+      <g clipPath={`url(#${uid}-peek-clip)`}>
+        {PEEK_PUFFS.map(([x, y, r]) => (
+          <circle key={`s${x},${y}`} cx={x} cy={y + 2} r={r} fill={FOG.wispShade} opacity=".35" />
+        ))}
+        {PEEK_PUFFS.map(([x, y, r]) => (
+          <circle key={`${x},${y}`} cx={x} cy={y} r={r} fill={FOG.wisp} opacity=".8" />
+        ))}
+      </g>
+    </g>
+  );
+}
+
 /** The seam down a split tile, top corner to bottom corner, between its two halves. */
 function SplitSeam() {
   return (
@@ -289,4 +334,5 @@ export const cartographers: CartographersArt = {
   ExtraNumbers,
   SurveyTarget,
   SplitSeam,
+  PeekVeil,
 };

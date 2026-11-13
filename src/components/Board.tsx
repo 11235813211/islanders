@@ -6,7 +6,7 @@ import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import BoardScene, { type Drift } from './BoardScene';
-import { ConfirmCard, keyboardActivate, RobberConfirm } from './game/BoardConfirm';
+import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
 import ShipPieces from './game/ShipPieces';
@@ -37,9 +37,9 @@ export interface BoardProps {
   onConfirm?: (kind: PlaceKind) => void;
   /** While moving a ship or fitting out a survey ship: that ship, once picked. */
   moveFrom?: string | null;
-  /** The tile the robber or pirate was just moved to, waiting for confirm or cancel. */
-  robberPick?: string | null;
-  onRobberConfirm?: (confirm: boolean) => void;
+  /** The tile the robber or pirate was just moved to, or a fog tile to peek at, waiting for confirm or cancel. */
+  hexPick?: string | null;
+  onHexConfirm?: (confirm: boolean) => void;
   /** Cartographers: tiles the chart, split, or survey tool can pick, and the one picked. */
   tiles?: TilePicking | null;
 }
@@ -131,12 +131,20 @@ export default function Board({
   selected,
   onConfirm,
   moveFrom,
-  robberPick = null,
-  onRobberConfirm,
+  hexPick = null,
+  onHexConfirm,
   tiles = null,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
-  const picked = robberPick ? view.board.hexes.find(h => h.id === robberPick) : undefined;
+  const picked = hexPick ? view.board.hexes.find(h => h.id === hexPick) : undefined;
+  // A fog tile picked to peek at moves no piece.
+  const pickedPiece = !picked
+    ? null
+    : picked.terrain === 'fog'
+      ? 'peek'
+      : picked.terrain === 'sea'
+        ? 'pirate'
+        : 'robber';
   const frame = boardFrame(view.board.hexes);
   const fresh = useFreshLog(view.log);
   const rolled = sinceLatestRoll(fresh);
@@ -212,8 +220,8 @@ export default function Board({
             uid={uid}
             board={view.board}
             frame={frame}
-            robber={picked && picked.terrain !== 'sea' ? picked.id : view.robber}
-            pirate={picked?.terrain === 'sea' ? picked.id : view.pirate}
+            robber={pickedPiece === 'robber' ? picked!.id : view.robber}
+            pirate={pickedPiece === 'pirate' ? picked!.id : view.pirate}
             showClosed={view.phase === 'setup-settlement'}
             drifts={icebergDrifts(rolled)}
             rumbles={volcanoRumbles(view, rolled)}
@@ -252,7 +260,7 @@ export default function Board({
               return (
                 <g
                   key={hex.id}
-                  className={`board-target board-hex-target${pirate ? ' board-sea-target' : ''}`}
+                  className={`board-target board-hex-target${pirate ? ' board-sea-target' : ''}${hexPick === hex.id ? ' board-target-selected' : ''}`}
                   role="button"
                   tabIndex={0}
                   aria-label={
@@ -371,8 +379,8 @@ export default function Board({
           <SeaDecorations frame={frame} />
         </g>
         {/* Outside the sea clip, so a card by the board's edge is never cut off. */}
-        {picked && onRobberConfirm && (
-          <RobberConfirm at={picked} pirate={picked.terrain === 'sea'} onConfirm={onRobberConfirm} />
+        {picked && pickedPiece && onHexConfirm && (
+          <HexConfirm at={picked} piece={pickedPiece} onConfirm={onHexConfirm} />
         )}
         {selected && selectedPoint && (
           <ConfirmCard

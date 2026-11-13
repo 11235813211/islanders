@@ -147,8 +147,13 @@ test('relay, survey and peek start from a tap on the board, with no button first
   const legal = getView(initial, 'p0').legal;
   test.skip(!legal.relays.length || !legal.peekHexes.includes(fogHex.id), 'No relay or peek spot on this seed');
   const room = await mountGame(page, initial);
-  await page.getByRole('button', { name: `Peek at the fog tile ${fogHex.id}` }).click();
+  // A real tap in the middle of the tile (whatever is drawn on top there gets it), then confirm.
+  const fogBox = (await page.getByRole('button', { name: `Peek at the fog tile ${fogHex.id}` }).boundingBox())!;
+  await page.mouse.click(fogBox.x + fogBox.width / 2, fogBox.y + fogBox.height / 2);
+  await page.getByRole('button', { name: 'Confirm peek' }).click();
   await expect.poll(() => room.state().fogPeeks.p0?.length).toBe(1);
+  await expect(page.locator('.peek-veil')).toHaveCount(1);
+  await page.locator('.peeked-fog').screenshot({ path: 'test-results/cartographers-peek.png' });
   await page.getByRole('button', { name: `Build relay station at ${legal.relays[0]}` }).click();
   await page.getByRole('button', { name: 'Confirm relay' }).click();
   await expect.poll(() => room.state().relays).toEqual([legal.relays[0]]);

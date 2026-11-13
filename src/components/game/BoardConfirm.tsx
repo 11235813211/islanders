@@ -11,17 +11,16 @@ export function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () =
   }
 }
 
-/** Confirm or cancel, just above where the robber or pirate was put. */
-export function RobberConfirm({
+/** Confirm or cancel, just above a picked tile: where the robber or pirate goes, or a fog tile to peek at. */
+export function HexConfirm({
   at,
-  pirate,
+  piece,
   onConfirm,
 }: {
   at: { x: number; y: number };
-  pirate: boolean;
+  piece: 'robber' | 'pirate' | 'peek';
   onConfirm: (confirm: boolean) => void;
 }) {
-  const piece = pirate ? 'pirate' : 'robber';
   return (
     <g className="map-confirm robber-confirm" transform={`translate(${at.x} ${at.y - 62})`}>
       <g className="map-confirm-body">

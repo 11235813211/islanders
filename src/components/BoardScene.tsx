@@ -1,7 +1,18 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
 import type { Board, GameView, Hex, Resource } from '../../shared/types';
-import { CARTOGRAPHERS, type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, SplitSeam, Tile } from '../art';
+import {
+  CARTOGRAPHERS,
+  type Frame,
+  Harbor,
+  NumberToken,
+  PeekVeil,
+  Robber,
+  SEA,
+  SeaBackdrop,
+  SplitSeam,
+  Tile,
+} from '../art';
 import { hexPoints } from '../lib/geometry';
 import IslandRims, { rimTiles } from './IslandRims';
 
@@ -28,19 +39,13 @@ function rumbleProps(rumble: Rumble | undefined): { className?: string; style?: 
   return { className: 'volcano-quake', style: { animationDelay: `${rumble.delay}s` } };
 }
 
-/**
- * A fog tile you peeked at: the hidden tile and its number under a thin veil of fog, ringed in
- * lodestone purple so it's clear which tile you know.
- */
+/** A fog tile you peeked at: the hidden tile and its number, with fog gathered at its edges. */
 function PeekedFog({ uid, hex, peek }: { uid: string; hex: Hex; peek: GameView['fogPeeks'][string] }) {
   return (
     <g className="peeked-fog" aria-label="A fog tile you peeked at">
       <Tile uid={uid} terrain={peek.terrain} variant={tileVariant(hex)} />
+      <PeekVeil uid={uid} />
       {peek.number !== null && <NumberToken uid={uid} number={peek.number} />}
-      <g opacity={0.62}>
-        <Tile uid={uid} terrain="fog" variant={tileVariant(hex)} />
-      </g>
-      <polygon points={hexPoints(47)} fill="none" stroke="#7b4fb0" strokeWidth="5" strokeDasharray="9 6" />
     </g>
   );
 }

@@ -185,11 +185,11 @@ export default function BoardViewport({
       onEdge: (id: string) => latest.current.onEdge(id),
       onHex: (id: string) => latest.current.onHex(id),
       onConfirm: (kind: Parameters<NonNullable<BoardProps['onConfirm']>>[0]) => latest.current.onConfirm?.(kind),
-      onRobberConfirm: (confirm: boolean) => latest.current.onRobberConfirm?.(confirm),
+      onHexConfirm: (confirm: boolean) => latest.current.onHexConfirm?.(confirm),
     }),
     [],
   );
-  const { view, mode, disabled, selected, moveFrom, robberPick, tiles } = props;
+  const { view, mode, disabled, selected, moveFrom, hexPick, tiles } = props;
   // biome-ignore lint/correctness/useExhaustiveDependencies: drawn is a ref read at render; commit() keeps the DOM in step.
   const board = useMemo(
     () => (
@@ -199,13 +199,13 @@ export default function BoardViewport({
         disabled={disabled}
         selected={selected}
         moveFrom={moveFrom}
-        robberPick={robberPick}
+        hexPick={hexPick}
         tiles={tiles}
         camera={drawn.current}
         {...handlers}
       />
     ),
-    [view, mode, disabled, selected, moveFrom, robberPick, tiles, handlers],
+    [view, mode, disabled, selected, moveFrom, hexPick, tiles, handlers],
   );
   const zoom = (factor: number) => {
     const rect = root.current!.getBoundingClientRect();

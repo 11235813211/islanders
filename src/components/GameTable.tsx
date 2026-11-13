@@ -126,7 +126,7 @@ export default function GameTable({
   /** Hands and counts without the cards still flying to their owners. */
   const { shown, flights } = useLandedView(view);
   /** Where the robber or pirate was just put, before confirming. */
-  const [robberPick, setRobberPick] = useState<string | null>(null);
+  const [hexPick, setHexPick] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [now, setNow] = useState(Date.now());
   // Players on phones start with the chat closed; spectators always have it open (it stands in for a hand).
@@ -182,7 +182,7 @@ export default function GameTable({
     setMoveFrom(null);
     setDevKind(null);
     setBuying(false);
-    setRobberPick(null);
+    setHexPick(null);
     setDiscard(emptyBag());
   }, [view.selfId, view.phase]);
   // A trade draft stays open through rolls and turns, so you can plan one; only a seat change clears it.
@@ -456,16 +456,16 @@ export default function GameTable({
         onVertex={pickVertex}
         onEdge={pickEdge}
         corner={cornerPanel()}
-        onHex={hexId => {
-          if (mode !== 'peek' && !view.legal.peekHexes.includes(hexId)) return setRobberPick(hexId);
-          send({ type: 'peek-fog', hexId });
-          setMode(null);
-        }}
-        robberPick={robberPick}
+        onHex={setHexPick}
+        hexPick={hexPick}
         tiles={busy ? null : tiles.picking}
-        onRobberConfirm={confirm => {
-          if (confirm && robberPick) send({ type: 'move-robber', hexId: robberPick });
-          setRobberPick(null);
+        onHexConfirm={confirm => {
+          // A fog tile you can peek at is a peek; anything else is where the robber or pirate goes.
+          const peek = !!hexPick && view.legal.peekHexes.includes(hexPick) && view.phase !== 'robber';
+          if (confirm && hexPick)
+            send(peek ? { type: 'peek-fog', hexId: hexPick } : { type: 'move-robber', hexId: hexPick });
+          if (peek) setMode(null);
+          setHexPick(null);
         }}
       >
         <ProposalNotice view={view} busy={busy} send={send} />
