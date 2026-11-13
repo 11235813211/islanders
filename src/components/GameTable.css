@@ -562,6 +562,10 @@
   gap: 7px;
   min-width: 0;
 }
+/* The build buttons' box: no box of its own, except on phones with Cartographers (phone.css). */
+.build-buttons {
+  display: contents;
+}
 .recipe-control {
   position: relative;
   display: inline-flex;

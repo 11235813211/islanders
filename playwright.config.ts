@@ -19,7 +19,10 @@ export default defineConfig({
     {
       name: 'desktop',
       // Screenshot-only review tools (no assertions) run by name, not in CI: see AGENTS.md.
-      testIgnore: ['**/phone.spec.ts', ...(process.env.CI ? ['**/visual.spec.ts', '**/art-compare.spec.ts'] : [])],
+      testIgnore: [
+        '**/phone.spec.ts',
+        ...(process.env.CI ? ['**/visual.spec.ts', '**/art-compare.spec.ts', '**/gesture-perf.spec.ts'] : []),
+      ],
       use: { channel: process.platform === 'darwin' ? 'chrome' : undefined, viewport: { width: 1440, height: 1000 } },
     },
     // iPhone emulation (touch, phone viewport). WebKit on Linux/CI; Playwright's WebKit

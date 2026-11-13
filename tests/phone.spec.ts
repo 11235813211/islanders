@@ -205,12 +205,22 @@ test('a Cartographers game: the build bar fits relay and survey buttons, each ea
   const names = ['Build relay station', 'Make a ship a survey ship', 'Build road', 'Buy development card'];
   for (const name of [...names, /^Chart a tile/, /^Split a tile/]) {
     const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
-    expect(box.width, String(name)).toBeGreaterThanOrEqual(30);
+    expect(box.width, String(name)).toBeGreaterThanOrEqual(40);
     expect(box.height, String(name)).toBeGreaterThanOrEqual(36);
   }
-  // No button may sit on top of its neighbor (squeezed buttons overlap without spilling out).
-  const boxes = await bar.locator(':scope > *').evaluateAll(items => items.map(item => item.getBoundingClientRect()));
-  for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.left).toBeGreaterThanOrEqual(boxes[i - 1]!.right - 1);
+  // Two rows of buttons, none on top of another (squeezed buttons overlap without spilling out),
+  // and End turn beside both rows.
+  const boxes = await bar
+    .locator('.build-compact')
+    .evaluateAll(items => items.map(item => item.getBoundingClientRect().toJSON() as DOMRect));
+  for (const [i, a] of boxes.entries())
+    for (const b of boxes.slice(i + 1)) {
+      const overlap = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      expect(overlap).toBe(false);
+    }
+  expect(new Set(boxes.map(b => Math.round(b.top))).size).toBe(2);
+  const end = (await bar.locator('.turn-action').boundingBox())!;
+  for (const b of boxes) expect(b.right).toBeLessThanOrEqual(end.x + 1);
   await page.screenshot({ path: 'test-results/phone-cartographers.png' });
   await bar.screenshot({ path: 'test-results/phone-cartographers-bar.png' });
   expect(room.errors).toEqual([]);

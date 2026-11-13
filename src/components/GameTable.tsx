@@ -528,18 +528,20 @@ export default function GameTable({
       )}
       <div className={`table-actions${view.seafaring ? ' sea' : ''}${view.cartographers ? ' cartographers' : ''}`}>
         {!spectator && self && (
-          <BuildBar
-            view={view}
-            self={self}
-            blocked={blocked}
-            mode={mode}
-            setMode={setMode}
-            send={send}
-            buyWithDiscoveries={() => {
-              setTrade(null);
-              setBuying(true);
-            }}
-          />
+          <div className="build-buttons">
+            <BuildBar
+              view={view}
+              self={self}
+              blocked={blocked}
+              mode={mode}
+              setMode={setMode}
+              send={send}
+              buyWithDiscoveries={() => {
+                setTrade(null);
+                setBuying(true);
+              }}
+            />
+          </div>
         )}
         {!landscapePhone && turnAction}
       </div>
