@@ -26,7 +26,7 @@ Which published rules are in, which are room variations, and their tests: `docs/
 ## Adding things
 
 - New action: `GameAction` in `shared/types.ts` → one line in `SPEC` in `shared/actions.ts` → a handler in the matching `shared/engine/*.ts` → if it can happen off-turn, add it to `OFF_TURN` in `engine/apply.ts`.
-- New room setting: `GameSettings` field → default and check in `shared/settings.ts` → one entry in `CATEGORIES` in `RoomLobby.tsx`.
+- New room setting: `GameSettings` field → default in `shared/default-settings.ts` (the one file for tuning new-room defaults) and the test baseline in `tests/setup.ts` → check in `shared/settings.ts` → one entry in `CATEGORIES` in `RoomLobby.tsx`.
 - New stored field: add it to the type, set it in `createGame`, and append a numbered step to `MIGRATIONS` in `engine/migrations.ts` (never edit an old step).
 - New art: `npm run art:new`, then edit the new `src/art/vN`.
 - New built-in map: one `map(...)` entry in `shared/maps/builtin.ts` (token grid). New terrain: `SEA_TERRAINS` in `shared/types.ts`, its rule in `shared/engine/production.ts`, a tile file in `src/art/vN/sea/`.

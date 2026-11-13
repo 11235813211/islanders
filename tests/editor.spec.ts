@@ -202,6 +202,26 @@ test('fog takes number levels like an island: select it, lean a terrain, copy to
   await expect(page.locator('.island-leaning')).toHaveCount(2);
   await expectNoSpill(numbers);
   await numbers.screenshot({ path: 'test-results/editor-fog-numbers.png' });
+  // A share can be cleared and retyped without snapping to 0, and steps by halves.
+  const forest = page.getByRole('region', { name: 'Random land mix' }).getByLabel('Forest share').first();
+  await forest.selectText();
+  await page.keyboard.press('Backspace');
+  await expect(forest).toHaveValue('');
+  await page.keyboard.type('2.5');
+  await page.keyboard.press('ArrowUp');
+  await expect(forest).toHaveValue('3');
+  await forest.blur();
+  await expect(forest).toHaveValue('3');
+  // The preview can show what the fog hides, drawn as at the end of a game.
+  await page.getByRole('button', { name: 'Preview' }).click();
+  const preview = page.getByRole('dialog', { name: 'Preview' });
+  await expect(preview.locator('.peeked-fog')).toHaveCount(0);
+  await preview.getByRole('button', { name: 'Show fog' }).click();
+  await expect(preview.getByRole('button', { name: 'Show fog' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(preview.locator('.peeked-fog')).toHaveCount(3);
+  await expectNoSpill(preview.locator('.map-preview-actions'));
+  await preview.screenshot({ path: 'test-results/editor-fog-preview.png' });
+  await preview.getByRole('button', { name: 'Close preview' }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
   const saved = ((await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary).boards.find(

@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
 import {
   type BoardDesign,
   type FillKind,
@@ -16,8 +17,44 @@ import { KIND_LABELS } from './tools';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
-/** Round to tenths, so the 0.1 steps don't drift (0.30000000000000004). */
+/** Round to tenths, the finest share a design stores (validate.ts). */
 const tenths = (n: number) => Math.round(n * 10) / 10;
+
+/**
+ * A number field that lets you clear it and type: the text is kept as typed, saved whenever it
+ * reads as a number, and put back to the saved value when you leave it.
+ */
+function NumberField({
+  value,
+  max,
+  step,
+  label,
+  set,
+}: {
+  value: number;
+  max: number;
+  step: number;
+  label: string;
+  set: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      min={0}
+      max={max}
+      step={step}
+      aria-label={label}
+      value={draft ?? value}
+      onChange={e => {
+        setDraft(e.target.value);
+        const n = e.target.valueAsNumber;
+        if (Number.isFinite(n)) set(n);
+      }}
+      onBlur={() => setDraft(null)}
+    />
+  );
+}
 const LAND_KINDS = POOL_KINDS.filter(k => k !== 'iceberg');
 const PRESETS: { id: keyof typeof POOL_PRESETS; label: string; hint: string }[] = [
   { id: 'base', label: 'Base', hint: 'The base game: forest, pasture, fields, hills, mountains, one desert' },
@@ -45,6 +82,7 @@ function PoolRow({
 }) {
   const iceberg = kind === 'iceberg';
   const integer = iceberg || whole;
+  const top = iceberg ? ICEBERG_MAX_PERCENT : 20;
   return (
     <div
       className={`pool-row${value ? '' : ' off'}`}
@@ -58,17 +96,14 @@ function PoolRow({
       />
       <TileIcon kind={kind} size={22} />
       <span>{KIND_LABELS[kind]}</span>
-      <input
-        type="number"
-        min={0}
-        max={iceberg ? ICEBERG_MAX_PERCENT : 20}
-        step={integer ? 1 : 0.1}
-        aria-label={iceberg ? 'Iceberg percent of sea' : `${KIND_LABELS[kind]} ${whole ? 'count' : 'share'}`}
+      <NumberField
+        max={top}
+        step={integer ? 1 : 0.5}
+        label={iceberg ? 'Iceberg percent of sea' : `${KIND_LABELS[kind]} ${whole ? 'count' : 'share'}`}
         value={value}
-        onChange={e => {
-          const n = Number(e.target.value) || 0;
-          const top = iceberg ? ICEBERG_MAX_PERCENT : 20;
-          set(integer ? Math.round(Math.max(0, Math.min(top, n))) : tenths(Math.max(0, Math.min(20, n))));
+        set={n => {
+          const clamped = Math.max(0, Math.min(top, n));
+          set(integer ? Math.round(clamped) : tenths(clamped));
         }}
       />
       {iceberg && <small>% sea</small>}

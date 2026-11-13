@@ -1,29 +1,12 @@
+import { DEFAULT_SETTINGS } from './default-settings';
 import { GUEST_NAMES } from './guest-names';
 import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
+
+export { DEFAULT_SETTINGS };
 
 /** Automatic dice roll delays the lobby offers (0 is off). */
 export const AUTO_ROLL_SECONDS = [0, 5, 8, 10, 15, 30];
 
-export const DEFAULT_SETTINGS: GameSettings = {
-  autoRollSeconds: 8,
-  trackDice: true,
-  numberLayout: 'ordered',
-  turnSeconds: 120,
-  friendlyRobber: true,
-  discardLimit: 7,
-  victoryPoints: 10,
-  pieceStyle: 'classic',
-  tradeSeconds: 30,
-  showBank: 'auto',
-  discoveries: 'kept',
-  volcanoGold: true,
-  seafarers: false,
-  diceMode: 'balanced',
-  volcanoStart: true,
-  volcanoDice: 'balanced',
-  routeLinks: 'anywhere',
-  chartSpecial: false,
-};
 /** Whether the bank's card counts are shown at a table of `players` (see BankDisplay). */
 export function bankShown(settings: Pick<GameSettings, 'showBank'>, players: number): boolean {
   if (settings.showBank === 'always') return true;

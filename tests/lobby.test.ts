@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseOptionalName, validateAction } from '../server/protocol';
 import { ORDERED_NUMBERS, spiralHexes } from '../shared/board';
 import { addPlayer, addSpectator, applyAction, createGame, GameError, getView, normalizeGame } from '../shared/engine';
@@ -7,6 +7,13 @@ import { guestName, validSettings } from '../shared/settings';
 import { grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
 describe('lobby setup', () => {
+  it('ships default settings the lobby accepts', async () => {
+    // Loaded fresh: tests/setup.ts overwrites the shared copy with the test baseline.
+    vi.resetModules();
+    const { DEFAULT_SETTINGS } = await import('../shared/default-settings');
+    expect(validSettings(DEFAULT_SETTINGS)).toBe(true);
+  });
+
   it('uses the standard number order on a new board', () => {
     const game = createGame('HARBOR42', seeded());
     expect(game.settings.numberLayout).toBe('ordered');
