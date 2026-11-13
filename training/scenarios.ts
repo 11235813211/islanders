@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type BoardDesign, BUILTIN_BOARDS, isAdminOnlyCategory, playerRanges } from '../shared/maps';
+import { type BoardDesign, BUILTIN_BOARDS, isAdminOnlyCategory, playerRanges, upgradeDesign } from '../shared/maps';
 import type { GameSettings } from '../shared/types';
 import { seeded } from './sim';
 
@@ -43,7 +43,7 @@ export function allMaps(): BoardDesign[] {
   const stored: { boards: BoardDesign[]; categories: { id: string; name: string }[] } = path
     ? JSON.parse(readFileSync(path, 'utf8'))
     : { boards: [], categories: [] };
-  const library = stored.boards;
+  const library = stored.boards.map(upgradeDesign);
   const training = new Set(stored.categories.filter(isAdminOnlyCategory).map(c => c.id));
   for (const b of library) if (training.has(b.categoryId)) trainers.add(b.id);
   const ids = new Set(BUILTIN_BOARDS.map(b => b.id));

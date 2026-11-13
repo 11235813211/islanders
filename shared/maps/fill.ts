@@ -1,8 +1,9 @@
 import { RESOURCES, type Resource } from '../types';
 import { balancedNumbers, randomNumber } from './balance';
-import { isLand, islandRichness, takesNumber, tidy } from './edit';
+import { isLand, takesNumber, tidy } from './edit';
 import { buildBoard, drawHarborKinds } from './generate';
 import { autoHarbors, harborTarget } from './harbors';
+import { numberLeanings } from './numbers';
 import { type BoardDesign, type DesignTile, tileKey } from './types';
 
 /**
@@ -25,14 +26,14 @@ export function fillLand(design: BoardDesign, random: () => number = Math.random
 
 /** Give every numbered tile without a number a balanced one (keeping the numbers already set). */
 export function fillNumbers(design: BoardDesign, random: () => number = Math.random): BoardDesign {
-  const rich = islandRichness(design);
+  const lean = numberLeanings(design);
   const numbered = design.tiles.filter(t => takesNumber(t.kind) && t.kind !== 'iceberg');
   const producing = numbered.map(t => ({
     q: t.q,
     r: t.r,
     terrain: t.kind,
     pips: t.pips,
-    rich: rich.get(tileKey(t.q, t.r)),
+    ...lean(t.q, t.r, t.kind),
   }));
   const fixed = new Map(numbered.filter(t => t.number !== undefined).map(t => [tileKey(t.q, t.r), t.number!]));
   const numbers = balancedNumbers(producing, fixed, random, { noTwoTwelve: design.noTwoTwelve });

@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { hexCenter } from '../shared/board';
 import { type BoardDesign, type BoardLibrary, BUILTIN_BOARDS } from '../shared/maps';
 import { server, signIn } from './server-helpers';
+import { expectNoSpill } from './ui-harness';
 
 /** Screen point of the center of cell (q, r) on the editor canvas, plus an offset in board units. */
 async function cellPoint(page: Page, q: number, r: number, dx = 0, dy = 0) {
@@ -116,9 +117,10 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   await rules.getByRole('button', { name: 'Mountains' }).click();
   await rules.getByRole('button', { name: 'Add rule' }).click();
   await expect(rules.getByText('in Mountains')).toBeVisible();
-  await page.getByRole('button', { name: /^Numbers by terrain/ }).click();
-  await page.getByLabel('Forest numbers').selectOption('2');
-  await page.keyboard.press('Escape');
+  const numbers = page.getByRole('region', { name: 'Random numbers' });
+  await numbers.getByRole('button', { name: 'Forest better' }).click();
+  await numbers.getByRole('button', { name: 'Forest better' }).click();
+  await expect(numbers.getByRole('group', { name: 'Forest' })).toContainText('Richer');
   // A version of the board for five and six players.
   await page.getByRole('button', { name: 'Add a version for other player counts' }).click();
   await expect(page.getByRole('tab', { name: '5–6' })).toHaveAttribute('aria-selected', 'true');
@@ -141,7 +143,7 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   expect(saved.harborExclude).toEqual(['wood']);
   expect(saved.noStart).toHaveLength(1);
   expect(saved.linkRules).toEqual([{ kind: 'in', links: ['A'], terrains: ['ore'] }]);
-  expect(saved.numberBias).toEqual({ wood: 2 });
+  expect(saved.numbers).toEqual({ bias: { wood: 2 } });
   expect(saved.versions?.[0]?.players).toEqual({ min: 5, max: 6 });
   expect(at(2, 0)?.kind).toBe('sea');
   expect(at(2, 1)).toBeUndefined();
@@ -209,24 +211,23 @@ test('the settings panel fits without sideways scrolling, folds away, and a boar
   const point = await cellPoint(page, land.q, land.r, 0, 32);
   await page.mouse.click(point.x, point.y);
   await expect(panel.getByRole('group', { name: 'Random number may have' })).toBeVisible();
-  // Any island's numbers can be made richer, and every closed island's at once.
-  await panel
-    .getByRole('radiogroup', { name: "Island's random numbers" })
-    .getByRole('radio', { name: 'Rich', exact: true })
-    .click();
-  await expect(
-    panel
-      .getByRole('radiogroup', { name: "Island's random numbers" })
-      .getByRole('radio', { name: 'Rich', exact: true }),
-  ).toBeChecked();
-  const closed = panel.getByRole('radiogroup', { name: "Closed islands' numbers" });
-  await closed.getByRole('radio', { name: 'Better' }).click();
-  await expect(closed.getByRole('radio', { name: 'Better' })).toBeChecked();
-  const noEnds = panel.getByRole('button', { name: 'No 2s or 12s anywhere' });
+  // Random numbers: the island gets its own profile, made better, then shared with the closed islands.
+  const numbers = panel.getByRole('region', { name: 'Random numbers' });
+  const follows = numbers.getByRole('radiogroup', { name: 'Island follows' });
+  await expect(follows.getByRole('radio', { name: 'Board' })).toBeChecked();
+  await numbers.getByRole('button', { name: 'Own' }).click();
+  await expect(follows.getByRole('radio', { name: 'Group 1' })).toBeChecked();
+  await numbers.getByRole('button', { name: 'All numbers better' }).click();
+  await expect(numbers.getByRole('group', { name: 'All numbers' })).toContainText('A bit better');
+  await numbers.getByRole('button', { name: 'Closed islands' }).click();
+  await expect(numbers.getByRole('button', { name: 'Closed islands' })).toHaveAttribute('aria-pressed', 'true');
+  await numbers.getByRole('button', { name: 'Mountains worse' }).click();
+  await expect(numbers.getByRole('group', { name: 'Mountains' })).toContainText('Poor');
+  const noEnds = numbers.getByRole('button', { name: 'No 2s or 12s anywhere' });
   await noEnds.click();
   await expect(noEnds).toHaveAttribute('aria-pressed', 'true');
-  const overflow = await panel.evaluate(el => el.scrollWidth - el.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
+  await expectNoSpill(panel);
+  await numbers.screenshot({ path: 'test-results/editor-numbers.png' });
   await page.screenshot({ path: 'test-results/editor-panel.png' });
   await page.getByRole('button', { name: 'Hide settings panel' }).click();
   await expect(panel).toBeHidden();
@@ -313,13 +314,7 @@ test('the top bar keeps the name and save on one row (phones: two), and nothing 
     await page.setViewportSize({ width, height });
     const bar = page.locator('.editor-bar');
     await expect(bar.getByLabel('Board name')).toBeVisible();
-    const spill = await bar.evaluate(el => {
-      const right = el.getBoundingClientRect().right;
-      return [...el.querySelectorAll('*')]
-        .filter(c => c.getBoundingClientRect().right > right + 0.5)
-        .map(c => `${c.tagName}.${c.className} ${c.getBoundingClientRect().right - right}`);
-    });
-    expect(spill).toEqual([]);
+    await expectNoSpill(bar);
     const name = (await bar.getByLabel('Board name').boundingBox())!;
     const save = (await bar.getByRole('button', { name: /^Save/ }).boundingBox())!;
     const apart = Math.abs(name.y + name.height / 2 - (save.y + save.height / 2));

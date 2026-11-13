@@ -55,6 +55,19 @@ Which published rules are in, which are room variations, and their tests: `docs/
 - Bots must stay cheap (no deep search) so turns fit the free Workers CPU budget.
 - Boards are shared between states and views, never changed in place: call `ownBoard(next)` (engine/core.ts) before editing one.
 
+## UI layout (controls must never spill or clip)
+
+The usual failures are buttons falling out of their row, text running out of a button, rows that rewrap differently at each width, and controls of mixed heights. Plan the layout before styling:
+- Lay out in fixed rows, not one long `flex-wrap` line. Give each row a job (e.g. the editor bar: name and save / board fields / tools) so widths change only how a row wraps internally.
+- Know the width you design for: the editor's settings panel is 372px (about 340px of content; on phones `min(372px, 88vw)`). Count it out: icon + label + control + gaps must fit, with the label as the part that shrinks.
+- Every flex or grid child that holds text gets `min-width: 0`; grid columns use `minmax(0, 1fr)`, not `1fr`. Text that may be long gets `overflow: hidden; white-space: nowrap; text-overflow: ellipsis` on purpose; fixed-width controls (steppers, selects) get a width their longest label fits.
+- Rows of buttons use `flex-wrap: wrap` with a `gap`, never a fixed total width or `overflow-x: auto` to hide the problem.
+- One height per control kind in a row (the editor bar: 32px fields, 36px buttons) with `box-sizing: border-box`; labels sit beside their control with `white-space: nowrap`.
+- Prefer a small number of clear controls: a − value + stepper over a select of many levels, chips with `aria-pressed`/`aria-checked` (and a check icon when "already applied" matters) over checkboxes for modes.
+- Tooltips (`data-tip`) near the right edge of a panel overflow the viewport: use `tip-end`, or leave them off there.
+- New panel styles go in a file beside the component (e.g. `editor/numbers.css`), not appended to a long shared stylesheet.
+- Verify, don't guess: call `expectNoSpill(locator)` (`tests/ui-harness.ts`) on every panel or bar you change, at 1600, 1280, 1024, 820 and 390px wide (see the top bar test in `tests/editor.spec.ts`), and look at the screenshots it writes before saying the UI is done.
+
 ## Working efficiently
 
 - Read `AGENTS.md`, then open only the files the task touches; use `grep` to find symbols rather than reading whole directories.

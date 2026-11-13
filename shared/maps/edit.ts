@@ -1,7 +1,7 @@
 import { HEX_RADIUS, hexCenter, hexCorner } from '../board';
 import { takesToken } from '../seafaring';
 import type { Terrain } from '../types';
-import { neighborKeys, RICH_LEVELS } from './balance';
+import { neighborKeys } from './balance';
 import { autoHarbors } from './harbors';
 import {
   BASE_POOL,
@@ -227,58 +227,6 @@ export function setIslandClosed(design: BoardDesign, q: number, r: number, close
       return closed ? { ...rest, noSetup: true } : rest;
     }),
   };
-}
-
-/** Set how much richer (0–RICH_LEVELS) random numbers are on the whole island at (q, r). */
-export function setIslandRich(design: BoardDesign, q: number, r: number, level: number): BoardDesign {
-  return setRich(design, new Set(islandOf(design, q, r).map(t => tileKey(t.q, t.r))), level);
-}
-
-/** Set the number richness of every island closed to setup settlements at once. */
-export function setClosedRich(design: BoardDesign, level: number): BoardDesign {
-  return setRich(design, closedTiles(design), level);
-}
-
-function setRich(design: BoardDesign, keys: Set<string>, level: number): BoardDesign {
-  const rich = Math.max(0, Math.min(RICH_LEVELS, Math.round(level)));
-  return {
-    ...design,
-    tiles: design.tiles.map(t => {
-      if (!keys.has(tileKey(t.q, t.r))) return t;
-      const { rich: _old, ...rest } = t;
-      return rich ? { ...rest, rich } : rest;
-    }),
-  };
-}
-
-/**
- * Number richness for every land tile: its island's, from any of the island's tiles (the highest
- * wins), so land drawn onto an island later shares its numbers.
- */
-export function islandRichness(design: BoardDesign): Map<string, number> {
-  const levels = new Map<string, number>();
-  for (const tile of design.tiles)
-    if (tile.rich && (levels.get(tileKey(tile.q, tile.r)) ?? 0) < tile.rich)
-      for (const member of islandOf(design, tile.q, tile.r)) {
-        const k = tileKey(member.q, member.r);
-        levels.set(k, Math.max(levels.get(k) ?? 0, tile.rich));
-      }
-  return levels;
-}
-
-/**
- * Boards saved before islands had their own number richness had one level for all closed
- * islands (`richIslands`). Move it onto those islands' tiles, in every layout.
- */
-export function liftRichIslands(design: BoardDesign): BoardDesign {
-  const { richIslands: level, ...rest } = design as BoardDesign & { richIslands?: number };
-  if (level === undefined) return design;
-  if (!level) return rest;
-  const lift = <T extends { tiles: DesignTile[] }>(layout: T): T => ({
-    ...layout,
-    tiles: setClosedRich({ ...rest, tiles: layout.tiles }, level).tiles,
-  });
-  return { ...lift(rest), ...(rest.versions ? { versions: rest.versions.map(lift) } : {}) };
 }
 
 /** Set an island's bonus chip (0 removes it). The chip sits on this tile; others on the island lose theirs. */

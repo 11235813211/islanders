@@ -219,11 +219,11 @@ describe('number richness by terrain', () => {
       ' ~ o o w w w ~',
       '~ ~ ~ ~ ~ ~ ~',
     ]);
-    const average = (bias: BoardDesign['numberBias'], terrain: string) => {
+    const average = (bias: NonNullable<BoardDesign['numbers']>['bias'], terrain: string) => {
       let total = 0;
       let count = 0;
       for (let seed = 1; seed < 25; seed++)
-        for (const h of buildBoard({ ...design, numberBias: bias }, seeded(seed)).board.hexes)
+        for (const h of buildBoard({ ...design, numbers: { bias } }, seeded(seed)).board.hexes)
           if (h.terrain === terrain && h.number) {
             total += pips(h.number);
             count++;
@@ -231,7 +231,9 @@ describe('number richness by terrain', () => {
       return total / count;
     };
     expect(average({ ore: 2, wood: -2 }, 'ore')).toBeGreaterThan(average({ ore: 2, wood: -2 }, 'wood') + 0.5);
-    expect(parseDesign({ ...design, numberBias: { ore: 2 } }, ['seafaring']).numberBias).toEqual({ ore: 2 });
+    expect(parseDesign({ ...design, numbers: { bias: { ore: 2 } } }, ['seafaring']).numbers).toEqual({
+      bias: { ore: 2 },
+    });
     expect(tileKey(0, 0)).toBe('0,0');
   });
 });

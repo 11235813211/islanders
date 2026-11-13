@@ -11,8 +11,9 @@ import {
   randomNumber,
   swapEqualOdds,
 } from './balance';
-import { fogMayBeSea, islandRichness } from './edit';
+import { fogMayBeSea } from './edit';
 import { autoHarbors, harborTarget } from './harbors';
+import { numberLeanings } from './numbers';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -431,14 +432,14 @@ export function buildBoard(
   const harbors = design.harbors.length ? design.harbors : autoHarbors(tiles, harborTarget(unique), [], random);
   const resolvedHarbors = resolveHarbors({ ...unique, harbors }, terrains, links, random);
   placeIcebergs(unique, terrains, harbors, random);
-  const rich = islandRichness(unique);
+  const lean = numberLeanings(unique);
   const producing = tiles
     .map(t => ({
       q: t.q,
       r: t.r,
       terrain: terrains.get(tileKey(t.q, t.r))!,
       pips: t.pips,
-      rich: rich.get(tileKey(t.q, t.r)),
+      ...lean(t.q, t.r, terrains.get(tileKey(t.q, t.r))!),
     }))
     .filter(c => isProducing(c.terrain));
   const fixed = new Map<string, number>();
@@ -449,7 +450,6 @@ export function buildBoard(
   const numbers = new Map([
     ...balancedNumbers(producing, design.swapNumbers ? swapEqualOdds(fixed, random) : fixed, random, {
       noTwoTwelve: design.noTwoTwelve,
-      bias: design.numberBias,
     }),
     ...icebergNumbers(tiles, terrains, random, design.noTwoTwelve),
   ]);

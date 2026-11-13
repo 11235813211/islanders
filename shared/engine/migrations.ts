@@ -1,6 +1,6 @@
 import { generateHarbors } from '../board';
 import { firstFreeColor, isPlayerColor } from '../colors';
-import { liftRichIslands } from '../maps/edit';
+import { upgradeDesign } from '../maps/numbers';
 import { playerRanges } from '../maps/types';
 import { developmentDeck, updateAwards } from '../rules';
 import { AUTO_ROLL_SECONDS, DEFAULT_SETTINGS } from '../settings';
@@ -141,9 +141,9 @@ const MIGRATIONS: Migration[] = [
     s.lastRollTotal ??= null;
     s.settings.diceMode ??= 'random';
   },
-  // 12 → 13: number richness moved from one setting for closed islands onto each island.
+  // 12 → 13: number leanings moved into profiles islands follow (closed-island richness, terrain bias).
   s => {
-    if (s.design) s.design = liftRichIslands(s.design);
+    if (s.design) s.design = upgradeDesign(s.design);
   },
 ];
 

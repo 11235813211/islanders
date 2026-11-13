@@ -5,12 +5,12 @@ import {
   type BoardLibrary,
   DESIGN_LIMITS,
   DesignError,
-  liftRichIslands,
   mergeLibrary,
   parseCategories,
   parseDesign,
   publicLibrary,
   type StoredLibrary,
+  upgradeDesign,
 } from '../shared/maps';
 import type { Env } from './env';
 import { ProtocolError, record } from './protocol';
@@ -68,7 +68,7 @@ export class BoardLibraryStore extends DurableObject<Env> {
       boards: index.order
         .map(id => boards.get(boardKey(id)))
         .filter((b): b is BoardDesign => !!b)
-        .map(liftRichIslands),
+        .map(upgradeDesign),
       knownBuiltins: index.knownBuiltins,
     };
   }
@@ -139,7 +139,7 @@ export class BoardLibraryStore extends DurableObject<Env> {
         const stored = await this.stored();
         const library = mergeLibrary(stored);
         const design = parseDesign(
-          raw,
+          record(raw) ? upgradeDesign(raw as unknown as BoardDesign) : raw,
           library.categories.map(c => c.id),
         );
         design.updatedAt = Date.now();

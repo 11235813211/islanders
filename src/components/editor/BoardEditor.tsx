@@ -382,7 +382,7 @@ export default function BoardEditor({
       <aside className="editor-inspector" aria-label="Settings">
         <Inspector design={shown!} selection={selection} select={select} edit={edit} />
         <BoardSettings design={shown!} edit={edit} selection={selection} />
-        <NumberSettings design={shown!} edit={edit} />
+        <NumberSettings design={shown!} edit={edit} selection={selection} />
         <LinkRules design={shown!} edit={edit} />
       </aside>
       {message && <Toast message={message} dismiss={() => setMessage(null)} />}

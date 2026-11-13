@@ -81,18 +81,17 @@ function cornerKeys(cell: Cell): string[] {
   });
 }
 
-/** How lopsided a numbering is: hot corners, touching reds, repeated neighbors, uneven resources. */
-/** How many dots each step of a terrain's number richness (-2 to 2) moves its average. */
+/** How many dots each step of a terrain's number bias (-2 to 2) moves its average. */
 const BIAS_PIPS = 0.9;
 
-function numberingCost(
-  cells: (Cell & { terrain: string })[],
-  numbers: Map<string, number>,
-  bias: Partial<Record<string, number>> = {},
-): number {
+/**
+ * How lopsided a numbering is: hot corners, touching reds, repeated neighbors, and terrains whose
+ * average strays from where their bias aims (cells with the same terrain and bias average together).
+ */
+function numberingCost(cells: NumberCell[], numbers: Map<string, number>): number {
   let cost = 0;
   const corners = new Map<string, number>();
-  const byResource = new Map<string, number[]>();
+  const byResource = new Map<string, { bias: number; dots: number[] }>();
   for (const cell of cells) {
     const n = numbers.get(key(cell.q, cell.r));
     if (n === undefined) continue;
@@ -103,42 +102,54 @@ function numberingCost(
       if (isRed(n) && isRed(m)) cost += 40;
       else if (m === n) cost += 3;
     }
-    byResource.set(cell.terrain, [...(byResource.get(cell.terrain) ?? []), pips(n)]);
+    const group = `${cell.terrain}:${cell.bias ?? 0}`;
+    const entry = byResource.get(group) ?? { bias: cell.bias ?? 0, dots: [] };
+    entry.dots.push(pips(n));
+    byResource.set(group, entry);
   }
   for (const total of corners.values()) if (total > 11) cost += (total - 11) ** 2 * 2;
-  const averages = [...byResource].map(([terrain, list]) => ({
-    terrain,
-    average: list.reduce((a, b) => a + b, 0) / list.length,
+  const averages = [...byResource.values()].map(({ bias, dots }) => ({
+    bias,
+    average: dots.reduce((a, b) => a + b, 0) / dots.length,
   }));
   const mean = averages.reduce((a, b) => a + b.average, 0) / Math.max(1, averages.length);
-  // Richer terrains aim above the board's average, poorer ones below.
-  for (const { terrain, average } of averages) cost += (average - mean - (bias[terrain] ?? 0) * BIAS_PIPS) ** 2 * 2;
+  // Richer terrains aim above the group's average, poorer ones below.
+  for (const { bias, average } of averages) cost += (average - mean - bias * BIAS_PIPS) ** 2 * 2;
   return cost;
 }
 
-/** A producing cell to number. `pips` limits a random number to these dot counts (1–5); `rich` (0–RICH_LEVELS) shifts it toward 6 and 8. */
+/**
+ * A producing cell to number. `pips` limits a random number to these dot counts (1–5); `level`
+ * (-NUMBER_LEVELS to NUMBER_LEVELS) shifts its mix; `bias` (-2 to 2) aims its terrain above or below the rest.
+ */
 export interface NumberCell extends Cell {
   terrain: string;
   pips?: number[];
-  rich?: number;
+  level?: number;
+  bias?: number;
 }
 
-/** Most an island's numbers can be made richer: 0 is the normal mix, 4 is nearly all 6s and 8s. */
-export const RICH_LEVELS = 4;
+/** Steps each way a number profile's level goes: -4 is nearly all 2, 3, 11, 12; 4 nearly all 6 and 8. */
+export const NUMBER_LEVELS = 4;
+/** Steps each way a terrain's bias goes. */
+export const BIAS_LEVELS = 2;
 
-/** Number weights: the base mix (without 2 and 12 when `noEnds`), shifted toward 6 and 8 by `rich` (0–RICH_LEVELS). */
-export function numberMix(rich: number, noEnds: boolean): Map<number, number> {
-  const richness = rich / RICH_LEVELS;
-  const set = noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET;
+const allowedSet = (noEnds: boolean) => (noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET);
+
+/** Number weights: the base mix (without 2 and 12 when `noEnds`), shifted toward 6 and 8 (or the edges) by `level`. */
+export function numberMix(level: number, noEnds: boolean): Map<number, number> {
+  const set = allowedSet(noEnds);
+  const shift = Math.min(1, Math.abs(level) / NUMBER_LEVELS);
+  const toward = level > 0 ? [6, 8] : set.filter(n => pips(n) <= 2);
   const weights = new Map<number, number>();
-  for (const n of set) weights.set(n, (weights.get(n) ?? 0) + (1 - richness) / set.length);
-  for (const n of [6, 8]) weights.set(n, weights.get(n)! + richness / 2);
+  for (const n of set) weights.set(n, (weights.get(n) ?? 0) + (1 - shift) / set.length);
+  for (const n of toward) weights.set(n, (weights.get(n) ?? 0) + shift / toward.length);
   return weights;
 }
 
 /** A random number for one tile with no neighbors to balance against (an iceberg). */
 export function randomNumber(random: () => number, noEnds = false): number {
-  const set = noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET;
+  const set = allowedSet(noEnds);
   return set[Math.floor(random() * set.length)]!;
 }
 
@@ -195,42 +206,34 @@ function placeNumbers(cells: NumberCell[], pool: number[], numbers: Map<string, 
 
 /**
  * Numbers for the open producing cells, keeping the base game's mix (counting `fixed` numbers
- * already on the board) and choosing the most even of several tries. Cells marked `rich` draw
- * from their own mix shifted toward 6 and 8 (one mix per level), so the rest of the board keeps
- * its full share of reds. With `noTwoTwelve`, no random number is a 2 or 12.
+ * already on the board) and choosing the most even of several tries. Cells with a `level` draw
+ * from their own mix (one per level), so the rest of the board keeps its full share of reds.
+ * With `noTwoTwelve`, no random number is a 2 or 12.
  */
 export function balancedNumbers(
   producing: NumberCell[],
   fixed: Map<string, number>,
   random: () => number,
-  {
-    tries = 30,
-    noTwoTwelve = false,
-    bias,
-  }: { tries?: number; noTwoTwelve?: boolean; bias?: Partial<Record<string, number>> } = {},
+  { tries = 30, noTwoTwelve = false }: { tries?: number; noTwoTwelve?: boolean } = {},
 ): Map<string, number> {
-  const levelOf = (c: NumberCell) => c.rich ?? 0;
-  const levels = [...new Set(producing.map(levelOf))].sort();
-  const pools = levels.map(level => {
-    const group = producing.filter(c => levelOf(c) === level);
-    const open = group.filter(c => !fixed.has(key(c.q, c.r)));
+  const levelOf = (c: NumberCell) => c.level ?? 0;
+  const levels = [...new Set(producing.map(levelOf))].sort((a, b) => a - b);
+  const groups = levels.map(level => {
+    const cells = producing.filter(c => levelOf(c) === level);
+    const open = cells.filter(c => !fixed.has(key(c.q, c.r)));
     const fixedCounts = new Map<number, number>();
-    for (const c of group) {
+    for (const c of cells) {
       const n = fixed.get(key(c.q, c.r));
       if (n !== undefined) fixedCounts.set(n, (fixedCounts.get(n) ?? 0) + 1);
     }
-    return { open, pool: apportion(open.length, numberMix(level, noTwoTwelve), fixedCounts, random) };
+    return { cells, open, pool: apportion(open.length, numberMix(level, noTwoTwelve), fixedCounts, random) };
   });
   let best: { cost: number; numbers: Map<string, number> } | null = null;
-  const attempts = bias && Object.keys(bias).length ? tries * 3 : tries;
+  const attempts = producing.some(c => c.bias) ? tries * 3 : tries;
   for (let attempt = 0; attempt < attempts; attempt++) {
     const numbers = new Map(fixed);
-    for (const { open, pool } of pools) placeNumbers(open, pool, numbers, random);
-    const cost = numberingCost(
-      producing.filter(c => !levelOf(c)),
-      numbers,
-      bias,
-    );
+    for (const { open, pool } of groups) placeNumbers(open, pool, numbers, random);
+    const cost = groups.reduce((sum, { cells }) => sum + numberingCost(cells, numbers), 0);
     if (!best || cost < best.cost) best = { cost, numbers };
   }
   return best?.numbers ?? new Map(fixed);
