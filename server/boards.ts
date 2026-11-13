@@ -5,6 +5,7 @@ import {
   type BoardLibrary,
   DESIGN_LIMITS,
   DesignError,
+  liftRichIslands,
   mergeLibrary,
   parseCategories,
   parseDesign,
@@ -64,7 +65,10 @@ export class BoardLibraryStore extends DurableObject<Env> {
     const boards = await this.ctx.storage.get<BoardDesign>(index.order.map(boardKey));
     return {
       categories: index.categories,
-      boards: index.order.map(id => boards.get(boardKey(id))).filter((b): b is BoardDesign => !!b),
+      boards: index.order
+        .map(id => boards.get(boardKey(id)))
+        .filter((b): b is BoardDesign => !!b)
+        .map(liftRichIslands),
       knownBuiltins: index.knownBuiltins,
     };
   }

@@ -3,9 +3,11 @@ import type { ReactNode } from 'react';
 import { type BoardDesign, type DesignHarbor, type DesignKind, type DesignTile, tileKey } from '../../../shared/maps';
 import {
   islandOf,
+  islandRichness,
   paint,
   setIslandBonus,
   setIslandClosed,
+  setIslandRich,
   takesNumber,
   updateHarbor,
   updateTile,
@@ -17,6 +19,7 @@ import { RESOURCE_LABELS } from '../ResourceHand';
 import { TileIcon } from './BrushPicker';
 import type { EditorSelection } from './EditorCanvas';
 import LinkPicker, { applyLink, linkChoice } from './LinkPicker';
+import { RichChips } from './NumberSettings';
 import { KIND_LABELS, KIND_ORDER } from './tools';
 
 const NUMBERS = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
@@ -177,6 +180,12 @@ function TilePanel({ design, tile, edit }: { design: BoardDesign; tile: DesignTi
               );
             })}
           </div>
+          <span className="chip-label">Random numbers</span>
+          <RichChips
+            label="Island's random numbers"
+            value={islandRichness(design).get(tileKey(q, r)) ?? 0}
+            set={level => edit(d => setIslandRich(d, q, r, level))}
+          />
         </Field>
       )}
       {(land || tile.kind === 'sea') && (

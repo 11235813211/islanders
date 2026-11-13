@@ -43,10 +43,9 @@
 .editor-bar {
   grid-area: bar;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  padding: 8px 14px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 14px 10px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
@@ -57,7 +56,6 @@
 }
 .editor-tools {
   display: flex;
-  flex-basis: 100%;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
@@ -191,37 +189,56 @@
   padding: 5px 8px;
   font-size: 13px;
 }
+/* Top row: back to all boards, the name, versions, then undo through save at the right end. */
+.editor-bar-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.editor-bar-top .text-button {
+  flex: 0 0 auto;
+}
 .editor-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   margin-left: auto;
 }
+.board-name {
+  flex: 0 1 280px;
+  min-width: 120px;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 16px;
+  font-weight: 800;
+}
+/* Second row: the board's settings, each label kept beside its control, all one height. */
 .board-fields {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
-}
-.board-fields .board-name {
-  width: 220px;
-  padding: 6px 9px;
-  font-size: 16px;
-  font-weight: 800;
+  gap: 8px 22px;
 }
 .board-fields label,
 .board-fields .board-field {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .board-fields select,
-.board-fields input[type="number"] {
-  padding: 5px 6px;
+.board-fields input[type="number"],
+.board-fields .expansions-button {
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 6px;
   font-size: 14px;
 }
 .board-fields input[type="number"] {
@@ -339,7 +356,8 @@
   border-radius: 8px;
 }
 .editor-actions .button {
-  padding: 8px 12px;
+  height: 36px;
+  padding: 0 12px;
   font-size: 14px;
 }
 .editor-panels {
@@ -646,6 +664,9 @@
 .chip-row.wrap {
   flex-wrap: wrap;
 }
+.inspector-section .chip-row + .chip-row {
+  margin-top: 8px;
+}
 .chip-label {
   margin-right: 4px;
   color: var(--muted);
@@ -744,7 +765,16 @@
   margin-top: 10px;
 }
 
-/* Narrower screens: tool labels go, then the side panels become drawers. */
+/* Narrower screens: tool labels go, then the side panels become drawers, then the name gets its own line. */
+@media (max-width: 600px) {
+  .board-name {
+    flex-basis: calc(100% - 48px);
+  }
+  .board-fields label span,
+  .board-fields .board-field span {
+    display: none;
+  }
+}
 @media (max-width: 760px) {
   .editor-tool-group > button span {
     display: none;
@@ -761,15 +791,18 @@
     overflow: hidden;
   }
   .editor-bar {
-    gap: 6px 8px;
+    gap: 6px;
     padding: 6px 8px;
   }
-  .board-fields .board-name {
-    width: 150px;
+  .editor-bar-top {
+    gap: 6px;
   }
-  .board-fields label span,
-  .board-fields .board-field span {
-    display: none;
+  .board-name {
+    flex: 1 1 auto;
+    min-width: 60px;
+  }
+  .board-fields {
+    gap: 6px 10px;
   }
   .editor-tools {
     gap: 5px;

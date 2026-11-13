@@ -9,13 +9,14 @@ import { useHistory } from '../../hooks/useHistory';
 import { deleteBoard, saveBoard, saveLayout } from '../../lib/boardsApi';
 import MapBrowser from '../maps/MapBrowser';
 import MapPreview from '../maps/MapPreview';
-import BoardFields from './BoardFields';
+import BoardFields, { BoardName } from './BoardFields';
 import BoardSettings from './BoardSettings';
 import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
 import EditorToolbar from './EditorToolbar';
 import type { Refill } from './FillBar';
 import Inspector from './Inspector';
 import LinkRules from './LinkRules';
+import NumberSettings from './NumberSettings';
 import { freshId, KIND_LABELS, TOOLS, typing } from './tools';
 import VersionTabs from './VersionTabs';
 import { addVersion, editVersion, mergeShown, removeVersion, showVersion } from './versions';
@@ -259,78 +260,81 @@ export default function BoardEditor({
   return (
     <main className={`board-editor${panel ? ` show-${panel}` : ''}${collapsed ? ' inspector-collapsed' : ''}`}>
       <header className="editor-bar">
-        <button type="button" className="text-button" aria-label="All boards" onClick={() => setBrowsing(true)}>
-          <LayoutGrid size={18} />
-          <span className="editor-label">All boards</span>
-        </button>
-        {library && shown && <BoardFields design={shown} categories={library.categories} edit={edit} />}
-        <VersionTabs
-          design={design}
-          version={version}
-          setVersion={setVersion}
-          add={() => {
-            history.set(d => (d && shown ? addVersion(d, shown) : d));
-            setVersion(design.versions?.length ?? 0);
-          }}
-          remove={i => {
-            history.set(d => (d ? removeVersion(d, i) : d));
-            setVersion(null);
-          }}
-        />
-        <div className="editor-actions">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Undo"
-            disabled={!history.canUndo}
-            onClick={history.undo}
-          >
-            <Undo2 size={18} />
+        <div className="editor-bar-top">
+          <button type="button" className="text-button" aria-label="All boards" onClick={() => setBrowsing(true)}>
+            <LayoutGrid size={18} />
+            <span className="editor-label">All boards</span>
           </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Redo"
-            disabled={!history.canRedo}
-            onClick={history.redo}
-          >
-            <Redo2 size={18} />
-          </button>
-          <button
-            type="button"
-            className="button secondary"
-            aria-label="Preview"
-            title="Draw a sample game board from this design"
-            onClick={() => setPreview(true)}
-          >
-            <Eye size={17} />
-            <span className="editor-label">Preview</span>
-          </button>
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy || !account}
-            title={account ? 'Save, then open a solo test room on this board' : 'Sign in to play test'}
-            aria-label="Play test"
-            onClick={async () => {
-              if (!dirty || (await save())) playtest(design.id);
+          {shown && <BoardName design={shown} edit={edit} />}
+          <VersionTabs
+            design={design}
+            version={version}
+            setVersion={setVersion}
+            add={() => {
+              history.set(d => (d && shown ? addVersion(d, shown) : d));
+              setVersion(design.versions?.length ?? 0);
             }}
-          >
-            <FlaskConical size={17} />
-            <span className="editor-label">Play test</span>
-          </button>
-          <button
-            type="button"
-            className="button primary"
-            disabled={busy || !account || !dirty || readOnly}
-            title={account ? 'Save (Ctrl/⌘ S)' : 'Sign in to save boards'}
-            aria-label={dirty ? 'Save' : 'Saved'}
-            onClick={() => void save()}
-          >
-            <Save size={17} />
-            <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
-          </button>
+            remove={i => {
+              history.set(d => (d ? removeVersion(d, i) : d));
+              setVersion(null);
+            }}
+          />
+          <div className="editor-actions">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Undo"
+              disabled={!history.canUndo}
+              onClick={history.undo}
+            >
+              <Undo2 size={18} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Redo"
+              disabled={!history.canRedo}
+              onClick={history.redo}
+            >
+              <Redo2 size={18} />
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              aria-label="Preview"
+              title="Draw a sample game board from this design"
+              onClick={() => setPreview(true)}
+            >
+              <Eye size={17} />
+              <span className="editor-label">Preview</span>
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy || !account}
+              title={account ? 'Save, then open a solo test room on this board' : 'Sign in to play test'}
+              aria-label="Play test"
+              onClick={async () => {
+                if (!dirty || (await save())) playtest(design.id);
+              }}
+            >
+              <FlaskConical size={17} />
+              <span className="editor-label">Play test</span>
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              disabled={busy || !account || !dirty || readOnly}
+              title={account ? 'Save (Ctrl/⌘ S)' : 'Sign in to save boards'}
+              aria-label={dirty ? 'Save' : 'Saved'}
+              onClick={() => void save()}
+            >
+              <Save size={17} />
+              <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
+            </button>
+          </div>
         </div>
+        {library && shown && <BoardFields design={shown} categories={library.categories} edit={edit} />}
         <EditorToolbar
           design={shown!}
           tool={tool}
@@ -378,6 +382,7 @@ export default function BoardEditor({
       <aside className="editor-inspector" aria-label="Settings">
         <Inspector design={shown!} selection={selection} select={select} edit={edit} />
         <BoardSettings design={shown!} edit={edit} selection={selection} />
+        <NumberSettings design={shown!} edit={edit} />
         <LinkRules design={shown!} edit={edit} />
       </aside>
       {message && <Toast message={message} dismiss={() => setMessage(null)} />}

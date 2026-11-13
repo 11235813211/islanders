@@ -6,12 +6,12 @@ import {
   balancedNumbers,
   type Cell,
   clumping,
-  NUMBER_SET,
   neighborKeys,
-  RICH_LEVELS,
+  numberMix,
+  randomNumber,
   swapEqualOdds,
 } from './balance';
-import { closedTiles, fogMayBeSea } from './edit';
+import { fogMayBeSea, islandRichness } from './edit';
 import { autoHarbors, harborTarget } from './harbors';
 import {
   BASE_POOL,
@@ -404,14 +404,14 @@ function placeIcebergs(
     }
 }
 
-/** A number per iceberg: the one the design set, or a draw from the base mix. */
-function icebergNumbers(tiles: DesignTile[], terrains: Map<string, Terrain>, random: () => number) {
+/** A number per iceberg: the one the design set, or a draw from the base mix (without 2 and 12 when `noEnds`). */
+function icebergNumbers(tiles: DesignTile[], terrains: Map<string, Terrain>, random: () => number, noEnds = false) {
   const numbers = new Map<string, number>();
   for (const t of tiles) {
     const k = tileKey(t.q, t.r);
     if (terrains.get(k) !== 'iceberg') continue;
     const set = t.kind === 'iceberg' && t.number && t.number !== 7 ? t.number : undefined;
-    numbers.set(k, set ?? NUMBER_SET[Math.floor(random() * NUMBER_SET.length)]!);
+    numbers.set(k, set ?? randomNumber(random, noEnds));
   }
   return numbers;
 }
@@ -431,14 +431,14 @@ export function buildBoard(
   const harbors = design.harbors.length ? design.harbors : autoHarbors(tiles, harborTarget(unique), [], random);
   const resolvedHarbors = resolveHarbors({ ...unique, harbors }, terrains, links, random);
   placeIcebergs(unique, terrains, harbors, random);
-  const closed = closedTiles(unique);
+  const rich = islandRichness(unique);
   const producing = tiles
     .map(t => ({
       q: t.q,
       r: t.r,
       terrain: terrains.get(tileKey(t.q, t.r))!,
       pips: t.pips,
-      rich: closed.has(tileKey(t.q, t.r)),
+      rich: rich.get(tileKey(t.q, t.r)),
     }))
     .filter(c => isProducing(c.terrain));
   const fixed = new Map<string, number>();
@@ -448,10 +448,10 @@ export function buildBoard(
   }
   const numbers = new Map([
     ...balancedNumbers(producing, design.swapNumbers ? swapEqualOdds(fixed, random) : fixed, random, {
-      richness: (design.richIslands ?? 0) / RICH_LEVELS,
+      noTwoTwelve: design.noTwoTwelve,
       bias: design.numberBias,
     }),
-    ...icebergNumbers(tiles, terrains, random),
+    ...icebergNumbers(tiles, terrains, random, design.noTwoTwelve),
   ]);
   const board = buildGraph(
     tiles.map(t => {
@@ -533,9 +533,8 @@ function drawFog(design: BoardDesign, board: Board, random: () => number): GameS
     ? exactFog(weights, hexes.length, random)
     : shuffled(apportion(hexes.length, weights, new Map(), random), random);
   const producing = kinds.filter(k => isProducing(k)).length;
-  const numberWeights = new Map<number, number>();
-  for (const n of NUMBER_SET) numberWeights.set(n, (numberWeights.get(n) ?? 0) + 1);
-  const numbers = shuffled(apportion(producing, numberWeights, new Map(), random), random);
+  const mix = numberMix(0, !!design.noTwoTwelve);
+  const numbers = shuffled(apportion(producing, mix, new Map(), random), random);
   return Object.fromEntries(
     hexes.map((hex, i) => {
       const terrain = kinds[i]!;

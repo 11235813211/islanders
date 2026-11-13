@@ -1,5 +1,6 @@
 import { generateHarbors } from '../board';
 import { firstFreeColor, isPlayerColor } from '../colors';
+import { liftRichIslands } from '../maps/edit';
 import { playerRanges } from '../maps/types';
 import { developmentDeck, updateAwards } from '../rules';
 import { AUTO_ROLL_SECONDS, DEFAULT_SETTINGS } from '../settings';
@@ -139,6 +140,10 @@ const MIGRATIONS: Migration[] = [
     s.diceDeck ??= [];
     s.lastRollTotal ??= null;
     s.settings.diceMode ??= 'random';
+  },
+  // 12 → 13: number richness moved from one setting for closed islands onto each island.
+  s => {
+    if (s.design) s.design = liftRichIslands(s.design);
   },
 ];
 

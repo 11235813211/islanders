@@ -29,6 +29,8 @@ export interface DesignTile {
   noSetup?: boolean;
   /** Victory points for each player who first settles this tile's island. */
   bonus?: number;
+  /** 1–RICH_LEVELS: how much richer random numbers are on this tile's island (absent is the normal mix). */
+  rich?: number;
 }
 
 /** A harbor on side `side` (0–5, see SIDE_DIRECTIONS) of land tile (q, r). */
@@ -98,8 +100,8 @@ export interface BoardDesign {
   fogPool?: Partial<Record<FogKind, number>>;
   /** The fog mix is exact counts (e.g. exactly 2 gold), not shares. False is kept, so a version can turn it off. */
   fogExact?: boolean;
-  /** 0–RICH_LEVELS: how much richer random numbers are on islands closed to setup (0 is the normal mix). */
-  richIslands?: number;
+  /** Random numbers are never 2 or 12 (set numbers and dot limits still may be). */
+  noTwoTwelve?: boolean;
   /** Expansions whose rules or pieces the board needs. Absent: Seafarers when it has sea (see boardExpansions). */
   expansions?: Expansion[];
   /** Rules between link letters (all must hold when random land is drawn). */

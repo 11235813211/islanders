@@ -116,22 +116,30 @@ function numberingCost(
   return cost;
 }
 
-/** A producing cell to number. `pips` limits a random number to these dot counts (1–5); `rich` marks a closed island. */
+/** A producing cell to number. `pips` limits a random number to these dot counts (1–5); `rich` (0–RICH_LEVELS) shifts it toward 6 and 8. */
 export interface NumberCell extends Cell {
   terrain: string;
   pips?: number[];
-  rich?: boolean;
+  rich?: number;
 }
 
-/** Most dots allowed by the "richer closed islands" setting: 0 is the normal mix, 4 is nearly all 6s and 8s. */
+/** Most an island's numbers can be made richer: 0 is the normal mix, 4 is nearly all 6s and 8s. */
 export const RICH_LEVELS = 4;
 
-/** Number weights: the base mix, shifted toward 6 and 8 by `richness` (0–1). */
-function numberWeights(richness: number): Map<number, number> {
+/** Number weights: the base mix (without 2 and 12 when `noEnds`), shifted toward 6 and 8 by `rich` (0–RICH_LEVELS). */
+export function numberMix(rich: number, noEnds: boolean): Map<number, number> {
+  const richness = rich / RICH_LEVELS;
+  const set = noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET;
   const weights = new Map<number, number>();
-  for (const n of NUMBER_SET) weights.set(n, (weights.get(n) ?? 0) + (1 - richness) / NUMBER_SET.length);
+  for (const n of set) weights.set(n, (weights.get(n) ?? 0) + (1 - richness) / set.length);
   for (const n of [6, 8]) weights.set(n, weights.get(n)! + richness / 2);
   return weights;
+}
+
+/** A random number for one tile with no neighbors to balance against (an iceberg). */
+export function randomNumber(random: () => number, noEnds = false): number {
+  const set = noEnds ? NUMBER_SET.filter(n => pips(n) > 1) : NUMBER_SET;
+  return set[Math.floor(random() * set.length)]!;
 }
 
 /**
@@ -187,9 +195,9 @@ function placeNumbers(cells: NumberCell[], pool: number[], numbers: Map<string, 
 
 /**
  * Numbers for the open producing cells, keeping the base game's mix (counting `fixed` numbers
- * already on the board) and choosing the most even of several tries. With `richness` (0–1),
- * cells marked `rich` draw from their own mix shifted toward 6 and 8, so the rest of the board
- * keeps its full share of reds.
+ * already on the board) and choosing the most even of several tries. Cells marked `rich` draw
+ * from their own mix shifted toward 6 and 8 (one mix per level), so the rest of the board keeps
+ * its full share of reds. With `noTwoTwelve`, no random number is a 2 or 12.
  */
 export function balancedNumbers(
   producing: NumberCell[],
@@ -197,21 +205,21 @@ export function balancedNumbers(
   random: () => number,
   {
     tries = 30,
-    richness = 0,
+    noTwoTwelve = false,
     bias,
-  }: { tries?: number; richness?: number; bias?: Partial<Record<string, number>> } = {},
+  }: { tries?: number; noTwoTwelve?: boolean; bias?: Partial<Record<string, number>> } = {},
 ): Map<string, number> {
-  const isRich = (c: NumberCell) => richness > 0 && !!c.rich;
-  const groups = [producing.filter(c => !isRich(c)), producing.filter(isRich)].filter(g => g.length);
-  const pools = groups.map((group, i) => {
+  const levelOf = (c: NumberCell) => c.rich ?? 0;
+  const levels = [...new Set(producing.map(levelOf))].sort();
+  const pools = levels.map(level => {
+    const group = producing.filter(c => levelOf(c) === level);
     const open = group.filter(c => !fixed.has(key(c.q, c.r)));
     const fixedCounts = new Map<number, number>();
     for (const c of group) {
       const n = fixed.get(key(c.q, c.r));
       if (n !== undefined) fixedCounts.set(n, (fixedCounts.get(n) ?? 0) + 1);
     }
-    const rich = i > 0 || group.some(isRich);
-    return { open, pool: apportion(open.length, numberWeights(rich ? richness : 0), fixedCounts, random) };
+    return { open, pool: apportion(open.length, numberMix(level, noTwoTwelve), fixedCounts, random) };
   });
   let best: { cost: number; numbers: Map<string, number> } | null = null;
   const attempts = bias && Object.keys(bias).length ? tries * 3 : tries;
@@ -219,7 +227,7 @@ export function balancedNumbers(
     const numbers = new Map(fixed);
     for (const { open, pool } of pools) placeNumbers(open, pool, numbers, random);
     const cost = numberingCost(
-      producing.filter(c => !isRich(c)),
+      producing.filter(c => !levelOf(c)),
       numbers,
       bias,
     );

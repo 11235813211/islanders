@@ -93,6 +93,10 @@ function parseTile(v: unknown): DesignTile {
     if (!int(t.bonus, 1, 3)) fail('Island bonuses are 1 to 3 points.');
     tile.bonus = t.bonus as number;
   }
+  if (t.rich !== undefined) {
+    if (!int(t.rich, 0, RICH_LEVELS)) fail('Invalid island numbers.');
+    if (t.rich) tile.rich = t.rich as number;
+  }
   return tile;
 }
 
@@ -136,8 +140,7 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
     fail('Invalid harbor exclusions.');
   if (value.swapNumbers !== undefined && typeof value.swapNumbers !== 'boolean') fail('Invalid number swap setting.');
-  if (value.richIslands !== undefined && !int(value.richIslands, 0, RICH_LEVELS))
-    fail('Invalid closed-island numbers.');
+  if (value.noTwoTwelve !== undefined && typeof value.noTwoTwelve !== 'boolean') fail('Invalid 2 and 12 setting.');
   // "5–6 players" was once an expansion; the player count now decides it.
   const expansions = Array.isArray(value.expansions)
     ? value.expansions.filter(e => e !== 'five-six')
@@ -169,7 +172,7 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     ...(Object.keys(islandPools).length ? { islandPools } : {}),
     harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
     ...(value.swapNumbers ? { swapNumbers: true } : {}),
-    ...(value.richIslands ? { richIslands: value.richIslands as number } : {}),
+    ...(value.noTwoTwelve ? { noTwoTwelve: true } : {}),
     ...(expansions ? { expansions: [...new Set(expansions as Expansion[])] } : {}),
     ...(linkRules.length ? { linkRules } : {}),
     ...(Object.keys(numberBias).length ? { numberBias } : {}),

@@ -209,6 +209,22 @@ test('the settings panel fits without sideways scrolling, folds away, and a boar
   const point = await cellPoint(page, land.q, land.r, 0, 32);
   await page.mouse.click(point.x, point.y);
   await expect(panel.getByRole('group', { name: 'Random number may have' })).toBeVisible();
+  // Any island's numbers can be made richer, and every closed island's at once.
+  await panel
+    .getByRole('radiogroup', { name: "Island's random numbers" })
+    .getByRole('radio', { name: 'Rich', exact: true })
+    .click();
+  await expect(
+    panel
+      .getByRole('radiogroup', { name: "Island's random numbers" })
+      .getByRole('radio', { name: 'Rich', exact: true }),
+  ).toBeChecked();
+  const closed = panel.getByRole('radiogroup', { name: "Closed islands' numbers" });
+  await closed.getByRole('radio', { name: 'Better' }).click();
+  await expect(closed.getByRole('radio', { name: 'Better' })).toBeChecked();
+  const noEnds = panel.getByRole('button', { name: 'No 2s or 12s anywhere' });
+  await noEnds.click();
+  await expect(noEnds).toHaveAttribute('aria-pressed', 'true');
   const overflow = await panel.evaluate(el => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/editor-panel.png' });
@@ -224,7 +240,8 @@ test('the settings panel fits without sideways scrolling, folds away, and a boar
   await other.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();
   await expect(other.getByText(/is editing this board/)).toBeVisible();
   await other.close();
-  // Home leaves the editor (and lets the board go).
+  // Home leaves the editor (and lets the board go), after confirming the number changes above are dropped.
+  page.once('dialog', dialog => void dialog.accept());
   await page.getByRole('button', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Board editor' })).toBeVisible();
 });
@@ -280,4 +297,34 @@ test('numbers on tiles painted in the editor can be tapped too', async ({ page }
   const zoom = (await page.locator('.editor-canvas .zoom-controls').boundingBox())!;
   expect(zoom.width).toBeLessThan(80);
   await page.screenshot({ path: 'test-results/editor-painted-numbers.png' });
+});
+
+test('the top bar keeps the name and save on one row (phones: two), and nothing spills sideways', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();
+  for (const [width, height] of [
+    [1600, 900],
+    [1280, 800],
+    [1024, 768],
+    [820, 1000],
+    [390, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    const bar = page.locator('.editor-bar');
+    await expect(bar.getByLabel('Board name')).toBeVisible();
+    const spill = await bar.evaluate(el => {
+      const right = el.getBoundingClientRect().right;
+      return [...el.querySelectorAll('*')]
+        .filter(c => c.getBoundingClientRect().right > right + 0.5)
+        .map(c => `${c.tagName}.${c.className} ${c.getBoundingClientRect().right - right}`);
+    });
+    expect(spill).toEqual([]);
+    const name = (await bar.getByLabel('Board name').boundingBox())!;
+    const save = (await bar.getByRole('button', { name: /^Save/ }).boundingBox())!;
+    const apart = Math.abs(name.y + name.height / 2 - (save.y + save.height / 2));
+    if (width > 600) expect(apart).toBeLessThan(4);
+    else expect(save.y).toBeGreaterThan(name.y + name.height - 1);
+    await page.screenshot({ path: `test-results/editor-bar-${width}.png`, clip: { x: 0, y: 0, width, height: 260 } });
+  }
 });

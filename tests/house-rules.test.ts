@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, emptyBag, getView, normalizeGame } from '../shared/engine';
 import { buildBoard, tileKey } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
+import {
+  closedTiles,
+  islandOf,
+  islandRichness,
+  liftRichIslands,
+  setClosedRich,
+  setIslandRich,
+} from '../shared/maps/edit';
 import { fillNumbers } from '../shared/maps/fill';
+import { type BoardDesign, type BoardVersion, VERSION_FIELDS } from '../shared/maps/types';
 import type { DiscoveryRule, GameAction, GameState, Terrain } from '../shared/types';
 import { grant, makeLobby, seaLobby, seeded, settled, TEST_NOW, testDesign } from './fixtures';
 
@@ -19,6 +28,8 @@ const sequence = (...values: number[]) => {
   let i = 0;
   return () => values[i++ % values.length]!;
 };
+/** A design's layout fields, as a version for other player counts would hold them. */
+const pick = (d: BoardDesign) => Object.fromEntries(VERSION_FIELDS.map(f => [f, d[f]])) as BoardVersion;
 const hexOf = (g: GameState, terrain: Terrain) => g.board.hexes.find(h => h.terrain === terrain)!;
 
 const ISLE = testDesign([
@@ -238,9 +249,10 @@ describe('map options', () => {
     }
   });
 
+  const reds = (n: number | null | undefined) => n === 6 || n === 8;
+
   it('richer closed islands get 6s and 8s without taking them from the rest', () => {
-    const rich = testDesign(ROWS, { richIslands: 4, pool: { wood: 1 } });
-    const reds = (n: number | null) => n === 6 || n === 8;
+    const rich = setClosedRich(testDesign(ROWS, { pool: { wood: 1 } }), 4);
     for (let seed = 1; seed < 6; seed++) {
       const { board } = buildBoard(rich, seeded(seed));
       const closed = board.hexes.filter(h => h.noSetup && h.number);
@@ -250,7 +262,50 @@ describe('map options', () => {
       expect(open.filter(h => reds(h.number)).length).toBeGreaterThanOrEqual(2);
     }
     const filled = fillNumbers(rich, seeded(2));
-    expect(filled.tiles.filter(t => t.noSetup).every(t => reds(t.number ?? null))).toBe(true);
+    expect(filled.tiles.filter(t => t.noSetup).every(t => reds(t.number))).toBe(true);
+  });
+
+  it('any island, open or closed, can have richer numbers, and land added to it shares them', () => {
+    const d = testDesign(ROWS, { pool: { wood: 1 } });
+    const main = d.tiles.find(t => t.kind === 'land' && !t.noSetup)!;
+    const rich = setIslandRich(d, main.q, main.r, 4);
+    const mainKeys = new Set(islandOf(rich, main.q, main.r).map(t => tileKey(t.q, t.r)));
+    expect(rich.tiles.filter(t => t.rich).length).toBe(mainKeys.size);
+    // A tile drawn onto the island later has no level of its own but takes the island's.
+    const added = rich.tiles.find(t => t.rich && !(t.q === main.q && t.r === main.r))!;
+    const { rich: _r, ...bare } = added;
+    const grown = { ...rich, tiles: rich.tiles.map(t => (t === added ? bare : t)) };
+    expect(islandRichness(grown).get(tileKey(added.q, added.r))).toBe(4);
+    for (let seed = 1; seed < 4; seed++) {
+      const { board } = buildBoard(grown, seeded(seed));
+      const onMain = board.hexes.filter(h => mainKeys.has(tileKey(h.q, h.r)) && h.number);
+      expect(onMain.filter(h => reds(h.number)).length).toBeGreaterThanOrEqual(onMain.length - 2);
+    }
+  });
+
+  it('no 2s or 12s anywhere keeps them off random land, fog, and icebergs, but not set numbers', () => {
+    const d = testDesign(ROWS, { noTwoTwelve: true, pool: { wood: 1, iceberg: 50 } });
+    const set = d.tiles.find(t => t.kind === 'land')!;
+    d.tiles = d.tiles.map(t => (t === set ? { ...t, number: 12 } : t));
+    for (let seed = 1; seed < 10; seed++) {
+      const { board } = buildBoard(d, seeded(seed));
+      for (const hex of board.hexes) {
+        if (hex.q === set.q && hex.r === set.r) expect(hex.number).toBe(12);
+        else if (hex.number) expect([2, 12]).not.toContain(hex.number);
+      }
+    }
+    const filled = fillNumbers(d, seeded(3));
+    const others = filled.tiles.filter(t => t.number && !(t.q === set.q && t.r === set.r));
+    expect(others.every(t => pips(t.number!) > 1)).toBe(true);
+  });
+
+  it('boards saved with one level for all closed islands move it onto those islands', () => {
+    const old = { ...testDesign(ROWS), richIslands: 3 };
+    old.versions = [{ ...pick(old), players: { min: 5, max: 6 } }];
+    const lifted = liftRichIslands(old);
+    expect('richIslands' in lifted).toBe(false);
+    for (const layout of [lifted, ...lifted.versions!])
+      for (const t of layout.tiles) expect(t.rich).toBe(closedTiles(lifted).has(tileKey(t.q, t.r)) ? 3 : undefined);
   });
 
   it('a board without harbors gets them at random spots each game', () => {

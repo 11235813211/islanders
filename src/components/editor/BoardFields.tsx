@@ -8,12 +8,8 @@ import {
   type Expansion,
   type FillKind,
 } from '../../../shared/maps';
-import { RICH_LEVELS } from '../../../shared/maps/balance';
 import { POOL_KINDS } from '../../../shared/maps/validate';
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
-
-/** Numbers on islands closed to setup: how much richer than the normal mix. */
-const RICH_LABELS = ['Normal numbers', 'Better', 'Rich', 'Richer', 'Mostly 6 & 8'];
 
 import { useDismiss } from '../../hooks/useDismiss';
 import { TileIcon } from './BrushPicker';
@@ -121,7 +117,20 @@ function NumberBiasMenu({ design, edit }: { design: BoardDesign; edit: Edit }) {
   );
 }
 
-/** The board's name, category, players, points to win, and needed expansions, in one row above the canvas. */
+/** The board's name, in the editor's top row. */
+export function BoardName({ design, edit }: { design: BoardDesign; edit: Edit }) {
+  return (
+    <input
+      className="board-name"
+      aria-label="Board name"
+      value={design.name}
+      maxLength={40}
+      onChange={e => edit(d => ({ ...d, name: e.target.value }), 'name')}
+    />
+  );
+}
+
+/** The board's category, players, points to win, number richness, and needed expansions, in one row above the tools. */
 export default function BoardFields({
   design,
   categories,
@@ -131,16 +140,9 @@ export default function BoardFields({
   categories: BoardCategory[];
   edit: Edit;
 }) {
-  const set = (patch: Partial<BoardDesign>, group?: string) => edit(d => ({ ...d, ...patch }), group);
+  const set = (patch: Partial<BoardDesign>) => edit(d => ({ ...d, ...patch }));
   return (
     <div className="board-fields">
-      <input
-        className="board-name"
-        aria-label="Board name"
-        value={design.name}
-        maxLength={40}
-        onChange={e => set({ name: e.target.value }, 'name')}
-      />
       <label>
         <span>Category</span>
         <select value={design.categoryId} onChange={e => set({ categoryId: e.target.value })}>
@@ -187,27 +189,6 @@ export default function BoardFields({
               set({ victoryPoints: n });
           }}
         />
-      </label>
-      <label data-tip="How much better random numbers are on islands closed to setup settlements">
-        <span>Closed islands</span>
-        <select
-          aria-label="Numbers on closed islands"
-          value={design.richIslands ?? 0}
-          disabled={!design.tiles.some(t => t.noSetup)}
-          onChange={e => {
-            const level = Number(e.target.value);
-            edit(d => {
-              const { richIslands: _r, ...rest } = d;
-              return level ? { ...rest, richIslands: level } : rest;
-            });
-          }}
-        >
-          {RICH_LABELS.slice(0, RICH_LEVELS + 1).map((label, level) => (
-            <option key={label} value={level}>
-              {label}
-            </option>
-          ))}
-        </select>
       </label>
       <NumberBiasMenu design={design} edit={edit} />
       <ExpansionsMenu design={design} set={set} />
