@@ -31,7 +31,7 @@ function play(page: Page, steps: Step[]) {
       if (recording) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
-    const fire = (type: string, id: number, p: { x: number; y: number }, target: Element) =>
+    const fire = (type: string, id: number, p: { x: number; y: number }, target: Element) => {
       target.dispatchEvent(
         new PointerEvent(type, {
           pointerId: id,
@@ -43,15 +43,16 @@ function play(page: Page, steps: Step[]) {
           cancelable: true,
         }),
       );
+    };
     const targets = steps[0]!.map(p => document.elementFromPoint(p.x, p.y)!);
-    steps[0]!.forEach((p, i) => fire('pointerdown', i + 1, p, targets[i]!));
+    for (const [i, p] of steps[0]!.entries()) fire('pointerdown', i + 1, p, targets[i]!);
     const start = performance.now();
     for (const step of steps.slice(1)) {
       await new Promise(requestAnimationFrame);
-      step.forEach((p, i) => fire('pointermove', i + 1, p, targets[i]!));
+      for (const [i, p] of step.entries()) fire('pointermove', i + 1, p, targets[i]!);
     }
     const ended = performance.now();
-    steps.at(-1)!.forEach((p, i) => fire('pointerup', i + 1, p, targets[i]!));
+    for (const [i, p] of steps.at(-1)!.entries()) fire('pointerup', i + 1, p, targets[i]!);
     await new Promise(r => setTimeout(r, 300));
     recording = false;
     observer.disconnect();
