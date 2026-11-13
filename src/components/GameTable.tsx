@@ -258,8 +258,8 @@ export default function GameTable({
       return setMode(null);
     }
     if (mode === 'relay' || mode === 'survey') return place(mode, id);
-    // Tapping one of your movable ships picks it up, as the Move button would.
-    if (view.legal.shipMoves[id]) {
+    // Tapping one of your movable ships picks it up, as the Move button would (unless it can become a survey ship).
+    if (view.legal.shipMoves[id] && (mode || !view.legal.surveys.includes(id))) {
       setSelected(null);
       setModeState('move-ship');
       return setMoveFrom(id);
@@ -268,6 +268,7 @@ export default function GameTable({
     if (mode !== 'ship' && view.legal.roads.includes(id)) choices.push('road');
     if (mode !== 'road' && view.legal.ships.includes(id)) choices.push('ship');
     if (!mode && view.legal.relays.includes(id)) choices.push('relay');
+    if (!mode && view.legal.surveys.includes(id)) choices.push('survey');
     if (!choices.length) return;
     if (mode && choices.length === 1) return place(choices[0]!, id);
     setSelected({ kind: choices[0]!, id, ...(choices.length > 1 ? { choices } : {}) });
@@ -463,7 +464,7 @@ export default function GameTable({
         onEdge={pickEdge}
         corner={cornerPanel()}
         onHex={hexId => {
-          if (mode !== 'peek') return setRobberPick(hexId);
+          if (mode !== 'peek' && !view.legal.peekHexes.includes(hexId)) return setRobberPick(hexId);
           send({ type: 'peek-fog', hexId });
           setMode(null);
         }}

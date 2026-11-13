@@ -96,7 +96,8 @@ function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null
   if (mode === 'survey') return legal.surveys;
   const linking = view.phase === 'setup-road' || view.phase === 'free-roads';
   // Relay station spots are road spots too, so a tap there asks which to build.
-  if (mode === null && (linking || buildingPhase(view))) return [...legal.roads, ...legal.ships];
+  if (mode === null && (linking || buildingPhase(view)))
+    return [...legal.roads, ...legal.ships, ...legal.relays, ...legal.surveys];
   return [];
 }
 
@@ -148,6 +149,8 @@ export default function Board({
   const settlementMode = view.phase === 'setup-settlement' || mode === 'settlement';
   const direct = mode === null && buildingPhase(view);
   const robberMode = view.phase === 'robber' || mode === 'robber';
+  // With no tool picked, fog tiles you can peek at are tappable too.
+  const peeking = mode === 'peek' || (direct && !robberMode);
   const vertexTargets = new Set(
     disabled
       ? []
@@ -160,9 +163,7 @@ export default function Board({
             : [],
   );
   const edgeTargets = new Set(disabled ? [] : edgeTargetsFor(view, mode, moveFrom));
-  const hexTargets = new Set(
-    disabled ? [] : mode === 'peek' ? view.legal.peekHexes : robberMode ? view.legal.robberHexes : [],
-  );
+  const hexTargets = new Set(disabled ? [] : peeking ? view.legal.peekHexes : robberMode ? view.legal.robberHexes : []);
   const edgeEnds = (edgeId: string) => {
     const edge = edges.get(edgeId)!;
     return [vertices.get(edge.a)!, vertices.get(edge.b)!] as const;
@@ -171,6 +172,8 @@ export default function Board({
     if (mode === 'move-ship') return moveFrom ? `Move ship to ${edgeId}` : `Move the ship at ${edgeId}`;
     if (mode === 'relay') return `Build relay station at ${edgeId}`;
     if (mode === 'survey') return `Make the ship at ${edgeId} a survey ship`;
+    if (!mode && view.legal.surveys.includes(edgeId)) return `Make the ship at ${edgeId} a survey ship`;
+    if (!mode && view.legal.relays.includes(edgeId)) return `Build relay station at ${edgeId}`;
     const road = view.legal.roads.includes(edgeId) && mode !== 'ship';
     const ship = view.legal.ships.includes(edgeId) && mode !== 'road';
     return `${road && ship ? 'Build road or ship' : ship ? 'Build ship' : 'Build road'} at ${edgeId}`;
@@ -269,7 +272,7 @@ export default function Board({
                   role="button"
                   tabIndex={0}
                   aria-label={
-                    mode === 'peek'
+                    peeking
                       ? `Peek at the fog tile ${hex.id}`
                       : `Move ${pirate ? 'pirate' : 'robber'} to ${TERRAIN[hex.terrain].name}${hex.number ? `, number ${hex.number}` : ''}`
                   }

@@ -93,3 +93,25 @@ test('charting a 6 adds a second number, shown beside the token', async ({ page 
   await expect(page.locator('.board-charts')).toHaveCount(1);
   expect(room.errors).toEqual([]);
 });
+
+test('relay, survey and peek start from a tap on the board, with no button first', async ({ page }) => {
+  const initial = game();
+  const [edgeId] = seaEdges(initial);
+  initial.ships[edgeId!] = 'p0';
+  initial.board = structuredClone(initial.board);
+  const fogHex = initial.board.hexes.find(h => h.terrain === 'sea' && h.vertexIds.some(v => initial.buildings[v]))!;
+  fogHex.terrain = 'fog';
+  initial.fog[fogHex.id] = { terrain: 'wheat', number: 9 };
+  const legal = getView(initial, 'p0').legal;
+  test.skip(!legal.relays.length || !legal.peekHexes.includes(fogHex.id), 'No relay or peek spot on this seed');
+  const room = await mountGame(page, initial);
+  await page.getByRole('button', { name: `Peek at the fog tile ${fogHex.id}` }).click();
+  await expect.poll(() => room.state().fogPeeks.p0?.length).toBe(1);
+  await page.getByRole('button', { name: `Build relay station at ${legal.relays[0]}` }).click();
+  await page.getByRole('button', { name: 'Confirm relay' }).click();
+  await expect.poll(() => room.state().relays).toEqual([legal.relays[0]]);
+  await page.getByRole('button', { name: `Make the ship at ${edgeId} a survey ship` }).click();
+  await page.getByRole('button', { name: 'Confirm survey' }).click();
+  await expect.poll(() => room.state().surveys).toEqual([edgeId]);
+  expect(room.errors).toEqual([]);
+});

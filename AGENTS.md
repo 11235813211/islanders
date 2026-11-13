@@ -41,6 +41,7 @@ Which published rules are in, which are room variations, and their tests: `docs/
 - Screenshots for review: `npx playwright test tests/visual.spec.ts` writes `test-results/visual-*.png` and `phone-*.png`. It and `art-compare.spec.ts` only take screenshots, so CI skips them (`playwright.config.ts`); CI splits the rest across two runners.
 - Server tests that need a seat to keep playing can call `PlayerConnection.autoPlay()` (`tests/server-helpers.ts`) instead of waiting out turn clocks. Sea tiles and pieces: `tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
 - Bot strength: `node training/run.mjs eval --games 2000` (Advanced vs Intermediate on every map, size, and setting; about 2 minutes). Run it after changing bot logic; Advanced should beat Intermediate, which should beat Beginner. `tests/bots.test.ts` also checks Advanced's CPU per move.
+- CI budget: the whole Verify workflow should finish in about 3:30 (all three jobs run at once; the full browser suite takes about 2.5 minutes locally on 2 workers). Keep only tests that guard real behavior; a new test that plays a game in real time or takes over ~10s needs a reason, otherwise cover it with a unit test in `tests/*.test.ts`. Check per-test times with `npx playwright test --reporter=json`.
 - `npm run check` (lint, unit tests, build) must pass before you say you're done. Report failures honestly.
 
 ## Code rules (keep the codebase cheap to read and change)
