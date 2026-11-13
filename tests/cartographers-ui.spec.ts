@@ -74,6 +74,26 @@ test('charting a 6 from the build bar adds a second number beside the token', as
   expect(room.errors).toEqual([]);
 });
 
+test('with lodestone in hand, a tap on a tile opens the chart panel for it', async ({ page }) => {
+  const initial = game();
+  const hexId = getView(initial, 'p0').legal.chartHexes[0]!;
+  const before = hexNumbers(initial.board.hexes.find(h => h.id === hexId)!);
+  const room = await mountGame(page, initial);
+  // A real tap in the middle of the tile, where its number token is drawn.
+  const box = (await page.getByRole('button', { name: `Chart the tile ${hexId}` }).boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  const panel = page.getByRole('dialog', { name: 'Chart a tile' });
+  await expect(panel).toContainText(`${before.join(', ')} →`);
+  await panel.getByRole('button', { name: 'Chart', exact: true }).click();
+  await expect.poll(() => hexNumbers(room.state().board.hexes.find(h => h.id === hexId)!)).not.toEqual(before);
+  // Without lodestone, tiles take no taps.
+  room.update(g => {
+    g.players[0]!.resources.lodestone = 0;
+  });
+  await expect(page.locator('.board-chart-tap')).toHaveCount(0);
+  expect(room.errors).toEqual([]);
+});
+
 test('splitting a tile draws both halves, and its rolls ask for one of the two', async ({ page }) => {
   const initial = game();
   const room = await mountGame(page, initial);

@@ -518,3 +518,17 @@
     animation: none;
   }
 }
+
+/* With no tool picked, a tile you can chart answers a tap; it only shows an outline on hover. */
+.board-chart-tap {
+  cursor: pointer;
+}
+.board-chart-tap polygon {
+  stroke: transparent;
+  stroke-width: 2.5px;
+}
+.board-chart-tap:hover polygon,
+.board-chart-tap:focus-visible polygon {
+  stroke: #e7d8f4;
+  stroke-dasharray: 3 5;
+}

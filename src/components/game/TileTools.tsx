@@ -1,7 +1,7 @@
 // Cartographers tools on the board's tiles: chart and split pick a tile; a survey ship, once picked,
 // shows the tiles it will chart around the nearest town. Confirm in a small corner panel.
 import { Check } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { affordsSplit, BUILD_COSTS, chartHexes } from '../../../shared/engine';
 import { chartedNumbers, hexNumbers } from '../../../shared/rules';
 import { terrainResource } from '../../../shared/seafaring';
@@ -55,13 +55,26 @@ export function useTileTools(
   setMode: (mode: BoardMode) => void,
   send: (action: GameAction) => void,
   busy: boolean,
-): { ship: string | null; pickShip: (edgeId: string) => void; picking: TilePicking | null; panel: ReactNode } {
+): {
+  ship: string | null;
+  pickShip: (edgeId: string) => void;
+  /** Turn on the chart tool with this tile already picked (a tap on the board with no tool on). */
+  startChart: (hexId: string) => void;
+  picking: TilePicking | null;
+  panel: ReactNode;
+} {
   const tool = isTileTool(mode) ? mode : null;
   const [ship, setShip] = useState<string | null>(null);
   const [hexId, setHexId] = useState<string | null>(null);
   const [resource, setResource] = useState<Resource | null>(null);
   const [town, setTown] = useState<string | null>(null);
+  // Set by startChart so switching to the chart tool keeps the tile it was started from.
+  const keepPick = useRef(false);
   useEffect(() => {
+    if (keepPick.current) {
+      keepPick.current = false;
+      return;
+    }
     setHexId(null);
     setResource(null);
     setTown(null);
@@ -130,7 +143,12 @@ export function useTileTools(
         }}
       />
     );
-  return { ship, pickShip: setShip, picking, panel };
+  const startChart = (id: string) => {
+    keepPick.current = tool !== 'chart';
+    setHexId(id);
+    setMode('chart');
+  };
+  return { ship, pickShip: setShip, startChart, picking, panel };
 }
 
 /** The resources a split may add to this tile: any but its own, and never lodestone. */

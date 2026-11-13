@@ -186,6 +186,7 @@ export default function BoardViewport({
       onHex: (id: string) => latest.current.onHex(id),
       onConfirm: (kind: Parameters<NonNullable<BoardProps['onConfirm']>>[0]) => latest.current.onConfirm?.(kind),
       onHexConfirm: (confirm: boolean) => latest.current.onHexConfirm?.(confirm),
+      onChart: (id: string) => latest.current.onChart?.(id),
     }),
     [],
   );

@@ -10,7 +10,7 @@ import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
 import ShipPieces from './game/ShipPieces';
-import TileTargets, { type TilePicking } from './game/TileTargets';
+import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'survey';
@@ -41,6 +41,8 @@ export interface BoardProps {
   onHexConfirm?: (confirm: boolean) => void;
   /** Cartographers: tiles the chart, split, or survey tool can pick, and the one picked. */
   tiles?: TilePicking | null;
+  /** With no tool picked: a tap on a tile you can chart starts charting it. */
+  onChart?: (hexId: string) => void;
 }
 
 /**
@@ -133,6 +135,7 @@ export default function Board({
   hexPick = null,
   onHexConfirm,
   tiles = null,
+  onChart,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const picked = hexPick ? view.board.hexes.find(h => h.id === hexPick) : undefined;
@@ -241,6 +244,7 @@ export default function Board({
               </g>
             );
           })}
+          {direct && !disabled && onChart && <ChartTaps view={view} onChart={onChart} />}
           <ShipPieces
             view={view}
             mode={mode}

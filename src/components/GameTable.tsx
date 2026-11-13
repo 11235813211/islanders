@@ -459,6 +459,7 @@ export default function GameTable({
         onHex={setHexPick}
         hexPick={hexPick}
         tiles={busy ? null : tiles.picking}
+        onChart={tiles.startChart}
         onHexConfirm={confirm => {
           // A fog tile you can peek at is a peek; anything else is where the robber or pirate goes.
           const peek = !!hexPick && view.legal.peekHexes.includes(hexPick) && view.phase !== 'robber';

@@ -45,3 +45,31 @@ export default function TileTargets({ view, tiles }: { view: GameView; tiles: Ti
     </g>
   );
 }
+
+/**
+ * With no tool picked, every tile you can chart is a tap target with nothing drawn until hover, so
+ * the board stays clear. Drawn under ships, roads, and corners, which keep their own taps.
+ */
+export function ChartTaps({ view, onChart }: { view: GameView; onChart: (hexId: string) => void }) {
+  const hexes = new Set(view.legal.chartHexes);
+  return (
+    <g className="board-chart-taps">
+      {view.board.hexes
+        .filter(hex => hexes.has(hex.id))
+        .map(hex => (
+          <g
+            key={hex.id}
+            className="board-chart-tap"
+            role="button"
+            tabIndex={0}
+            aria-label={`Chart the tile ${hex.id}`}
+            onClick={() => onChart(hex.id)}
+            onKeyDown={event => keyboardActivate(event, () => onChart(hex.id))}
+            transform={`translate(${hex.x} ${hex.y})`}
+          >
+            <polygon points={hexPoints(52)} fill="transparent" />
+          </g>
+        ))}
+    </g>
+  );
+}
