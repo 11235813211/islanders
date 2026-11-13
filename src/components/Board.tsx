@@ -10,7 +10,6 @@ import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
 import ShipPieces from './game/ShipPieces';
-import SurveyTargets from './game/SurveyTargets';
 import TileTargets, { type TilePicking } from './game/TileTargets';
 import './Board.css';
 
@@ -110,7 +109,7 @@ function hintFor(
 ): string {
   if (mode === 'chart') return 'Choose a tile to chart';
   if (mode === 'split') return 'Choose a tile to split';
-  if (mode === 'survey') return moveFrom ? 'Choose the tile it collects from' : 'Choose a ship out at sea';
+  if (mode === 'survey') return moveFrom ? 'It charts the tiles around your nearest town' : 'Choose a ship out at sea';
   if (mode === 'peek') return 'Choose a fog tile to peek at';
   if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
@@ -252,7 +251,6 @@ export default function Board({
             playerName={playerName}
             onShip={onEdge}
           />
-          <SurveyTargets view={view} color={color} playerName={playerName} />
           {view.board.hexes
             .filter(hex => hexTargets.has(hex.id))
             .map(hex => {

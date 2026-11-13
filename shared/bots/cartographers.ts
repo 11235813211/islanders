@@ -3,20 +3,20 @@ import { relaySpots, surveySpots } from '../engine/legal';
 import { hexNumbers } from '../rules';
 import { boardIndex, isLandVertex } from '../seafaring';
 import { type GameAction, type GameView, RESOURCES, type Resource, type TradeOffer } from '../types';
-import { chartMove, splitMove, surveyTarget, tileDots } from './charting';
+import { chartMove, splitMove, surveyTown, tileDots } from './charting';
 
 /**
  * Cartographers for every bot level, kept simple and cheap: survey ships whenever affordable (a
  * point each), lodestone kept while there is a ship at sea or a good relay spot, splits and charts
- * on the bot's own tiles when there is no ship to fit out, and a relay station (or the trade that
+ * on the bot's own tiles with the lodestone left over, and a relay station (or the trade that
  * completes one) before ending a turn. The trained Advanced bot's own plans don't know these pieces.
  */
 
-/** A survey ship whenever one can be fitted out, aimed at the best target. */
+/** A survey ship whenever one can be fitted out, charting around its best tied town. */
 export function surveyMove(view: GameView): GameAction | null {
   const edgeId = view.legal.surveys[0];
-  const hexId = surveyTarget(view);
-  return edgeId && hexId ? { type: 'build-survey', edgeId, hexId } : null;
+  const vertexId = edgeId ? surveyTown(view, edgeId) : null;
+  return edgeId && vertexId ? { type: 'build-survey', edgeId, vertexId } : null;
 }
 
 /** Fewest dots a relay station's two tiles must have between them to be worth building. */
@@ -89,15 +89,17 @@ function tradeToward(view: GameView, piece: 'survey' | 'relay'): GameAction | nu
 
 /**
  * Cartographers on a bot's own turn: a survey ship first (a point), else a split or chart on its
- * tiles; lodestone kept while it has a use; and before ending the turn, a relay station or the trade that completes one of the two.
+ * tiles with lodestone it doesn't need for a planned survey ship or relay station; and before
+ * ending the turn, a relay station or the trade that completes one of the two.
  */
 export function cartographersTurn(view: GameView, planned: GameAction): GameAction {
   if (!view.cartographers || view.phase !== 'build' || view.activePlayerId !== view.selfId) return planned;
   const survey = surveyMove(view);
   if (survey) return survey;
   const use = lodestoneUse(view);
-  // With no ship to fit out, lodestone goes on the bot's own tiles.
-  if (use !== 'survey') {
+  // Charts and splits are cheap, so only lodestone beyond the planned piece's goes on tiles.
+  const spare = view.hand.lodestone - (use ? BUILD_COSTS[use].lodestone : 0);
+  if (spare >= BUILD_COSTS.chart.lodestone) {
     const tile = splitMove(view) ?? chartMove(view);
     if (tile) return tile;
   }

@@ -118,16 +118,42 @@ export function surveySpots(
 }
 
 /**
- * Tiles a new survey ship may collect from: any producing tile with a number, and fog tiles this
- * player peeked at that hide one.
+ * The settlements and cities nearest a survey ship along its owner's route: fewest road and ship
+ * edges, crossing no one else's building, and switching between roads and ships only where the
+ * room's route rule allows. Several when tied. Takes a view too (bots use it).
  */
-export function surveyTargetHexes(state: Pick<GameState, 'board' | 'fog' | 'fogPeeks'>, playerId: string): string[] {
-  const open = state.board.hexes.filter(h => isProducing(h.terrain) && h.number !== null).map(h => h.id);
-  const peeked = (state.fogPeeks[playerId] ?? []).filter(id => {
-    const hidden = state.fog[id];
-    return hidden && isProducing(hidden.terrain) && hidden.number !== null;
-  });
-  return [...open, ...peeked];
+export function surveyTowns(
+  state: Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'>,
+  playerId: string,
+  edgeId: string,
+): string[] {
+  const index = boardIndex(state.board);
+  const anywhere = linksAnywhere(state);
+  const kindOf = (id: string) => (state.ships[id] === playerId ? 'ship' : state.roads[id] === playerId ? 'road' : null);
+  const ship = index.edge.get(edgeId)!;
+  const seen = new Set<string>();
+  let frontier = [ship.a, ship.b].map(vertex => ({ vertex, kind: 'ship' }));
+  for (const step of frontier) seen.add(`${step.vertex} ship`);
+  while (frontier.length) {
+    const towns = frontier.filter(step => state.buildings[step.vertex]?.playerId === playerId).map(s => s.vertex);
+    if (towns.length) return [...new Set(towns)];
+    const next: typeof frontier = [];
+    for (const { vertex, kind } of frontier) {
+      if (state.buildings[vertex]) continue; // someone else's building ends the route
+      for (const id of index.vertex.get(vertex)!.edgeIds) {
+        const along = kindOf(id);
+        if (!along || (along !== kind && !anywhere)) continue;
+        const to = otherEnd(index.edge.get(id)!, vertex);
+        // Your own building ends the search there, so any kind may arrive at it.
+        const key = `${to} ${along}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        next.push({ vertex: to, kind: along });
+      }
+    }
+    frontier = next;
+  }
+  return [];
 }
 
 /** Tiles that can be split: a resource tile with a number, not split yet. */
@@ -152,7 +178,7 @@ export function chartHexes(state: Pick<GameState, 'board' | 'settings'>): string
     .filter(hex => {
       if (!isProducing(hex.terrain) || hex.number === null) return false;
       if (!state.settings.chartSpecial && (hex.terrain === 'gold' || hex.terrain === 'volcano')) return false;
-      return chartedNumbers(hexNumbers(hex), true) !== null;
+      return chartedNumbers(hexNumbers(hex)) !== null;
     })
     .map(hex => hex.id);
 }
@@ -282,7 +308,7 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     stealTargets: [],
     relays: [],
     surveys: [],
-    surveyTargets: [],
+    surveyTowns: {},
     chartHexes: [],
     splitHexes: [],
     peekHexes: [],
@@ -319,8 +345,11 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     if (pieces.relays < PIECE_LIMITS.relays && canAfford(player, BUILD_COSTS.relay))
       legal.relays = relaySites(state, selfId);
     if (pieces.surveys < PIECE_LIMITS.surveys && canAfford(player, BUILD_COSTS.survey)) {
-      legal.surveyTargets = cartographersRules(state) ? surveyTargetHexes(state, selfId) : [];
-      if (legal.surveyTargets.length) legal.surveys = surveySites(state, selfId);
+      for (const edgeId of surveySites(state, selfId)) {
+        const towns = surveyTowns(state, selfId, edgeId);
+        if (towns.length) legal.surveyTowns[edgeId] = towns;
+      }
+      legal.surveys = Object.keys(legal.surveyTowns);
     }
     if (state.phase === 'build') {
       legal.shipMoves = shipMoves(state, selfId);

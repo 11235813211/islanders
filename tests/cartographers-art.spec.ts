@@ -33,10 +33,10 @@ const LABELS: Record<Resource, string> = {
 const TILES: [Terrain, number[]][] = [
   ['wood', [9]],
   ['wheat', [6, 3]],
-  ['ore', [8, 6, 12]],
+  ['ore', [8, 9, 10]],
   ['lodestone', [5]],
   ['lodestone', [6, 2]],
-  ['sheep', [6, 6]],
+  ['sheep', [6, 5, 2]],
 ];
 const css = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const STYLE = `<style>

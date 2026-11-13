@@ -45,13 +45,6 @@ export function trackHands(state: GameState): void {
     if (delta[steal.victimId]) delta[steal.victimId]![steal.resource] += 1;
     if (delta[steal.thiefId]) delta[steal.thiefId]![steal.resource] -= 1;
   }
-  // A survey ship's find under the fog is one card of a kind nobody else knows: count it as a spread.
-  const finds = state.log.filter(e => e.id > old.logId && e.event?.kind === 'survey-find').map(e => e.event!);
-  for (const find of finds) {
-    if (find.kind !== 'survey-find' || !find.resource || !delta[find.playerId]) continue;
-    delta[find.playerId]![find.resource] -= 1;
-    for (const r of RESOURCES) delta[find.playerId]![r] += 1 / RESOURCES.length;
-  }
   for (const p of state.players) for (const r of RESOURCES) next.likely[p.id]![r] += delta[p.id]![r];
   for (const steal of steals) {
     if (steal.kind !== 'steal' || !steal.resource || steal.resource === 'discovery') continue;

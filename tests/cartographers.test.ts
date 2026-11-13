@@ -18,6 +18,7 @@ import {
   openSeaEdges,
   seaLobby,
   seeded,
+  shipsToOpenSea,
   TEST_NOW,
 } from './fixtures';
 
@@ -63,7 +64,7 @@ describe('lodestone', () => {
     const g = building();
     const lode = hexOf(g, 'lodestone');
     g.buildings[lode.vertexIds[0]!] = { playerId: 'p1', kind: 'city' };
-    expect(produce(g, 5).gains.p1?.lodestone).toBe(2);
+    expect(produce(g, 5).p1?.lodestone).toBe(2);
   });
 
   it('random harbors draw lodestone only on Cartographers maps', () => {
@@ -85,7 +86,6 @@ describe('lodestone', () => {
     expect(up.bank.lodestone).toBe(0);
     expect(up.relays).toEqual([]);
     expect(up.surveys).toEqual([]);
-    expect(up.surveyTargets).toEqual({});
     expect(up.pendingSplit).toEqual({});
     expect(up).not.toHaveProperty('pendingCharts');
     expect(up.settings.chartSpecial).toBe(false);
@@ -126,14 +126,14 @@ describe('relay stations', () => {
 
   it('pay one card from each tile beside them, even with the robber on it', () => {
     const { g, relay } = withRoadToRelay();
-    const before = produce(structuredClone(g), 5).gains.p0?.lodestone ?? 0;
+    const before = produce(structuredClone(g), 5).p0?.lodestone ?? 0;
     g.roads[relay.id] = 'p0';
     g.relays = [relay.id];
-    expect((produce(structuredClone(g), 5).gains.p0?.lodestone ?? 0) - before).toBe(1);
-    const wood = produce(structuredClone(g), 6).gains.p0?.wood ?? 0;
+    expect((produce(structuredClone(g), 5).p0?.lodestone ?? 0) - before).toBe(1);
+    const wood = produce(structuredClone(g), 6).p0?.wood ?? 0;
     g.robber = hexOf(g, 'lodestone').id;
     // The robber still keeps settlements and cities on the tile from collecting.
-    expect(produce(structuredClone(g), 5).gains.p0?.lodestone ?? 0).toBe(1);
+    expect(produce(structuredClone(g), 5).p0?.lodestone ?? 0).toBe(1);
     expect(wood).toBeGreaterThanOrEqual(1);
   });
 
@@ -148,18 +148,17 @@ describe('relay stations', () => {
 });
 
 describe('survey ships', () => {
-  it('upgrade your ship out at sea for 2 lodestone and 1 ore, score a point, and stay put', () => {
+  it('upgrade your ship out at sea for 3 lodestone and 1 ore, score a point, and stay put', () => {
     const g = building();
-    const [edgeId] = seaEdges(g);
-    g.ships[edgeId!] = 'p0';
+    const { edgeId, town, path } = shipsToOpenSea(g, 'p0');
     grant(g, 'p0', { lodestone: 2, ore: 1 });
-    expect(getView(g, 'p0').legal.surveys).toEqual([edgeId]);
-    const hexId = hexOf(g, 'wheat').id;
-    const next = act(g, 'p0', { type: 'build-survey', edgeId: edgeId!, hexId });
+    expect(getView(g, 'p0').legal.surveys).toEqual([]);
+    grant(g, 'p0', { lodestone: 1 });
+    expect(getView(g, 'p0').legal.surveys).toContain(edgeId);
+    const next = act(g, 'p0', { type: 'build-survey', edgeId, vertexId: town });
     expect(next.surveys).toEqual([edgeId]);
-    expect(next.surveyTargets).toEqual({ [edgeId!]: hexId });
     expect(victoryPoints(next, 'p0')).toBe(victoryPoints(g, 'p0') + 1);
-    expect(pieceCounts(next, 'p0')).toMatchObject({ ships: 0, surveys: 1 });
+    expect(pieceCounts(next, 'p0')).toMatchObject({ ships: path.length - 1, surveys: 1 });
     expect(getView(next, 'p0').legal.shipMoves[edgeId!]).toBeUndefined();
     expect(conserved(next)).toBe(true);
   });
@@ -167,31 +166,37 @@ describe('survey ships', () => {
   it('no two survey ships, anyone’s, border the same tile', () => {
     const g = building();
     const index = boardIndex(g.board);
-    const [first, ...rest] = seaEdges(g);
-    const tiles = index.edgeHexes.get(first!)!;
-    const near = rest.find(id => index.edgeHexes.get(id)!.some(h => tiles.includes(h)))!;
-    const far = rest.find(id => !index.edgeHexes.get(id)!.some(h => tiles.includes(h)))!;
-    g.ships[first!] = 'p1';
-    g.surveys = [first!];
-    g.ships[near] = 'p0';
-    g.ships[far] = 'p0';
-    grant(g, 'p0', { lodestone: 2, ore: 1 });
-    expect(getView(g, 'p0').legal.surveys).toEqual([far]);
+    const { edgeId } = shipsToOpenSea(g, 'p0');
+    grant(g, 'p0', { lodestone: 3, ore: 1 });
+    expect(getView(g, 'p0').legal.surveys).toContain(edgeId);
+    const tiles = index.edgeHexes.get(edgeId)!;
+    const near = seaEdges(g).find(id => id !== edgeId && index.edgeHexes.get(id)!.some(h => tiles.includes(h)))!;
+    g.ships[near] = 'p1';
+    g.surveys = [near];
+    expect(getView(g, 'p0').legal.surveys).not.toContain(edgeId);
   });
 });
 
 describe('charting', () => {
-  it('steps one number at a time toward 7, then adds a 2 or 12, up to three numbers', () => {
-    expect(chartedNumbers([5], true)).toEqual([6]);
-    expect(chartedNumbers([12], true)).toEqual([11]);
-    expect(chartedNumbers([9], false)).toEqual([8]);
-    expect(chartedNumbers([6], true)).toEqual([6, 2]);
-    expect(chartedNumbers([6], false)).toEqual([6, 12]);
-    expect(chartedNumbers([6, 2], true)).toEqual([6, 3]);
-    expect(chartedNumbers([8, 12], true)).toEqual([8, 11]);
-    expect(chartedNumbers([6, 5], true)).toEqual([6, 6]);
-    expect(chartedNumbers([6, 8], false)).toEqual([6, 8, 12]);
-    expect(chartedNumbers([6, 6, 8], true)).toBeNull();
+  it('steps toward 7; a 6 adds a 2 and an 8 a 12, stopping at 5/9 then 4/10', () => {
+    expect(chartedNumbers([5])).toEqual([6]);
+    expect(chartedNumbers([12])).toEqual([11]);
+    expect(chartedNumbers([9])).toEqual([8]);
+    expect(chartedNumbers([6])).toEqual([6, 2]);
+    expect(chartedNumbers([8])).toEqual([8, 12]);
+    expect(chartedNumbers([6, 2])).toEqual([6, 3]);
+    expect(chartedNumbers([8, 12])).toEqual([8, 11]);
+    expect(chartedNumbers([6, 4])).toEqual([6, 5]);
+    expect(chartedNumbers([6, 5])).toEqual([6, 5, 2]);
+    expect(chartedNumbers([8, 9])).toEqual([8, 9, 12]);
+    expect(chartedNumbers([6, 5, 3])).toEqual([6, 5, 4]);
+    expect(chartedNumbers([6, 5, 4])).toBeNull();
+    expect(chartedNumbers([8, 9, 10])).toBeNull();
+    // Charting from a 2 all the way: the tile never repeats a number.
+    let tile: number[] | null = [2];
+    let last: number[] = [];
+    while (tile) [last, tile] = [tile, chartedNumbers(tile)];
+    expect(last).toEqual([6, 5, 4]);
   });
 
   it('a tile pays once per matching number, so 6-6 pays twice and 6-8 pays on both', () => {
@@ -199,9 +204,9 @@ describe('charting', () => {
     const wood = hexOf(g, 'wood');
     g.buildings[wood.vertexIds[0]!] = { playerId: 'p1', kind: 'settlement' };
     wood.extra = [6];
-    expect(produce(structuredClone(g), 6).gains.p1?.wood).toBe(2);
+    expect(produce(structuredClone(g), 6).p1?.wood).toBe(2);
     wood.extra = [8];
-    expect(produce(structuredClone(g), 8).gains.p1?.wood).toBe(1);
+    expect(produce(structuredClone(g), 8).p1?.wood).toBe(1);
   });
 
   it('a room can keep gold fields and volcanoes from being charted', () => {

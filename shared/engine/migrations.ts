@@ -176,6 +176,12 @@ const MIGRATIONS: Migration[] = [
     s.surveyTargets ??= {};
     s.pendingSplit ??= {};
   },
+  // 18 → 19: survey ships chart the tiles around their nearest town when fitted out instead of
+  // collecting from a target; old targets stop paying, and their private fog finds leave the log.
+  s => {
+    delete s.surveyTargets;
+    for (const entry of s.log ?? []) if (entry.event?.kind === 'survey-find') delete entry.event;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

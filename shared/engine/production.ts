@@ -15,29 +15,20 @@ import {
   tally,
 } from './core';
 
-/** A card a survey ship collected from a fog tile: logged for everyone, but only its owner learns which. */
-export interface SurveyFind {
-  playerId: string;
-  hexId: string;
-  resource: Resource;
-}
-
 /**
  * Pay out a roll. Resource tiles pay cards (if the bank can't cover everyone owed a resource,
  * nobody gets it unless only one player is owed). Gold fields, volcanoes, and split tiles leave
  * each owner a choice (state.pendingGold, state.pendingSplit); jungles pay discoveries. Relay
- * stations collect even under the robber; survey ships collect from their target tile, and a
- * target still under fog pays its owner in secret (`finds`).
+ * stations collect even under the robber.
  */
-export function produce(state: GameState, total: number): { gains: Record<string, ResourceBag>; finds: SurveyFind[] } {
+export function produce(state: GameState, total: number): Record<string, ResourceBag> {
   const demand = new Map<string, ResourceBag>(state.players.map(player => [player.id, emptyBag()]));
   const choices: Record<string, number> = {};
   const splits: Record<string, SplitChoice[]> = {};
   const discoveries: Record<string, number> = {};
   const relays = relaysByHex(state);
-  const targets = targetsByHex(state);
   for (const hex of state.board.hexes) {
-    // A charted tile pays once per matching number (a 6 charted to 6-6 pays twice).
+    // A charted tile pays once per matching number (charts keep them apart, but older games may repeat one).
     const times = hexNumbers(hex).filter(n => n === total).length;
     if (!times) continue;
     const robbed = hex.id === state.robber;
@@ -49,7 +40,6 @@ export function produce(state: GameState, total: number): { gains: Record<string
       ...(robbed ? [] : hex.vertexIds.flatMap(id => buildingShare(state, id))),
       // Each relay station on the tile's sides earns one, like a settlement, robber or not.
       ...(relays.get(hex.id) ?? []).map(owner => [owner, 1] as [string, number]),
-      ...(robbed ? [] : (targets.get(hex.id) ?? []).map(owner => [owner, 1] as [string, number])),
     ];
     for (const [playerId, each] of owed) {
       const amount = each * times;
@@ -78,7 +68,6 @@ export function produce(state: GameState, total: number): { gains: Record<string
     tally(state, id, 'cardsIn', 'roll', resourceCount(bag));
     for (const resource of RESOURCES) tally(state, id, 'produced', resource, bag[resource]);
   }
-  const finds = fogFinds(state, total, choices, discoveries);
   state.pendingGold = {};
   state.pendingSplit = {};
   for (const [id, count] of Object.entries(choices)) {
@@ -98,7 +87,7 @@ export function produce(state: GameState, total: number): { gains: Record<string
     player.discoveries += count;
     addLog(state, `${player.name} made ${count === 1 ? 'a discovery' : `${count} discoveries`} in the jungle.`);
   }
-  return { gains, finds };
+  return gains;
 }
 
 /** What a settlement (1) or city (2) on this corner earns, and for whom. */
@@ -123,47 +112,6 @@ function relaysByHex(state: GameState): Map<string, string[]> {
     for (const hex of index.edgeHexes.get(edgeId)!)
       byHex.set(hex.id, [...(byHex.get(hex.id) ?? []), state.roads[edgeId]!]);
   return byHex;
-}
-
-/** Owners of the survey ships targeting each tile. */
-function targetsByHex(state: GameState): Map<string, string[]> {
-  const byHex = new Map<string, string[]>();
-  for (const edgeId of state.surveys) {
-    const hexId = state.surveyTargets[edgeId];
-    const owner = state.ships[edgeId];
-    if (hexId && owner) byHex.set(hexId, [...(byHex.get(hexId) ?? []), owner]);
-  }
-  return byHex;
-}
-
-/**
- * Survey ships whose target is still under fog: a resource goes straight to the owner's hand (when
- * the bank has one), gold or a paying volcano adds a pick, a jungle a discovery.
- */
-function fogFinds(
-  state: GameState,
-  total: number,
-  choices: Record<string, number>,
-  discoveries: Record<string, number>,
-): SurveyFind[] {
-  const finds: SurveyFind[] = [];
-  for (const edgeId of state.surveys) {
-    const hexId = state.surveyTargets[edgeId];
-    const hidden = hexId ? state.fog[hexId] : undefined;
-    const playerId = state.ships[edgeId];
-    if (!hexId || !hidden || !playerId || hidden.number !== total) continue;
-    const resource = terrainResource(hidden.terrain);
-    if (resource && state.bank[resource] > 0) {
-      state.bank[resource]--;
-      state.players.find(p => p.id === playerId)!.resources[resource]++;
-      tally(state, playerId, 'cardsIn', 'roll');
-      tally(state, playerId, 'produced', resource);
-      finds.push({ playerId, hexId, resource });
-    } else if (hidden.terrain === 'gold' || (hidden.terrain === 'volcano' && state.settings.volcanoGold !== false))
-      choices[playerId] = (choices[playerId] ?? 0) + 1;
-    else if (hidden.terrain === 'jungle') discoveries[playerId] = (discoveries[playerId] ?? 0) + 1;
-  }
-  return finds;
 }
 
 /** Count the cards a robber on this resource hex kept from its buildings. */
@@ -314,10 +262,9 @@ export function sinkShip(state: GameState, edgeId: string): void {
   dropSunkSurveys(state);
 }
 
-/** A sunk survey ship is gone with its ship, and so is its target. */
+/** A sunk survey ship is gone with its ship. */
 function dropSunkSurveys(state: GameState): void {
   state.surveys = state.surveys.filter(id => state.ships[id]);
-  for (const id of Object.keys(state.surveyTargets)) if (!state.ships[id]) delete state.surveyTargets[id];
 }
 
 /** A player's ships no longer joined along their route to one of their settlements or cities. */

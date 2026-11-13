@@ -2,9 +2,8 @@ import { expect, test } from '@playwright/test';
 import { getView } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { hexNumbers } from '../shared/rules';
-import { boardIndex } from '../shared/seafaring';
 import type { GameState } from '../shared/types';
-import { grant, seaSettled } from './fixtures';
+import { grant, seaSettled, shipsToOpenSea } from './fixtures';
 import { expectNoSpill, mountGame } from './ui-harness';
 
 const COMPASS_SEA = BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!;
@@ -18,17 +17,6 @@ function game(): GameState {
   g.turnDeadline = Date.now() + 120_000;
   grant(g, 'p0', { lodestone: 6, wood: 2, sheep: 2, wheat: 1, ore: 2 });
   return g;
-}
-
-/** Open sea edges (sea on both sides, away from the pirate). */
-function seaEdges(g: GameState): string[] {
-  const index = boardIndex(g.board);
-  return g.board.edges
-    .filter(e => {
-      const hexes = index.edgeHexes.get(e.id)!;
-      return hexes.length === 2 && hexes.every(h => h.terrain === 'sea' && h.id !== g.pirate);
-    })
-    .map(e => e.id);
 }
 
 test('a relay station is built from the bar and drawn on its road', async ({ page }) => {
@@ -45,28 +33,29 @@ test('a relay station is built from the bar and drawn on its road', async ({ pag
   expect(room.errors).toEqual([]);
 });
 
-test('a survey ship is picked from the ship itself, then aimed at a tile in the corner panel', async ({ page }) => {
+test('a survey ship is picked from the ship itself, and its panel shows the charts it makes', async ({ page }) => {
   const initial = game();
-  const [edgeId] = seaEdges(initial);
-  initial.ships[edgeId!] = 'p0';
+  const { edgeId } = shipsToOpenSea(initial, 'p0');
   const room = await mountGame(page, initial);
   await page.getByRole('button', { name: 'Make a ship a survey ship', exact: true }).click();
   // The ship glows on the piece, not with an edge marker.
   await expect(page.locator('.board-ship-glow')).toHaveCount(1);
   await expect(page.locator('.board-road-target')).toHaveCount(0);
   await page.getByRole('button', { name: `Make the ship at ${edgeId} a survey ship` }).click();
-  await page
-    .getByRole('button', { name: /^Survey ship: Fields/ })
-    .first()
-    .click();
   const panel = page.getByRole('dialog', { name: 'Survey ship' });
-  await expect(panel).toContainText('2 lodestone + 1 ore');
+  await expect(panel).toContainText('3 lodestone + 1 ore');
+  await expect(panel).toContainText(/Settlement by/);
+  await expect(panel.locator('.tile-pick-change').filter({ hasText: '→' }).first()).toBeVisible();
+  await page.screenshot({ path: 'test-results/cartographers-survey.png' });
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(panel);
+    await panel.screenshot({ path: `test-results/cartographers-survey-panel-${width}.png` });
+  }
   await panel.getByRole('button', { name: 'Fit out' }).click();
   await expect(page.locator('.board-survey')).toHaveCount(1);
-  await expect(page.locator('.board-survey-target')).toHaveCount(1);
   expect(room.state().surveys).toEqual([edgeId]);
-  expect(Object.values(room.state().surveyTargets)).toHaveLength(1);
-  await page.screenshot({ path: 'test-results/cartographers-survey.png' });
+  expect(room.state().log.some(e => e.event?.kind === 'chart')).toBe(true);
   expect(room.errors).toEqual([]);
 });
 
@@ -78,7 +67,7 @@ test('charting a 6 from the build bar adds a second number beside the token', as
     .first()
     .click();
   const panel = page.getByRole('dialog', { name: 'Chart a tile' });
-  await expect(panel).toContainText('6 → 6, 2 or 6, 12');
+  await expect(panel).toContainText('6 → 6, 2');
   await panel.getByRole('button', { name: 'Chart', exact: true }).click();
   await expect.poll(() => room.state().board.hexes.filter(h => hexNumbers(h).length === 2)).toHaveLength(1);
   await expect(page.locator('.board-charts')).toHaveCount(1);
@@ -97,8 +86,10 @@ test('splitting a tile draws both halves, and its rolls ask for one of the two',
   await expect(panel.getByRole('button', { name: 'Split', exact: true })).toBeDisabled();
   // A grain tile can't add grain.
   await expect(panel.getByRole('button', { name: 'Add Grain' })).toHaveCount(0);
+  // Nor lodestone, on any tile.
+  await expect(panel.getByRole('button', { name: 'Add Lodestone' })).toHaveCount(0);
   await panel.getByRole('button', { name: 'Add Ore' }).click();
-  await expect(panel).toContainText('3 lodestone + 1 ore');
+  await expect(panel).toContainText('1 lodestone + 1 ore');
   await page.screenshot({ path: 'test-results/cartographers-split-panel.png' });
   await panel.getByRole('button', { name: 'Split', exact: true }).click();
   await expect(page.locator('.board-split-seam')).toHaveCount(1);
@@ -138,12 +129,11 @@ test('the tile panel never spills at any width', async ({ page }) => {
 
 test('relay, survey and peek start from a tap on the board, with no button first', async ({ page }) => {
   const initial = game();
-  const [edgeId] = seaEdges(initial);
-  initial.ships[edgeId!] = 'p0';
   initial.board = structuredClone(initial.board);
   const fogHex = initial.board.hexes.find(h => h.terrain === 'sea' && h.vertexIds.some(v => initial.buildings[v]))!;
   fogHex.terrain = 'fog';
   initial.fog[fogHex.id] = { terrain: 'wheat', number: 9 };
+  const { edgeId } = shipsToOpenSea(initial, 'p0');
   const legal = getView(initial, 'p0').legal;
   test.skip(!legal.relays.length || !legal.peekHexes.includes(fogHex.id), 'No relay or peek spot on this seed');
   const room = await mountGame(page, initial);
@@ -157,11 +147,9 @@ test('relay, survey and peek start from a tap on the board, with no button first
   await page.getByRole('button', { name: `Build relay station at ${legal.relays[0]}` }).click();
   await page.getByRole('button', { name: 'Confirm relay' }).click();
   await expect.poll(() => room.state().relays).toEqual([legal.relays[0]]);
-  room.update(g => grant(g, 'p0', { lodestone: 2, ore: 1 }));
+  room.update(g => grant(g, 'p0', { lodestone: 3, ore: 1 }));
   await page.getByRole('button', { name: `Make the ship at ${edgeId} a survey ship` }).click();
-  // The peeked fog tile can be its target: only p0 knows it hides wheat 9.
-  await page.getByRole('button', { name: 'Survey ship: Fog: Fields 9' }).click();
   await page.getByRole('dialog', { name: 'Survey ship' }).getByRole('button', { name: 'Fit out' }).click();
-  await expect.poll(() => room.state().surveyTargets).toEqual({ [edgeId!]: fogHex.id });
+  await expect.poll(() => room.state().surveys).toEqual([edgeId]);
   expect(room.errors).toEqual([]);
 });

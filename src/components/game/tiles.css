@@ -1,4 +1,4 @@
-/* The Cartographers tile panel (chart, split, survey target): one line naming the tile and what
+/* The Cartographers tile panel (chart, split, survey ship): one line naming the tile and what
    changes, then (for a split) the resource cards. Lives in the board corner like the trade panel. */
 .tile-pick {
   display: flex;
@@ -25,4 +25,31 @@
 }
 .tile-pick + .trade-palette {
   padding-bottom: 6px;
+}
+/* A survey ship tied between towns: one chip per town, the chosen one pressed. */
+.survey-towns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 2px 8px;
+}
+.survey-town {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border: 1px solid #c9b6dc;
+  border-radius: 16px;
+  background: #fff;
+  color: #3e2c52;
+  font-size: 13px;
+  font-weight: 700;
+}
+.survey-town[aria-pressed="true"] {
+  border-color: #6a4a8a;
+  background: #efe4f8;
 }

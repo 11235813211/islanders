@@ -233,7 +233,7 @@ export default function GameTable({
     else if (kind === 'ship') send({ type: setup ? 'place-ship' : 'build-ship', edgeId: id });
     else if (kind === 'relay') send({ type: 'build-relay', edgeId: id });
     else if (kind === 'survey')
-      return; // fitted out from TileTools, once its target is picked
+      return; // fitted out from the survey panel (TileTools)
     else
       send({
         type:

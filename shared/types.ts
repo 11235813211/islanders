@@ -209,11 +209,6 @@ export type GameEvent =
   | { kind: 'chart'; playerId: string; hexId: string; numbers: number[] }
   /** Someone split a tile: it now pays `resource` too. */
   | { kind: 'split'; playerId: string; hexId: string; resource: Resource }
-  /**
-   * A survey ship's target under the fog paid a card. Only its owner sees which (see getView);
-   * `resource` is null for everyone else.
-   */
-  | { kind: 'survey-find'; playerId: string; hexId: string; resource: Resource | null }
   /** A person's connection came or went (logged by the room, see logPresence). */
   | { kind: 'presence'; playerId: string; online: boolean }
   /** A person ran out of time and the game made a forced choice for them (see engine/time.ts). */
@@ -400,8 +395,6 @@ export interface GameState {
   /** Cartographers: edges in `roads` that hold relay stations, and in `ships` that hold survey ships. */
   relays: string[];
   surveys: string[];
-  /** Each survey ship's target tile (survey ship edge → hex id), set when it is fitted out. */
-  surveyTargets: Record<string, string>;
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -478,12 +471,13 @@ export interface LegalMoves {
   robberHexes: string[];
   stealTargets: string[];
   /**
-   * Cartographers: edges for a relay station, ships that may become survey ships and the tiles
-   * one may target, and tiles you can chart or split now.
+   * Cartographers: edges for a relay station, ships that may become survey ships (and, for each,
+   * the nearest of your settlements and cities along your route, several when tied), and tiles you
+   * can chart or split now.
    */
   relays: string[];
   surveys: string[];
-  surveyTargets: string[];
+  surveyTowns: Record<string, string[]>;
   chartHexes: string[];
   splitHexes: string[];
   /** Fog tiles you may pay a lodestone to peek at. */
@@ -526,7 +520,6 @@ export interface GameView {
   ships: Record<string, string>;
   relays: string[];
   surveys: string[];
-  surveyTargets: Record<string, string>;
   /** Cartographers rules are in play: lodestone, relay stations, survey ships, charts, and splits. */
   cartographers: boolean;
   /** Fog tiles you peeked at, and what each hides. Only ever your own (all of them once the game ends). */
@@ -623,8 +616,8 @@ export type GameAction =
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
   | { type: 'build-relay'; edgeId: string }
-  /** Turn one of your ships into a survey ship that collects from `hexId` from then on. */
-  | { type: 'build-survey'; edgeId: string; hexId: string }
+  /** Turn one of your ships into a survey ship; it charts the tiles around `vertexId`, the nearest town on its route. */
+  | { type: 'build-survey'; edgeId: string; vertexId: string }
   /** Cartographers: pay a lodestone to see what a fog tile hides (only you see it). */
   | { type: 'peek-fog'; hexId: string }
   /** Cartographers: pay lodestone to step a tile's number toward 7. */

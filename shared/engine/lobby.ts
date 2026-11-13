@@ -89,7 +89,6 @@ export function createGame(
     ships: {},
     relays: [],
     surveys: [],
-    surveyTargets: {},
     robber,
     pirate,
     stealHex: null,

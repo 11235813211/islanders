@@ -63,7 +63,7 @@ const SPEC = {
   'build-settlement': { vertexId: 'id' },
   'build-city': { vertexId: 'id' },
   'build-relay': { edgeId: 'id' },
-  'build-survey': { edgeId: 'id', hexId: 'id' },
+  'build-survey': { edgeId: 'id', vertexId: 'id' },
   'peek-fog': { hexId: 'id' },
   'chart-hex': { hexId: 'id' },
   'split-hex': { hexId: 'id', resource: 'resource' },

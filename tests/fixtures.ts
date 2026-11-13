@@ -178,3 +178,48 @@ export function openSeaEdges(game: GameState): string[] {
     })
     .map(e => e.id);
 }
+
+/**
+ * A settlement for `playerId` on a free coast corner and the shortest line of its ships out to an
+ * open sea edge (where a survey ship can go), at least `length` ships long. `town` is the
+ * settlement, `edgeId` the last ship.
+ */
+export function shipsToOpenSea(game: GameState, playerId: string, length = 1) {
+  const index = boardIndex(game.board);
+  const open = new Set(openSeaEdges(game));
+  const coast = game.board.vertices.filter(
+    v =>
+      !game.buildings[v.id] &&
+      v.hexIds.some(id => index.hex.get(id)!.terrain !== 'sea') &&
+      v.hexIds.some(id => index.hex.get(id)!.terrain === 'sea'),
+  );
+  let best: { town: string; path: string[] } | null = null;
+  for (const start of coast) {
+    const from = new Map<string, { vertex: string; edge: string }>();
+    const queue = [start.id];
+    const seen = new Set(queue);
+    while (queue.length) {
+      const vertex = queue.shift()!;
+      for (const id of index.vertex.get(vertex)!.edgeIds) {
+        const edge = index.edge.get(id)!;
+        if (!index.edgeHexes.get(id)!.some(h => h.terrain === 'sea') || game.ships[id] || game.roads[id]) continue;
+        const path = [id];
+        for (let v = vertex; from.has(v); v = from.get(v)!.vertex) path.unshift(from.get(v)!.edge);
+        if (open.has(id) && path.length >= length) {
+          if (!best || path.length < best.path.length) best = { town: start.id, path };
+          queue.length = 0;
+          break;
+        }
+        const to = edge.a === vertex ? edge.b : edge.a;
+        if (seen.has(to)) continue;
+        seen.add(to);
+        from.set(to, { vertex, edge: id });
+        queue.push(to);
+      }
+    }
+  }
+  const { town, path } = best!;
+  game.buildings[town] = { playerId, kind: 'settlement' };
+  for (const id of path) game.ships[id] = playerId;
+  return { town, edgeId: path.at(-1)!, path };
+}

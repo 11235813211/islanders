@@ -151,16 +151,19 @@ export function hexNumbers(hex: Pick<Hex, 'number' | 'extra'>): number[] {
 /** A tile holds at most this many numbers. */
 export const MAX_HEX_NUMBERS = 3;
 
+/** How close to 7 a tile's nth number (0-based) may get: the first stops at 6/8, the second 5/9, the third 4/10. */
+const chartLimit = (index: number) => index + 1;
+
 /**
- * One chart: the first number that isn't a 6 or 8 moves one step toward 7 (5 → 6, 12 → 11);
- * when all are 6 or 8 a new number joins, a 2 or a 12 at random (`low` picks the 2).
- * Null when the tile is full (three numbers, all 6 or 8).
+ * One chart: the first number not yet at its limit moves one step toward 7 (5 → 6, 12 → 11); when
+ * all are at their limits a new number joins on the first one's side (a 6 adds a 2, an 8 a 12).
+ * A fully charted tile reads 6, 5, 4 or 8, 9, 10. Null when the tile is full.
  */
-export function chartedNumbers(numbers: readonly number[], low: boolean): number[] | null {
-  const moving = numbers.findIndex(n => n !== 6 && n !== 8);
+export function chartedNumbers(numbers: readonly number[]): number[] | null {
+  const moving = numbers.findIndex((n, i) => Math.abs(n - 7) > chartLimit(i));
   if (moving >= 0) return numbers.map((n, i) => (i !== moving ? n : n < 7 ? n + 1 : n - 1));
   if (!numbers.length || numbers.length >= MAX_HEX_NUMBERS) return null;
-  return [...numbers, low ? 2 : 12];
+  return [...numbers, numbers[0]! < 7 ? 2 : 12];
 }
 
 /** Has this recipient answered the offer (yes, no, or a counter)? */

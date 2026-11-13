@@ -1,3 +1,4 @@
+import { BUILD_COSTS } from '../../../shared/engine';
 import type { GameView } from '../../../shared/types';
 import type { HelpSection } from './helpContent';
 
@@ -146,9 +147,8 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Survey ships',
       lines: [
-        'Cost: 2 lodestone, 1 ore. Upgrades one of your ships with water on both sides. 4 each. 1 point.',
-        'When you fit it out, pick a target: any tile with a number, or a fog tile you peeked at. It can’t be changed later.',
-        'Whenever the target’s number rolls, you get 1 card from it (the robber blocks it). From a fog tile only you see which card.',
+        `Cost: ${BUILD_COSTS.survey.lodestone} lodestone, 1 ore. Upgrades one of your ships with water on both sides. 4 each. 1 point.`,
+        'When you fit it out, it charts once every tile around your nearest settlement or city along your roads and ships. If two are equally near, you pick.',
         'It can’t move afterward and still counts in your trade route. The pirate blocks upgrading a ship beside it.',
         'No two survey ships (anyone’s) may border the same tile.',
       ],
@@ -157,9 +157,9 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Charting',
       lines: [
-        'On your turn after the roll, pay 2 lodestone to chart any tile with a number.',
-        'A charted number steps toward 7 (5 becomes 6, 12 becomes 11). A 6 or 8 gains a 2 or 12 at random, which steps the same way later.',
-        'A tile holds up to 3 numbers and pays once for each that rolls.',
+        `On your turn after the roll, pay ${BUILD_COSTS.chart.lodestone} lodestone to chart any tile with a number.`,
+        'A charted number steps toward 7 (5 becomes 6, 12 becomes 11). Once it is a 6, the tile gains a 2; once an 8, a 12.',
+        'A second number stops at 5 or 9 and a third at 4 or 10, so a fully charted tile pays on 6, 5, 4 or 8, 9, 10.',
         view.settings.chartSpecial
           ? 'In this room gold fields and volcanoes can be charted too.'
           : 'Gold fields and volcanoes can’t be charted in this room.',
@@ -169,8 +169,8 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Splitting a tile',
       lines: [
-        'On your turn after the roll, pay 3 lodestone and 1 card of another resource to split a resource tile. It then pays either one.',
-        'Everyone who collects from it (settlements, cities, relay stations, survey targets) picks which, card by card, like gold. Players who build there later pick too.',
+        `On your turn after the roll, pay ${BUILD_COSTS.split.lodestone} lodestone and 1 card of another resource (not lodestone) to split a resource tile. It then pays either one.`,
+        'Everyone who collects from it (settlements, cities, relay stations) picks which, card by card, like gold. Players who build there later pick too.',
         'A tile can be split once.',
       ],
     },

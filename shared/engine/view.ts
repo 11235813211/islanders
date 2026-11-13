@@ -107,7 +107,6 @@ export function getView(state: GameState, selfId: string): GameView {
     ships: state.ships,
     relays: state.relays,
     surveys: state.surveys,
-    surveyTargets: state.surveyTargets,
     cartographers: cartographersRules(state),
     // Once the game is over, every fog tile shows what it hid.
     fogPeeks: Object.fromEntries(
@@ -145,13 +144,10 @@ export function getView(state: GameState, selfId: string): GameView {
     specialAsked: state.specialAsked,
     features: mapFeatures(state),
     winnerId: state.winnerId,
-    // Only the thief and the victim learn which card was stolen, and only a survey ship's owner
-    // what it found under the fog (until the game ends).
+    // Only the thief and the victim learn which card was stolen.
     log: state.log.map(entry => {
       const event = entry.event;
       if (event?.kind === 'steal' && event.thiefId !== selfId && event.victimId !== selfId)
-        return { ...entry, event: { ...event, resource: null } };
-      if (event?.kind === 'survey-find' && event.playerId !== selfId && !finished)
         return { ...entry, event: { ...event, resource: null } };
       return entry;
     }),

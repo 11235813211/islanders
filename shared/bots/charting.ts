@@ -1,19 +1,19 @@
 import { type ChoiceGroup, choiceGroups, fillChoice } from '../choices';
-import { affordsSplit } from '../engine/legal';
+import { affordsSplit, chartHexes } from '../engine/legal';
 import { chartedNumbers, hexNumbers } from '../rules';
 import { boardIndex, terrainResource } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 
 /**
  * Cartographers tile moves for every bot level, kept cheap: chart or split the tile that pays the
- * bot most, aim a survey ship at its best target, and pick from split tiles by need.
+ * bot most, send a survey ship's charts to its best tied town, and pick from split tiles by need.
  */
 
 /** Dots on a number token: how many of the 36 rolls hit it. */
 const dots = (n: number) => 6 - Math.abs(7 - n);
 export const tileDots = (numbers: number[]) => numbers.reduce((sum, n) => sum + dots(n), 0);
 
-/** How much of a tile's payout goes to this seat: 1 per settlement, relay station, or survey target, 2 per city. */
+/** How much of a tile's payout goes to this seat: 1 per settlement or relay station, 2 per city. */
 export function share(view: GameView, hex: Hex): number {
   const index = boardIndex(view.board);
   let owned = 0;
@@ -23,7 +23,6 @@ export function share(view: GameView, hex: Hex): number {
   }
   for (const id of view.relays)
     if (view.roads[id] === view.selfId && index.edgeHexes.get(id)!.some(h => h.id === hex.id)) owned++;
-  for (const id of view.surveys) if (view.ships[id] === view.selfId && view.surveyTargets[id] === hex.id) owned++;
   return owned;
 }
 
@@ -37,15 +36,18 @@ function income(view: GameView): ResourceBag {
   return bag;
 }
 
-/** A chart on the tile it gains most from, when that gain is worth two lodestone (at least 2 dots). */
+/** Dots this seat gains from one chart step on a tile. */
+function chartGain(view: GameView, hex: Hex): number {
+  const now = hexNumbers(hex);
+  return (tileDots(chartedNumbers(now) ?? now) - tileDots(now)) * share(view, hex);
+}
+
+/** A chart on the tile it gains most from, when that gain is worth the lodestone (at least 2 dots). */
 export function chartMove(view: GameView): GameAction | null {
   const index = boardIndex(view.board);
   let best: { hexId: string; gain: number } | null = null;
   for (const hexId of view.legal.chartHexes) {
-    const hex = index.hex.get(hexId)!;
-    const now = hexNumbers(hex);
-    // A new number is a 2 or a 12 either way, so `low` doesn't change the gain.
-    const gain = (tileDots(chartedNumbers(now, true) ?? now) - tileDots(now)) * share(view, hex);
+    const gain = chartGain(view, index.hex.get(hexId)!);
     if (gain >= 2 && (!best || gain > best.gain)) best = { hexId, gain };
   }
   return best ? { type: 'chart-hex', hexId: best.hexId } : null;
@@ -68,19 +70,16 @@ export function splitMove(view: GameView): GameAction | null {
   return resource ? { type: 'split-hex', hexId: tile.hex.id, resource } : null;
 }
 
-/** The target a new survey ship collects from: most dots, then the resource this seat earns least of. */
-export function surveyTarget(view: GameView): string | null {
+/** Of the towns tied nearest a survey ship, the one whose tiles this seat gains most from charting. */
+export function surveyTown(view: GameView, edgeId: string): string | null {
   const index = boardIndex(view.board);
-  const earns = income(view);
-  const value = (hexId: string) => {
-    const hex = index.hex.get(hexId)!;
-    const peek = view.fogPeeks[hexId];
-    const numbers = peek ? (peek.number === null ? [] : [peek.number]) : hexNumbers(hex);
-    const resource = terrainResource(peek ? peek.terrain : hex.terrain);
-    const robbed = hexId === view.robber ? 0.5 : 1;
-    return (tileDots(numbers) - (resource ? earns[resource] / 100 : 0)) * robbed;
-  };
-  return [...view.legal.surveyTargets].sort((a, b) => value(b) - value(a))[0] ?? null;
+  const chartable = new Set(view.legal.chartHexes.length ? view.legal.chartHexes : chartHexes(view));
+  const value = (vertexId: string) =>
+    index.vertex
+      .get(vertexId)!
+      .hexIds.filter(id => chartable.has(id))
+      .reduce((sum, id) => sum + chartGain(view, index.hex.get(id)!), 0);
+  return [...(view.legal.surveyTowns[edgeId] ?? [])].sort((a, b) => value(b) - value(a))[0] ?? null;
 }
 
 /**

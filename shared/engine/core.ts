@@ -101,13 +101,13 @@ export const BUILD_COSTS: Record<
   city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
   development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
   relay: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 1 },
-  survey: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 2 },
+  survey: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 3 },
   /** Cartographers: a look under one fog tile, for your eyes only. */
   peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
   /** Cartographers: one step toward 7 on any tile. */
-  chart: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 2 },
+  chart: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
   /** Cartographers: the lodestone for a split; one card of the resource being added is paid too. */
-  split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 3 },
+  split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
 };
 export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
 

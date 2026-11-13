@@ -2,9 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { chooseBotAction } from '../shared/bots';
 import { choiceFits, choiceGroups, choiceLimit } from '../shared/choices';
 import { advanceTime, createGame, getView, normalizeGame } from '../shared/engine';
-import { hexNumbers } from '../shared/rules';
+import { chartHexes } from '../shared/engine/legal';
+import { chartedNumbers, hexNumbers } from '../shared/rules';
+import { boardIndex } from '../shared/seafaring';
 import type { GameState, Resource, ResourceBag } from '../shared/types';
-import { act, cartographersGame, conserved, grant, hexOf, openSeaEdges, seeded, sequence, TEST_NOW } from './fixtures';
+import {
+  act,
+  cartographersGame,
+  conserved,
+  grant,
+  hexOf,
+  seeded,
+  sequence,
+  shipsToOpenSea,
+  TEST_NOW,
+} from './fixtures';
 
 const bag = (cards: Partial<ResourceBag>): ResourceBag => ({
   wood: 0,
@@ -38,7 +50,7 @@ describe('choices from gold and split tiles', () => {
 });
 
 describe('charting on your turn', () => {
-  it('costs 2 lodestone and steps the number toward 7; a 6 or 8 gains a 2 or 12 at random', () => {
+  it('costs 1 lodestone and steps the number toward 7; a 6 then gains a 2', () => {
     const g = cartographersGame();
     const lode = hexOf(g, 'lodestone');
     expect(getView(g, 'p0').legal.chartHexes).toEqual([]);
@@ -46,10 +58,10 @@ describe('charting on your turn', () => {
     expect(getView(g, 'p0').legal.chartHexes).toContain(lode.id);
     const once = act(g, 'p0', { type: 'chart-hex', hexId: lode.id });
     expect(hexNumbers(once.board.hexes.find(h => h.id === lode.id)!)).toEqual([6]);
-    expect(once.players[0]!.resources.lodestone).toBe(2);
-    const twice = act(once, 'p0', { type: 'chart-hex', hexId: lode.id }, sequence(0.9));
-    expect(hexNumbers(twice.board.hexes.find(h => h.id === lode.id)!)).toEqual([6, 12]);
-    expect(twice.log.at(-1)?.event).toMatchObject({ kind: 'chart', playerId: 'p0', numbers: [6, 12] });
+    expect(once.players[0]!.resources.lodestone).toBe(3);
+    const twice = act(once, 'p0', { type: 'chart-hex', hexId: lode.id });
+    expect(hexNumbers(twice.board.hexes.find(h => h.id === lode.id)!)).toEqual([6, 2]);
+    expect(twice.log.at(-1)?.event).toMatchObject({ kind: 'chart', playerId: 'p0', numbers: [6, 2] });
     // The board isn't part of an undo, so a chart can't be taken back.
     expect(twice.undo).toBeNull();
     expect(conserved(twice)).toBe(true);
@@ -70,16 +82,17 @@ describe('split tiles', () => {
     const g = cartographersGame();
     const wheat = hexOf(g, 'wheat');
     g.buildings[wheat.vertexIds[0]!] = { playerId: 'p0', kind: 'settlement' };
-    grant(g, 'p0', { lodestone: 3, [resource]: 1 });
+    grant(g, 'p0', { lodestone: 1, [resource]: 1 });
     return { g: act(g, 'p0', { type: 'split-hex', hexId: wheat.id, resource }), wheat };
   }
 
-  it('cost 3 lodestone and one card of the resource added, once per tile, never its own resource', () => {
+  it('cost 1 lodestone and one card of the resource added, once per tile, never its own or lodestone', () => {
     const g = cartographersGame();
     const wheat = hexOf(g, 'wheat');
-    grant(g, 'p0', { lodestone: 6, wheat: 1, ore: 2 });
+    grant(g, 'p0', { lodestone: 4, wheat: 1, ore: 2 });
     expect(getView(g, 'p0').legal.splitHexes).toContain(wheat.id);
     expect(() => act(g, 'p0', { type: 'split-hex', hexId: wheat.id, resource: 'wheat' })).toThrow(/different/);
+    expect(() => act(g, 'p0', { type: 'split-hex', hexId: wheat.id, resource: 'lodestone' })).toThrow(/lodestone/);
     const next = act(g, 'p0', { type: 'split-hex', hexId: wheat.id, resource: 'ore' });
     expect(next.board.hexes.find(h => h.id === wheat.id)!.split).toBe('ore');
     expect(next.players[0]!.resources).toMatchObject({ lodestone: 3, ore: 1, wheat: 1 });
@@ -126,46 +139,52 @@ describe('split tiles', () => {
   });
 });
 
-describe('survey targets', () => {
-  /** p0 with a ship out at sea and the cards to fit it out. */
-  function withShip() {
+describe('survey ships chart', () => {
+  /** p0 with a settlement, ships out to open sea, and the cards to fit the last one out. */
+  function withShip(length = 1) {
     const g = cartographersGame();
-    const [edgeId] = openSeaEdges(g);
-    g.ships[edgeId!] = 'p0';
-    grant(g, 'p0', { lodestone: 2, ore: 1 });
-    return { g, edgeId: edgeId! };
+    const route = shipsToOpenSea(g, 'p0', length);
+    grant(g, 'p0', { lodestone: 3, ore: 1 });
+    return { g, ...route };
   }
+  const numbers = (g: GameState, id: string) => hexNumbers(g.board.hexes.find(h => h.id === id)!);
 
-  it('pay one card from the target when its number rolls; the robber blocks it', () => {
-    const { g, edgeId } = withShip();
-    const wheat = hexOf(g, 'wheat');
-    const next = act(g, 'p0', { type: 'build-survey', edgeId, hexId: wheat.id });
-    const rolled = roll(next, 4, 4);
-    expect(rolled.players[0]!.resources.wheat).toBe(next.players[0]!.resources.wheat + 1);
-    const robbed = roll({ ...next, robber: wheat.id }, 4, 4);
-    expect(robbed.players[0]!.resources.wheat).toBe(next.players[0]!.resources.wheat);
+  it('every tile around the nearest town, once, when fitted out', () => {
+    const { g, town, edgeId } = withShip();
+    expect(getView(g, 'p0').legal.surveyTowns).toEqual({ [edgeId]: [town] });
+    const chartable = new Set(chartHexes(g));
+    const around = boardIndex(g.board)
+      .vertex.get(town)!
+      .hexIds.filter(id => chartable.has(id));
+    expect(around.length).toBeGreaterThan(0);
+    const next = act(g, 'p0', { type: 'build-survey', edgeId, vertexId: town });
+    for (const id of around) expect(numbers(next, id)).toEqual(chartedNumbers(numbers(g, id)));
+    const charts = next.log.filter(e => e.event?.kind === 'chart');
+    expect(charts).toHaveLength(around.length);
+    expect(next.players[0]!.resources).toMatchObject({ lodestone: 0, ore: 0 });
+    expect(conserved(next)).toBe(true);
   });
 
-  it('may aim at a fog tile only after peeking, and what it pays from there stays private', () => {
+  it('only the nearest town counts, and someone else’s building cuts the route', () => {
+    const { g, town, edgeId, path } = withShip(2);
+    expect(path.length).toBeGreaterThan(1);
+    // A second town of p0's one ship closer: it alone is nearest.
+    const first = boardIndex(g.board).edge.get(path[0]!)!;
+    const closer = first.a === town ? first.b : first.a;
+    g.buildings[closer] = { playerId: 'p0', kind: 'settlement' };
+    expect(getView(g, 'p0').legal.surveyTowns[edgeId]).toEqual([closer]);
+    expect(() => act(g, 'p0', { type: 'build-survey', edgeId, vertexId: town })).toThrow(/nearest/);
+    // With p1's settlement there instead, no town of p0's is reached, so the ship can't be fitted out.
+    g.buildings[closer] = { playerId: 'p1', kind: 'settlement' };
+    expect(getView(g, 'p0').legal.surveys).not.toContain(edgeId);
+  });
+
+  it('lets you pick between towns equally near', () => {
     const { g, edgeId } = withShip();
-    g.board = structuredClone(g.board);
-    const fog = g.board.hexes.filter(h => h.terrain === 'sea').at(-1)!;
-    fog.terrain = 'fog';
-    g.fog[fog.id] = { terrain: 'brick', number: 9 };
-    expect(getView(g, 'p0').legal.surveyTargets).not.toContain(fog.id);
-    expect(() => act(g, 'p0', { type: 'build-survey', edgeId, hexId: fog.id })).toThrow(/peeked/);
-    g.fogPeeks = { p0: [fog.id] };
-    const next = act(g, 'p0', { type: 'build-survey', edgeId, hexId: fog.id });
-    const rolled = roll(next, 4, 5);
-    expect(rolled.players[0]!.resources.brick).toBe(next.players[0]!.resources.brick + 1);
-    expect(rolled.log.at(-1)?.event).toEqual({ kind: 'survey-find', playerId: 'p0', hexId: fog.id, resource: 'brick' });
-    expect(getView(rolled, 'p1').log.at(-1)?.event).toMatchObject({ kind: 'survey-find', resource: null });
-    expect(JSON.stringify(getView(rolled, 'p1'))).not.toContain('"brick","number":9');
-    // Bots count the card without knowing its kind.
-    expect(rolled.handGuess.likely.p0!.brick).toBeLessThan(rolled.players[0]!.resources.brick);
-    // Once the game ends, every fog tile shows what it hid.
-    expect(getView({ ...rolled, phase: 'finished' }, 'p1').fogPeeks[fog.id]).toEqual({ terrain: 'brick', number: 9 });
-    expect(conserved(rolled)).toBe(true);
+    const ship = boardIndex(g.board).edge.get(edgeId)!;
+    for (const v of [ship.a, ship.b]) g.buildings[v] = { playerId: 'p0', kind: 'settlement' };
+    expect([...getView(g, 'p0').legal.surveyTowns[edgeId]!].sort()).toEqual([ship.a, ship.b].sort());
+    expect(act(g, 'p0', { type: 'build-survey', edgeId, vertexId: ship.b }).surveys).toContain(edgeId);
   });
 });
 
@@ -178,7 +197,18 @@ describe('older rooms', () => {
     const up = normalizeGame(old, TEST_NOW);
     expect(up.phase).toBe('build');
     expect(up).not.toHaveProperty('pendingCharts');
-    expect(up.surveyTargets).toEqual({});
     expect(up.pendingSplit).toEqual({});
+  });
+
+  it('survey ship targets stop paying, and their private fog finds leave the log', () => {
+    const old = structuredClone(createGame('old', seeded())) as unknown as Record<string, unknown> & GameState;
+    old.schemaVersion = 18;
+    old.surveyTargets = { e1: 'h1' } as never;
+    old.log = [
+      { id: 1, text: 'p0’s survey ship brought in a card.', event: { kind: 'survey-find', resource: 'ore' } },
+    ] as never;
+    const up = normalizeGame(old, TEST_NOW);
+    expect(up).not.toHaveProperty('surveyTargets');
+    expect(up.log.find(e => e.id === 1)?.event).toBeUndefined();
   });
 });

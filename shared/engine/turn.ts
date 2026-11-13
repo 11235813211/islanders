@@ -201,13 +201,8 @@ export const turnHandlers: Pick<
       next.phase = Object.keys(next.pendingDiscards).length ? 'discard' : 'robber';
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains: {} });
     } else {
-      const { gains, finds } = produce(next, total);
+      const gains = produce(next, total);
       addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains });
-      for (const find of finds)
-        addLog(next, `${next.players.find(p => p.id === find.playerId)!.name}'s survey ship brought in a card.`, {
-          kind: 'survey-find',
-          ...find,
-        });
       drift(next, total, random);
       const volcanoes = eruptingVolcanoes(next, total);
       next.eruption = volcanoes.length ? volcanoes : null;
