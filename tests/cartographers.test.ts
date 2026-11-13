@@ -307,7 +307,8 @@ describe('bots on Cartographers maps', () => {
         built += Object.values(g.stats).reduce((n, s) => n + (s.built.relay ?? 0) + (s.built.survey ?? 0), 0);
       }
       expect(built).toBeGreaterThan(0);
-    });
+      // Three whole bot games: well under a second each alone, but slower beside the rest of the suite.
+    }, 60_000);
   }
 });
 
