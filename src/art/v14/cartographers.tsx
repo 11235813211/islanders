@@ -238,7 +238,8 @@ function ExtraNumbers({ numbers }: { numbers: number[] }) {
 }
 
 export const cartographers: CartographersArt = {
-  terrain: { name: 'Moor · lodestone', color: '#8f8b5c' },
+  // Map previews and the editor show lodestone in Cartographers purple (the tile art keeps its moor).
+  terrain: { name: 'Moor · lodestone', color: LODE.heather },
   // A muted take on the purple seat color, so the card sits beside the others.
   cardColors: { base: '#9168b8', light: '#efe4f6', dark: '#4f2c70' },
   Tile: LodestoneTile,

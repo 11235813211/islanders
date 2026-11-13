@@ -154,7 +154,6 @@ export default function RoomLobby({
               <Plus size={18} />
               Add bot
             </button>
-            <small>{BOTS[botLevel].description}</small>
           </div>
         )}
         {!view.testMode &&

@@ -8,7 +8,7 @@ import { setIslandLevels } from '../shared/maps/numbers';
 import type { BoardDesign } from '../shared/maps/types';
 import type { GameState } from '../shared/types';
 import { fogOutlook } from '../src/components/maps/FogSummary';
-import { makeLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import { inSeatOrder, makeLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /** Link rules, "Not A", no-start corners, versions for other player counts, and number richness. */
 
@@ -68,7 +68,7 @@ describe('no-start corners', () => {
     const lobby = applyAction(makeLobby(2), 'p0', { type: 'choose-map', mapId: design.id }, seeded(), TEST_NOW, {
       design,
     });
-    const g = applyAction(lobby, 'p0', { type: 'start' }, seeded(), TEST_NOW);
+    const g = inSeatOrder(applyAction(lobby, 'p0', { type: 'start' }, seeded(), TEST_NOW));
     const hex = g.board.hexes.find(h => h.q === tile.q && h.r === tile.r)!;
     expect(getView(g, 'p0').legal.settlements).not.toContain(hex.vertexIds[1]);
     expect(parseDesign(design, ['seafaring']).noStart).toEqual(design.noStart);
@@ -88,7 +88,7 @@ describe('versions for other player counts', () => {
     expect(designFor(design, 4).tiles).toBe(base.tiles);
     expect(designFor(design, 6).tiles).toBe(big.tiles);
     let g = applyAction(makeLobby(5), 'p0', { type: 'choose-map', mapId: design.id }, seeded(), TEST_NOW, { design });
-    g = applyAction(g, 'p0', { type: 'start' }, seeded(), TEST_NOW);
+    g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, seeded(), TEST_NOW));
     expect(g.board.hexes.filter(h => h.terrain !== 'sea')).toHaveLength(8);
     expect(g.settings.victoryPoints).toBe(14);
     expect(g.map).toMatchObject({
@@ -115,7 +115,7 @@ describe('versions for other player counts', () => {
     );
     expect(g.map?.layout).toEqual({ min: 5, max: 6 });
     expect(g.settings.victoryPoints).toBe(14);
-    g = applyAction(g, 'p0', { type: 'start' }, seeded(), TEST_NOW);
+    g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, seeded(), TEST_NOW));
     expect(g.board.hexes.filter(h => h.terrain !== 'sea')).toHaveLength(8);
     expect(g.settings.victoryPoints).toBe(14);
   });

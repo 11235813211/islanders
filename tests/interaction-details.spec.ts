@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { applyAction, getView } from '../shared/engine';
-import { grant, makeLobby, richGame, seeded, TEST_NOW } from './fixtures';
+import { grant, inSeatOrder, makeLobby, richGame, seeded, TEST_NOW } from './fixtures';
 import { mountGame, seatRgb } from './ui-harness';
 
 test('map confirmation cancels outside, toolbar roads and cities build immediately', async ({ page }) => {
@@ -205,7 +205,7 @@ test('releasing outside the board or canceling touch never leaves a stale drag',
 test('corners breathe in step, hover and picking show the seat color, and city upgrades stay unmarked', async ({
   page,
 }) => {
-  const setup = applyAction(makeLobby(2), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+  const setup = inSeatOrder(applyAction(makeLobby(2), 'p0', { type: 'start' }, seeded(), TEST_NOW));
   setup.testMode = true;
   const game = await mountGame(page, setup);
   // Each circle's current size as a share of its full size: equal shares mean the same point in the rhythm.

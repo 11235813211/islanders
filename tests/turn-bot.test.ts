@@ -10,7 +10,7 @@ import {
   resourceCount,
 } from '../shared/engine';
 import { type GameState, type Phase, RESOURCES } from '../shared/types';
-import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
+import { conserved, grant, inSeatOrder, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
 function clearHands(g: GameState) {
   for (const p of g.players)
@@ -27,7 +27,7 @@ function consent(g: GameState, at: number) {
 }
 describe('server-side turn completion', () => {
   it('finishes just one setup placement, including the last placement, when alarms are late', () => {
-    let g = applyAction(makeLobby(4), 'p0', { type: 'start' }, seeded(), now);
+    let g = inSeatOrder(applyAction(makeLobby(4), 'p0', { type: 'start' }, seeded(), now));
     const random = seeded(51);
     for (let i = 0; i < 8; i++) {
       const at = g.turnDeadline! + 90_000;
@@ -101,7 +101,7 @@ describe('server-side turn completion', () => {
     let winners = 0;
     for (let seed = 1; seed <= 6; seed++) {
       const random = seeded(seed);
-      let g = applyAction(makeLobby(seed % 2 ? 3 : 4), 'p0', { type: 'start' }, random, now);
+      let g = inSeatOrder(applyAction(makeLobby(seed % 2 ? 3 : 4), 'p0', { type: 'start' }, random, now));
       g.settings.friendlyRobber = seed % 2 === 0;
       // Bot seats play out their timed turns (a person's timed turn only gets its forced choices).
       for (const p of g.players) p.bot = 'advanced';

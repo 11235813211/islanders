@@ -12,7 +12,7 @@ function midGame(): GameState {
   playGame(drawScenario(3, { maps: ['base'], players: [4] }), brains, 3, {
     beforeMove(state, seat) {
       if (!found && seat === 0 && state.phase === 'build' && state.turn > 24 && !state.tradeOffer) {
-        const hands = state.players.slice(1).filter(p => RESOURCES.some(r => p.resources[r] > 0));
+        const hands = state.players.filter(p => p.id !== 'p0').filter(p => RESOURCES.some(r => p.resources[r] > 0));
         if (hands.length >= 2) found = structuredClone(state);
       }
     },
@@ -24,7 +24,7 @@ function midGame(): GameState {
 /** The same position with hidden facts changed: two opponents trade a card, the deck reordered. */
 function withOtherSecrets(state: GameState): GameState {
   const g = structuredClone(state);
-  const [a, b] = g.players.slice(1).filter(p => RESOURCES.some(r => p.resources[r] > 0));
+  const [a, b] = g.players.filter(p => p.id !== 'p0').filter(p => RESOURCES.some(r => p.resources[r] > 0));
   const ra = RESOURCES.find(r => a!.resources[r] > 0)!;
   const rb = RESOURCES.find(r => r !== ra && b!.resources[r] > 0) ?? ra;
   a!.resources[ra]--;
@@ -54,7 +54,8 @@ describe('search samples (training/search.ts)', () => {
 
   it('keep every hand size, our own hand, and the card supply', () => {
     const sample = determinize(state, 'p0', seeded(5));
-    expect(sample.players[0]).toEqual(state.players[0]);
+    const own = (g: GameState) => g.players.find(p => p.id === 'p0');
+    expect(own(sample)).toEqual(own(state));
     sample.players.forEach((p, i) => {
       const count = (bag: typeof p.resources) => RESOURCES.reduce((n, r) => n + bag[r], 0);
       expect(count(p.resources)).toBe(count(state.players[i]!.resources));

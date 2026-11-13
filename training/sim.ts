@@ -58,7 +58,7 @@ export interface SimHooks {
   end?(state: GameState): void;
 }
 
-/** Play a full game. `brains[i]` plays seat i (`p{i}`); setup order is the engine's (seat 0 first). */
+/** Play a full game. `brains[i]` plays seat i (`p{i}`); the engine draws who goes first. */
 export function playGame(
   scenario: Scenario,
   brains: Brain[],

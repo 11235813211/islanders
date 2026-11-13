@@ -3,7 +3,7 @@ import { chooseBotAction } from '../shared/bots';
 import { advanceTime, applyAction, botDueAt, getActivePlayerId, getView } from '../shared/engine';
 import { pendingBotActor } from '../shared/engine/time';
 import type { GameState, Terrain } from '../shared/types';
-import { grant, makeLobby, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import { grant, inSeatOrder, makeLobby, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /**
  * Targeted checks of the Advanced bot's choices, on a small sea map: home island on the left,
@@ -22,7 +22,7 @@ const hexOf = (g: GameState, terrain: Terrain) => g.board.hexes.find(h => h.terr
 
 /** p0 is about to move the robber or pirate; the setup callback places pieces directly. */
 function robberTurn(setup: (g: GameState) => void): GameState {
-  const g = applyAction(seaLobby(DESIGN, 3), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+  const g = inSeatOrder(applyAction(seaLobby(DESIGN, 3), 'p0', { type: 'start' }, seeded(), TEST_NOW));
   Object.assign(g, { phase: 'robber', turn: 12, turnIndex: 0, setupIndex: 6, rollDeadline: null });
   g.pirate = null;
   g.buildings[hexOf(g, 'wood').vertexIds[2]!] = { playerId: 'p0', kind: 'settlement' };
@@ -86,7 +86,7 @@ describe('advanced trading with people at the table', () => {
     const random = seeded(5);
     let g = makeLobby(4);
     for (const p of g.players.slice(1)) p.bot = 'advanced';
-    g = applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW);
+    g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW));
     let now = TEST_NOW;
     const counters = new Map<number, (typeof g.log)[number]>();
     let offeredTurn = -1;
@@ -130,7 +130,7 @@ describe('advanced trading with people at the table', () => {
     const random = seeded(11);
     let g = makeLobby(4);
     for (const p of g.players.slice(1)) p.bot = 'advanced';
-    g = applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW);
+    g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW));
     let now = TEST_NOW;
     // The log keeps only its last lines, so gather offers as they happen.
     const seen = new Map<number, (typeof g.log)[number]>();

@@ -4,7 +4,18 @@ import type { BoardDesign } from '../shared/maps';
 import { longestRoad } from '../shared/rules';
 import { boardIndex, isShipEdge } from '../shared/seafaring';
 import type { GameAction, GameState, Terrain } from '../shared/types';
-import { corner, edgeBetween, grant, makeLobby, seaLobby, seeded, settled, TEST_NOW, testDesign } from './fixtures';
+import {
+  corner,
+  edgeBetween,
+  grant,
+  inSeatOrder,
+  makeLobby,
+  seaLobby,
+  seeded,
+  settled,
+  TEST_NOW,
+  testDesign,
+} from './fixtures';
 
 /**
  * Room variations (Seafarers on or off, volcano starts and dice, how ships move) and the
@@ -30,7 +41,7 @@ const ISLE = testDesign([
 function building(setup: (g: GameState) => void = () => {}, settings: Partial<GameState['settings']> = {}) {
   let g = seaLobby(ISLE, 2);
   g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, ...settings } });
-  g = act(g, 'p0', { type: 'start' });
+  g = inSeatOrder(act(g, 'p0', { type: 'start' }));
   Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
   setup(g);
   return g;
@@ -51,7 +62,7 @@ describe('Seafarers as a variation', () => {
   it('on the standard island it adds a ring of sea, so ships and the pirate play', () => {
     let g = makeLobby(2);
     g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, seafarers: true } });
-    g = act(g, 'p0', { type: 'start' });
+    g = inSeatOrder(act(g, 'p0', { type: 'start' }));
     const land = g.board.hexes.filter(h => h.terrain !== 'sea');
     expect(land).toHaveLength(19);
     expect(g.board.hexes.length).toBeGreaterThan(19);
@@ -262,7 +273,7 @@ describe('icebergs', () => {
     '~ ~ ~ ~ ~ ~ ~',
   ]);
   function icy() {
-    const g = act(seaLobby(ICY, 2), 'p0', { type: 'start' });
+    const g = inSeatOrder(act(seaLobby(ICY, 2), 'p0', { type: 'start' }));
     Object.assign(g, { phase: 'roll', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null, pirate: null });
     return g;
   }
@@ -320,7 +331,7 @@ describe('fog', () => {
     const brick = design.tiles.find(t => t.kind === 'brick')!;
     const spot = design.tiles.find(t => t.kind === 'sea' && t.q === brick.q + 1 && t.r === brick.r)!;
     spot.kind = 'fog';
-    const g = act(seaLobby(design, 2), 'p0', { type: 'start' });
+    const g = inSeatOrder(act(seaLobby(design, 2), 'p0', { type: 'start' }));
     Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null, pirate: null });
     return g;
   }

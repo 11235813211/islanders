@@ -6,8 +6,8 @@ import { join, origin, PlayerConnection, postRoom, server, verifyPrivateView } f
 test('real room server enforces authority, serializes concurrent moves, and reconnects without replaying actions', async ({
   request,
 }) => {
-  const hostSession = await join(request, 'Server host');
-  const guestSession = await join(request, 'Server guest', hostSession.roomId);
+  let hostSession = await join(request, 'Server host');
+  let guestSession = await join(request, 'Server guest', hostSession.roomId);
   const connections: PlayerConnection[] = [];
   const connect = (session: Session) => {
     const connection = new PlayerConnection(session.roomId);
@@ -15,7 +15,7 @@ test('real room server enforces authority, serializes concurrent moves, and reco
     return connection;
   };
   let host = connect(hostSession);
-  const guest = connect(guestSession);
+  let guest = connect(guestSession);
   try {
     await Promise.all([host.authenticate(hostSession), guest.authenticate(guestSession)]);
     expect(host.state.phase).toBe('lobby');
@@ -77,6 +77,12 @@ test('real room server enforces authority, serializes concurrent moves, and reco
       repeatedStart.after,
     );
     expect(replay.type === 'state' && replay.state.version).toBe(lobbyVersion + 1);
+
+    // Start draws who goes first. From here on, `host` is that seat and `guest` the other.
+    if (host.state.activePlayerId !== hostSession.playerId) {
+      [host, guest] = [guest, host];
+      [hostSession, guestSession] = [guestSession, hostSession];
+    }
 
     const outOfTurn = guest.send({ type: 'place-settlement', vertexId: host.state.legal.settlements[0]! });
     const rejected = await guest.waitMessage(
@@ -262,6 +268,10 @@ test('accounts reclaim seats across devices and logout revokes only the current 
     await expect.poll(() => one.closeCode).toBe(4401);
     expect((await request.get(`${server}/api/accounts/me`, { headers: h1 })).status()).toBe(401);
     expect((await request.get(`${server}/api/accounts/me`, { headers: h2 })).status()).toBe(200);
+    // Start draws who goes first, so act as that seat (solo hosts control every seat).
+    const first = two.state.activePlayerId;
+    two.socket.send(JSON.stringify({ type: 'view-as', playerId: first }));
+    await expect.poll(() => two.state.selfId).toBe(first);
     const next = await two.action({ type: 'place-settlement', vertexId: two.state.legal.settlements[0]! });
     expect(next.phase).toBe('setup-road');
     // The oldest of eight device logins must stop receiving private room updates.

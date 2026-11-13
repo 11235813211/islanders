@@ -19,6 +19,11 @@ test('the host picks a map from the picker; it shows in the lobby with its point
   await picker.getByRole('radio', { name: 'Maps for 4 players' }).click();
   await expect(picker.locator('.map-card', { hasText: 'Outer Isles' })).not.toHaveClass(/misfit/);
   await page.screenshot({ path: 'test-results/map-picker.png' });
+  // Cartographers is themed purple.
+  const cartographers = picker.locator('.expansion-cartographers').first();
+  await expect(cartographers).toHaveCSS('background-color', 'rgb(239, 228, 246)');
+  await cartographers.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/map-picker-cartographers.png' });
   await picker.getByRole('button', { name: 'View Outer Isles' }).click();
   await expect(picker.getByRole('img', { name: 'Outer Isles map' })).toBeVisible();
   await expect(picker.getByRole('note')).toContainText('Made for 3–4 players. This room has 1.');

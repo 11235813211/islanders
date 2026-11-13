@@ -17,6 +17,16 @@ export function seeded(seed = 42) {
     return (seed >>> 0) / 4294967296;
   };
 }
+/**
+ * Start shuffles seats; most rules tests are written for p0, p1, … taking turns in that order.
+ * Puts those seats back in number order (other seats after them) and redoes the setup snake.
+ */
+export function inSeatOrder(game: GameState): GameState {
+  const rank = (id: string) => (/^p\d+$/.test(id) ? Number(id.slice(1)) : Number.MAX_SAFE_INTEGER);
+  const players = [...game.players].sort((a, b) => rank(a.id) - rank(b.id));
+  const ids = players.map(p => p.id);
+  return { ...game, players, setupOrder: game.setupOrder.length ? [...ids, ...[...ids].reverse()] : [] };
+}
 export function makeLobby(count = 3) {
   let game = createGame('HARBOR42', seeded());
   game.settings.friendlyRobber = false; // Most rules tests expect the robber to hit anyone.
@@ -24,7 +34,7 @@ export function makeLobby(count = 3) {
   return game;
 }
 export function settled(count = 3) {
-  let game = applyAction(makeLobby(count), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+  let game = inSeatOrder(applyAction(makeLobby(count), 'p0', { type: 'start' }, seeded(), TEST_NOW));
   while (game.phase.startsWith('setup')) {
     const id = getActivePlayerId(game)!,
       legal = getView(game, id).legal;
@@ -109,7 +119,7 @@ export function edgeBetween(game: GameState, a: string, b: string): string {
 
 /** A sea-map game past setup, every seat placing on the first legal spot (ships when no road fits). */
 export function seaSettled(design: BoardDesign, count = 3) {
-  let game = applyAction(seaLobby(design, count), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+  let game = inSeatOrder(applyAction(seaLobby(design, count), 'p0', { type: 'start' }, seeded(), TEST_NOW));
   while (game.phase.startsWith('setup')) {
     const id = getActivePlayerId(game)!;
     const legal = getView(game, id).legal;

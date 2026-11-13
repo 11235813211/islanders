@@ -1,7 +1,7 @@
 import { advanceTime, applyAction, botDueAt } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
 import type { BotLevel, GameState } from '../shared/types';
-import { conserved, makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
+import { conserved, inSeatOrder, makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
 
 /**
  * Play one complete game where every seat is a bot, driven only by
@@ -20,7 +20,7 @@ export function playBotGame(
   g.players.forEach((p, i) => {
     p.bot = levels[i];
   });
-  g = applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW);
+  g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW));
   let now = TEST_NOW;
   for (let step = 0; step < maxSteps && g.phase !== 'finished'; step++) {
     const due = botDueAt(g);

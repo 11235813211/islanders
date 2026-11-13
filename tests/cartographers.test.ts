@@ -8,7 +8,7 @@ import { chartedNumbers, hexNumbers, longestRoad, victoryPoints } from '../share
 import { boardIndex } from '../shared/seafaring';
 import type { GameAction, GameState, Hex, Terrain } from '../shared/types';
 import { playBotGame } from './bot-harness';
-import { conserved, grant, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import { conserved, grant, inSeatOrder, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /**
  * Home island: wood 6 beside lodestone 5, then sheep 9 and wheat 8, then gold 8, ore 10, and a
@@ -33,7 +33,7 @@ const sequence = (...values: number[]) => {
 
 /** Started game in the build phase with p0 to move. Pieces are placed directly. */
 function building(): GameState {
-  const g = act(seaLobby(DESIGN, 2), 'p0', { type: 'start' });
+  const g = inSeatOrder(act(seaLobby(DESIGN, 2), 'p0', { type: 'start' }));
   Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
   g.settings.diceMode = 'random';
   return g;
@@ -74,7 +74,9 @@ function seaEdges(g: GameState): string[] {
 
 describe('lodestone', () => {
   it('is in the bank only on Cartographers maps, and the view says so', () => {
-    const plain = act(seaLobby(BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!, 3), 'p0', { type: 'start' });
+    const plain = inSeatOrder(
+      act(seaLobby(BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!, 3), 'p0', { type: 'start' }),
+    );
     expect(plain.bank.lodestone).toBe(0);
     expect(getView(plain, 'p0').cartographers).toBe(false);
     const g = building();

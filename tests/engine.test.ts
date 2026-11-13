@@ -20,6 +20,7 @@ import {
   type Resource,
   type ResourceBag,
 } from '../shared/types';
+import { inSeatOrder } from './fixtures';
 
 function seeded(seed = 42): () => number {
   return () => {
@@ -36,7 +37,7 @@ function lobby(count = 3): GameState {
 }
 
 function setup(count = 3): GameState {
-  let state = applyAction(lobby(count), 'p0', { type: 'start' });
+  let state = inSeatOrder(applyAction(lobby(count), 'p0', { type: 'start' }));
   while (state.phase.startsWith('setup')) {
     const actor = getActivePlayerId(state)!;
     const legal = getView(state, actor).legal;
@@ -213,6 +214,18 @@ describe('island topology and distribution', () => {
 });
 
 describe('room and setup rules', () => {
+  it('start draws a random turn order and snakes setup in it', () => {
+    const orders = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const g = applyAction(lobby(4), 'p0', { type: 'start' }, seeded(seed));
+      const ids = g.players.map(p => p.id);
+      expect([...ids].sort()).toEqual(['p0', 'p1', 'p2', 'p3']);
+      expect(g.setupOrder).toEqual([...ids, ...[...ids].reverse()]);
+      orders.add(ids.join());
+    }
+    expect(orders.size).toBeGreaterThan(10);
+  });
+
   it('enforces host authority, player limits, names, and lobby membership', () => {
     const state = lobby();
     expect(() => applyAction(state, 'p1', { type: 'start' })).toThrow(/host/);
@@ -226,7 +239,7 @@ describe('room and setup rules', () => {
   });
 
   it.each([2, 3, 4])('completes snake setup for %i players and gives only second-settlement resources', count => {
-    let state = applyAction(lobby(count), 'p0', { type: 'start' });
+    let state = inSeatOrder(applyAction(lobby(count), 'p0', { type: 'start' }));
     const expected = [...state.players.map(player => player.id), ...state.players.map(player => player.id).reverse()];
     const observed: string[] = [];
     for (let index = 0; index < count * 2; index++) {
@@ -256,7 +269,7 @@ describe('room and setup rules', () => {
   });
 
   it('rejects occupied/neighboring settlements and roads disconnected from the new settlement', () => {
-    let state = applyAction(lobby(), 'p0', { type: 'start' });
+    let state = inSeatOrder(applyAction(lobby(), 'p0', { type: 'start' }));
     state = applyAction(state, 'p0', { type: 'place-settlement', vertexId: 'v0' });
     const legal = getView(state, 'p0').legal.roads;
     const distant = state.board.edges.find(edge => !legal.includes(edge.id))!.id;
@@ -633,7 +646,7 @@ describe('trust boundary and immutability', () => {
       const random = seeded(708 + count);
       let state = createGame('SIMULATED', random);
       for (let i = 0; i < count; i++) state = addPlayer(state, { id: `p${i}`, name: `Player ${i}` });
-      state = applyAction(state, 'p0', { type: 'start' });
+      state = inSeatOrder(applyAction(state, 'p0', { type: 'start' }));
       while (state.phase.startsWith('setup')) {
         const actor = getActivePlayerId(state)!;
         const legal = getView(state, actor).legal;
@@ -780,7 +793,7 @@ describe('room settings and automatic roll scheduling', () => {
   });
 
   it('sets the first roll deadline after setup and resets it only at the next turn', () => {
-    let state = applyAction(lobby(2), 'p0', { type: 'start' });
+    let state = inSeatOrder(applyAction(lobby(2), 'p0', { type: 'start' }));
     expect(state.rollDeadline).toBeNull();
     while (state.phase.startsWith('setup')) {
       const actor = getActivePlayerId(state)!;
@@ -837,7 +850,7 @@ describe('room settings and automatic roll scheduling', () => {
     let state = createGame('TEST42', seeded(), { testMode: true });
     state = addPlayer(state, { id: 'p0', name: 'Host' });
     state = addPlayer(state, { id: 'p1', name: 'Test seat' });
-    state = applyAction(state, 'p0', { type: 'start' });
+    state = inSeatOrder(applyAction(state, 'p0', { type: 'start' }));
     expect(getView(state, 'p0').testMode).toBe(true);
     expect(() =>
       applyAction(state, 'p1', { type: 'place-settlement', vertexId: getView(state, 'p0').legal.settlements[0] }),

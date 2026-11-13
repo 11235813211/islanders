@@ -7,7 +7,7 @@ import { longestRoad, victoryPoints } from '../shared/rules';
 import { ERUPTION_CORNER, isRoadEdge, isShipEdge } from '../shared/seafaring';
 import type { GameAction, GameState, Terrain } from '../shared/types';
 import { playBotGame } from './bot-harness';
-import { conserved, edgeBetween, grant, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import { conserved, edgeBetween, grant, inSeatOrder, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /**
  * Two islands. Home island (left): wood 6, brick 5, sheep 9, ore 10, gold 8, volcano 4, jungle 11.
@@ -32,7 +32,7 @@ const sequence = (...values: number[]) => {
 
 /** Started game in the build phase with p0 to move. Buildings placed directly. */
 function building(setup: (g: GameState) => void = () => {}): GameState {
-  const g = act(seaLobby(DESIGN, 2), 'p0', { type: 'start' });
+  const g = inSeatOrder(act(seaLobby(DESIGN, 2), 'p0', { type: 'start' }));
   Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
   setup(g);
   return g;
@@ -69,7 +69,7 @@ describe('choosing a map', () => {
 
 describe('setup on sea maps', () => {
   it('keeps setup settlements off closed islands and lets the second piece be a ship', () => {
-    let g = act(seaLobby(DESIGN, 2), 'p0', { type: 'start' });
+    let g = inSeatOrder(act(seaLobby(DESIGN, 2), 'p0', { type: 'start' }));
     const closed = g.board.hexes.find(h => h.noSetup)!;
     expect(() => act(g, 'p0', { type: 'place-settlement', vertexId: closed.vertexIds[0]! })).toThrow();
     const coastal = hexOf(g, 'wood').vertexIds[4]!; // top corner touches the sea

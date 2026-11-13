@@ -52,16 +52,15 @@ test('a bot seat takes its own setup turns on the server', async ({ request }) =
   try {
     await host.authenticate(hostSession);
     await host.action({ type: 'add-bot', level: 'beginner' });
-    let view = await host.action({ type: 'start' });
-    // Snake order: host, bot, bot, host.
-    view = await host.action({ type: 'place-settlement', vertexId: view.legal.settlements[0]! });
-    view = await host.action({ type: 'place-road', edgeId: view.legal.roads[0]! });
-    await expect
-      .poll(() => (host.state.activePlayerId === hostSession.playerId ? Object.keys(host.state.buildings).length : 0), {
-        timeout: 15_000,
-      })
-      .toBe(3);
-    expect(host.state.phase).toBe('setup-settlement');
+    await host.action({ type: 'start' });
+    // Either seat may be drawn first; the host places whenever it is their turn and the bot does the rest.
+    for (let placed = 0; placed < 2; placed++) {
+      await expect.poll(() => host.state.activePlayerId, { timeout: 15_000 }).toBe(hostSession.playerId);
+      const view = await host.action({ type: 'place-settlement', vertexId: host.state.legal.settlements[0]! });
+      await host.action({ type: 'place-road', edgeId: view.legal.roads[0]! });
+    }
+    await expect.poll(() => Object.keys(host.state.buildings).length, { timeout: 15_000 }).toBe(4);
+    await expect.poll(() => host.state.phase.startsWith('setup')).toBe(false);
   } finally {
     host.dispose();
   }

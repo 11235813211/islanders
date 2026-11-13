@@ -16,7 +16,7 @@ import {
 import { emptyBag } from '../shared/engine/core';
 import { hasAnswered } from '../shared/rules';
 import { EMPTY_ROOM_MS, emptyRoomMs, isBotGame, SAVED_BOT_GAME_HOURS } from '../shared/settings';
-import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
+import { conserved, grant, inSeatOrder, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
 const act = (g: ReturnType<typeof makeLobby>, id: string, action: Parameters<typeof applyAction>[2]) =>
   applyAction(g, id, action, seeded(), now);
@@ -91,7 +91,7 @@ describe('bot scheduling', () => {
   it('waits a short thinking delay before a bot acts, and never while paused', () => {
     let g = makeLobby(2);
     g.players[1]!.bot = 'beginner';
-    g = act(g, 'p0', { type: 'start' });
+    g = inSeatOrder(act(g, 'p0', { type: 'start' }));
     g = act(g, 'p0', { type: 'place-settlement', vertexId: getView(g, 'p0').legal.settlements[0]! });
     g = act(g, 'p0', { type: 'place-road', edgeId: getView(g, 'p0').legal.roads[0]! });
     expect(pendingBotActor(g)).toBe(g.players[1]!.id);

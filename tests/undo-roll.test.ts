@@ -3,7 +3,7 @@ import { chooseBotAction } from '../shared/bots';
 import { advanceTime, applyAction, botDueAt, getActivePlayerId, getView } from '../shared/engine';
 import { GameError } from '../shared/engine/core';
 import type { GameState } from '../shared/types';
-import { conserved, makeLobby, seeded, TEST_NOW } from './fixtures';
+import { conserved, inSeatOrder, makeLobby, seeded, TEST_NOW } from './fixtures';
 
 /** Rolls logged for each turn number (a turn must never be rolled twice). */
 const rollsPerTurn = (g: GameState) => {
@@ -19,7 +19,7 @@ describe('undo never takes a turn back before its roll', () => {
       const random = seeded(seed);
       let g = makeLobby(seed % 2 ? 2 : 3);
       g.testMode = seed % 3 === 0;
-      g = applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW);
+      g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW));
       let now = TEST_NOW;
       for (let step = 0; step < 600 && g.phase !== 'finished'; step++) {
         now += 1000;

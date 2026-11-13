@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!!**/dist", "!!**/.wrangler", "!!**/test-results"]
+    "includes": ["**", "!!**/dist", "!!**/.wrangler", "!!**/test-results", "!NOTES.md"]
   },
   "formatter": {
     "enabled": true,

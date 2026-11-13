@@ -4,7 +4,7 @@ import { advanceTime, applyAction, botDueAt, getView } from '../shared/engine';
 import { bankGold, pendingBotActor } from '../shared/engine/time';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { playBotGame, tournament } from './bot-harness';
-import { makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
+import { inSeatOrder, makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
 
 describe('bot seats', () => {
   it.each(['beginner', 'intermediate', 'advanced'] as const)('three %s bots finish a game on their own', level => {
@@ -36,7 +36,7 @@ describe('bot seats', () => {
       const random = seeded(3);
       let g = table();
       for (const p of g.players) p.bot = 'advanced';
-      g = applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW);
+      g = inSeatOrder(applyAction(g, 'p0', { type: 'start' }, random, TEST_NOW));
       for (let step = 0; step < 400 && g.phase !== 'finished'; step++) {
         const id = pendingBotActor(g)!;
         const view = getView(g, id);
@@ -63,7 +63,7 @@ describe('bot seats', () => {
   }, 60_000);
 
   it('a gold pick the bank can pay is always available', () => {
-    let g = applyAction(makeLobby(2), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+    let g = inSeatOrder(applyAction(makeLobby(2), 'p0', { type: 'start' }, seeded(), TEST_NOW));
     g.phase = 'gold';
     g.pendingGold = { p0: 3 };
     g.bank = { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 0 };

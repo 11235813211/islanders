@@ -7,7 +7,7 @@ import { fillNumbers } from '../shared/maps/fill';
 import { islandLevels, islandSet, randomTerrains, setIslandLevels, upgradeDesign } from '../shared/maps/numbers';
 import { type BoardDesign, type BoardVersion, VERSION_FIELDS } from '../shared/maps/types';
 import type { DiscoveryRule, GameAction, GameState, Terrain } from '../shared/types';
-import { grant, makeLobby, seaLobby, seeded, settled, TEST_NOW, testDesign } from './fixtures';
+import { grant, inSeatOrder, makeLobby, seaLobby, seeded, settled, TEST_NOW, testDesign } from './fixtures';
 
 /**
  * Room rules beyond the base game (discoveries, volcano and iceberg rules, bank counts, trade
@@ -38,7 +38,7 @@ const ISLE = testDesign([
 function building(discoveries: DiscoveryRule = 'kept', setup: (g: GameState) => void = () => {}): GameState {
   let g = seaLobby(ISLE, 2);
   g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, discoveries } });
-  g = act(g, 'p0', { type: 'start' });
+  g = inSeatOrder(act(g, 'p0', { type: 'start' }));
   Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
   setup(g);
   return g;
@@ -128,12 +128,12 @@ describe('discovery rules', () => {
 
 describe('volcanoes and icebergs', () => {
   it('setup settlements may touch a volcano unless the room turns that off', () => {
-    const open = act(seaLobby(ISLE, 2), 'p0', { type: 'start' });
+    const open = inSeatOrder(act(seaLobby(ISLE, 2), 'p0', { type: 'start' }));
     const volcano = hexOf(open, 'volcano');
     expect(getView(open, 'p0').legal.settlements.some(id => volcano.vertexIds.includes(id))).toBe(true);
     let g = seaLobby(ISLE, 2);
     g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, volcanoStart: false } });
-    g = act(g, 'p0', { type: 'start' });
+    g = inSeatOrder(act(g, 'p0', { type: 'start' }));
     const closed = hexOf(g, 'volcano');
     expect(getView(g, 'p0').legal.settlements.some(id => closed.vertexIds.includes(id))).toBe(false);
   });
@@ -141,7 +141,7 @@ describe('volcanoes and icebergs', () => {
   it('without the gold variant a volcano pays nothing; a city with no settlement left is lost', () => {
     let g = seaLobby(ISLE, 2);
     g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, volcanoGold: false, volcanoDice: 'random' } });
-    g = act(g, 'p0', { type: 'start' });
+    g = inSeatOrder(act(g, 'p0', { type: 'start' }));
     Object.assign(g, { phase: 'roll', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
     const volcano = hexOf(g, 'volcano');
     // Die face 2 names corner ERUPTION_CORNER[1] (5). p1 has all five settlements on the board already.
@@ -208,7 +208,7 @@ describe('room options', () => {
   });
 
   it('offers reach all five others in a six-player game and close after the room’s time', () => {
-    let g = applyAction(makeLobby(6), 'p0', { type: 'start' }, seeded(), TEST_NOW);
+    let g = inSeatOrder(applyAction(makeLobby(6), 'p0', { type: 'start' }, seeded(), TEST_NOW));
     g.phase = 'build';
     g.settings.tradeSeconds = 60;
     grant(g, 'p0', { wood: 1 });

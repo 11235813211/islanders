@@ -9,19 +9,11 @@ import type { BotOptions, Brain, TurnOptions } from './types';
 
 export type { BotOptions, Brain } from './types';
 
-/** Bot levels, weakest first. Descriptions are shown in the lobby. */
-export const BOTS: Record<BotLevel, { brain: Brain; label: string; description: string }> = {
-  beginner: { brain: beginner, label: 'Beginner', description: 'Builds what it can afford and keeps trades simple.' },
-  intermediate: {
-    brain: intermediate,
-    label: 'Intermediate',
-    description: 'Plans toward goals, estimates your cards, and refuses trades that help the leader.',
-  },
-  advanced: {
-    brain: advanced,
-    label: 'Advanced',
-    description: 'Trained by self-play: reads races for spots, trades hard, and aims the robber and pirate.',
-  },
+/** Bot levels, weakest first. */
+export const BOTS: Record<BotLevel, { brain: Brain; label: string }> = {
+  beginner: { brain: beginner, label: 'Beginner' },
+  intermediate: { brain: intermediate, label: 'Intermediate' },
+  advanced: { brain: advanced, label: 'Advanced' },
 };
 
 /**

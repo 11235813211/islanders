@@ -1,4 +1,4 @@
-import { assignNumbers, generateBoard } from '../board';
+import { assignNumbers, generateBoard, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
 import { buildBoard } from '../maps/generate';
 import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
@@ -351,6 +351,8 @@ export const lobbyHandlers: Pick<
       'Invite at least one friend before starting.',
     );
     dealTable(next, random);
+    // Seats are drawn at random so the host (or whoever joined first) does not always go first.
+    next.players = shuffled(next.players, random);
     const ids = next.players.map(candidate => candidate.id);
     next.setupOrder = [...ids, ...[...ids].reverse()];
     next.phase = 'setup-settlement';
