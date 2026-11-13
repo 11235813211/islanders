@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { assignNumbers, generateBoard, ORDERED_NUMBERS, spiralHexes } from '../shared/board';
 import { addSpectator, advanceTime, applyAction, emptyBag, getView, normalizeGame } from '../shared/engine';
 import { developmentDeck, longestRoad, tradeRates, updateAwards, victoryPoints } from '../shared/rules';
-import { type DevelopmentType, type GameState, RESOURCES } from '../shared/types';
+import { CLASSIC_RESOURCES, type DevelopmentType, type GameState, RESOURCES } from '../shared/types';
 import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
 const act = (g: GameState, id: string, action: Parameters<typeof applyAction>[2], at = now) =>
@@ -25,7 +25,7 @@ describe('base board and ports', () => {
       expect(board.harbors).toHaveLength(9);
       expect(new Set(board.harbors.flatMap(p => p.vertices)).size).toBe(18);
       expect(board.harbors.filter(p => p.resource === 'any')).toHaveLength(4);
-      for (const r of RESOURCES) expect(board.harbors.filter(p => p.resource === r)).toHaveLength(1);
+      for (const r of CLASSIC_RESOURCES) expect(board.harbors.filter(p => p.resource === r)).toHaveLength(1);
       for (const p of board.harbors) {
         const [a, b] = p.vertices.map(id => board.vertices.find(v => v.id === id)!);
         expect(a.hexIds.filter(id => b.hexIds.includes(id))).toHaveLength(1);

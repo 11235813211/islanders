@@ -39,7 +39,17 @@ export interface DesignTile {
  */
 export type NumberLevels = Partial<Record<FillKind, number>>;
 /** Terrains that take random numbers, in the order the editor lists them. */
-export const NUMBER_KINDS: FillKind[] = ['wood', 'sheep', 'wheat', 'brick', 'ore', 'gold', 'jungle', 'volcano'];
+export const NUMBER_KINDS: FillKind[] = [
+  'wood',
+  'sheep',
+  'wheat',
+  'brick',
+  'ore',
+  'lodestone',
+  'gold',
+  'jungle',
+  'volcano',
+];
 
 /** A harbor on side `side` (0–5, see SIDE_DIRECTIONS) of land tile (q, r). */
 export interface DesignHarbor {
@@ -148,12 +158,20 @@ export const EXPANSIONS = {
   'cities-knights': 'Cities & Knights',
   'traders-barbarians': 'Traders & Barbarians',
   'explorers-pirates': 'Explorers & Pirates',
+  cartographers: 'Cartographers',
 } as const;
 export type Expansion = keyof typeof EXPANSIONS;
 
-/** The expansions a board needs: what its editor chose, or Seafarers when ships are needed to play it. */
-export function boardExpansions(design: Pick<BoardDesign, 'expansions' | 'tiles'>): Expansion[] {
-  return design.expansions ?? (needsShips(design.tiles) ? ['seafarers'] : []);
+/**
+ * The expansions a board needs: what its editor chose, or Seafarers when ships are needed to play it.
+ * Lodestone, set or in a random mix, always brings Cartographers.
+ */
+export function boardExpansions(
+  design: Pick<BoardDesign, 'expansions' | 'tiles'> & Partial<Pick<BoardDesign, 'pool'>>,
+): Expansion[] {
+  const chosen = design.expansions ?? (needsShips(design.tiles) ? ['seafarers'] : []);
+  const lodestone = design.tiles.some(t => t.kind === 'lodestone') || (design.pool?.lodestone ?? 0) > 0;
+  return lodestone && !chosen.includes('cartographers') ? [...chosen, 'cartographers'] : chosen;
 }
 
 /**

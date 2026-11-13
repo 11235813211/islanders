@@ -17,7 +17,7 @@ const DESIGN = testDesign([
   '~ ~ ~ ~ ~ ~ ~',
 ]);
 
-const grantBag = () => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
+const grantBag = () => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 });
 const hexOf = (g: GameState, terrain: Terrain) => g.board.hexes.find(h => h.terrain === terrain)!;
 
 /** p0 is about to move the robber or pirate; the setup callback places pieces directly. */

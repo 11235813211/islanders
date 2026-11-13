@@ -30,7 +30,8 @@ type Field =
   | 'botLevel'
   | 'proposalKind'
   | 'settings'
-  | 'players';
+  | 'players'
+  | 'hexes';
 type FieldSpec = Field | `${Field}?`;
 
 const SPEC = {
@@ -62,6 +63,9 @@ const SPEC = {
   'place-settlement': { vertexId: 'id' },
   'build-settlement': { vertexId: 'id' },
   'build-city': { vertexId: 'id' },
+  'build-relay': { edgeId: 'id' },
+  'build-survey': { edgeId: 'id' },
+  'chart-hexes': { hexIds: 'hexes' },
   'place-road': { edgeId: 'id' },
   'build-road': { edgeId: 'id' },
   'place-ship': { edgeId: 'id' },
@@ -90,12 +94,26 @@ export function isIdentifier(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 100 && /^[\w:.,-]+$/.test(value);
 }
 
+/**
+ * Every resource a whole number from 0 to 19. Lodestone may be left out (a bag from before
+ * Cartographers, or an old client); parseAction fills it in as 0.
+ */
 export function isResourceBag(value: unknown): value is ResourceBag {
+  if (!record(value)) return false;
+  const keys = Object.keys(value);
   return (
-    record(value) &&
-    Object.keys(value).length === RESOURCES.length &&
-    RESOURCES.every(r => Number.isInteger(value[r]) && (value[r] as number) >= 0 && (value[r] as number) <= 19)
+    keys.every(key => RESOURCES.includes(key as Resource)) &&
+    RESOURCES.every(
+      r =>
+        (r === 'lodestone' && value[r] === undefined) ||
+        (Number.isInteger(value[r]) && (value[r] as number) >= 0 && (value[r] as number) <= 19),
+    )
   );
+}
+
+/** A bag that passed isResourceBag, with any missing lodestone set to 0. */
+function withLodestone(value: unknown): unknown {
+  return record(value) && 'wood' in value ? { lodestone: 0, ...value } : value;
 }
 
 /** A resource bag that may also carry jungle discoveries (whether they may move is a room rule). */
@@ -129,11 +147,11 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
       return;
     case 'bag':
       if (!isResourceBag(value))
-        fail(`${bagLabel(type, key)} must be whole numbers from zero to nineteen for all five resources.`);
+        fail(`${bagLabel(type, key)} must be whole numbers from zero to nineteen for each resource.`);
       return;
     case 'tradeBag':
       if (!isTradeBag(value))
-        fail(`${bagLabel(type, key)} must be whole numbers from zero to nineteen for all five resources.`);
+        fail(`${bagLabel(type, key)} must be whole numbers from zero to nineteen for each resource.`);
       return;
     case 'tradable':
       if (value !== 'discovery' && !RESOURCES.includes(value as Resource)) fail('Choose valid resources.');
@@ -165,6 +183,9 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
       if (!Array.isArray(value) || value.length < 1 || value.length >= MAX_PLAYERS || !value.every(isIdentifier))
         fail('Choose who receives the offer.');
       return;
+    case 'hexes':
+      if (!Array.isArray(value) || value.length > 8 || !value.every(isIdentifier)) fail('Choose tiles to chart.');
+      return;
   }
 }
 
@@ -184,7 +205,8 @@ export function parseAction(value: unknown, { strict = true } = {}): GameAction 
     const optional = fieldSpec.endsWith('?');
     if (optional && value[key] === undefined) continue;
     checkField(type, key, fieldSpec.replace('?', '') as Field, value[key]);
-    action[key] = record(value[key]) ? structuredClone(value[key]) : value[key];
+    const copied = record(value[key]) || Array.isArray(value[key]) ? structuredClone(value[key]) : value[key];
+    action[key] = ['bag', 'tradeBag'].includes(fieldSpec.replace('?', '')) ? withLodestone(copied) : copied;
   }
   return action as GameAction;
 }

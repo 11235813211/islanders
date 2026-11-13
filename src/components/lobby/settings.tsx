@@ -109,6 +109,14 @@ export const CATEGORIES: Category[] = [
         when: view => view.features.volcano,
         control: { kind: 'toggle' },
       },
+      {
+        key: 'chartSpecial',
+        label: 'Chart gold and volcanoes',
+        hint: 'Whether survey ships may chart gold fields and volcanoes after a 7.',
+        icon: <Compass size={20} />,
+        when: view => view.cartographers,
+        control: { kind: 'toggle' },
+      },
     ],
   },
   {

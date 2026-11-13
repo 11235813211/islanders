@@ -124,7 +124,7 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
   return plans;
 }
 
-const emptyCost = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
+const emptyCost = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 });
 
 /** A development card: a point, a knight (toward Largest Army, and a robber move), or a progress card. */
 function cardPayoff(econ: Economy): number {
@@ -150,7 +150,7 @@ function explorePlans(econ: Economy, fog: Map<string, Target>): Plan[] {
   const index = boardIndex(view.board);
   const { card } = horizon(econ);
   // A typical new corner: about ten pips, spread over the resources.
-  const average = { production: { wood: 2, brick: 2, sheep: 2, wheat: 2, ore: 2 }, choice: 0 };
+  const average = { production: { wood: 2, brick: 2, sheep: 2, wheat: 2, ore: 2, lodestone: 0 }, choice: 0 };
   const newSpot = 1 + productionPoints(econ, average);
   const plans: Plan[] = [];
   for (const [id, path] of fog) {

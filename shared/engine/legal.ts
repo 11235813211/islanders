@@ -1,9 +1,19 @@
-import { linksAnywhere, victoryPoints } from '../rules';
-import { boardIndex, isLandTerrain, isLandVertex, isRoadEdge, isShipEdge, otherEnd } from '../seafaring';
+import { chartedNumbers, hexNumbers, linksAnywhere, victoryPoints } from '../rules';
+import {
+  boardIndex,
+  isLandTerrain,
+  isLandVertex,
+  isProducing,
+  isRoadEdge,
+  isShipEdge,
+  isWater,
+  otherEnd,
+} from '../seafaring';
 import { type GameState, type LegalMoves, type Player, RESOURCES } from '../types';
 import {
   BUILD_COSTS,
   canAfford,
+  cartographersRules,
   discoveryRule,
   getActivePlayerId,
   PIECE_LIMITS,
@@ -22,6 +32,8 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
     .filter(vertex => {
       if (state.buildings[vertex.id] || !isLandVertex(state.board, vertex.id)) return false;
       if (vertex.edgeIds.some(id => state.buildings[otherEnd(index.edge.get(id)!, vertex.id)])) return false;
+      // No settlement at either end of a relay station.
+      if (vertex.edgeIds.some(id => state.relays.includes(id))) return false;
       if (setup && vertex.noSetup) return false;
       if (setup)
         return !vertex.hexIds.some(id => {
@@ -33,11 +45,15 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
     .map(vertex => vertex.id);
 }
 
+/** What placing a route piece looks at: a game state, or a bot's view of one. */
+type RouteState = Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'> &
+  Partial<Pick<GameState, 'lastSettlement'>>;
+
 /**
  * Can a route of `kind` continue from this corner? Through your own building, or along your own
  * piece of that kind (or of either kind, when the room lets roads and ships join anywhere).
  */
-function reaches(state: GameState, playerId: string, vertexId: string, kind: 'roads' | 'ships', skip?: string) {
+function reaches(state: RouteState, playerId: string, vertexId: string, kind: 'roads' | 'ships', skip?: string) {
   const building = state.buildings[vertexId];
   if (building) return building.playerId === playerId;
   // Called for both ends of every edge on every legal-move check, so no allocations here.
@@ -50,7 +66,7 @@ function reaches(state: GameState, playerId: string, vertexId: string, kind: 'ro
   return false;
 }
 
-export function roadSites(state: GameState, playerId: string, setup: boolean): string[] {
+export function roadSites(state: RouteState, playerId: string, setup: boolean): string[] {
   return state.board.edges
     .filter(edge => {
       if (state.roads[edge.id] || state.ships[edge.id] || !isRoadEdge(state.board, edge.id)) return false;
@@ -60,8 +76,59 @@ export function roadSites(state: GameState, playerId: string, setup: boolean): s
     .map(edge => edge.id);
 }
 
+/**
+ * Where a relay station may go: anywhere a new road could, with nothing built at either end and
+ * no other relay station (anyone's) sharing a corner with it.
+ */
+export function relaySites(state: GameState, playerId: string): string[] {
+  return cartographersRules(state) ? relaySpots(state, playerId) : [];
+}
+
+/** The rule behind relaySites, on anything with a board and pieces (bots call it with their view). */
+export function relaySpots(state: RouteState & Pick<GameState, 'relays'>, playerId: string): string[] {
+  const index = boardIndex(state.board);
+  const relayCorners = new Set(state.relays.flatMap(id => [index.edge.get(id)!.a, index.edge.get(id)!.b]));
+  return roadSites(state, playerId, false).filter(id => {
+    const edge = index.edge.get(id)!;
+    return [edge.a, edge.b].every(v => !state.buildings[v] && !relayCorners.has(v));
+  });
+}
+
+/**
+ * Your ships that may become survey ships: out at sea (no land on either side), away from the
+ * pirate, and not beside a tile another survey ship (anyone's) already borders.
+ */
+export function surveySites(state: GameState, playerId: string): string[] {
+  return cartographersRules(state) ? surveySpots(state, playerId) : [];
+}
+
+/** The rule behind surveySites, on anything with a board and ships (bots call it with their view). */
+export function surveySpots(
+  state: Pick<GameState, 'board' | 'ships' | 'surveys' | 'pirate'>,
+  playerId: string,
+): string[] {
+  const index = boardIndex(state.board);
+  const surveyed = new Set(state.surveys.flatMap(id => index.edgeHexes.get(id)!.map(h => h.id)));
+  return Object.keys(state.ships).filter(id => {
+    if (state.ships[id] !== playerId || state.surveys.includes(id) || besidePirate(state, id)) return false;
+    const hexes = index.edgeHexes.get(id)!;
+    return hexes.every(h => isWater(h.terrain) && !surveyed.has(h.id));
+  });
+}
+
+/** Tiles a survey ship may chart: producing land with room for another step (see chartedNumbers). */
+export function chartHexes(state: Pick<GameState, 'board' | 'settings'>): string[] {
+  return state.board.hexes
+    .filter(hex => {
+      if (!isProducing(hex.terrain) || hex.number === null) return false;
+      if (!state.settings.chartSpecial && (hex.terrain === 'gold' || hex.terrain === 'volcano')) return false;
+      return chartedNumbers(hexNumbers(hex), true) !== null;
+    })
+    .map(hex => hex.id);
+}
+
 /** Edges beside the pirate can't take new or moved ships. */
-function besidePirate(state: GameState, edgeId: string): boolean {
+function besidePirate(state: Pick<GameState, 'board' | 'pirate'>, edgeId: string): boolean {
   return (
     !!state.pirate &&
     boardIndex(state.board)
@@ -105,6 +172,8 @@ export function shipMoves(state: GameState, playerId: string): Record<string, st
   const moves: Record<string, string[]> = {};
   for (const [edgeId, owner] of Object.entries(state.ships)) {
     if (owner !== playerId || state.shipsBuilt.includes(edgeId) || besidePirate(state, edgeId)) continue;
+    // A survey ship stays where it is.
+    if (state.surveys.includes(edgeId)) continue;
     if (!movableEnd(state, playerId, edgeId)) continue;
     const targets = shipSites(state, playerId, false, edgeId);
     if (targets.length) moves[edgeId] = targets;
@@ -174,10 +243,15 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     cities: [],
     robberHexes: [],
     stealTargets: [],
+    relays: [],
+    surveys: [],
+    chartHexes: [],
     shipMoves: {},
     development: false,
   };
   const player = state.players.find(candidate => candidate.id === selfId);
+  // Charting is off-turn; tiles show from the 7 on, so a choice can be lined up during the robber.
+  if (player && state.pendingCharts[selfId] && state.pausedAt === null) legal.chartHexes = chartHexes(state);
   if (!player || getActivePlayerId(state) !== selfId || state.pausedAt !== null) return legal;
   const pieces = pieceCounts(state, selfId);
   if (state.phase === 'setup-settlement') legal.settlements = settlementSites(state, selfId, true);
@@ -204,6 +278,10 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
         .filter(([, building]) => building.playerId === selfId && building.kind === 'settlement')
         .map(([vertexId]) => vertexId);
     }
+    if (pieces.relays < PIECE_LIMITS.relays && canAfford(player, BUILD_COSTS.relay))
+      legal.relays = relaySites(state, selfId);
+    if (pieces.surveys < PIECE_LIMITS.surveys && canAfford(player, BUILD_COSTS.survey))
+      legal.surveys = surveySites(state, selfId);
     if (state.phase === 'build') legal.shipMoves = shipMoves(state, selfId);
   }
   return legal;

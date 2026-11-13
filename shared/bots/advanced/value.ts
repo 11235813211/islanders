@@ -1,5 +1,5 @@
 import { boardIndex } from '../../seafaring';
-import { RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { CLASSIC_RESOURCES, RESOURCES, type Resource, type ResourceBag } from '../../types';
 import { COSTS, pips } from '../analysis';
 import type { Economy } from './economy';
 import { cornerPips, distanceFrom, openCorners } from './geometry';
@@ -153,7 +153,7 @@ function seatPosition(econ: Economy, seat: number, open: number[]): Position {
 
 /** Bank rates from the harbors a player has built on. */
 function harborRates(econ: Economy, playerId: string): Record<Resource, number> {
-  const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4 };
+  const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4 };
   for (const [vertexId, b] of Object.entries(econ.view.buildings)) {
     if (b.playerId !== playerId) continue;
     const harbor = econ.geo.harbor[econ.geo.indexOf.get(vertexId)!];
@@ -196,12 +196,13 @@ function featuresOf(econ: Economy, pos: Position, k: number, mover: number, [lea
     pos.points / target,
     (target - pos.points) / 10,
     lead,
-    ...RESOURCES.map(r => pos.production[r] / 10),
+    // The network was trained on the five base resources: lodestone stays out of its inputs.
+    ...CLASSIC_RESOURCES.map(r => pos.production[r] / 10),
     pos.choice / 10,
     total(pos) / 30,
     share,
-    RESOURCES.filter(r => pos.production[r] > 0).length / 5,
-    ...RESOURCES.map(r => pos.hand[r] / 4),
+    CLASSIC_RESOURCES.filter(r => pos.production[r] > 0).length / 5,
+    ...CLASSIC_RESOURCES.map(r => pos.hand[r] / 4),
     cards / 10,
     Math.max(0, cards - view.settings.discardLimit) / 4,
     pos.citiesLeft ? turns(COSTS.city) : 1,
@@ -219,8 +220,8 @@ function featuresOf(econ: Economy, pos: Position, k: number, mover: number, [lea
     Math.min(5, pos.near) / 5,
     pos.reach / 10,
     Math.min(9, pos.reachDistance) / 5,
-    RESOURCES.some(r => pos.rates[r] === 3) ? 1 : 0,
-    RESOURCES.reduce((s, r) => s + (pos.rates[r] === 2 ? pos.production[r] : 0), 0) / 10,
+    CLASSIC_RESOURCES.some(r => pos.rates[r] === 3) ? 1 : 0,
+    CLASSIC_RESOURCES.reduce((s, r) => s + (pos.rates[r] === 2 ? pos.production[r] : 0), 0) / 10,
     n / 6,
     Math.min(150, view.turn) / 100,
     view.seafaring ? 1 : 0,
@@ -232,7 +233,7 @@ function featuresOf(econ: Economy, pos: Position, k: number, mover: number, [lea
 /** Pips (robber counted) a building at this corner adds, by resource and choice. */
 export function cornerYield(econ: Economy, vertexId: string): { production: ResourceBag; choice: number } {
   const index = boardIndex(econ.view.board);
-  const production: ResourceBag = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 };
+  const production: ResourceBag = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
   let choice = 0;
   for (const hexId of index.vertex.get(vertexId)!.hexIds) {
     const hex = index.hex.get(hexId)!;

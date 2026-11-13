@@ -71,6 +71,8 @@ const BUILD_ICONS: Record<string, LucideIcon> = {
   ship: Sailboat,
   settlement: House,
   development: Sparkles,
+  relay: Route,
+  survey: Compass,
 };
 const EVENT_ICONS: Partial<Record<GameEvent['kind'], LucideIcon>> = {
   roll: Dice5,
@@ -85,6 +87,7 @@ const EVENT_ICONS: Partial<Record<GameEvent['kind'], LucideIcon>> = {
   eruption: Flame,
   iceberg: Snowflake,
   discover: Compass,
+  chart: Compass,
   takeover: Bot,
   win: Trophy,
 };

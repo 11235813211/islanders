@@ -12,7 +12,14 @@ import {
   normalizeGame,
   resourceCount,
 } from '../shared/engine';
-import { type GameAction, type GameState, RESOURCES, type Resource, type ResourceBag } from '../shared/types';
+import {
+  CLASSIC_RESOURCES,
+  type GameAction,
+  type GameState,
+  RESOURCES,
+  type Resource,
+  type ResourceBag,
+} from '../shared/types';
 
 function seeded(seed = 42): () => number {
   return () => {
@@ -63,7 +70,7 @@ function grant(state: GameState, playerId: string, resources: Partial<ResourceBa
 }
 
 function assertConserved(state: GameState): void {
-  for (const resource of RESOURCES) {
+  for (const resource of CLASSIC_RESOURCES) {
     expect(state.bank[resource]).toBeGreaterThanOrEqual(0);
     expect(state.players.reduce((sum, player) => sum + player.resources[resource], state.bank[resource])).toBe(19);
     for (const player of state.players) expect(player.resources[resource]).toBeGreaterThanOrEqual(0);
@@ -177,7 +184,10 @@ describe('island topology and distribution', () => {
     for (let seed = 0; seed < 100; seed++) {
       const board = generateBoard(seeded(seed));
       const counts = Object.fromEntries(
-        [...RESOURCES, 'desert'].map(terrain => [terrain, board.hexes.filter(hex => hex.terrain === terrain).length]),
+        [...CLASSIC_RESOURCES, 'desert'].map(terrain => [
+          terrain,
+          board.hexes.filter(hex => hex.terrain === terrain).length,
+        ]),
       );
       expect(counts).toEqual({ wood: 4, sheep: 4, wheat: 4, brick: 3, ore: 3, desert: 1 });
       expect(
@@ -603,7 +613,14 @@ describe('trust boundary and immutability', () => {
     grant(alternate, 'p1', { sheep: 3, brick: 1 });
     expect(state.bank).not.toEqual(alternate.bank);
     expect(getView(alternate, 'p0')).toEqual(getView(state, 'p0'));
-    expect(getView(state, 'p0').bank).toEqual({ wood: true, brick: true, sheep: true, wheat: true, ore: true });
+    expect(getView(state, 'p0').bank).toEqual({
+      wood: true,
+      brick: true,
+      sheep: true,
+      wheat: true,
+      ore: true,
+      lodestone: false,
+    });
     grant(state, 'p1', { ore: 18 });
     expect(getView(state, 'p0').bank.ore).toBe(false);
     assertConserved(state);

@@ -3,9 +3,11 @@ import { copyData } from '../copy';
 import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
+import { afterRobber, cartographersHandlers } from './cartographers';
 import {
   type ActionContext,
   addLog,
+  CHART_SECONDS,
   cloneState,
   GOLD_SECONDS,
   getActivePlayerId,
@@ -29,6 +31,7 @@ const HANDLERS: Handlers = {
   ...seaHandlers,
   ...tradeHandlers,
   ...developmentHandlers,
+  ...cartographersHandlers,
 } as Handlers;
 
 /** Actions a player may take when it is not their turn. */
@@ -47,6 +50,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'choose-map',
   'discard',
   'choose-gold',
+  'chart-hexes',
   'request-special-build',
   'accept-trade',
   'decline-trade',
@@ -64,6 +68,8 @@ const REVERSIBLE = new Set<GameAction['type']>([
   'move-ship',
   'build-settlement',
   'build-city',
+  'build-relay',
+  'build-survey',
   'trade',
   'bank-trade',
   'confirm-trade',
@@ -131,8 +137,7 @@ export function applyAction(
 /** Bookkeeping shared by every move: awards, winning, trade validity, clocks, and undo history. */
 function afterAction(state: GameState, next: GameState, playerId: string, action: GameAction, now: number): void {
   if (next.phase === 'robber' && !legalMoves(next, getActivePlayerId(next)!).robberHexes.length) {
-    next.phase = next.resumePhase ?? 'build';
-    next.resumePhase = null;
+    afterRobber(next);
     addLog(next, 'No legal robber destination is available.');
   }
   updateAwards(next);
@@ -160,6 +165,8 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   } else if (!rolling(next.phase)) next.rollDeadline = null;
   if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + GOLD_SECONDS * 1000;
   else if (next.phase !== 'gold') next.goldDeadline = null;
+  if (next.phase === 'charting' && state.phase !== 'charting') next.chartDeadline = now + CHART_SECONDS * 1000;
+  else if (next.phase !== 'charting') next.chartDeadline = null;
   if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + ROBBER_SECONDS * 1000;
   else if (next.phase !== 'robber') next.robberDeadline = null;
   const newSeat =

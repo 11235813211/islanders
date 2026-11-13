@@ -1,5 +1,5 @@
 import { shuffled } from '../board';
-import { linksAnywhere } from '../rules';
+import { hexNumbers, linksAnywhere } from '../rules';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type ResourceBag } from '../types';
 import {
@@ -23,8 +23,11 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   const demand = new Map<string, ResourceBag>(state.players.map(player => [player.id, emptyBag()]));
   const choices: Record<string, number> = {};
   const finds: Record<string, number> = {};
+  const relays = relaysByHex(state);
   for (const hex of state.board.hexes) {
-    if (hex.number !== total) continue;
+    // A charted tile pays once per matching number (a 6 charted to 6-6 pays twice).
+    const times = hexNumbers(hex).filter(n => n === total).length;
+    if (!times) continue;
     if (hex.id === state.robber) {
       noteBlocked(state, hex);
       continue;
@@ -32,13 +35,19 @@ export function produce(state: GameState, total: number): Record<string, Resourc
     // Without the gold variant a volcano only erupts.
     if (hex.terrain === 'volcano' && state.settings.volcanoGold === false) continue;
     const resource = terrainResource(hex.terrain);
-    for (const vertexId of hex.vertexIds) {
-      const building = state.buildings[vertexId];
-      if (!building) continue;
-      const amount = building.kind === 'city' ? 2 : 1;
-      if (resource) demand.get(building.playerId)![resource] += amount;
-      else if (paysChoice(hex.terrain)) choices[building.playerId] = (choices[building.playerId] ?? 0) + amount;
-      else if (hex.terrain === 'jungle') finds[building.playerId] = (finds[building.playerId] ?? 0) + amount;
+    const owed: [string, number][] = [
+      ...hex.vertexIds.flatMap(id => {
+        const building = state.buildings[id];
+        return building ? [[building.playerId, building.kind === 'city' ? 2 : 1] as [string, number]] : [];
+      }),
+      // Each relay station on the tile's sides earns one, like a settlement.
+      ...(relays.get(hex.id) ?? []).map(owner => [owner, 1] as [string, number]),
+    ];
+    for (const [playerId, each] of owed) {
+      const amount = each * times;
+      if (resource) demand.get(playerId)![resource] += amount;
+      else if (paysChoice(hex.terrain)) choices[playerId] = (choices[playerId] ?? 0) + amount;
+      else if (hex.terrain === 'jungle') finds[playerId] = (finds[playerId] ?? 0) + amount;
     }
   }
   const gains: Record<string, ResourceBag> = {};
@@ -77,6 +86,16 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   return gains;
 }
 
+/** Owners of the relay stations on each tile's sides. */
+function relaysByHex(state: GameState): Map<string, string[]> {
+  const index = boardIndex(state.board);
+  const byHex = new Map<string, string[]>();
+  for (const edgeId of state.relays)
+    for (const hex of index.edgeHexes.get(edgeId)!)
+      byHex.set(hex.id, [...(byHex.get(hex.id) ?? []), state.roads[edgeId]!]);
+  return byHex;
+}
+
 /** Count the cards a robber on this resource hex kept from its buildings. */
 function noteBlocked(state: GameState, hex: GameState['board']['hexes'][number]): void {
   if (!terrainResource(hex.terrain)) return;
@@ -92,7 +111,7 @@ function noteBlocked(state: GameState, hex: GameState['board']['hexes'][number])
  */
 export function eruptingVolcanoes(state: GameState, total: number): string[] {
   return state.board.hexes
-    .filter(hex => hex.terrain === 'volcano' && hex.number === total && hex.id !== state.robber)
+    .filter(hex => hex.terrain === 'volcano' && hexNumbers(hex).includes(total) && hex.id !== state.robber)
     .filter(hex => hex.vertexIds.some(id => state.buildings[id]))
     .map(hex => hex.id);
 }
@@ -173,6 +192,7 @@ export function drift(state: GameState, total: number, random: () => number): vo
       across.number = hex.number;
       hex.terrain = 'sea';
       hex.number = null;
+      hex.extra = undefined;
     }
     const where = moves ? 'drifted' : 'bumped';
     addLog(
@@ -199,7 +219,10 @@ export function sinkShip(state: GameState, edgeId: string): void {
   const owner = state.ships[edgeId]!;
   delete state.ships[edgeId];
   const stranded = strandedShips(state, owner);
-  if (!stranded.size) return;
+  if (!stranded.size) {
+    dropSunkSurveys(state);
+    return;
+  }
   state.ships[edgeId] = owner;
   const index = boardIndex(state.board);
   const onRoute = routePiece(state, owner);
@@ -218,6 +241,12 @@ export function sinkShip(state: GameState, edgeId: string): void {
   }
   const far = [...stranded].sort((x, y) => (distance.get(y) ?? 0) - (distance.get(x) ?? 0))[0]!;
   delete state.ships[far];
+  dropSunkSurveys(state);
+}
+
+/** A sunk survey ship is gone with its ship. */
+function dropSunkSurveys(state: GameState): void {
+  state.surveys = state.surveys.filter(id => state.ships[id]);
 }
 
 /** A player's ships no longer joined along their route to one of their settlements or cities. */

@@ -1,11 +1,11 @@
 import { Bot, ChevronDown, ChevronUp, Route, WifiOff } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
-import { type GameView, RESOURCES } from '../../../shared/types';
+import type { GameView } from '../../../shared/types';
 import { ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
-import { tradableStyle } from './tradables';
+import { resourcesIn, tradableStyle } from './tradables';
 
 const FOLDED_KEY = 'islanders:scoreboard-folded';
 
@@ -162,7 +162,7 @@ export function BankCounts({ view }: { view: GameView }) {
     <>
       <div className="bank-counts" role="group" aria-label="Cards left in the bank">
         <span>Bank</span>
-        {RESOURCES.map(r => (
+        {resourcesIn(view).map(r => (
           <span
             key={r}
             className="bank-count"

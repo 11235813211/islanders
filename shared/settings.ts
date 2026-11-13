@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   volcanoStart: true,
   volcanoDice: 'balanced',
   routeLinks: 'anywhere',
+  chartSpecial: true,
 };
 /** Whether the bank's card counts are shown at a table of `players` (see BankDisplay). */
 export function bankShown(settings: Pick<GameSettings, 'showBank'>, players: number): boolean {
@@ -105,7 +106,8 @@ export function validSettings(
     (s.diceMode === undefined || ['random', 'balanced'].includes(s.diceMode as string)) &&
     (s.volcanoStart === undefined || typeof s.volcanoStart === 'boolean') &&
     (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string)) &&
-    (s.routeLinks === undefined || ['anywhere', 'settlement'].includes(s.routeLinks as string))
+    (s.routeLinks === undefined || ['anywhere', 'settlement'].includes(s.routeLinks as string)) &&
+    (s.chartSpecial === undefined || typeof s.chartSpecial === 'boolean')
   );
 }
 

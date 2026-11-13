@@ -1,6 +1,9 @@
 import type { BoardDesign } from './maps/types';
-export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
+/** Every resource. Lodestone is only in play on Cartographers maps (see cartographersRules). */
+export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore', 'lodestone'] as const;
 export type Resource = (typeof RESOURCES)[number];
+/** The base game's five resources, for code that never meets lodestone (the trained bot's features). */
+export const CLASSIC_RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
 export type ResourceBag = Record<Resource, number>;
 /** Jungle discoveries, when room rules let them move like cards (see DISCOVERY_RULES). */
 export type Tradable = Resource | 'discovery';
@@ -14,8 +17,10 @@ export type DiscoveryRule = 'kept' | 'tradable' | 'card';
  */
 export const SEA_TERRAINS = ['sea', 'gold', 'jungle', 'volcano', 'iceberg', 'fog'] as const;
 export type SeaTerrain = (typeof SEA_TERRAINS)[number];
-export type BaseTerrain = Resource | 'desert';
-export type Terrain = BaseTerrain | SeaTerrain;
+/** The base game's tiles. */
+export type BaseTerrain = (typeof CLASSIC_RESOURCES)[number] | 'desert';
+/** Every tile: base, lodestone (Cartographers), and sea-map tiles. */
+export type Terrain = BaseTerrain | 'lodestone' | SeaTerrain;
 export interface Hex {
   id: string;
   q: number;
@@ -24,6 +29,8 @@ export interface Hex {
   y: number;
   terrain: Terrain;
   number: number | null;
+  /** Numbers a survey ship charted onto the tile (Cartographers), after `number`. See hexNumbers. */
+  extra?: number[];
   /** Corner vertices in order: lower right, bottom, lower left, upper left, top, upper right. */
   vertexIds: string[];
   /** Land tiles on sea maps: which island (connected land) the tile belongs to. */
@@ -107,7 +114,7 @@ export type CardSource = (typeof CARD_SOURCES)[number];
 /** Where a player's cards went. */
 export const CARD_LOSSES = ['build', 'discard', 'steal', 'monopoly', 'bank', 'trade'] as const;
 export type CardLoss = (typeof CARD_LOSSES)[number];
-export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development';
+export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey';
 /** Public per-player totals for the whole game, shown on the end-of-game screen. */
 export interface PlayerStats {
   cardsIn: Partial<Record<CardSource, number>>;
@@ -143,6 +150,8 @@ export type Phase =
   | 'gold'
   /** Volcanoes showing the roll erupt: the roller rolls a die for each (after any gold choices). */
   | 'eruption'
+  /** Cartographers, after a 7's robber: everyone with survey ships charts numbers at the same time. */
+  | 'charting'
   | 'free-roads'
   | 'build'
   /** Five or six players: after each turn, the others may build in order (no trading). */
@@ -158,7 +167,7 @@ export type GameEvent =
   | {
       kind: 'build';
       playerId: string;
-      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development';
+      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey';
       paid?: ResourceBag;
     }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
@@ -189,6 +198,8 @@ export type GameEvent =
       toHexId: string | null;
     }
   | { kind: 'discover'; playerId: string; hexId: string; terrain: Terrain }
+  /** A survey ship charted a tile: `numbers` is what it shows now. */
+  | { kind: 'chart'; playerId: string; hexId: string; numbers: number[] }
   /** A person's connection came or went (logged by the room, see logPresence). */
   | { kind: 'presence'; playerId: string; online: boolean }
   /** A person ran out of time and the game made a forced choice for them (see engine/time.ts). */
@@ -243,6 +254,8 @@ export interface GameSettings {
   volcanoDice: 'random' | 'balanced';
   /** Seafarers: where a road and a ship may join. `settlement` is the published rule (only at your own building). */
   routeLinks: 'anywhere' | 'settlement';
+  /** Cartographers: gold fields and volcanoes may be charted too. */
+  chartSpecial: boolean;
 }
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {
@@ -354,6 +367,13 @@ export interface GameState {
   diceDeck: [number, number][];
   /** Total of the last roll (balanced dice make a repeat less likely). */
   lastRollTotal: number | null;
+  /** Cartographers: edges in `roads` that hold relay stations, and in `ships` that hold survey ships. */
+  relays: string[];
+  surveys: string[];
+  /** Charts each player still makes after this 7 (one per survey ship they had when it was rolled). */
+  pendingCharts: Record<string, number>;
+  /** When charting ends for whoever hasn't charted. */
+  chartDeadline: number | null;
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -407,6 +427,8 @@ export interface PublicPlayer {
   publicPoints: number;
   roadsLeft: number;
   shipsLeft: number;
+  relaysLeft: number;
+  surveysLeft: number;
   settlementsLeft: number;
   citiesLeft: number;
   developmentCount: number;
@@ -425,6 +447,10 @@ export interface LegalMoves {
   /** Land hexes for the robber and, on sea maps, sea hexes for the pirate. */
   robberHexes: string[];
   stealTargets: string[];
+  /** Cartographers: edges for a relay station, ships that may become survey ships, tiles to chart. */
+  relays: string[];
+  surveys: string[];
+  chartHexes: string[];
   /** Ship edge → edges it may move to this turn. */
   shipMoves: Record<string, string[]>;
   /** Can buy a development card now (jungle discoveries count toward the cost). */
@@ -461,6 +487,12 @@ export interface GameView {
   buildings: Record<string, Building>;
   roads: Record<string, string>;
   ships: Record<string, string>;
+  relays: string[];
+  surveys: string[];
+  pendingCharts: Record<string, number>;
+  chartDeadline: number | null;
+  /** Cartographers rules are in play: lodestone, relay stations, survey ships, and charting. */
+  cartographers: boolean;
   robber: string;
   pirate: string | null;
   /** Bots only (null for people): each player's likely cards, counted from public moves. */
@@ -551,6 +583,11 @@ export type GameAction =
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
+  | { type: 'build-relay'; edgeId: string }
+  /** Turn one of your ships into a survey ship. */
+  | { type: 'build-survey'; edgeId: string }
+  /** Off-turn, in the charting phase: one tile per chart owed (a tile may repeat); empty passes. */
+  | { type: 'chart-hexes'; hexIds: string[] }
   /** Bank or harbor trade: `count` times the rate of `give` for `count` of `receive`. */
   | { type: 'trade'; give: Resource; receive: Resource; count?: number }
   /** A bank trade mixing rates: see bankTradeSize in rules.ts. */

@@ -52,6 +52,10 @@ function rightNow(view: GameView, v: Verbs): string | null {
       return 'Choose the player to take a card from.';
     case 'eruption':
       return 'Press Roll volcanoes.';
+    case 'charting':
+      return view.pendingCharts[view.selfId]
+        ? `Chart your tiles: ${v.tap.toLowerCase()} tiles, then Chart. Pass skips.`
+        : 'Players with survey ships are charting.';
     case 'special-build':
       return 'Build or buy cards (no trading), then press Done building.';
     case 'free-roads':
@@ -160,6 +164,16 @@ function seaSections(view: GameView, v: Verbs): HelpSection[] {
       title: 'Icebergs',
       lines: [
         'When an iceberg’s number is rolled, it drifts one tile into open sea. A ship on the side it hits sinks.',
+      ],
+    });
+  if (view.cartographers)
+    sections.push({
+      title: 'Cartographers',
+      lines: [
+        'Lodestone is a resource like the others. It comes from moor tiles.',
+        'Relay station: 2 lodestone, 1 lumber, 1 wool. Goes on an edge joined to your road, with nothing built at either end and no relay station touching it. It counts toward Longest Road and earns 1 card from each tile beside it. No points.',
+        'Survey ship: 2 lodestone, 1 grain. Turns one of your ships out at sea into a survey ship, worth 1 point. It no longer moves. No two survey ships may border the same tile.',
+        `On a 7, after the robber, each survey ship charts one tile. A number steps toward 7 (5 becomes 6, 12 becomes 11). A 6 or 8 gains a 2 or 12 at random, which steps the same way. A tile holds up to 3 numbers and pays on each${view.settings.chartSpecial ? '' : '; gold fields and volcanoes can’t be charted in this room'}.`,
       ],
     });
   return sections;

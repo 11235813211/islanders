@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { richGame } from './fixtures';
-import { mountGame } from './ui-harness';
+import { BUILTIN_BOARDS } from '../shared/maps';
+import { grant, richGame, seaSettled } from './fixtures';
+import { expectNoSpill, mountGame } from './ui-harness';
 
 // Runs in the "iphone" project (WebKit, touch, 390×664 viewport). See playwright.config.ts.
 
@@ -181,4 +182,46 @@ test('the scoreboard fold button sits in the header row, clear of the first name
   const firstName = (await page.locator('.player-table tbody .player-name').first().boundingBox())!;
   expect(fold.y + fold.height).toBeLessThanOrEqual(firstName.y);
   await page.locator('.player-panel').screenshot({ path: 'test-results/phone-scoreboard.png' });
+});
+
+test('a Cartographers game: the build bar fits relay and survey buttons, each easy to tap', async ({ page }) => {
+  const g = seaSettled(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!, 3);
+  g.testMode = true;
+  g.phase = 'build';
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 120_000;
+  grant(g, 'p0', { lodestone: 4, wood: 2, sheep: 2, wheat: 1 });
+  const room = await mountGame(page, g);
+  const bar = page.locator('.table-actions');
+  await expectNoSpill(bar);
+  for (const name of ['Build relay station', 'Make a ship a survey ship', 'Build road', 'Buy development card']) {
+    const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
+    expect(box.width, name).toBeGreaterThanOrEqual(30);
+    expect(box.height, name).toBeGreaterThanOrEqual(36);
+  }
+  // No button may sit on top of its neighbor (squeezed buttons overlap without spilling out).
+  const boxes = await bar.locator(':scope > *').evaluateAll(items => items.map(item => item.getBoundingClientRect()));
+  for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.left).toBeGreaterThanOrEqual(boxes[i - 1]!.right - 1);
+  await page.screenshot({ path: 'test-results/phone-cartographers.png' });
+  await bar.screenshot({ path: 'test-results/phone-cartographers-bar.png' });
+  expect(room.errors).toEqual([]);
+});
+
+test('the charting panel fits a phone and its buttons are reachable', async ({ page }) => {
+  const g = seaSettled(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!, 3);
+  g.phase = 'charting';
+  g.pendingCharts = { p0: 2 };
+  g.chartDeadline = Date.now() + 30_000;
+  g.turnDeadline = Date.now() + 120_000;
+  const room = await mountGame(page, g);
+  const panel = page.getByRole('dialog', { name: 'Chart 2 tiles' });
+  await page
+    .getByRole('button', { name: /^Chart .*, number / })
+    .first()
+    .click();
+  await expectNoSpill(panel);
+  await expect(panel.getByRole('button', { name: 'Chart', exact: true })).toBeInViewport();
+  await expect(panel.getByRole('button', { name: 'Pass' })).toBeInViewport();
+  await page.screenshot({ path: 'test-results/phone-charting.png' });
+  expect(room.errors).toEqual([]);
 });

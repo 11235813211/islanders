@@ -7,7 +7,7 @@ import { BASE_POOL, type BoardCategory, type BoardDesign, type DesignKind, type 
  *
  * Each map is drawn as rows of tokens in "odd rows shifted right" layout:
  *   ~ sea   L random land   w b s h o  wood brick sheep wheat ore   d desert
- *   g gold  j jungle        v volcano  i iceberg      .  no tile
+ *   g gold  j jungle        v volcano  i iceberg      m lodestone (Cartographers)   .  no tile
  * Suffixes: a number token (h6), * island bonus 2, + island bonus 1, ! no setup settlements
  * on this island, @ robber start (on land) or pirate start (on sea).
  */
@@ -25,6 +25,7 @@ const LETTERS: Record<string, DesignKind> = {
   j: 'jungle',
   v: 'volcano',
   i: 'iceberg',
+  m: 'lodestone',
 };
 
 /** Parse a token grid into tiles plus robber and pirate starts. Exported for tests. */
@@ -38,7 +39,7 @@ export function parseGrid(rows: string[]): Pick<BoardDesign, 'tiles' | 'robber' 
       .split(/\s+/)
       .forEach((token, col) => {
         if (token === '.') return;
-        const match = /^([~LwbshodgjvLi])(\d{1,2})?([*+!@]*)$/.exec(token);
+        const match = /^([~Lwbshodgjvim])(\d{1,2})?([*+!@]*)$/.exec(token);
         if (!match) throw new Error(`Bad map token "${token}"`);
         const tile: DesignTile = { q: col - Math.floor(row / 2), r: row, kind: LETTERS[match[1]!]! };
         if (match[2]) tile.number = Number(match[2]);
@@ -78,6 +79,7 @@ function map(
     victoryPoints?: number;
     harbors: number;
     pool?: BoardDesign['pool'];
+    expansions?: BoardDesign['expansions'];
   },
   rows: string[],
 ): BoardDesign {
@@ -93,7 +95,7 @@ function map(
     harbors: autoHarbors(grid.tiles, options.harbors),
     pool: options.pool ?? { ...BASE_POOL },
     harborExclude: [],
-    expansions: ['seafarers'],
+    expansions: options.expansions ?? ['seafarers'],
     updatedAt: 0,
   };
 }
@@ -101,7 +103,15 @@ function map(
 export const BUILTIN_CATEGORIES: BoardCategory[] = [
   { id: 'seafaring', name: 'Seafaring', color: '#1f7fa6' },
   { id: 'fire-and-jungle', name: 'Fire and jungle', color: '#c4572b' },
+  { id: 'cartographers', name: 'Cartographers', color: '#7a5a99' },
 ];
+
+/** Cartographers maps: lodestone on the home island and the isles, and open sea for survey ships. */
+const CARTOGRAPHERS = {
+  categoryId: 'cartographers',
+  pool: { ...BASE_POOL, lodestone: 2 },
+  expansions: ['seafarers', 'cartographers'],
+} as const satisfies Partial<BoardDesign>;
 
 export const BUILTIN_BOARDS: BoardDesign[] = [
   map(
@@ -229,6 +239,38 @@ export const BUILTIN_BOARDS: BoardDesign[] = [
       '~ L L L L ~ ~ L j*! ~ ~',
       ' ~ ~ L L L ~ ~ ~ L ~ ~',
       '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+    ],
+  ),
+  map(
+    'compass-sea',
+    'Compass Sea',
+    'Lodestone on the home island and two isles (one with gold), and open sea for survey ships.',
+    { ...CARTOGRAPHERS, players: [3, 4], harbors: 9 },
+    [
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+      ' ~ ~ L L L ~ ~ ~ ~ ~ ~ ~',
+      '~ ~ L L L L ~ ~ m*! g ~',
+      ' ~ ~ L L m L L ~ ~ ~ ~ ~',
+      '~ ~ L L L L ~@ ~ ~ L ~',
+      ' ~ ~ ~ L L L ~ ~ ~ m*! L ~',
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+    ],
+  ),
+  map(
+    'magnetic-north',
+    'Magnetic North',
+    'For five or six: a long home island with lodestone, gold offshore, and a wide sea for survey ships.',
+    { ...CARTOGRAPHERS, players: [5, 6], harbors: 12 },
+    [
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
+      ' ~ L L L L ~ ~ ~ m*! L ~ ~ ~',
+      '~ L L L L L ~ ~ ~ g ~ ~ ~',
+      ' ~ L L m L L ~ ~ ~ ~ L*! m ~',
+      '~ L L L L L L ~@ ~ ~ ~ L ~',
+      ' ~ L L L m L ~ ~ ~ ~ L*! m ~',
+      '~ L L L L L ~ ~ ~ L ~ ~ ~',
+      ' ~ L L L L ~ ~ ~ m*! L ~ ~ ~',
+      '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
     ],
   ),
 ];

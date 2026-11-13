@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
 import type { Board, Hex } from '../../shared/types';
-import { type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, Tile } from '../art';
+import { CARTOGRAPHERS, type Frame, Harbor, NumberToken, Robber, SEA, SeaBackdrop, Tile } from '../art';
 import { hexPoints } from '../lib/geometry';
 import IslandRims, { rimTiles } from './IslandRims';
 
@@ -101,6 +101,11 @@ export default function BoardScene({
           <g {...rumbleProps(rumbles.find(r => r.hexId === hex.id))}>
             <Tile uid={uid} terrain={hex.terrain} />
             {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
+            {!!hex.extra?.length && (
+              <g transform="translate(0 8)">
+                <CARTOGRAPHERS.ExtraNumbers numbers={hex.extra} />
+              </g>
+            )}
             {!!hex.bonus && <SEA.BonusChip points={hex.bonus} />}
             {robber === hex.id && (
               <g className="piece-drop">

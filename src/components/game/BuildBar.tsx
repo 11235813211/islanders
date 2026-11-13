@@ -1,19 +1,35 @@
-import { Check, House, Move, Route, Sailboat, X } from 'lucide-react';
+import { Check, Compass, House, Move, Route, Sailboat, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GameAction, GameView, PublicPlayer, Resource } from '../../../shared/types';
+import { BUILD_COSTS } from '../../../shared/engine';
+import { type GameAction, type GameView, type PublicPlayer, RESOURCES, type Resource } from '../../../shared/types';
 import { ResourceIcon } from '../../art';
 import { useDismiss } from '../../hooks/useDismiss';
 import type { BoardMode, PlaceKind } from '../Board';
 import { RESOURCE_LABELS } from '../ResourceHand';
-import { CityIcon } from './icons';
+import { CityIcon, RelayIcon } from './icons';
 
 export type BuildKind = PlaceKind;
-const RECIPES: Record<BuildKind | 'development', Resource[]> = {
-  road: ['wood', 'brick'],
-  ship: ['wood', 'sheep'],
-  settlement: ['wood', 'brick', 'sheep', 'wheat'],
-  city: ['wheat', 'wheat', 'ore', 'ore', 'ore'],
-  development: ['sheep', 'wheat', 'ore'],
+/** A piece's cost as one icon per card. */
+const recipe = (kind: BuildKind | 'development'): Resource[] =>
+  RESOURCES.flatMap(r => Array<Resource>(BUILD_COSTS[kind][r]).fill(r));
+/** Names on the buttons and in their tooltips. */
+const LABELS: Record<BuildKind | 'development', { short: string; long: string }> = {
+  road: { short: 'road', long: 'Build road' },
+  ship: { short: 'ship', long: 'Build ship' },
+  settlement: { short: 'settlement', long: 'Build settlement' },
+  city: { short: 'city', long: 'Build city' },
+  relay: { short: 'relay', long: 'Build relay station' },
+  survey: { short: 'survey', long: 'Make a ship a survey ship' },
+  development: { short: 'Dev Card', long: 'Buy development card' },
+};
+const ICONS: Record<BuildKind | 'development', ReactNode> = {
+  road: <Route size={23} />,
+  ship: <Sailboat size={23} />,
+  settlement: <House size={23} />,
+  city: <CityIcon size={23} />,
+  relay: <RelayIcon size={23} />,
+  survey: <Compass size={23} />,
+  development: <span className="development-icon">✦</span>,
 };
 
 /** Build button. Press and hold (or hover) shows its recipe. */
@@ -37,19 +53,7 @@ function BuildButton({
   const held = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const label = kind === 'development' ? 'Buy development card' : `Build ${kind}`;
-  const icon =
-    kind === 'road' ? (
-      <Route size={23} />
-    ) : kind === 'ship' ? (
-      <Sailboat size={23} />
-    ) : kind === 'settlement' ? (
-      <House size={23} />
-    ) : kind === 'city' ? (
-      <CityIcon size={23} />
-    ) : (
-      <span className="development-icon">✦</span>
-    );
+  const label = LABELS[kind].long;
   const hideTip = () => {
     clearTimeout(timer.current);
     setTip(false);
@@ -84,14 +88,14 @@ function BuildButton({
           onClick();
         }}
       >
-        {icon}
-        <span className="build-label">{kind === 'development' ? 'Dev Card' : kind}</span>
+        {ICONS[kind]}
+        <span className="build-label">{LABELS[kind].short}</span>
         <small>{remaining}</small>
       </button>
       <span className="recipe-tooltip" role="tooltip">
         {label}
         <span>
-          {RECIPES[kind].map((r, i) => (
+          {recipe(kind).map((r, i) => (
             <span key={i} title={RESOURCE_LABELS[r]}>
               <ResourceIcon resource={r} size={20} />
             </span>
@@ -120,7 +124,7 @@ function BuyConfirm({ buy, close }: { buy: () => void; close: () => void }) {
     <div className="buy-confirm" ref={root} role="dialog" aria-label="Buy a development card?">
       Buy a development card?
       <span className="buy-confirm-recipe">
-        {RECIPES.development.map(r => (
+        {recipe('development').map(r => (
           <ResourceIcon key={r} resource={r} size={20} />
         ))}
       </span>
@@ -203,6 +207,24 @@ export default function BuildBar({
         disabled={blocked || !view.legal.cities.length}
         onClick={() => toggle('city')}
       />
+      {view.cartographers && (
+        <>
+          <BuildButton
+            kind="relay"
+            remaining={self.relaysLeft}
+            selected={mode === 'relay'}
+            disabled={blocked || !view.legal.relays.length}
+            onClick={() => toggle('relay')}
+          />
+          <BuildButton
+            kind="survey"
+            remaining={self.surveysLeft}
+            selected={mode === 'survey'}
+            disabled={blocked || !view.legal.surveys.length}
+            onClick={() => toggle('survey')}
+          />
+        </>
+      )}
       <BuildButton
         kind="development"
         remaining={view.developmentRemaining}

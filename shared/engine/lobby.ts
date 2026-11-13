@@ -8,6 +8,7 @@ import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type 
 import {
   addLog,
   bankFor,
+  cartographersRules,
   cloneState,
   emptyBag,
   emptyDiceCounts,
@@ -63,7 +64,7 @@ function dealTable(next: GameState, random: () => number): void {
   const played = next.design && designFor(next.design, layoutCount(next));
   if (played && next.settings.victoryPoints === next.design!.victoryPoints)
     next.settings.victoryPoints = played.victoryPoints;
-  next.bank = bankFor(players);
+  next.bank = bankFor(players, cartographersRules(next));
   next.developmentDeck = developmentDeck(random, isLargeGame(players));
 }
 
@@ -86,6 +87,10 @@ export function createGame(
     buildings: {},
     roads: {},
     ships: {},
+    relays: [],
+    surveys: [],
+    pendingCharts: {},
+    chartDeadline: null,
     robber,
     pirate,
     stealHex: null,

@@ -259,7 +259,7 @@ it('the last opponent discard leaves robber movement to the active player', () =
   g = applyAction(
     g,
     'p1',
-    { type: 'discard', resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 4 } },
+    { type: 'discard', resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 4, lodestone: 0 } },
     seeded(),
     now,
   );
@@ -279,7 +279,7 @@ it('a bot asks a person to trade only when one card short, and never repeats a t
   g.phase = 'build';
   g.turnIndex = 1;
   for (const p of g.players.slice(1)) p.bot = 'advanced';
-  for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 };
+  for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
   // One ore short of a city, with spare wood to give.
   grant(g, 'p1', { wheat: 2, ore: 2, wood: 3 });
   const first = chooseBotAction(getView(g, 'p1'), { level: 'advanced' });
@@ -296,7 +296,7 @@ it('a bot asks a person to trade only when one card short, and never repeats a t
     if (again.type === 'offer-trade') expect(again.to).not.toContain('p0');
   }
   // Two cards short: people are not asked at all.
-  g.players[1]!.resources = { wood: 3, brick: 0, sheep: 0, wheat: 1, ore: 2 };
+  g.players[1]!.resources = { wood: 3, brick: 0, sheep: 0, wheat: 1, ore: 2, lodestone: 0 };
   g.log = [];
   const far = chooseBotAction(getView(g, 'p1'), { level: 'advanced' });
   if (far.type === 'offer-trade') expect(far.to).not.toContain('p0');

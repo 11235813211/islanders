@@ -330,7 +330,7 @@ export class Economy {
   }
 }
 
-const unitWeights: ResourceBag = { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 1 };
+const unitWeights: ResourceBag = { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 1, lodestone: 1 };
 
 /** Every way to pick `n` resources (as bags), only from what the bank has. */
 export function choices(econ: Economy, n: number): ResourceBag[] {

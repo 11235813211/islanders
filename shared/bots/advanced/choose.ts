@@ -22,7 +22,7 @@ export interface Candidate {
 }
 
 const SHIP = BUILD_COSTS.ship;
-const NOTHING = { production: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 }, choice: 0 };
+const NOTHING = { production: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 }, choice: 0 };
 
 /** The seats with ours replaced, and an award moved from its holder when we take it. */
 function after(base: Position[], self: Position, award?: 'roadAward' | 'armyAward'): Position[] {

@@ -84,8 +84,8 @@ test('trade offers read from each side, with answers in seat colors', async ({ p
   game.tradeOffer = {
     id: 'trade-visual',
     fromId: 'p0',
-    give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0 },
-    want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1 },
+    give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
+    want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0 },
     to: ['p1', 'p2', 'p3'],
     acceptedBy: ['p1'],
     declinedBy: ['p2'],

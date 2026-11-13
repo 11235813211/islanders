@@ -7,8 +7,14 @@ import {
   terrainResource,
   vertexIsland,
 } from '../../seafaring';
-import { type Board, type GameView, RESOURCES, type Resource } from '../../types';
+import { type Board, CLASSIC_RESOURCES, type GameView, type Resource } from '../../types';
 import { pips } from '../analysis';
+
+/**
+ * A resource's slot among the five the trained network knows, or -1 for lodestone (Cartographers),
+ * which the Advanced bot's setup and network don't see.
+ */
+export const classicSlot = (resource: string): number => (CLASSIC_RESOURCES as readonly string[]).indexOf(resource);
 
 /**
  * What never changes about a board during a game, worked out once per board object and per
@@ -107,8 +113,8 @@ function build(board: Board, seafaring: boolean): Geometry {
       const p = pips(hex.number);
       if (hex.terrain === 'sea' || hex.terrain === 'iceberg') geo.coast[c] = 1;
       if (!p) continue;
-      const resource = terrainResource(hex.terrain);
-      if (resource) geo.pips[c * 5 + RESOURCES.indexOf(resource)]! += p;
+      const slot = classicSlot(terrainResource(hex.terrain) ?? '');
+      if (slot >= 0) geo.pips[c * 5 + slot]! += p;
       else if (hex.terrain === 'gold') geo.gold[c]! += p;
       else if (hex.terrain === 'volcano') geo.volcano[c]! += p;
       else if (hex.terrain === 'jungle') geo.jungle[c]! += p;
@@ -126,8 +132,8 @@ function build(board: Board, seafaring: boolean): Geometry {
     if (!seafaring) geo.coast[c] = 0;
   });
   for (const hex of board.hexes) {
-    const resource = terrainResource(hex.terrain);
-    if (resource) geo.boardPips[RESOURCES.indexOf(resource)]! += pips(hex.number);
+    const slot = classicSlot(terrainResource(hex.terrain) ?? '');
+    if (slot >= 0) geo.boardPips[slot]! += pips(hex.number);
   }
   // Corners joined by an edge a road or ship could take.
   for (const v of board.vertices) {

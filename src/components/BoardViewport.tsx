@@ -186,7 +186,7 @@ export default function BoardViewport({
     }),
     [],
   );
-  const { view, mode, disabled, selected, moveFrom, robberPick } = props;
+  const { view, mode, disabled, selected, moveFrom, robberPick, chart } = props;
   // biome-ignore lint/correctness/useExhaustiveDependencies: drawn is a ref read at render; commit() keeps the DOM in step.
   const board = useMemo(
     () => (
@@ -197,11 +197,12 @@ export default function BoardViewport({
         selected={selected}
         moveFrom={moveFrom}
         robberPick={robberPick}
+        chart={chart}
         camera={drawn.current}
         {...handlers}
       />
     ),
-    [view, mode, disabled, selected, moveFrom, robberPick, handlers],
+    [view, mode, disabled, selected, moveFrom, robberPick, chart, handlers],
   );
   const zoom = (factor: number) => {
     const rect = root.current!.getBoundingClientRect();

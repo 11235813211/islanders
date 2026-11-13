@@ -16,6 +16,7 @@ import {
   bagHas,
   bagTotal,
   held,
+  resourcesIn,
   TradableIcon,
   tradableLabel,
   tradableStyle,
@@ -324,7 +325,7 @@ export function GoldPanel({
       }
     >
       <Palette
-        items={[...RESOURCES]}
+        items={resourcesIn(view)}
         label="Choose resources from gold"
         name={r => `Take one more ${tradableLabel(r)}`}
         disabled={r => busy || picked >= owed || (r !== 'discovery' && outOf(r))}

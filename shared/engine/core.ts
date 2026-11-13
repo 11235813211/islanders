@@ -1,5 +1,5 @@
 import { copyData } from '../copy';
-import type { BoardDesign } from '../maps/types';
+import { type BoardDesign, boardExpansions } from '../maps/types';
 import { boardIndex } from '../seafaring';
 import { DISCOVERY_RULES } from '../settings';
 import {
@@ -26,7 +26,7 @@ export function requireRule(condition: unknown, message: string): asserts condit
   if (!condition) throw new GameError(message);
 }
 
-export const emptyBag = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
+export const emptyBag = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 });
 export const resourceCount = (bag: ResourceBag): number => RESOURCES.reduce((sum, resource) => sum + bag[resource], 0);
 /** Cards plus discoveries in a trade or discard bag. */
 export const bagCount = (bag: TradeBag): number => resourceCount(bag) + (bag.discovery ?? 0);
@@ -67,15 +67,20 @@ export const ROBBER_SECONDS = 15;
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
 export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
   state.settings.seafarers !== false && boardIndex(state.board).seafaring;
+/** Seconds everyone has to chart after a 7 before the rest pass. */
+export const CHART_SECONDS = 30;
+/** Cartographers rules (lodestone, relay stations, survey ships, charting): the map asks for them. */
+export const cartographersRules = (state: Pick<GameState, 'design'>): boolean =>
+  !!state.design && boardExpansions(state.design).includes('cartographers');
 /** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
 export const isLargeGame = (players: number): boolean => players >= 5;
 /** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
 export const SPECIAL_BUILD_SECONDS = 20;
 
-/** Resource cards of each kind in the bank: 19, or 24 with five or six players. */
-export function bankFor(players: number): ResourceBag {
+/** Resource cards of each kind in the bank: 19, or 24 with five or six players. Lodestone only on Cartographers maps. */
+export function bankFor(players: number, cartographers = false): ResourceBag {
   const n = isLargeGame(players) ? 24 : 19;
-  return { wood: n, brick: n, sheep: n, wheat: n, ore: n };
+  return { wood: n, brick: n, sheep: n, wheat: n, ore: n, lodestone: cartographers ? n : 0 };
 }
 /**
  * Jungle discoveries in the supply at the start: 12, grown for 5–6 players by the same share as the
@@ -88,14 +93,19 @@ export function discoverySupply(players: number): number {
 export function discoveriesLeft(state: Pick<GameState, 'players'>): number {
   return Math.max(0, discoverySupply(state.players.length) - state.players.reduce((n, p) => n + p.discoveries, 0));
 }
-export const BUILD_COSTS: Record<'road' | 'ship' | 'settlement' | 'city' | 'development', ResourceBag> = {
-  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 },
-  ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0 },
-  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0 },
-  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3 },
-  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1 },
+export const BUILD_COSTS: Record<
+  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey',
+  ResourceBag
+> = {
+  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
+  ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0, lodestone: 0 },
+  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0 },
+  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
+  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
+  relay: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0, lodestone: 2 },
+  survey: { wood: 0, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 2 },
 };
-export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4 } as const;
+export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
 
 /**
  * Copy a state for the next move. The board is shared, not copied: it changes only on rare moves
@@ -180,13 +190,19 @@ export function pay(state: GameState, player: Player, cost: ResourceBag): void {
   }
 }
 
-export function pieceCounts(state: GameState, playerId: string) {
+export function pieceCounts(
+  state: Pick<GameState, 'buildings' | 'roads' | 'ships' | 'relays' | 'surveys'>,
+  playerId: string,
+) {
   const buildings = Object.values(state.buildings).filter(building => building.playerId === playerId);
   const settlements = buildings.filter(building => building.kind === 'settlement').length;
   const cities = buildings.filter(building => building.kind === 'city').length;
-  const roads = Object.values(state.roads).filter(owner => owner === playerId).length;
-  const ships = Object.values(state.ships).filter(owner => owner === playerId).length;
-  return { settlements, cities, roads, ships, points: settlements + cities * 2 };
+  // Relay stations stand on road edges and survey ships were ships; neither uses up a road or ship.
+  const relays = (state.relays ?? []).filter(id => state.roads[id] === playerId).length;
+  const surveys = (state.surveys ?? []).filter(id => state.ships[id] === playerId).length;
+  const roads = Object.values(state.roads).filter(owner => owner === playerId).length - relays;
+  const ships = Object.values(state.ships).filter(owner => owner === playerId).length - surveys;
+  return { settlements, cities, roads, ships, relays, surveys, points: settlements + cities * 2 + surveys };
 }
 
 /** Context passed to every action handler. `next` is a private clone the handler mutates. */

@@ -84,7 +84,7 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await expect(page.getByRole('button', { name: 'End turn' })).toHaveCount(0);
   await page.getByLabel('Play as', { exact: true }).selectOption(host);
   await expect(page.getByRole('button', { name: 'End turn' })).toBeEnabled();
-  const labels = { wood: 'Lumber', brick: 'Brick', sheep: 'Wool', wheat: 'Grain', ore: 'Ore' };
+  const labels = { wood: 'Lumber', brick: 'Brick', sheep: 'Wool', wheat: 'Grain', ore: 'Ore', lodestone: 'Lodestone' };
   const give = RESOURCES.find(resource => game.state()!.hand[resource] > 0)!;
   const want = RESOURCES.find(resource => resource !== give)!;
   await page.getByRole('button', { name: new RegExp(`^Trade ${labels[give]}`) }).click();

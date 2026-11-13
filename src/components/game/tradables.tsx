@@ -1,6 +1,13 @@
 import type { CSSProperties } from 'react';
 import { DISCOVERY_RULES } from '../../../shared/settings';
-import { type GameView, RESOURCES, type Tradable, type TradeBag } from '../../../shared/types';
+import {
+  CLASSIC_RESOURCES,
+  type GameView,
+  RESOURCES,
+  type Resource,
+  type Tradable,
+  type TradeBag,
+} from '../../../shared/types';
 import { ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 
@@ -31,11 +38,16 @@ export const withItem = (bag: TradeBag, item: Tradable, change: number): TradeBa
 /** What the room lets discoveries do here: trade with players, count toward discards, or be taken by cards. */
 export type DiscoveryUse = 'trade' | 'discard' | 'take';
 
-/** The items a panel offers: the five resources, plus discoveries when this map and room allow it. */
+/** The resources in play: lodestone only on Cartographers maps. */
+export const resourcesIn = (view: Pick<GameView, 'cartographers'>): Resource[] => [
+  ...(view.cartographers ? RESOURCES : CLASSIC_RESOURCES),
+];
+
+/** The items a panel offers: the resources in play, plus discoveries when this map and room allow it. */
 export function tradablesFor(view: GameView, use: DiscoveryUse): Tradable[] {
   const rule = DISCOVERY_RULES[view.settings.discoveries ?? 'kept'];
   const allowed = use === 'trade' ? rule.tradable : use === 'discard' ? rule.inHand : rule.stealable;
-  return view.jungle && allowed ? [...RESOURCES, 'discovery'] : [...RESOURCES];
+  return view.jungle && allowed ? [...resourcesIn(view), 'discovery'] : resourcesIn(view);
 }
 
 /** How many of `item` you hold. */

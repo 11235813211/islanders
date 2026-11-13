@@ -182,12 +182,13 @@ test('boards move between categories by drag and drop, and categories can be add
   await library.getByRole('button', { name: 'Add category' }).click();
   await expect(library.getByLabel('Category name')).toHaveCount(before.categories.length + 1);
   const fresh = library.locator('.map-category').last();
-  await library.locator('.map-card', { hasText: 'Small Isles' }).dragTo(fresh);
-  await expect(fresh.getByText('Small Isles')).toBeVisible();
+  // The last built-in board sits just above the new category, so both stay on screen while dragging.
+  await library.locator('.map-card', { hasText: 'Magnetic North' }).dragTo(fresh);
+  await expect(fresh.getByText('Magnetic North')).toBeVisible();
   await expect
     .poll(async () => {
       const lib = (await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary;
-      return lib.boards.find(b => b.id === 'small-isles')?.categoryId;
+      return lib.boards.find(b => b.id === 'magnetic-north')?.categoryId;
     })
     .toMatch(/^category-/);
   // Put everything back.

@@ -4,6 +4,7 @@ import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
 import { type GameState, type GameView, type PlayerStats, RESOURCES, type Resource } from '../types';
 import {
+  cartographersRules,
   discoveriesLeft,
   emptyBag,
   emptyStats,
@@ -93,6 +94,8 @@ export function getView(state: GameState, selfId: string): GameView {
         longestRoad: longestRoad(state, candidate.id),
         roadsLeft: PIECE_LIMITS.roads - pieces.roads,
         shipsLeft: PIECE_LIMITS.ships - pieces.ships,
+        relaysLeft: PIECE_LIMITS.relays - pieces.relays,
+        surveysLeft: PIECE_LIMITS.surveys - pieces.surveys,
         settlementsLeft: PIECE_LIMITS.settlements - pieces.settlements,
         citiesLeft: PIECE_LIMITS.cities - pieces.cities,
         stats: publicStats(state, candidate.id),
@@ -102,6 +105,11 @@ export function getView(state: GameState, selfId: string): GameView {
     buildings: state.buildings,
     roads: state.roads,
     ships: state.ships,
+    relays: state.relays,
+    surveys: state.surveys,
+    pendingCharts: state.pendingCharts,
+    chartDeadline: state.chartDeadline,
+    cartographers: cartographersRules(state),
     robber: state.robber,
     pirate: state.pirate,
     likelyHands: player?.bot ? state.handGuess.likely : null,

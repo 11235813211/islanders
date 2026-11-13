@@ -1,6 +1,14 @@
 import { buildGraph, hexCenter, shuffled } from '../board';
 import { isLandTerrain, isProducing, isWater } from '../seafaring';
-import { type Board, type GameState, type Harbor, RESOURCES, type Resource, type Terrain } from '../types';
+import {
+  type Board,
+  CLASSIC_RESOURCES,
+  type GameState,
+  type Harbor,
+  RESOURCES,
+  type Resource,
+  type Terrain,
+} from '../types';
 import {
   apportion,
   balancedNumbers,
@@ -17,6 +25,7 @@ import { numberLeanings } from './numbers';
 import {
   BASE_POOL,
   type BoardDesign,
+  boardExpansions,
   type DesignHarbor,
   type DesignTile,
   type FillKind,
@@ -29,8 +38,15 @@ import {
 
 /** How far a harbor sign sits out from its edge, toward the sea tile. */
 const HARBOR_OFFSET = 38;
-/** Base game harbor mix: four 3:1 harbors and one 2:1 per resource. */
-const HARBOR_WEIGHTS: [Resource | 'any', number][] = [['any', 4], ...RESOURCES.map(r => [r, 1] as [Resource, number])];
+/** Base game harbor mix: four 3:1 harbors and one 2:1 per resource (lodestone only on Cartographers maps). */
+function harborWeights(design: BoardDesign): [Resource | 'any', number][] {
+  return [['any', 4], ...mapResources(design).map(r => [r, 1] as [Resource, number])];
+}
+
+/** The resources a design's random harbors and links may draw: lodestone only on Cartographers maps. */
+function mapResources(design: BoardDesign): readonly Resource[] {
+  return boardExpansions(design).includes('cartographers') ? RESOURCES : CLASSIC_RESOURCES;
+}
 
 interface LinkGroup {
   tiles: DesignTile[];
@@ -144,7 +160,7 @@ function chooseLinks(
       ordered.push(k);
       left.splice(left.indexOf(k), 1);
     }
-    options.set(link, ordered.length ? ordered : [shuffled(RESOURCES, random)[0]!]);
+    options.set(link, ordered.length ? ordered : [shuffled(mapResources(design), random)[0]!]);
   }
   // Most constrained first.
   const order = open.map(([link]) => link).sort((a, b) => options.get(a)!.length - options.get(b)!.length);
@@ -318,9 +334,9 @@ function resolveHarbors(
       h.kind !== 'random' ? h.kind : linked && RESOURCES.includes(linked as Resource) ? (linked as Resource) : null;
     return { q: h.q, r: h.r, side: h.side, resource };
   });
-  const allowed = HARBOR_WEIGHTS.filter(([k]) => !design.harborExclude.includes(k));
+  const allowed = harborWeights(design).filter(([k]) => !design.harborExclude.includes(k));
   // With every kind excluded, random harbors fall back to 3:1.
-  const weights = new Map(allowed.length ? allowed : HARBOR_WEIGHTS.slice(0, 1));
+  const weights = new Map(allowed.length ? allowed : harborWeights(design).slice(0, 1));
   const fixed = new Map<Resource | 'any', number>();
   for (const h of resolved) if (h.resource) fixed.set(h.resource, (fixed.get(h.resource) ?? 0) + 1);
   const draw = shuffled(apportion(resolved.filter(h => !h.resource).length, weights, fixed, random), random);

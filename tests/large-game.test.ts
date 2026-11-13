@@ -16,8 +16,8 @@ function sixAtBuild(): GameState {
   g.phase = 'build';
   g.turnIndex = 0;
   g.rollDeadline = null;
-  for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 };
-  g.bank = { wood: 24, brick: 24, sheep: 24, wheat: 24, ore: 24 };
+  for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
+  g.bank = { wood: 24, brick: 24, sheep: 24, wheat: 24, ore: 24, lodestone: 0 };
   return g;
 }
 

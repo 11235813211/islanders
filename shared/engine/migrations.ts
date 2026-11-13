@@ -149,7 +149,25 @@ const MIGRATIONS: Migration[] = [
   s => {
     if (s.design) s.design = upgradeDesign(s.design);
   },
+  // 14 → 15: Cartographers. Lodestone joins every resource bag (hands, bank, logs, undo); relay
+  // stations, survey ships, and charting start empty. No room before this played Cartographers.
+  s => {
+    const { board, design, ...rest } = s;
+    addLodestone(rest);
+    s.relays ??= [];
+    s.surveys ??= [];
+    s.pendingCharts ??= {};
+    s.chartDeadline ??= null;
+  },
 ];
+
+/** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */
+function addLodestone(value: unknown): void {
+  if (!value || typeof value !== 'object') return;
+  const record = value as Record<string, unknown>;
+  if (typeof record.wood === 'number' && typeof record.ore === 'number') record.lodestone ??= 0;
+  for (const child of Object.values(record)) addLodestone(child);
+}
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 

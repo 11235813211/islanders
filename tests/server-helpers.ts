@@ -1,7 +1,7 @@
 import { type APIRequestContext, type APIResponse, expect, type Page } from '@playwright/test';
 import WebSocket from 'ws';
 import { chooseBotAction } from '../shared/bots';
-import type { GameAction, GameView, ServerMessage, Session } from '../shared/types';
+import { type GameAction, type GameView, RESOURCES, type ServerMessage, type Session } from '../shared/types';
 
 export const server = 'http://127.0.0.1:8787';
 export const origin = 'http://127.0.0.1:5173';
@@ -163,7 +163,7 @@ export async function join(request: APIRequestContext, name: string, roomId?: st
 
 export function verifyPrivateView(state: GameView, playerId: string) {
   expect(state.selfId).toBe(playerId);
-  expect(Object.keys(state.hand).sort()).toEqual(['brick', 'ore', 'sheep', 'wheat', 'wood']);
+  expect(Object.keys(state.hand).sort()).toEqual([...RESOURCES].sort());
   expect(state.players.every(player => !('resources' in player) && !('token' in player))).toBe(true);
   expect('sessions' in state).toBe(false);
   expect('token' in state).toBe(false);

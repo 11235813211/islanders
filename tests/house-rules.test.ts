@@ -344,7 +344,9 @@ describe('map options', () => {
         if (t.kind !== 'land') continue;
         const closed = closedTiles({ ...up, tiles: layout.tiles }).has(tileKey(t.q, t.r));
         expect(t.numberLevels).toEqual(
-          closed ? { wood: 3, sheep: 3, wheat: 3, brick: 3, ore: 3, gold: 3, jungle: 3, volcano: 3 } : { ore: 2 },
+          closed
+            ? { wood: 3, sheep: 3, wheat: 3, brick: 3, ore: 3, lodestone: 3, gold: 3, jungle: 3, volcano: 3 }
+            : { ore: 2 },
         );
       }
     // Shared groups and a board-wide level (the step between) land on the tiles that followed them.

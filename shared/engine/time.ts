@@ -30,6 +30,7 @@ export function pendingBotActor(state: GameState): string | null {
   if (state.phase === 'discard')
     return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0 && isBot(state, id)) ?? null;
   if (state.phase === 'gold') return Object.keys(state.pendingGold).find(id => isBot(state, id)) ?? null;
+  if (state.phase === 'charting') return Object.keys(state.pendingCharts).find(id => isBot(state, id)) ?? null;
   const offer = state.tradeOffer;
   if (offer && state.phase === 'build') {
     const responder = offer.to.find(id => isBot(state, id) && !hasAnswered(offer, id));
@@ -99,6 +100,7 @@ function phaseDeadline(state: GameState): number | null {
   if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
   if (state.phase === 'gold') return state.goldDeadline;
   if (state.phase === 'robber') return state.robberDeadline;
+  if (state.phase === 'charting') return state.chartDeadline;
   return null;
 }
 
@@ -164,6 +166,8 @@ export function advanceTime(state: GameState, now: number, random: () => number 
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll-volcanoes' }, random, now);
     if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
       return chooseGoldForAll(next, now, random);
+    if (next.phase === 'charting' && next.chartDeadline !== null && next.chartDeadline <= now)
+      return passCharts(next, now, random);
     if (next.phase === 'robber' && next.robberDeadline !== null && next.robberDeadline <= now) {
       const id = getActivePlayerId(next)!;
       return forced(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
@@ -211,6 +215,24 @@ function chooseGoldForAll(state: GameState, now: number, random: () => number): 
   return next;
 }
 
+/** Charting time ran out: bots still charting chart, and people who haven't charted pass. */
+function passCharts(state: GameState, now: number, random: () => number): GameState {
+  let next = state;
+  for (const id of Object.keys(state.pendingCharts)) {
+    if (next.phase !== 'charting' || !next.pendingCharts[id]) continue;
+    const action: GameAction = isBot(next, id)
+      ? chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL })
+      : { type: 'chart-hexes', hexIds: [] };
+    try {
+      next = applyAction(next, id, action, random, now);
+    } catch (error) {
+      if (!(error instanceof GameError)) throw error;
+      next = applyAction(next, id, { type: 'chart-hexes', hexIds: [] }, random, now);
+    }
+  }
+  return next;
+}
+
 /**
  * A person ran out of time: only the choices the game can't go on without are made for them
  * (setup placements, the roll, discards, the robber, a steal, gold, volcano dice), as an Advanced
@@ -226,6 +248,8 @@ function forcedChoice(state: GameState, id: string, level: BotLevel): GameAction
       return { type: 'finish-free-roads' };
     case 'build':
       return null;
+    case 'charting':
+      return { type: 'chart-hexes', hexIds: [] };
     default:
       return chooseBotAction(getView(state, id), { level, allowOffers: false });
   }
@@ -235,6 +259,7 @@ function forcedChoice(state: GameState, id: string, level: BotLevel): GameAction
 function nextChooser(state: GameState): string {
   if (state.phase === 'discard') return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0)!;
   if (state.phase === 'gold') return Object.keys(state.pendingGold)[0]!;
+  if (state.phase === 'charting') return Object.keys(state.pendingCharts)[0]!;
   return getActivePlayerId(state)!;
 }
 

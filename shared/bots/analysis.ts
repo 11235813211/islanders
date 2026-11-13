@@ -17,10 +17,10 @@ import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, typ
  */
 
 export const COSTS = {
-  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0 },
-  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0 },
-  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3 },
-  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1 },
+  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
+  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0 },
+  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
+  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
 } satisfies Record<string, ResourceBag>;
 export type Goal = keyof typeof COSTS;
 
@@ -87,7 +87,7 @@ export class Board {
 /** How much this bot wants each resource: more for what it produces least. */
 export function resourceWeights(board: Board, selfId: string): ResourceBag {
   const production = board.production(selfId);
-  const base: ResourceBag = { wood: 1, brick: 1, sheep: 0.85, wheat: 1.1, ore: 1.05 };
+  const base: ResourceBag = { wood: 1, brick: 1, sheep: 0.85, wheat: 1.1, ore: 1.05, lodestone: 1 };
   const weights = emptyBag();
   for (const r of RESOURCES) weights[r] = base[r] * (1.6 - Math.min(1, production[r] / 10));
   return weights;

@@ -6,6 +6,7 @@ import {
   type Edge,
   type GameSettings,
   type GameState,
+  type Hex,
   RESOURCES,
   type Resource,
   type ResourceBag,
@@ -128,7 +129,29 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
     ? (state.players.find(p => p.id === playerId)?.development.filter(c => c.kind === 'victory-point').length ?? 0)
     : 0;
   const awards = (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
-  return structures + cards + awards + (state.bonusPoints?.[playerId] ?? 0);
+  // A survey ship is worth a point (Cartographers).
+  const surveys = (state.surveys ?? []).filter(id => state.ships[id] === playerId).length;
+  return structures + surveys + cards + awards + (state.bonusPoints?.[playerId] ?? 0);
+}
+
+/** Every number a tile pays on: its own, then any a survey ship charted (Cartographers). */
+export function hexNumbers(hex: Pick<Hex, 'number' | 'extra'>): number[] {
+  return hex.number === null ? [] : [hex.number, ...(hex.extra ?? [])];
+}
+
+/** A tile holds at most this many numbers. */
+export const MAX_HEX_NUMBERS = 3;
+
+/**
+ * One chart: the first number that isn't a 6 or 8 moves one step toward 7 (5 → 6, 12 → 11);
+ * when all are 6 or 8 a new number joins, a 2 or a 12 at random (`low` picks the 2).
+ * Null when the tile is full (three numbers, all 6 or 8).
+ */
+export function chartedNumbers(numbers: readonly number[], low: boolean): number[] | null {
+  const moving = numbers.findIndex(n => n !== 6 && n !== 8);
+  if (moving >= 0) return numbers.map((n, i) => (i !== moving ? n : n < 7 ? n + 1 : n - 1));
+  if (!numbers.length || numbers.length >= MAX_HEX_NUMBERS) return null;
+  return [...numbers, low ? 2 : 12];
 }
 
 /** Has this recipient answered the offer (yes, no, or a counter)? */

@@ -1,7 +1,7 @@
 import { boardIndex } from '../../seafaring';
-import { type GameAction, type GameView, RESOURCES } from '../../types';
+import { CLASSIC_RESOURCES, type GameAction, type GameView } from '../../types';
 import { linkAction } from '../analysis';
-import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
+import { classicSlot, distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import { predict } from './net';
 import { type AdvancedParams, type Knobs, makeParams } from './params';
 
@@ -87,7 +87,7 @@ function context(view: GameView, params: AdvancedParams): Context {
     order: [...seats, ...[...seats].reverse()],
     me: view.players.findIndex(p => p.id === view.selfId),
     players,
-    scarcity: RESOURCES.map((_, r) => Math.min(2, Math.max(0.6, average / Math.max(1, geo.boardPips[r]!)))),
+    scarcity: CLASSIC_RESOURCES.map((_, r) => Math.min(2, Math.max(0.6, average / Math.max(1, geo.boardPips[r]!)))),
     starts: [],
     maxReach: view.seafaring ? 8 : 4,
   };
@@ -143,8 +143,8 @@ function quickScore(ctx: Context, own: number[], c: number, variety: number): nu
   let score = cornerValue(ctx, c) + variety * fresh;
   const harbor = geo.harbor[c];
   if (harbor === 'any') score += knobs.quickHarbor * 0.5;
-  else if (harbor) {
-    const r = RESOURCES.indexOf(harbor);
+  else if (harbor && classicSlot(harbor) >= 0) {
+    const r = classicSlot(harbor);
     let pips = geo.pips[c * 5 + r]!;
     for (const o of own) pips += geo.pips[o * 5 + r]!;
     score += pips >= 5 ? knobs.quickHarbor : knobs.quickHarbor * 0.25;
@@ -247,7 +247,7 @@ function features(ctx: Context, owners: Int8Array, seat: number): number[] {
   }
   for (const c of mine) {
     const h = geo.harbor[c];
-    if (h && h !== 'any') harbor21 += prod[RESOURCES.indexOf(h)]!;
+    if (h && classicSlot(h) >= 0) harbor21 += prod[classicSlot(h)]!;
   }
   const total = totals[seat]!;
   const kinds = Math.min(5, prod.filter(p => p > 0).length + (gold || (volcano && view.settings.volcanoGold) ? 1 : 0));

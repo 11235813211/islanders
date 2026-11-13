@@ -1,5 +1,6 @@
 import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
 import { type GameState, RESOURCES, type Tradable } from '../types';
+import { afterRobber, owedCharts } from './cartographers';
 import {
   addBag,
   addLog,
@@ -51,8 +52,7 @@ export function stealResource(state: GameState, actorId: string, victimId: strin
     }
     index -= holding(victim, resource);
   }
-  state.phase = state.resumePhase ?? 'build';
-  state.resumePhase = null;
+  afterRobber(state);
 }
 
 export function finishFreeRoads(next: GameState): void {
@@ -186,7 +186,9 @@ export const turnHandlers: Pick<
     next.rollDeadline = null;
     next.diceCounts[total]++;
     tally(next, playerId, 'rolls', total);
+    next.pendingCharts = {};
     if (total === 7) {
+      next.pendingCharts = owedCharts(next);
       next.pendingDiscards = {};
       next.stealHex = null;
       for (const candidate of next.players) {
@@ -236,8 +238,8 @@ export const turnHandlers: Pick<
     else next.robber = action.hexId;
     next.stealHex = action.hexId;
     const victims = stealTargets(next, playerId);
-    next.phase = victims.length ? 'steal' : (next.resumePhase ?? 'build');
-    if (!victims.length) next.resumePhase = null;
+    if (victims.length) next.phase = 'steal';
+    else afterRobber(next);
     addLog(next, `${player.name} moved the ${pirate ? 'pirate' : 'robber'}.`);
     if (victims.length === 1) stealResource(next, playerId, victims[0]!, random);
   },

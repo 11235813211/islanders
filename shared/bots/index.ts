@@ -3,6 +3,7 @@ import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, RESOU
 import { advanced } from './advanced';
 import { goldChoice, specialBuild } from './analysis';
 import { beginner } from './beginner';
+import { cartographersTurn, chartChoice, keepsLodestone } from './cartographers';
 import { intermediate } from './strategic';
 import type { BotOptions, Brain, TurnOptions } from './types';
 
@@ -45,14 +46,15 @@ export function actWith(brain: Brain, view: GameView, options: TurnOptions = {})
   if (view.phase === 'gold') return (brain.gold ?? goldChoice)(view);
   if (view.phase === 'special-build') return (brain.specialBuild ?? specialBuild)(view);
   if (view.phase === 'eruption') return { type: 'roll-volcanoes' };
+  if (view.phase === 'charting') return chartChoice(view);
   if (offer && view.phase === 'build') {
     if (offer.fromId === view.selfId) return brain.review(view, offer);
     const answered = hasAnswered(offer, view.selfId);
     if (offer.to.includes(view.selfId) && !answered && view.activePlayerId !== view.selfId)
       // Bots don't value discoveries, so they pass on offers that include them.
-      return offer.give.discovery || offer.want.discovery
+      return offer.give.discovery || offer.want.discovery || keepsLodestone(view, offer)
         ? { type: 'decline-trade', offerId: offer.id }
         : brain.respond(view, offer);
   }
-  return brain.turn(view, options);
+  return cartographersTurn(view, brain.turn(view, options));
 }

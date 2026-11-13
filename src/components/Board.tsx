@@ -1,17 +1,21 @@
-import { type CSSProperties, type KeyboardEvent, useId } from 'react';
+import { type CSSProperties, useId } from 'react';
 import { playerColor } from '../../shared/colors';
 import type { GameLog, GameView } from '../../shared/types';
-import { ArtDefs, BuildingPiece, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
+import { ArtDefs, BuildingPiece, CARTOGRAPHERS, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
 import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import BoardScene, { type Drift } from './BoardScene';
+import { ConfirmCard, keyboardActivate, RobberConfirm } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
+import ChartTargets, { type ChartPicking } from './game/ChartTargets';
 import './Board.css';
 
-export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city';
+export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'survey';
 export type BoardMode = PlaceKind | 'robber' | 'move-ship' | null;
+/** Pieces that go on an edge. */
+export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city';
 /** A picked spot waiting for confirmation. `choices` lists both pieces when a coastal edge takes either. */
 export interface Selection {
   kind: PlaceKind;
@@ -34,6 +38,8 @@ export interface BoardProps {
   /** The tile the robber or pirate was just moved to, waiting for confirm or cancel. */
   robberPick?: string | null;
   onRobberConfirm?: (confirm: boolean) => void;
+  /** Cartographers, after a 7: tiles to chart and the ones picked so far. */
+  chart?: ChartPicking | null;
 }
 
 /**
@@ -66,13 +72,6 @@ function CornerMark() {
   );
 }
 
-function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    action();
-  }
-}
-
 /** Phases where pieces can be bought: your turn, or your slot in the special build phase. */
 const buildingPhase = (view: GameView) => view.phase === 'build' || view.phase === 'special-build';
 
@@ -93,7 +92,10 @@ function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null
   if (mode === 'move-ship') return moveFrom ? (legal.shipMoves[moveFrom] ?? []) : Object.keys(legal.shipMoves);
   if (mode === 'road') return legal.roads;
   if (mode === 'ship') return legal.ships;
+  if (mode === 'relay') return legal.relays;
+  if (mode === 'survey') return legal.surveys;
   const linking = view.phase === 'setup-road' || view.phase === 'free-roads';
+  // Relay station spots are road spots too, so a tap there asks which to build.
   if (mode === null && (linking || buildingPhase(view))) return [...legal.roads, ...legal.ships];
   return [];
 }
@@ -104,9 +106,13 @@ function hintFor(
   hexes: number,
   edges: number,
   moveFrom: string | null | undefined,
+  charting: boolean,
 ): string {
+  if (charting && !hexes && !edges) return 'Choose tiles to chart';
   if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
+  if (mode === 'survey') return 'Choose a ship out at sea';
+  if (mode === 'relay') return 'Place your relay station';
   if (edges) return mode === 'ship' ? 'Place your ship' : 'Place your road';
   return mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner';
 }
@@ -125,6 +131,7 @@ export default function Board({
   moveFrom,
   robberPick = null,
   onRobberConfirm,
+  chart = null,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const picked = robberPick ? view.board.hexes.find(h => h.id === robberPick) : undefined;
@@ -159,13 +166,14 @@ export default function Board({
   };
   const edgeLabel = (edgeId: string) => {
     if (mode === 'move-ship') return moveFrom ? `Move ship to ${edgeId}` : `Move the ship at ${edgeId}`;
+    if (mode === 'relay') return `Build relay station at ${edgeId}`;
+    if (mode === 'survey') return `Make the ship at ${edgeId} a survey ship`;
     const road = view.legal.roads.includes(edgeId) && mode !== 'ship';
     const ship = view.legal.ships.includes(edgeId) && mode !== 'road';
     return `${road && ship ? 'Build road or ship' : ship ? 'Build ship' : 'Build road'} at ${edgeId}`;
   };
-  const isEdge = (kind: PlaceKind) => kind === 'road' || kind === 'ship';
   const selectedPoint = selected
-    ? isEdge(selected.kind)
+    ? isEdgeKind(selected.kind)
       ? (() => {
           const [a, b] = edgeEnds(selected.id);
           return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -173,7 +181,8 @@ export default function Board({
       : vertices.get(selected.id)
     : null;
   const choices = selected?.choices ?? (selected ? [selected.kind] : []);
-  const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size > 0;
+  const chartable = chart?.hexes.length ?? 0;
+  const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + chartable > 0;
   const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected;
   return (
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
@@ -206,10 +215,16 @@ export default function Board({
           />
           {Object.entries(view.roads).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);
+            const relay = view.relays.includes(edgeId);
+            const name = `${playerName(owner)}'s ${relay ? 'relay station' : 'road'}`;
             return (
-              <g key={edgeId} className="board-road" aria-label={`${playerName(owner)}'s road`}>
-                <title>{playerName(owner)}&apos;s road</title>
-                <Road from={a} to={b} color={color(owner)} />
+              <g key={edgeId} className="board-road" aria-label={name}>
+                <title>{name}</title>
+                {relay ? (
+                  <CARTOGRAPHERS.Relay from={a} to={b} color={color(owner)} inset={ROAD_INSET} />
+                ) : (
+                  <Road from={a} to={b} color={color(owner)} />
+                )}
               </g>
             );
           })}
@@ -228,8 +243,14 @@ export default function Board({
                 onClick={movable ? () => onEdge(edgeId) : undefined}
                 onKeyDown={movable ? event => keyboardActivate(event, () => onEdge(edgeId)) : undefined}
               >
-                <title>{playerName(owner)}&apos;s ship</title>
-                <SEA.Ship from={a} to={b} color={color(owner)} />
+                <title>
+                  {playerName(owner)}&apos;s {view.surveys.includes(edgeId) ? 'survey ship' : 'ship'}
+                </title>
+                {view.surveys.includes(edgeId) ? (
+                  <CARTOGRAPHERS.SurveyShip from={a} to={b} color={color(owner)} />
+                ) : (
+                  <SEA.Ship from={a} to={b} color={color(owner)} />
+                )}
               </g>
             );
           })}
@@ -331,6 +352,7 @@ export default function Board({
                 </g>
               );
             })}
+          {chart && <ChartTargets view={view} chart={chart} />}
           <BoardEffects view={view} rolled={rolled} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
           {[...vertexTargets].map(vertexId => {
             const vertex = vertices.get(vertexId)!;
@@ -371,110 +393,9 @@ export default function Board({
       {showHint && (
         <div className="board-placement-hint" role="status">
           <span />
-          {hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom)}
+          {hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom, chartable > 0)}
         </div>
       )}
     </div>
-  );
-}
-
-/** Confirm or cancel, just above where the robber or pirate was put. */
-function RobberConfirm({
-  at,
-  pirate,
-  onConfirm,
-}: {
-  at: { x: number; y: number };
-  pirate: boolean;
-  onConfirm: (confirm: boolean) => void;
-}) {
-  const piece = pirate ? 'pirate' : 'robber';
-  return (
-    <g className="map-confirm robber-confirm" transform={`translate(${at.x} ${at.y - 62})`}>
-      <g className="map-confirm-body">
-        <path d="M-46 18H-6L0 26 6 18H46V-20H-46Z" fill="#fffdf4" stroke="#123d54" strokeWidth="2" />
-        {[true, false].map(yes => (
-          // biome-ignore lint/a11y/useSemanticElements: an SVG group can't be a <button>.
-          <g
-            key={String(yes)}
-            transform={`translate(${yes ? -22 : 22} 0)`}
-            role="button"
-            tabIndex={0}
-            aria-label={yes ? `Confirm ${piece}` : `Cancel ${piece}`}
-            onClick={event => {
-              event.stopPropagation();
-              onConfirm(yes);
-            }}
-            onKeyDown={event => keyboardActivate(event, () => onConfirm(yes))}
-          >
-            <circle r="14" fill={yes ? '#198144' : '#c8473b'} />
-            {yes ? (
-              <path d="m-6 0 4 4 8-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-            ) : (
-              <path d="M-5-5 5 5M5-5-5 5" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-            )}
-          </g>
-        ))}
-      </g>
-    </g>
-  );
-}
-
-/** The card above a picked spot: one confirm button per piece that fits there. */
-function ConfirmCard({
-  at,
-  choices,
-  view,
-  color,
-  onConfirm,
-}: {
-  at: { x: number; y: number };
-  choices: PlaceKind[];
-  view: GameView;
-  color: string;
-  onConfirm?: (kind: PlaceKind) => void;
-}) {
-  const width = 64 * choices.length;
-  return (
-    <g className="map-confirm" transform={`translate(${at.x} ${at.y - 42})`}>
-      <g className="map-confirm-body">
-        <path
-          d={`M${-width / 2} 18H-6L0 26 6 18H${width / 2}V-22H${-width / 2}Z`}
-          fill="#fffdf4"
-          stroke="#123d54"
-          strokeWidth="2"
-        />
-        {choices.map((kind, i) => (
-          <g
-            key={kind}
-            transform={`translate(${-width / 2 + 32 + i * 64} 0)`}
-            role="button"
-            tabIndex={0}
-            aria-label={`Confirm ${kind}`}
-            onClick={event => {
-              event.stopPropagation();
-              onConfirm?.(kind);
-            }}
-            onKeyDown={event => keyboardActivate(event, () => onConfirm?.(kind))}
-          >
-            <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
-            {/* The board's own piece art, outlined in a dark tone of the seat color, so even white shows on the cream card. */}
-            {kind === 'road' && <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color} />}
-            {kind === 'ship' && (
-              <g transform="translate(-10 0) scale(.8)">
-                <SEA.Ship from={{ x: -18, y: 8 }} to={{ x: 18, y: 8 }} color={color} />
-              </g>
-            )}
-            {(kind === 'settlement' || kind === 'city') && (
-              <g transform="translate(-11 -1) scale(.75)">
-                <BuildingPiece color={color} city={kind === 'city'} style={view.settings.pieceStyle} />
-              </g>
-            )}
-            <circle cx="17" cy="-2" r="10" fill="#198144" />
-            <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-          </g>
-        ))}
-      </g>
-    </g>
   );
 }

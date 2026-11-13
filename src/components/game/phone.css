@@ -285,3 +285,27 @@
     transform-origin: 0 26px;
   }
 }
+
+/* Cartographers adds relay and survey buttons: narrower buttons, with the count tucked in a corner. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .table-actions.cartographers {
+    gap: 3px;
+  }
+  .table-actions.cartographers .build-compact {
+    min-width: 31px;
+    padding: 3px 2px;
+    gap: 0;
+  }
+  .table-actions.cartographers .build-compact > svg {
+    width: 18px;
+  }
+  .table-actions.cartographers .build-compact small {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 8px;
+  }
+  .table-actions.cartographers .turn-action {
+    padding: 4px 7px;
+  }
+}

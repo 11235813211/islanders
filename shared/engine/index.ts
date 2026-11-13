@@ -4,6 +4,7 @@ export { applyAction } from './apply';
 export {
   BUILD_COSTS,
   bankFor,
+  cartographersRules,
   emptyBag,
   GameError,
   getActivePlayerId,

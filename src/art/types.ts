@@ -1,5 +1,8 @@
 import type { ReactElement } from 'react';
-import type { BaseTerrain, PieceStyle, Resource, SeaTerrain } from '../../shared/types';
+import type { BaseTerrain, CLASSIC_RESOURCES, PieceStyle, Resource, SeaTerrain } from '../../shared/types';
+
+/** The base game's resources: what every version draws. Lodestone comes from `cartographers`. */
+export type ClassicResource = (typeof CLASSIC_RESOURCES)[number];
 
 /**
  * Everything drawn on the board and cards. Each art version (src/art/vN)
@@ -10,7 +13,7 @@ export interface ArtPack {
   version: string;
   terrain: Record<BaseTerrain, { name: string; color: string }>;
   /** `base` frames the card, `light` is the face, `dark` is text and borders. */
-  cardColors: Record<Resource, { base: string; light: string; dark: string }>;
+  cardColors: Record<ClassicResource, CardColors>;
   /** Gradients and clip paths, ids prefixed with `uid` so several boards can share a page. */
   ArtDefs: (props: { uid: string }) => ReactElement;
   /** Sea, waves, and the sandy island base under the tiles. `frame` is the board's drawing area (default 670×600 at the origin). */
@@ -32,11 +35,39 @@ export interface ArtPack {
   Robber: () => ReactElement;
   /** Compass, boat, and gulls drawn over the sea, near the corners of `frame`. */
   SeaDecorations: (props: { frame?: Frame }) => ReactElement;
-  ResourceIcon: (props: { resource: Resource; size?: number }) => ReactElement;
+  ResourceIcon: (props: { resource: ClassicResource; size?: number }) => ReactElement;
   /** Large illustration in the middle of a resource card. */
-  ResourceArt: (props: { resource: Resource }) => ReactElement;
+  ResourceArt: (props: { resource: ClassicResource }) => ReactElement;
+  /** Cartographers art. Versions before v14 leave this out and borrow v14's. */
+  cartographers?: CartographersArt;
   /** Sea-map tiles and pieces. Versions before v7 leave this out and borrow v7's. */
   sea?: SeaArt;
+}
+
+export interface CardColors {
+  base: string;
+  light: string;
+  dark: string;
+}
+
+/** Cartographers: lodestone, relay stations, survey ships, and charted numbers. */
+export interface CartographersArt {
+  terrain: { name: string; color: string };
+  cardColors: CardColors;
+  /** The lodestone tile, frame included, centered at the origin. */
+  Tile: (props: { uid: string }) => ReactElement;
+  ResourceIcon: (props: { size?: number }) => ReactElement;
+  ResourceArt: () => ReactElement;
+  /** A relay station on the edge from `from` to `to`; `inset` is the share left bare at each end. */
+  Relay: (props: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    color: string;
+    inset: number;
+  }) => ReactElement;
+  SurveyShip: (props: { from: { x: number; y: number }; to: { x: number; y: number }; color: string }) => ReactElement;
+  /** A tile's charted numbers, beside its number token (drawn at the token's origin). */
+  ExtraNumbers: (props: { numbers: number[] }) => ReactElement;
 }
 
 /** A rectangle in board units. */

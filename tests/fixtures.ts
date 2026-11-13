@@ -1,4 +1,12 @@
-import { addPlayer, applyAction, bankFor, createGame, getActivePlayerId, getView } from '../shared/engine';
+import {
+  addPlayer,
+  applyAction,
+  bankFor,
+  cartographersRules,
+  createGame,
+  getActivePlayerId,
+  getView,
+} from '../shared/engine';
 import { BASE_POOL, type BoardDesign } from '../shared/maps';
 import { parseGrid } from '../shared/maps/builtin';
 import { type GameAction, type GameState, RESOURCES, type ResourceBag } from '../shared/types';
@@ -45,7 +53,8 @@ export function conserved(game: GameState) {
     r =>
       game.bank[r] >= 0 &&
       game.players.every(p => p.resources[r] >= 0) &&
-      game.bank[r] + game.players.reduce((n, p) => n + p.resources[r], 0) === bankFor(game.players.length)[r],
+      game.bank[r] + game.players.reduce((n, p) => n + p.resources[r], 0) ===
+        bankFor(game.players.length, cartographersRules(game))[r],
   );
 }
 
