@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { AccountRoom, AccountSession } from '../shared/types';
 import type { Env } from './env';
 import { derivePassword, verifyPassword } from './password';
-import { hashToken, randomToken } from './protocol';
+import { hashToken, randomToken, signInDisplayName } from './protocol';
 
 export interface AccountIdentity {
   username: string;
@@ -129,6 +129,8 @@ export class AccountStore extends DurableObject<Env> {
       if (!(await this.passwordMatches(password)))
         return { ok: false, status: 401, error: 'Incorrect username or password.' };
       const account = this.account!;
+      const named = signInDisplayName(account.displayName, displayName);
+      if (named !== account.displayName) this.account = { ...account, displayName: named };
       const { session, sessions } = await this.newLogin(account.sessions);
       const revoked = {
         hashes: account.sessions
@@ -136,7 +138,7 @@ export class AccountStore extends DurableObject<Env> {
           .map(old => old.tokenHash),
         rooms: account.rooms,
       };
-      await this.save({ ...account, sessions });
+      await this.save({ ...this.account!, sessions });
       return { ok: true, session, revoked };
     });
   }

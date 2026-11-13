@@ -8,10 +8,19 @@ import {
   randomToken,
   readBody,
   roomCode,
+  signInDisplayName,
   validateAction,
 } from '../server/protocol';
 
 describe('public protocol boundary', () => {
+  it('keeps the capitals a person signs in with when the account has none', () => {
+    expect(signInDisplayName(undefined, 'BentoBox')).toBe('BentoBox');
+    expect(signInDisplayName('bentobox', 'BentoBox')).toBe('BentoBox');
+    expect(signInDisplayName('BentoBox', 'bentobox')).toBe('BentoBox');
+    expect(signInDisplayName('BentoBox', 'BENTOBOX')).toBe('BentoBox');
+    expect(signInDisplayName(undefined, 'bentobox')).toBeUndefined();
+  });
+
   it('only accepts exact configured origins, including ports', () => {
     const origins = 'https://example.github.io, http://localhost:5173';
     expect(originAllowed('https://example.github.io', origins)).toBe(true);

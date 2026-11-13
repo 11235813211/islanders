@@ -35,6 +35,15 @@ export function parseCredentials(body: unknown): { username: string; displayName
   return { username, displayName, password: body.password };
 }
 
+/**
+ * The name to keep after a sign-in. Accounts made before display names (or registered in all
+ * lowercase) take the capitals typed at sign-in; a name that already has capitals is kept.
+ */
+export function signInDisplayName(stored: string | undefined, typed: string): string | undefined {
+  if (stored && stored !== stored.toLowerCase()) return stored;
+  return typed !== typed.toLowerCase() ? typed : stored;
+}
+
 export function parseAuthorization(header: string | null): { username: string; token: string } | null {
   if (!header) return null;
   const match = /^Bearer ([a-z0-9_]{3,24}):([a-f0-9]{64})$/.exec(header);
