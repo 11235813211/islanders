@@ -135,7 +135,7 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Relay stations',
       lines: [
-        'Cost: 2 lodestone, 1 lumber, 1 wool. 4 each. No points.',
+        'Cost: 1 lodestone, 1 grain, 1 lumber. 4 each. No points.',
         'Goes on an edge joined to your road, like a road, and counts toward Longest Road. It reveals fog like a road.',
         'No settlement or city at either end, and no two relay stations (anyone’s) may share a corner. A settlement can’t later go at a relay station’s end.',
         'When a tile beside it rolls, it earns 1 card from that tile. On a coast it earns from its one land tile. The robber blocks it.',
@@ -146,7 +146,7 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Survey ships',
       lines: [
-        'Cost: 2 lodestone, 1 grain. Upgrades one of your ships with water on both sides. 4 each. 1 point.',
+        'Cost: 2 lodestone, 1 ore. Upgrades one of your ships with water on both sides. 4 each. 1 point.',
         'It can’t move afterward and still counts in your trade route. The pirate blocks upgrading a ship beside it.',
         'No two survey ships (anyone’s) may border the same tile.',
       ],

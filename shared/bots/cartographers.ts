@@ -1,7 +1,7 @@
 import { BUILD_COSTS } from '../engine/core';
 import { relaySpots, surveySpots } from '../engine/legal';
 import { chartedNumbers, hexNumbers } from '../rules';
-import { boardIndex } from '../seafaring';
+import { boardIndex, isLandVertex } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type TradeOffer } from '../types';
 
 /**
@@ -60,11 +60,26 @@ export function surveyMove(view: GameView): GameAction | null {
 /** Fewest dots a relay station's two tiles must have between them to be worth building. */
 const RELAY_MIN_DOTS = 5;
 
-/** The best of these relay station spots for this seat, when its tiles pay enough. */
+/**
+ * A land corner a settlement could still go on: nothing on it or next to it. A relay station's
+ * ends can never hold a settlement, so relays there would wall off the island.
+ */
+function settleable(view: GameView, vertexId: string): boolean {
+  const index = boardIndex(view.board);
+  if (!isLandVertex(view.board, vertexId) || view.buildings[vertexId]) return false;
+  return index.vertex.get(vertexId)!.edgeIds.every(id => {
+    const edge = index.edge.get(id)!;
+    return !view.buildings[edge.a === vertexId ? edge.b : edge.a];
+  });
+}
+
+/** The best of these relay station spots for this seat, when its tiles pay enough and it blocks no settling. */
 function bestRelay(view: GameView, spots: string[]): string | null {
   const index = boardIndex(view.board);
   let best: { edgeId: string; value: number } | null = null;
   for (const edgeId of spots) {
+    const edge = index.edge.get(edgeId)!;
+    if (settleable(view, edge.a) || settleable(view, edge.b)) continue;
     const value = index.edgeHexes
       .get(edgeId)!
       .filter(h => h.id !== view.robber)

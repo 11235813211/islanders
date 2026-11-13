@@ -117,15 +117,15 @@ describe('lodestone', () => {
 });
 
 describe('relay stations', () => {
-  it('cost 2 lodestone, 1 lumber, 1 wool, join your road, and count toward Longest Road', () => {
+  it('cost 1 lodestone, 1 grain, 1 lumber, join your road, and count toward Longest Road', () => {
     const { g, relay } = withRoadToRelay();
     expect(getView(g, 'p0').legal.relays).toEqual([]);
-    grant(g, 'p0', { lodestone: 2, wood: 1, sheep: 1 });
+    grant(g, 'p0', { lodestone: 1, wood: 1, wheat: 1 });
     expect(getView(g, 'p0').legal.relays).toContain(relay.id);
     const next = act(g, 'p0', { type: 'build-relay', edgeId: relay.id });
     expect(next.relays).toEqual([relay.id]);
     expect(next.roads[relay.id]).toBe('p0');
-    expect(next.players[0]!.resources).toMatchObject({ lodestone: 0, wood: 0, sheep: 0 });
+    expect(next.players[0]!.resources).toMatchObject({ lodestone: 0, wood: 0, wheat: 0 });
     expect(longestRoad(next, 'p0')).toBe(2);
     expect(pieceCounts(next, 'p0')).toMatchObject({ roads: 1, relays: 1 });
     expect(victoryPoints(next, 'p0')).toBe(victoryPoints(g, 'p0'));
@@ -162,7 +162,7 @@ describe('relay stations', () => {
 
   it('are limited to four each', () => {
     const { g, relay } = withRoadToRelay();
-    grant(g, 'p0', { lodestone: 2, wood: 1, sheep: 1 });
+    grant(g, 'p0', { lodestone: 1, wood: 1, wheat: 1 });
     g.relays = ['x1', 'x2', 'x3', 'x4'];
     for (const id of g.relays) g.roads[id] = 'p0';
     expect(getView(g, 'p0').legal.relays).not.toContain(relay.id);
@@ -171,11 +171,11 @@ describe('relay stations', () => {
 });
 
 describe('survey ships', () => {
-  it('upgrade your ship out at sea for 2 lodestone and 1 grain, score a point, and stay put', () => {
+  it('upgrade your ship out at sea for 2 lodestone and 1 ore, score a point, and stay put', () => {
     const g = building();
     const [edgeId] = seaEdges(g);
     g.ships[edgeId!] = 'p0';
-    grant(g, 'p0', { lodestone: 2, wheat: 1 });
+    grant(g, 'p0', { lodestone: 2, ore: 1 });
     expect(getView(g, 'p0').legal.surveys).toEqual([edgeId]);
     const next = act(g, 'p0', { type: 'build-survey', edgeId: edgeId! });
     expect(next.surveys).toEqual([edgeId]);
@@ -196,7 +196,7 @@ describe('survey ships', () => {
     g.surveys = [first!];
     g.ships[near] = 'p0';
     g.ships[far] = 'p0';
-    grant(g, 'p0', { lodestone: 2, wheat: 1 });
+    grant(g, 'p0', { lodestone: 2, ore: 1 });
     expect(getView(g, 'p0').legal.surveys).toEqual([far]);
   });
 });

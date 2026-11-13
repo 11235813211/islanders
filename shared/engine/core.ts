@@ -102,8 +102,8 @@ export const BUILD_COSTS: Record<
   settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0 },
   city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
   development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
-  relay: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0, lodestone: 2 },
-  survey: { wood: 0, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 2 },
+  relay: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 1 },
+  survey: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 2 },
   /** Cartographers: a look under one fog tile, for your eyes only. */
   peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
 };

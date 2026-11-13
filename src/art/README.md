@@ -24,6 +24,8 @@ import from `src/art` and never draw art themselves.
   upright on a tilted island. The game tiles retain the same illustrations as v12.
   `v14/` adds Cartographers (`cartographers.tsx`): the lodestone moor tile, card, and icon, relay
   stations, survey ships, and charted numbers. Versions before v14 borrow it (`CARTOGRAPHERS` in index.ts).
+  `v15/` redraws the relay station's hut as a small 3D gabled house (the settlement's solids) with no ground
+  shadow, its flag on a taller post beside it.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Review Cartographers art: `npx playwright test tests/cartographers-art.spec.ts` writes

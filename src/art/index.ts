@@ -5,8 +5,8 @@ import type { BaseTerrain, Resource, Terrain } from '../../shared/types';
 import type { CardColors, CartographersArt, SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
 import { FogTile as FallbackFogTile } from './v12/sea/fog';
-import { art } from './v14';
 import { cartographers as fallbackCartographers } from './v14/cartographers';
+import { art } from './v15';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
