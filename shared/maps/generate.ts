@@ -19,9 +19,9 @@ import {
   randomNumber,
   swapEqualOdds,
 } from './balance';
-import { fogMayBeSea } from './edit';
+import { fogIslandsOf, fogKinds, fogMayBeSea, fogMixOf } from './fog';
 import { autoHarbors, harborTarget } from './harbors';
-import { fogIslandsOf, islandLevels, numberLeanings } from './numbers';
+import { islandLevels, numberLeanings } from './numbers';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -31,6 +31,7 @@ import {
   type FillKind,
   FOG_POOL,
   type FogKind,
+  type FogMix,
   type Pool,
   SIDE_DIRECTIONS,
   tileKey,
@@ -323,7 +324,7 @@ function resolveHarbors(
     const across = terrains.get(tileKey(h.q + dq, h.r + dr));
     const edge = [tileKey(h.q, h.r), tileKey(h.q + dq, h.r + dr)].sort().join('|');
     // A harbor on fog only stands when the fog can't turn out to be sea (the editor enforces this too).
-    const onFog = land === 'fog' && fogMayBeSea(design);
+    const onFog = land === 'fog' && fogMayBeSea(design, h.q, h.r);
     if (!land || isWater(land) || onFog || (across && !isWater(across)) || seen.has(edge)) return false;
     seen.add(edge);
     return true;
@@ -534,24 +535,31 @@ function exactFog(counts: Map<FogKind, number>, size: number, random: () => numb
   return shuffled([...stack, ...apportion(size - stack.length, counts, new Map(), random)], random);
 }
 
+/** One fog island's hidden tiles, `size` of them: a balanced draw from its mix, or its exact counts. */
+function fogStack(mix: FogMix, size: number, random: () => number): FogKind[] {
+  const weights = new Map(fogKinds(mix));
+  if (!weights.size) for (const [k, w] of Object.entries(FOG_POOL)) weights.set(k as FogKind, w!);
+  return mix.exact ? exactFog(weights, size, random) : shuffled(apportion(size, weights, new Map(), random), random);
+}
+
 /**
- * What lies under each fog tile, drawn now and kept hidden (the face-down stack): a balanced draw
- * from the design's fog mix, and a number for any land that will produce. Each fog island's
- * number levels (set in the editor, per terrain) shift the numbers its land draws, as on land.
+ * What lies under each fog tile, drawn now and kept hidden (the face-down stack): each fog island
+ * draws from its own mix, and any land that will produce gets a number. Each fog island's number
+ * levels (set in the editor, per terrain) shift the numbers its land draws, as on land.
  */
 function drawFog(design: BoardDesign, board: Board, random: () => number): GameState['fog'] {
   const hexes = board.hexes.filter(h => h.terrain === 'fog');
   if (!hexes.length) return {};
-  const weights = new Map(
-    Object.entries(design.fogPool ?? FOG_POOL).filter(([, w]) => (w ?? 0) > 0) as [FogKind, number][],
-  );
-  if (!weights.size) for (const [k, w] of Object.entries(FOG_POOL)) weights.set(k as FogKind, w!);
-  const kinds = design.fogExact
-    ? exactFog(weights, hexes.length, random)
-    : shuffled(apportion(hexes.length, weights, new Map(), random), random);
-  const levels = new Map(
-    fogIslandsOf(design).flatMap(island => island.map(t => [tileKey(t.q, t.r), islandLevels(island)] as const)),
-  );
+  const drawn = new Map<string, FogKind>();
+  const levels = new Map<string, ReturnType<typeof islandLevels>>();
+  for (const island of fogIslandsOf(design)) {
+    const stack = fogStack(fogMixOf(island), island.length, random);
+    island.forEach((t, i) => {
+      drawn.set(tileKey(t.q, t.r), stack[i]!);
+      levels.set(tileKey(t.q, t.r), islandLevels(island));
+    });
+  }
+  const kinds = hexes.map(h => drawn.get(tileKey(h.q, h.r)) ?? 'sea');
   const levelAt = (i: number) => levels.get(tileKey(hexes[i]!.q, hexes[i]!.r))?.[kinds[i] as FillKind] ?? 0;
   // One pool per level, sized to the producing tiles at that level, as balancedNumbers does for land.
   const pools = new Map<number, number[]>();

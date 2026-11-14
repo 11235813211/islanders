@@ -7,7 +7,7 @@ import {
   getActivePlayerId,
   getView,
 } from '../shared/engine';
-import { BASE_POOL, type BoardDesign } from '../shared/maps';
+import { BASE_POOL, type BoardDesign, type FogMix } from '../shared/maps';
 import { parseGrid } from '../shared/maps/builtin';
 import { boardIndex } from '../shared/seafaring';
 import { type GameAction, type GameState, type Hex, RESOURCES, type ResourceBag, type Terrain } from '../shared/types';
@@ -107,6 +107,12 @@ export function testDesign(rows: string[], extra: Partial<BoardDesign> = {}): Bo
     ...extra,
   };
 }
+
+/** The design with every fog tile hiding this mix. */
+export const withFogMix = <T extends { tiles: BoardDesign['tiles'] }>(design: T, mix: FogMix): T => ({
+  ...design,
+  tiles: design.tiles.map(t => (t.kind === 'fog' ? { ...t, fogMix: mix } : t)),
+});
 
 /** Corner `corner` (0–5, see Hex.vertexIds) of the hex at (q, r). */
 export function corner(game: GameState, q: number, r: number, index: number): string {

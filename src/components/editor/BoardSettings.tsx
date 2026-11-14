@@ -1,60 +1,13 @@
 import { AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
-import {
-  type BoardDesign,
-  type FillKind,
-  FOG_POOL,
-  type FogKind,
-  POOL_PRESETS,
-  type Pool,
-  tileKey,
-} from '../../../shared/maps';
-import { designWarnings, islandOf, tidy } from '../../../shared/maps/edit';
-import { FOG_POOL_KINDS, ICEBERG_MAX_PERCENT, POOL_KINDS } from '../../../shared/maps/validate';
-import { TileIcon } from './BrushPicker';
+import { type BoardDesign, POOL_PRESETS, type Pool, tileKey } from '../../../shared/maps';
+import { designWarnings, islandOf } from '../../../shared/maps/edit';
+import { POOL_KINDS } from '../../../shared/maps/validate';
 import type { EditorSelection } from './EditorCanvas';
-import { KIND_LABELS } from './tools';
+import FogSettings from './FogSettings';
+import PoolRow from './PoolRow';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
-/** Round to tenths, the finest share a design stores (validate.ts). */
-const tenths = (n: number) => Math.round(n * 10) / 10;
-
-/**
- * A number field that lets you clear it and type: the text is kept as typed, saved whenever it
- * reads as a number, and put back to the saved value when you leave it.
- */
-function NumberField({
-  value,
-  max,
-  step,
-  label,
-  set,
-}: {
-  value: number;
-  max: number;
-  step: number;
-  label: string;
-  set: (n: number) => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  return (
-    <input
-      type="number"
-      min={0}
-      max={max}
-      step={step}
-      aria-label={label}
-      value={draft ?? value}
-      onChange={e => {
-        setDraft(e.target.value);
-        const n = e.target.valueAsNumber;
-        if (Number.isFinite(n)) set(n);
-      }}
-      onBlur={() => setDraft(null)}
-    />
-  );
-}
 const LAND_KINDS = POOL_KINDS.filter(k => k !== 'iceberg');
 const PRESETS: { id: keyof typeof POOL_PRESETS; label: string; hint: string }[] = [
   { id: 'base', label: 'Base', hint: 'The base game: forest, pasture, fields, hills, mountains, one desert' },
@@ -62,54 +15,6 @@ const PRESETS: { id: keyof typeof POOL_PRESETS; label: string; hint: string }[] 
   { id: 'polar', label: 'Polar', hint: 'Base terrains, with icebergs on a tenth of the sea' },
   { id: 'all', label: 'All', hint: 'Every terrain, including icebergs on the sea' },
 ];
-
-/** A share to turn a terrain back on with: its share in the All preset (or the fog stack). */
-const defaultShare = (kind: FillKind | FogKind) =>
-  (POOL_PRESETS.all as Record<string, number>)[kind] ?? FOG_POOL[kind as FogKind] ?? 1;
-
-/** One terrain's row: on/off, then its share (or, for icebergs, the percent of sea). */
-function PoolRow({
-  kind,
-  value,
-  set,
-  whole = false,
-}: {
-  kind: FillKind | FogKind;
-  value: number;
-  set: (n: number) => void;
-  /** Whole numbers (exact counts) instead of shares in tenths. */
-  whole?: boolean;
-}) {
-  const iceberg = kind === 'iceberg';
-  const integer = iceberg || whole;
-  const top = iceberg ? ICEBERG_MAX_PERCENT : 20;
-  return (
-    <div
-      className={`pool-row${value ? '' : ' off'}`}
-      title={iceberg ? 'Percent of sea tiles that become icebergs' : 'Share of these tiles'}
-    >
-      <input
-        type="checkbox"
-        aria-label={`Use ${KIND_LABELS[kind]}`}
-        checked={value > 0}
-        onChange={e => set(e.target.checked ? defaultShare(kind) : 0)}
-      />
-      <TileIcon kind={kind} size={22} />
-      <span>{KIND_LABELS[kind]}</span>
-      <NumberField
-        max={top}
-        step={integer ? 1 : 0.5}
-        label={iceberg ? 'Iceberg percent of sea' : `${KIND_LABELS[kind]} ${whole ? 'count' : 'share'}`}
-        value={value}
-        set={n => {
-          const clamped = Math.max(0, Math.min(top, n));
-          set(integer ? Math.round(clamped) : tenths(clamped));
-        }}
-      />
-      {iceberg && <small>% sea</small>}
-    </div>
-  );
-}
 
 /** The island the selected tile is on, and the key its own mix is stored under (if it has one). */
 function selectedIsland(design: BoardDesign, selection: EditorSelection) {
@@ -131,7 +36,7 @@ function setIslandPool(design: BoardDesign, key: string, pool: Pool | null): Boa
 
 /**
  * The terrain mix random land is drawn from (the whole board's, or the selected island's own),
- * icebergs on the sea, what fog may hide, the board's counts, and warnings about unplayable
+ * icebergs on the sea, the board's counts, and warnings about unplayable
  * boards. The fills themselves are in the top bar.
  */
 export default function BoardSettings({
@@ -153,7 +58,6 @@ export default function BoardSettings({
   const setPool = (next: Pool) =>
     edit(d => (ownKey ? setIslandPool(d, ownKey, next) : { ...d, pool: next }), `pool-${ownKey ?? 'board'}`);
   const hasFog = counts.has('fog');
-  const fog = design.fogPool ?? FOG_POOL;
   return (
     <section className="inspector-section" aria-label="Random land mix">
       <h3>Random land mix</h3>
@@ -198,46 +102,7 @@ export default function BoardSettings({
           />
         </div>
       )}
-      {hasFog && (
-        <>
-          <h3 className="fog-heading">Under the fog</h3>
-          <label className="check-row island-mix">
-            <input
-              type="checkbox"
-              checked={!!design.fogExact}
-              onChange={e =>
-                edit(d => {
-                  // False is kept (not dropped) so a version can differ from the main layout.
-                  if (!e.target.checked) return { ...d, fogExact: false };
-                  // Whole counts from here on.
-                  const counts = Object.fromEntries(
-                    Object.entries(d.fogPool ?? FOG_POOL).map(([k, n]) => [k, Math.round(n ?? 0)]),
-                  );
-                  return { ...d, fogExact: true, fogPool: counts };
-                })
-              }
-            />
-            Exact counts ({counts.get('fog')} fog tile{counts.get('fog') === 1 ? '' : 's'})
-          </label>
-          <p className="inspector-hint">
-            {design.fogExact
-              ? 'Exactly this many of each, shuffled under the fog. Land also draws a number.'
-              : 'What fog tiles may turn out to be, as shares. Land also draws a number.'}
-          </p>
-          <div className="pool-grid">
-            {FOG_POOL_KINDS.map(kind => (
-              <PoolRow
-                key={kind}
-                kind={kind}
-                value={fog[kind] ?? 0}
-                whole={design.fogExact}
-                // tidy drops harbors on fog once the fog may turn out to be sea.
-                set={n => edit(d => tidy({ ...d, fogPool: { ...(d.fogPool ?? FOG_POOL), [kind]: n } }), 'fog-pool')}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {hasFog && <FogSettings design={design} edit={edit} selection={selection} />}
       <p className="inspector-stats">
         {design.tiles.length} tiles · {counts.get('land') ?? 0} random land · {counts.get('sea') ?? 0} sea ·{' '}
         {hasFog ? `${counts.get('fog')} fog · ` : ''}

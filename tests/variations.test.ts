@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advanceTime, applyAction, getView, nextDueAt, normalizeGame } from '../shared/engine';
-import type { BoardDesign } from '../shared/maps';
+import type { BoardDesign, FogMix } from '../shared/maps';
 import { longestRoad } from '../shared/rules';
 import { boardIndex, isShipEdge } from '../shared/seafaring';
 import type { GameAction, GameState, Terrain } from '../shared/types';
@@ -15,6 +15,7 @@ import {
   settled,
   TEST_NOW,
   testDesign,
+  withFogMix,
 } from './fixtures';
 
 /**
@@ -322,15 +323,13 @@ describe('icebergs', () => {
 });
 
 describe('fog', () => {
-  const FOGGY = testDesign(['~ ~ ~ ~ ~ ~', ' ~ w6 b5 ~ ~ ~', '~ s9 o10 ~ ~ ~', ' ~ ~ ~ ~ ~ ~', '~ ~ ~ ~ ~ ~'], {
-    fogPool: { wheat: 1 },
-  });
+  const FOGGY = testDesign(['~ ~ ~ ~ ~ ~', ' ~ w6 b5 ~ ~ ~', '~ s9 o10 ~ ~ ~', ' ~ ~ ~ ~ ~ ~', '~ ~ ~ ~ ~ ~']);
   /** The design above with one sea tile next to the island turned to fog. */
   function foggy() {
     const design = structuredClone(FOGGY);
     const brick = design.tiles.find(t => t.kind === 'brick')!;
     const spot = design.tiles.find(t => t.kind === 'sea' && t.q === brick.q + 1 && t.r === brick.r)!;
-    spot.kind = 'fog';
+    Object.assign(spot, { kind: 'fog', fogMix: { pool: { wheat: 1 } } });
     const g = inSeatOrder(act(seaLobby(design, 2), 'p0', { type: 'start' }));
     Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null, pirate: null });
     return g;
@@ -372,11 +371,11 @@ describe('fog', () => {
 describe('harbors and fog', () => {
   const FOGGY = testDesign(['~ ~ ~ ~ ~ ~', ' ~ w6 b5 ~ ~ ~', '~ s9 o10 ~ ~ ~', ' ~ ~ ~ ~ ~ ~']);
   /** The design with the tile east of the brick tile turned to fog. */
-  function withFog(fogPool: BoardDesign['fogPool']): BoardDesign {
+  function withFog(pool: FogMix['pool']): BoardDesign {
     const design = structuredClone(FOGGY);
     const brick = design.tiles.find(t => t.kind === 'brick')!;
     design.tiles.find(t => t.q === brick.q + 1 && t.r === brick.r)!.kind = 'fog';
-    return { ...design, fogPool };
+    return withFogMix(design, { pool });
   }
 
   it('random harbors never go on or face fog; by hand only when the fog cannot be sea', async () => {
@@ -392,7 +391,7 @@ describe('harbors and fog', () => {
     expect(harborEdge(landFog, fog.q, fog.r, 5)).toEqual({ q: fog.q, r: fog.r, side: 5 });
     const withHarbor = { ...landFog, harbors: [{ q: fog.q, r: fog.r, side: 5, kind: 'random' as const }] };
     expect(tidy(withHarbor).harbors).toHaveLength(1);
-    expect(tidy({ ...withHarbor, fogPool: { sea: 1, wheat: 1 } }).harbors).toHaveLength(0);
+    expect(tidy(withFogMix(withHarbor, { pool: { sea: 1, wheat: 1 } })).harbors).toHaveLength(0);
   });
 });
 

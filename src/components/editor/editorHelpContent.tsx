@@ -187,7 +187,7 @@ export const EDITOR_HELP: EditorHelpTab[] = [
       {
         icon: <CloudFog size={ICON} />,
         title: 'Fog',
-        text: 'Under the fog sets what fog tiles may hide, as shares or exact counts.',
+        text: 'Select fog, then set what that fog island hides under Under the fog, as shares or exact counts. Copy to gives the same mix to the other fog islands.',
       },
       { icon: <Snowflake size={ICON} />, title: 'Icebergs', text: 'Set the percent of sea that becomes icebergs.' },
     ],

@@ -505,7 +505,7 @@
 }
 .fog-summary ul {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 3px 12px;
   margin: 0 0 6px;
   padding: 0;
@@ -519,4 +519,11 @@
 }
 .fog-summary li span {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fog-summary li strong {
+  white-space: nowrap;
 }

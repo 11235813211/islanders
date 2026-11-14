@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getView, normalizeGame } from '../shared/engine';
-import { buildBoard, designFor, parseDesign, tileKey } from '../shared/maps';
+import { buildBoard, designFor, parseDesign, tileKey, upgradeDesign } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
 import { noStartPoints, toggleNoStart } from '../shared/maps/edit';
 import { setNotLinks } from '../shared/maps/fill';
+import { fogMixOf, setFogMix } from '../shared/maps/fog';
 import { fogIslandsOf, randomTerrains, setIslandLevels } from '../shared/maps/numbers';
 import type { BoardDesign } from '../shared/maps/types';
 import type { GameState } from '../shared/types';
-import { fogOutlook } from '../src/components/maps/FogSummary';
-import { inSeatOrder, makeLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import { fogOutlooks } from '../src/components/maps/FogSummary';
+import { inSeatOrder, makeLobby, seeded, TEST_NOW, testDesign, withFogMix } from './fixtures';
 
 /** Link rules, "Not A", no-start corners, versions for other player counts, and number richness. */
 
@@ -158,44 +159,61 @@ describe('fog in each layout', () => {
     );
   /** Two fog tiles in the main layout; four in the 5–6 player version, which has its own mix. */
   const design = (): BoardDesign => {
-    const base = testDesign(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ ~ ~ ~ ~'], {
-      players: { min: 3, max: 4 },
-      fogExact: true,
-      fogPool: { gold: 2 },
-    });
+    const base = testDesign(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ ~ ~ ~ ~'], { players: { min: 3, max: 4 } });
     return {
       ...base,
-      tiles: fogged(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ ~ ~ ~ ~']),
+      tiles: withFogMix({ tiles: fogged(['~ ~ ~ ~ ~', ' ~ L L L ~', '~ ~ ~ ~ ~']) }, { pool: { gold: 2 }, exact: true })
+        .tiles,
       versions: [
-        {
-          players: { min: 5, max: 6 },
-          victoryPoints: 13,
-          tiles: fogged(['~ ~ ~ ~ ~ ~ ~', ' ~ L L L L L ~', '~ ~ ~ ~ ~ ~ ~']),
-          harbors: [],
-          robber: null,
-          pirate: null,
-          fogPool: { sea: 4 },
-          fogExact: false,
-        },
+        withFogMix(
+          {
+            players: { min: 5, max: 6 },
+            victoryPoints: 13,
+            tiles: fogged(['~ ~ ~ ~ ~ ~ ~', ' ~ L L L L L ~', '~ ~ ~ ~ ~ ~ ~']),
+            harbors: [],
+            robber: null,
+            pirate: null,
+          },
+          { pool: { sea: 4 } },
+        ),
       ],
     };
   };
 
   it('a version keeps its own fog mix through saving, and the game draws from it', () => {
     const parsed = parseDesign(design(), ['seafaring']);
-    expect(parsed.versions?.[0]).toMatchObject({ fogPool: { sea: 4 }, fogExact: false });
+    expect(parsed.versions![0]!.tiles.find(t => t.kind === 'fog')!.fogMix).toEqual({ pool: { sea: 4 } });
     const small = Object.values(buildBoard(designFor(parsed, 3), seeded()).fog).map(f => f.terrain);
     const large = Object.values(buildBoard(designFor(parsed, 5), seeded()).fog).map(f => f.terrain);
     expect(small).toEqual(['gold', 'gold']);
     expect(large).toEqual(['sea', 'sea', 'sea', 'sea']);
   });
 
-  it('the map view says "exactly" only when the counts fill that layout\'s fog tiles', () => {
+  it("boards saved with one fog mix per layout move it onto each layout's fog tiles", () => {
     const d = design();
-    expect(fogOutlook(designFor(d, 3))).toMatchObject({ total: 2, exact: true, kinds: [['gold', 2]] });
-    // The same exact stack of 2 dealt over 4 fog tiles is no longer "exactly 2".
-    const shared: BoardDesign = { ...d, versions: [{ ...d.versions![0]!, fogPool: { gold: 2 }, fogExact: true }] };
-    expect(fogOutlook(designFor(shared, 5))).toMatchObject({ total: 4, exact: false });
+    const strip = <T extends { tiles: BoardDesign['tiles'] }>(l: T): T => ({
+      ...l,
+      tiles: l.tiles.map(({ fogMix: _f, ...t }) => t),
+    });
+    // One version has its own (old) mix; another without one used the board's.
+    const own = { ...strip(d.versions![0]!), fogPool: { sea: 4 }, fogExact: false };
+    const inherits = { ...strip(d.versions![0]!), players: { min: 2, max: 2 } };
+    const old = { ...strip(d), fogPool: { gold: 2 }, fogExact: true, versions: [own, inherits] };
+    const upgraded = upgradeDesign(old as unknown as BoardDesign);
+    const mixOf = (l: { tiles: BoardDesign['tiles'] }) => l.tiles.find(t => t.kind === 'fog')!.fogMix;
+    expect('fogPool' in upgraded).toBe(false);
+    expect(mixOf(upgraded)).toEqual({ pool: { gold: 2 }, exact: true });
+    expect(mixOf(upgraded.versions![0]!)).toEqual({ pool: { sea: 4 } });
+    expect(mixOf(upgraded.versions![1]!)).toEqual({ pool: { gold: 2 }, exact: true });
+    expect('fogPool' in upgraded.versions![0]!).toBe(false);
+  });
+
+  it('the map view says "exactly" only when the counts fill that fog island', () => {
+    const d = design();
+    expect(fogOutlooks(designFor(d, 3))).toMatchObject([{ size: 2, certainty: 'exactly', kinds: [['gold', 2]] }]);
+    // The same exact stack of 2 dealt over 4 fog tiles is only "at least 2".
+    const short: BoardDesign = { ...d, versions: [withFogMix(d.versions![0]!, { pool: { gold: 2 }, exact: true })] };
+    expect(fogOutlooks(designFor(short, 5))).toMatchObject([{ size: 4, certainty: 'at least' }]);
   });
 });
 
@@ -273,12 +291,10 @@ describe('number levels on fog', () => {
       ' ~ b4 h10 ~ L L ~ ~ L L ~',
       '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
     ]);
-    return {
-      ...d,
-      fogPool: { wheat: 1 },
-      fogExact: false,
-      tiles: d.tiles.map(t => (t.kind === 'land' ? { ...t, kind: 'fog' as const } : t)),
-    };
+    return withFogMix(
+      { ...d, tiles: d.tiles.map(t => (t.kind === 'land' ? { ...t, kind: 'fog' as const } : t)) },
+      { pool: { wheat: 1 } },
+    );
   }
   const hidden = (design: BoardDesign, seed: number) => {
     const { board, fog } = buildBoard(design, seeded(seed));
@@ -301,5 +317,30 @@ describe('number levels on fog', () => {
     const saved = parseDesign(leaning, ['seafaring']);
     expect(saved.tiles.find(t => t.kind === 'fog')!.numberLevels).toBeTruthy();
     expect(randomTerrains(leaning, west!)).toEqual(['wheat']);
+  });
+
+  it('each fog island hides its own mix; copying one mix to all fog makes them alike', () => {
+    const design = foggyDesign();
+    const [west, east] = fogIslandsOf(design);
+    const keys = (island: typeof west) => new Set(island!.map(t => tileKey(t.q, t.r)));
+    const mixed = setFogMix(setFogMix(design, keys(west), { pool: { gold: 2, ore: 5 }, exact: true }), keys(east), {
+      pool: { sea: 1 },
+    });
+    const westQ = new Set(west!.map(t => t.q));
+    for (let seed = 1; seed < 10; seed++) {
+      const { board, fog } = buildBoard(parseDesign(mixed, ['seafaring']), seeded(seed));
+      const under = board.hexes.filter(h => fog[h.id]);
+      const westKinds = under.filter(h => westQ.has(h.q)).map(h => fog[h.id]!.terrain);
+      expect(westKinds.sort()).toEqual(['gold', 'gold', 'ore', 'ore', 'ore', 'ore', 'ore']);
+      for (const h of under.filter(h => !westQ.has(h.q))) expect(fog[h.id]!.terrain).toBe('sea');
+    }
+    expect(fogOutlooks(mixed).map(o => o.certainty)).toEqual(['exactly', 'about']);
+    // "Copy to other fog islands" gives every fog tile the selected island's mix.
+    const all = setFogMix(
+      mixed,
+      new Set(design.tiles.filter(t => t.kind === 'fog').map(t => tileKey(t.q, t.r))),
+      fogMixOf(west!.map(t => mixed.tiles.find(m => m.q === t.q && m.r === t.r)!)),
+    );
+    expect(fogOutlooks(all)).toMatchObject([{ islands: 2, size: 7, certainty: 'exactly' }]);
   });
 });

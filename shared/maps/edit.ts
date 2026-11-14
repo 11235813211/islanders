@@ -2,6 +2,7 @@ import { HEX_RADIUS, hexCenter, hexCorner } from '../board';
 import { takesToken } from '../seafaring';
 import type { Terrain } from '../types';
 import { neighborKeys } from './balance';
+import { fogMayBeSea, fogWarnings } from './fog';
 import { autoHarbors } from './harbors';
 import {
   BASE_POOL,
@@ -9,7 +10,6 @@ import {
   type DesignHarbor,
   type DesignKind,
   type DesignTile,
-  FOG_POOL,
   SIDE_DIRECTIONS,
   tileKey,
 } from './types';
@@ -82,13 +82,16 @@ export function tidy(design: BoardDesign): BoardDesign {
   const harbors = design.harbors.filter(h => {
     const land = byKey.get(tileKey(h.q, h.r));
     const [dq, dr] = SIDE_DIRECTIONS[h.side]!;
-    return !!land && harborLand(land.kind) && faces(byKey.get(tileKey(h.q + dq, h.r + dr)));
+    return !!land && harborLand(land) && faces(byKey.get(tileKey(h.q + dq, h.r + dr)));
   });
   const robber = design.robber && isLand(byKey.get(tileKey(design.robber.q, design.robber.r))?.kind ?? 'sea');
   const pirate = design.pirate && byKey.get(tileKey(design.pirate.q, design.pirate.r))?.kind === 'sea';
   return {
     ...design,
-    tiles: design.tiles.map(t => {
+    tiles: design.tiles.map(withMix => {
+      // Only fog hides anything.
+      const { fogMix: _f, ...cleared } = withMix;
+      const t = withMix.kind === 'fog' || !withMix.fogMix ? withMix : cleared;
       if (isLand(t.kind)) {
         // "Not A" only means something on random land without a link of its own.
         if (!t.notLink || (t.kind === 'land' && !t.link)) return t;
@@ -254,26 +257,20 @@ export function harborEdge(
   const here = byKey.get(tileKey(q, r));
   const there = byKey.get(tileKey(q + dq, r + dr));
   const harborLand = holdsHarbor(design);
-  if (here && harborLand(here.kind) && faces(there)) return { q, r, side };
-  if (there && harborLand(there.kind) && faces(here)) return { q: q + dq, r: r + dr, side: (side + 3) % 6 };
+  if (here && harborLand(here) && faces(there)) return { q, r, side };
+  if (there && harborLand(there) && faces(here)) return { q: q + dq, r: r + dr, side: (side + 3) % 6 };
   return null;
 }
 
 /** A harbor faces open water or the map's edge (never fog, which may turn out to be land). */
 const faces = (tile: DesignTile | undefined) => !tile || tile.kind === 'sea' || tile.kind === 'iceberg';
 
-/** Fog that may turn out to be sea. */
-export const fogMayBeSea = (design: BoardDesign) =>
-  design.tiles.some(t => t.kind === 'fog') && ((design.fogPool ?? FOG_POOL).sea ?? 0) > 0;
-
 /**
- * Tiles a harbor may sit on: land, and fog only when the fog can't turn out to be sea (placed by
- * hand; random harbors never go on fog).
+ * Tiles a harbor may sit on: land, and fog only when its fog island can't turn out to be sea
+ * (placed by hand; random harbors never go on fog).
  */
-export const holdsHarbor = (design: BoardDesign) => {
-  const fog = !fogMayBeSea(design);
-  return (kind: DesignKind) => isLand(kind) || (fog && kind === 'fog');
-};
+export const holdsHarbor = (design: BoardDesign) => (tile: DesignTile) =>
+  isLand(tile.kind) || (tile.kind === 'fog' && !fogMayBeSea(design, tile.q, tile.r));
 
 const sameEdge = (a: { q: number; r: number; side: number }, b: { q: number; r: number; side: number }) =>
   a.q === b.q && a.r === b.r && a.side === b.side;
@@ -319,14 +316,7 @@ export function designWarnings(design: BoardDesign): string[] {
     warnings.push(
       `Only ${open.length} land tiles allow starting settlements; ${design.players.max} players need room for ${design.players.max * 2}.`,
     );
-  const fog = design.tiles.filter(t => t.kind === 'fog').length;
-  if (fog && design.fogExact) {
-    const listed = Object.values(design.fogPool ?? FOG_POOL).reduce((n, c) => n + Math.round(c ?? 0), 0);
-    if (listed !== fog)
-      warnings.push(
-        `The fog counts list ${listed} tiles but the board has ${fog} fog; ${listed > fog ? 'some are left out' : 'the rest are drawn from the mix'}.`,
-      );
-  }
+  warnings.push(...fogWarnings(design));
   return [...new Set(warnings)];
 }
 

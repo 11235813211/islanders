@@ -1,5 +1,6 @@
 import { copyData } from '../copy';
-import { boardExpansions, FOG_POOL, type Pool } from '../maps/types';
+import { fogLandShare, fogMayErupt } from '../maps/fog';
+import { boardExpansions, type Pool } from '../maps/types';
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
 import { type GameState, type GameView, type PlayerStats, RESOURCES, type Resource } from '../types';
@@ -27,18 +28,14 @@ function mapFeatures(state: GameState): GameView['features'] {
   if (!design) return { sea: false, volcano: false, fogLand: 0 };
   const random = design.tiles.some(t => t.kind === 'land');
   const draws = (pool: Pool | undefined) => random && (pool?.volcano ?? 0) > 0;
-  const fogVolcano = design.tiles.some(t => t.kind === 'fog') && ((design.fogPool ?? FOG_POOL).volcano ?? 0) > 0;
-  const fog = Object.entries(design.fogPool ?? FOG_POOL);
-  const fogTotal = fog.reduce((n, [, c]) => n + (c ?? 0), 0);
-  const fogLand = fog.reduce((n, [k, c]) => n + (k === 'sea' || k === 'desert' ? 0 : (c ?? 0)), 0);
   return {
-    fogLand: fogTotal ? fogLand / fogTotal : 0,
+    fogLand: fogLandShare(design),
     sea: boardExpansions(design).includes('seafarers'),
     volcano:
       design.tiles.some(t => t.kind === 'volcano') ||
       draws(design.pool) ||
       Object.values(design.islandPools ?? {}).some(draws) ||
-      fogVolcano,
+      fogMayErupt(design),
   };
 }
 

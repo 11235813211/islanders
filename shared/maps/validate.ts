@@ -12,6 +12,7 @@ import {
   type Expansion,
   type FillKind,
   type FogKind,
+  type FogMix,
   type LinkRule,
   NUMBER_KINDS,
   type NumberLevels,
@@ -71,6 +72,14 @@ const cell = (v: unknown, label: string) => {
   return { q: (v as { q: number }).q, r: (v as { r: number }).r };
 };
 
+/** A fog island's mix: shares (or counts) of what fog may hide. */
+function parseFogMix(value: unknown): FogMix {
+  if (!record(value) || (value.exact !== undefined && typeof value.exact !== 'boolean'))
+    return fail('Invalid fog mix.');
+  const pool = parsePool(value.pool, FOG_KINDS) as FogMix['pool'];
+  return value.exact ? { pool, exact: true } : { pool };
+}
+
 function parseTile(v: unknown): DesignTile {
   const c = DESIGN_LIMITS.coordinate;
   if (!record(v) || !int(v.q, -c, c) || !int(v.r, -c, c)) fail('A tile is outside the editing area.');
@@ -99,6 +108,7 @@ function parseTile(v: unknown): DesignTile {
     const levels = parseNumberLevels(t.numberLevels);
     if (Object.keys(levels).length && (isLandKind(tile.kind) || tile.kind === 'fog')) tile.numberLevels = levels;
   }
+  if (t.fogMix !== undefined && tile.kind === 'fog') tile.fogMix = parseFogMix(t.fogMix);
   return tile;
 }
 
@@ -215,8 +225,6 @@ function parseLayout(value: Record<string, unknown>): BoardVersion {
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),
     ...((noStart as string[]).length ? { noStart: [...new Set(noStart as string[])] } : {}),
-    ...(value.fogPool === undefined ? {} : { fogPool: parsePool(value.fogPool, FOG_KINDS) }),
-    ...(typeof value.fogExact === 'boolean' ? { fogExact: value.fogExact } : {}),
   };
 }
 

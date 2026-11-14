@@ -182,6 +182,10 @@ const MIGRATIONS: Migration[] = [
     delete s.surveyTargets;
     for (const entry of s.log ?? []) if (entry.event?.kind === 'survey-find') delete entry.event;
   },
+  // 19 → 20: each fog island holds its own mix; the layout's one fog mix moves onto its fog tiles.
+  s => {
+    if (s.design) s.design = upgradeDesign(s.design);
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

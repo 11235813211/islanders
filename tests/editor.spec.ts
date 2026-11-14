@@ -164,7 +164,7 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   expect((await page.request.delete(`${server}/api/boards/${saved.id}`, { headers })).status()).toBe(200);
 });
 
-test('fog takes number levels like an island: select it, lean a terrain, copy to all fog, and save', async ({
+test('fog takes number levels and its own mix like an island: select it, set them, copy to all fog, and save', async ({
   page,
 }) => {
   const headers = await signIn(page);
@@ -202,6 +202,15 @@ test('fog takes number levels like an island: select it, lean a terrain, copy to
   await expect(page.locator('.island-leaning')).toHaveCount(2);
   await expectNoSpill(numbers);
   await numbers.screenshot({ path: 'test-results/editor-fog-numbers.png' });
+  // Each fog island has its own mix: this one never hides sea, then the other fog island copies it.
+  const under = page.getByRole('region', { name: 'Under the fog' });
+  await under.getByLabel('Use Sea').uncheck();
+  const copy = under.getByRole('button', { name: 'Other fog islands (1)' });
+  await expect(copy).toHaveAttribute('aria-pressed', 'false');
+  await copy.click();
+  await expect(copy).toHaveAttribute('aria-pressed', 'true');
+  await expectNoSpill(under);
+  await under.screenshot({ path: 'test-results/editor-fog-mix.png' });
   // A share can be cleared and retyped without snapping to 0, and steps by halves.
   const forest = page.getByRole('region', { name: 'Random land mix' }).getByLabel('Forest share').first();
   await forest.selectText();
@@ -230,6 +239,19 @@ test('fog takes number levels like an island: select it, lean a terrain, copy to
   const fogTiles = saved.tiles.filter(t => t.kind === 'fog');
   expect(fogTiles).toHaveLength(3);
   for (const tile of fogTiles) expect(tile.numberLevels).toEqual({ wheat: 1 });
+  for (const tile of fogTiles) expect(tile.fogMix?.pool.sea).toBeUndefined();
+  // The map's details say what each fog island holds.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create room' }).click();
+  await page.getByRole('radio', { name: 'Choose map' }).click();
+  const picker = page.getByRole('dialog', { name: 'Maps' });
+  await picker.getByRole('button', { name: 'View Fog numbers board' }).click();
+  const summary = picker.getByRole('region', { name: 'Under the fog' });
+  await expect(summary).toContainText('A fog island of 2 tiles, each tile drawn at random');
+  await expect(summary).toContainText('A fog island of 1 tile');
+  await expect(summary).not.toContainText('Sea');
+  await expectNoSpill(summary);
+  await summary.screenshot({ path: 'test-results/map-fog-summary.png' });
   expect(saved.tiles.find(t => t.kind !== 'fog' && t.kind !== 'sea')?.numberLevels).toBeUndefined();
   expect((await page.request.delete(`${server}/api/boards/${saved.id}`, { headers })).status()).toBe(200);
 });

@@ -31,6 +31,14 @@ export interface DesignTile {
   bonus?: number;
   /** How rich random numbers are on this tile's island, per terrain (see NumberLevels). Every tile of an island carries the same. */
   numberLevels?: NumberLevels;
+  /** What this fog tile's island may hide (see shared/maps/fog.ts). Every tile of a fog island carries the same. */
+  fogMix?: FogMix;
+}
+
+/** What a fog island may hide: shares of each kind, or with `exact`, how many of each. */
+export interface FogMix {
+  pool: Partial<Record<FogKind, number>>;
+  exact?: boolean;
 }
 
 /**
@@ -73,18 +81,7 @@ export type LinkRule = { kind: 'in'; links: string[]; terrains: FillKind[] } | {
 export type CornerKey = string;
 
 /** What a board's version for some player counts replaces; everything else is shared. */
-export const VERSION_FIELDS = [
-  'players',
-  'victoryPoints',
-  'tiles',
-  'harbors',
-  'robber',
-  'pirate',
-  'noStart',
-  // Each layout has its own fog tiles, so its own mix (versions saved before this share the board's).
-  'fogPool',
-  'fogExact',
-] as const;
+export const VERSION_FIELDS = ['players', 'victoryPoints', 'tiles', 'harbors', 'robber', 'pirate', 'noStart'] as const;
 export type BoardVersion = Pick<BoardDesign, (typeof VERSION_FIELDS)[number]>;
 
 export interface BoardDesign {
@@ -114,10 +111,6 @@ export interface BoardDesign {
   swapNumbers?: boolean;
   /** Own random-land mixes for some islands, keyed by one of the island's tiles (`q,r`). */
   islandPools?: Record<string, Pool>;
-  /** What fog tiles may turn out to be, as shares (default FOG_POOL). */
-  fogPool?: Partial<Record<FogKind, number>>;
-  /** The fog mix is exact counts (e.g. exactly 2 gold), not shares. False is kept, so a version can turn it off. */
-  fogExact?: boolean;
   /** Random numbers are never 2 or 12 (set numbers and dot limits still may be). */
   noTwoTwelve?: boolean;
   /** Expansions whose rules or pieces the board needs. Absent: Seafarers when it has sea (see boardExpansions). */
