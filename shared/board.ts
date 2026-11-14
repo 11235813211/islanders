@@ -11,6 +11,15 @@ export function shuffled<T>(items: readonly T[], random: () => number): T[] {
   return result;
 }
 
+/** A repeatable random sequence from a seed, so a drawn board can be drawn again exactly. */
+export function seededRandom(seed: number): () => number {
+  let s = seed | 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) | 0;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
 function adjacent(a: Hex, b: Hex): boolean {
   return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(a.q + a.r - b.q - b.r)) === 1;
 }

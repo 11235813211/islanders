@@ -221,6 +221,17 @@ test('fog takes number levels and its own mix like an island: select it, set the
   await expect(forest).toHaveValue('3');
   await forest.blur();
   await expect(forest).toHaveValue('3');
+  // A second click on a check makes it an exact count (red, explained below the mix); a third turns it off.
+  const mix = page.getByRole('region', { name: 'Random land mix' });
+  await mix.getByLabel('Use Forest', { exact: true }).first().click();
+  await expect(mix.getByLabel('Use Forest (exact count)')).toBeChecked();
+  await expect(mix.getByRole('note').filter({ hasText: 'exact counts: 3 Forest' })).toBeVisible();
+  await expectNoSpill(mix);
+  await mix.screenshot({ path: 'test-results/editor-exact-mix.png' });
+  await mix.getByLabel('Use Forest (exact count)').click();
+  await expect(mix.getByLabel('Use Forest', { exact: true }).first()).not.toBeChecked();
+  await expect(mix.getByRole('note').filter({ hasText: 'exact counts' })).toHaveCount(0);
+  await mix.getByLabel('Use Forest', { exact: true }).first().click();
   // The preview can show what the fog hides, drawn as at the end of a game.
   await page.getByRole('button', { name: 'Preview' }).click();
   const preview = page.getByRole('dialog', { name: 'Preview' });

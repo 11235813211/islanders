@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { ORDERED_NUMBERS, spiralHexes } from '../shared/board';
 import type { GameView, ServerMessage } from '../shared/types';
 import { RESOURCES } from '../shared/types';
+import { expectNoSpill, startGame } from './ui-harness';
 
 function observe(page: Page) {
   let view: GameView | undefined;
@@ -44,6 +45,23 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await expect.poll(() => game.state()?.settings.turnSeconds).toBe(90);
   await page.screenshot({ path: 'test-results/lobby-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Start game', exact: true }).click();
+  // Before setup the host can draw another board and go back to the first.
+  const pick = page.getByRole('region', { name: 'Choose the board' });
+  await expect(pick.getByRole('status')).toHaveAccessibleName('Board 1 of 1');
+  const tiles = () => JSON.stringify(game.state()!.board.hexes);
+  const first = tiles();
+  await pick.getByRole('button', { name: 'New board' }).click();
+  await expect(pick.getByRole('status')).toHaveAccessibleName('Board 2 of 2');
+  await pick.getByRole('button', { name: 'Previous board' }).click();
+  await expect(pick.getByRole('status')).toHaveAccessibleName('Board 1 of 2');
+  await expect.poll(tiles).toBe(first);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectNoSpill(pick);
+    await page.screenshot({ path: `test-results/board-pick-${width}.png` });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await pick.getByRole('button', { name: 'Play' }).click();
   for (let turn = 0; turn < 6; turn++) {
     await page
       .getByRole('button', { name: /^Build settlement at/ })
@@ -182,7 +200,7 @@ test('a phone can join by pasting a spectator link and chat without receiving pl
     await host.goto('/');
     await host.getByRole('button', { name: 'Create solo test room' }).click();
     await expect.poll(() => a.state()?.players.length).toBe(3);
-    await host.getByRole('button', { name: 'Start game', exact: true }).click();
+    await startGame(host);
     // Pasting a whole spectator link (as iPhone home-screen users do) fills the code and the spectator choice.
     await watcher.goto('/');
     await watcher
@@ -235,6 +253,13 @@ test('invite links enter a lobby directly once, spectator links watch, and peopl
     await friend.reload();
     await expect(friend.locator('.lobby-player')).toHaveCount(2);
     expect(joins).toBe(1);
+    // Someone who isn't the host can open a setting's choices, but picking one changes nothing.
+    const layout = friend.getByLabel('Number layout', { exact: true });
+    await expect(layout).toBeEnabled();
+    await layout.selectOption('random');
+    await expect(layout).toHaveValue('ordered');
+    await expect(friend.getByRole('button', { name: 'More points to win' })).toBeDisabled();
+    expect(h.state()!.settings.numberLayout).toBe('ordered');
     // The invite dialog labels both links and copies each one separately.
     await host.getByRole('button', { name: 'Invite friends' }).click();
     const invite = host.getByRole('dialog', { name: `Invite to ${h.state()!.roomId}` });

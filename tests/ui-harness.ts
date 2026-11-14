@@ -112,3 +112,9 @@ export async function expectNoSpill(container: Locator): Promise<void> {
   });
   expect(problems).toEqual([]);
 }
+
+/** From the lobby: Start game, then Play on the first board drawn. */
+export async function startGame(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Start game', exact: true }).click();
+  await page.getByRole('region', { name: 'Choose the board' }).getByRole('button', { name: 'Play' }).click();
+}

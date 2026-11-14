@@ -2,7 +2,7 @@ import { copyData } from '../copy';
 import type { GameAction, GameState } from '../types';
 import { addLog, cloneState, requireRule } from './core';
 
-const ACTIVE_PHASES = (state: GameState) => !['lobby', 'finished'].includes(state.phase);
+const ACTIVE_PHASES = (state: GameState) => !['lobby', 'pick-board', 'finished'].includes(state.phase);
 export const PROPOSAL_MS = 45_000;
 
 /** Push every running clock later, e.g. after a pause or an undo. */

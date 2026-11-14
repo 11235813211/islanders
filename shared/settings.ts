@@ -55,7 +55,7 @@ export const SAVED_BOT_GAME_HOURS = 24;
 
 /** One person playing bots in a real (not solo test) game: nobody else is waiting on them. */
 export function isBotGame(game: { phase: Phase; testMode: boolean; players: { bot?: BotLevel | null }[] }): boolean {
-  if (game.testMode || game.phase === 'lobby' || game.phase === 'finished') return false;
+  if (game.testMode || game.phase === 'lobby' || game.phase === 'pick-board' || game.phase === 'finished') return false;
   return game.players.filter(p => !p.bot).length === 1;
 }
 

@@ -173,7 +173,7 @@ export function tally<G extends GroupStat>(
 }
 
 export function getActivePlayerId(state: GameState): string | null {
-  if (state.phase === 'lobby' || state.phase === 'finished') return null;
+  if (['lobby', 'pick-board', 'finished'].includes(state.phase)) return null;
   if (state.phase === 'setup-settlement' || state.phase === 'setup-road')
     return state.setupOrder[state.setupIndex] ?? null;
   if (state.phase === 'special-build') return state.specialBuilder;

@@ -58,6 +58,45 @@ describe('link rules', () => {
   });
 });
 
+describe('"Not A" on every tile', () => {
+  it('keeps the mix: a half-weight desert still comes out once (unless A is the desert)', () => {
+    const base = testDesign(['~ ~ ~ ~ ~ ~ ~', ' ~ L L L L L ~', '~ L L L L L ~', ' ~ L L L L L ~', '~ L L L L ~ ~']);
+    const design = {
+      ...base,
+      pool: { wood: 4, sheep: 4, wheat: 4, brick: 3, ore: 3, desert: 0.5 },
+      tiles: base.tiles.map(t => (t.kind === 'land' ? { ...t, notLink: 'A' } : t)),
+    };
+    for (let seed = 1; seed < 60; seed++) {
+      const deserts = buildBoard(design, seeded(seed)).board.hexes.filter(h => h.terrain === 'desert').length;
+      expect(deserts).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('exact counts in a mix', () => {
+  const rows = ['~ ~ ~ ~ ~ ~ ~', ' ~ L L L L L ~', '~ L L L L L ~', ' ~ L L L L L ~', '~ L L L L ~ ~'];
+  it('gives an exact terrain its rounded count; the others share the rest', () => {
+    const design = testDesign(rows, {
+      pool: { wood: 4, sheep: 4, wheat: 4, brick: 3, ore: 3, desert: 2.4 },
+      exactMix: { '': ['desert'] },
+    });
+    for (let seed = 1; seed < 30; seed++) {
+      const hexes = buildBoard(design, seeded(seed)).board.hexes;
+      expect(hexes.filter(h => h.terrain === 'desert')).toHaveLength(2);
+      expect(hexes.filter(h => h.terrain === 'wood').length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('counts set tiles of that terrain toward the exact count, and survives saving', () => {
+    const base = testDesign(rows, { pool: { wood: 1, desert: 2 }, exactMix: { '': ['desert'] } });
+    const first = base.tiles.findIndex(t => t.kind === 'land');
+    const design = { ...base, tiles: base.tiles.map((t, i) => (i === first ? { ...t, kind: 'desert' as const } : t)) };
+    const deserts = buildBoard(design, seeded()).board.hexes.filter(h => h.terrain === 'desert');
+    expect(deserts).toHaveLength(2);
+    expect(parseDesign(design, ['seafaring']).exactMix).toEqual({ '': ['desert'] });
+  });
+});
+
 describe('no-start corners', () => {
   it('a marked corner can take no starting settlement; marking it again clears it', () => {
     let design = testDesign(['~ ~ ~ ~ ~', ' ~ w6 b5 ~ ~', '~ s9 o10 ~ ~', ' ~ ~ ~ ~ ~']);

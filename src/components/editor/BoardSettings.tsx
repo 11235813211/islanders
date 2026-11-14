@@ -1,10 +1,11 @@
 import { AlertTriangle } from 'lucide-react';
-import { type BoardDesign, POOL_PRESETS, type Pool, tileKey } from '../../../shared/maps';
+import { type BoardDesign, type FillKind, POOL_PRESETS, type Pool, tileKey } from '../../../shared/maps';
 import { designWarnings, islandOf } from '../../../shared/maps/edit';
 import { POOL_KINDS } from '../../../shared/maps/validate';
 import type { EditorSelection } from './EditorCanvas';
 import FogSettings from './FogSettings';
 import PoolRow from './PoolRow';
+import { KIND_LABELS } from './tools';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
@@ -31,7 +32,32 @@ function setIslandPool(design: BoardDesign, key: string, pool: Pool | null): Boa
   const { [key]: _old, ...rest } = design.islandPools ?? {};
   const islandPools = pool ? { ...rest, [key]: pool } : rest;
   const { islandPools: _all, ...base } = design;
-  return Object.keys(islandPools).length ? { ...base, islandPools } : base;
+  const next = Object.keys(islandPools).length ? { ...base, islandPools } : base;
+  return pool ? next : setExactKinds(next, key, []);
+}
+
+/** Set which terrains of one mix ('' for the board's) are exact counts. */
+function setExactKinds(design: BoardDesign, key: string, kinds: FillKind[]): BoardDesign {
+  const { [key]: _old, ...rest } = design.exactMix ?? {};
+  const exactMix = kinds.length ? { ...rest, [key]: kinds } : rest;
+  const { exactMix: _all, ...base } = design;
+  return Object.keys(exactMix).length ? { ...base, exactMix } : base;
+}
+
+/** Mark one terrain of a mix exact or not. */
+function withExact(design: BoardDesign, key: string, kind: FillKind, on: boolean): BoardDesign {
+  const kinds = (design.exactMix?.[key] ?? []).filter(k => k !== kind);
+  return setExactKinds(design, key, on ? [...kinds, kind] : kinds);
+}
+
+/** Says which terrains are exact counts and that the rest share what's left. */
+function ExactNote({ pool, exact }: { pool: Pool; exact: Set<FillKind> }) {
+  const listed = [...exact].map(k => `${pool[k] ?? 0} ${KIND_LABELS[k]}`).join(', ');
+  return (
+    <p className="pool-exact-note" role="note">
+      Red checks are exact counts: {listed}. The other terrains share the remaining tiles.
+    </p>
+  );
 }
 
 /**
@@ -57,6 +83,18 @@ export default function BoardSettings({
   const pool: Pool = ownKey ? design.islandPools![ownKey]! : design.pool;
   const setPool = (next: Pool) =>
     edit(d => (ownKey ? setIslandPool(d, ownKey, next) : { ...d, pool: next }), `pool-${ownKey ?? 'board'}`);
+  const mixKey = ownKey ?? '';
+  const exact = new Set(design.exactMix?.[mixKey] ?? []);
+  /** One terrain's share or exact count, saved with whether it is exact in one edit. */
+  const setKind = (kind: FillKind, n: number, isExact = false) =>
+    edit(
+      d => {
+        const next = { ...pool, [kind]: n };
+        const pooled = ownKey ? setIslandPool(d, ownKey, next) : { ...d, pool: next };
+        return withExact(pooled, mixKey, kind, isExact && n > 0);
+      },
+      `pool-${ownKey ?? 'board'}`,
+    );
   const hasFog = counts.has('fog');
   return (
     <section className="inspector-section" aria-label="Random land mix">
@@ -90,9 +128,16 @@ export default function BoardSettings({
       </fieldset>
       <div className="pool-grid">
         {LAND_KINDS.map(kind => (
-          <PoolRow key={kind} kind={kind} value={pool[kind] ?? 0} set={n => setPool({ ...pool, [kind]: n })} />
+          <PoolRow
+            key={kind}
+            kind={kind}
+            value={pool[kind] ?? 0}
+            exact={exact.has(kind)}
+            set={(n, isExact) => setKind(kind, n, isExact)}
+          />
         ))}
       </div>
+      {exact.size > 0 && <ExactNote pool={pool} exact={exact} />}
       {!ownKey && (
         <div className="pool-grid single">
           <PoolRow

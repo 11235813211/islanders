@@ -1,4 +1,4 @@
-import { assignNumbers, generateBoard, shuffled } from '../board';
+import { assignNumbers, generateBoard, seededRandom, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
 import { buildBoard } from '../maps/generate';
 import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
@@ -61,13 +61,38 @@ function setupLogLine(pieces: string[]): string {
   return `Setup: each player places ${pieces.length} pieces (${pieces.join(', ')}), each with a road.`;
 }
 
+/** Most boards kept to go back to in the pick-board phase (the oldest is dropped). */
+const MAX_BOARD_DRAWS = 19;
+
+/** Put the board drawn from `seed` on the table. The same seed always draws the same board. */
+function showDraw(next: GameState, seed: number): void {
+  const { players, settings } = next;
+  Object.assign(
+    next,
+    boardFor(
+      next.design,
+      settings.numberLayout,
+      seededRandom(seed),
+      players.length,
+      settings.seafarers,
+      layoutCount(next),
+    ),
+  );
+}
+
+/** Draw a fresh board and keep its seed, so the host can come back to it. */
+function drawBoard(next: GameState, random: () => number): void {
+  const seed = Math.floor(random() * 2 ** 32);
+  next.boardSeeds = [...next.boardSeeds.slice(-(MAX_BOARD_DRAWS - 1)), seed];
+  next.boardShown = next.boardSeeds.length - 1;
+  showDraw(next, seed);
+}
+
 /** The board, bank, and development deck for the seats at the table (five or six get more of each). */
 function dealTable(next: GameState, random: () => number): void {
   const players = next.players.length;
-  Object.assign(
-    next,
-    boardFor(next.design, next.settings.numberLayout, random, players, next.settings.seafarers, layoutCount(next)),
-  );
+  next.boardSeeds = [];
+  drawBoard(next, random);
   // A version for this many players brings its own points to win, unless the host changed them.
   const played = next.design && designFor(next.design, layoutCount(next));
   if (played && next.settings.victoryPoints === next.design!.victoryPoints)
@@ -100,6 +125,8 @@ export function createGame(
     robber,
     pirate,
     stealHex: null,
+    boardSeeds: [],
+    boardShown: 0,
     bank: bankFor(4),
     setupOrder: [],
     setupIndex: 0,
@@ -229,6 +256,13 @@ export function switchRole(state: GameState, id: string): GameState {
   return next;
 }
 
+/** A game needs two to six seats. */
+const requireStartable = (next: GameState) =>
+  requireRule(
+    next.players.length >= 2 && next.players.length <= MAX_PLAYERS,
+    'Invite at least one friend before starting.',
+  );
+
 const requireHost = (next: GameState, playerId: string, what: string) =>
   requireRule(next.hostId === playerId, `Only the host can ${what}.`);
 
@@ -253,6 +287,8 @@ export const lobbyHandlers: Pick<
   | 'ask-color-swap'
   | 'answer-color-swap'
   | 'start'
+  | 'new-board'
+  | 'show-board'
   | 'leave'
   | 'remove-player'
   | 'transfer-host'
@@ -353,15 +389,37 @@ export const lobbyHandlers: Pick<
     if (action.accept && asker) swapColors(asker, player, next);
   },
 
-  /** The board is drawn here, so nobody sees the layout before the game begins. */
-  start({ next, playerId, random }) {
-    needPhase(next, 'lobby');
-    requireHost(next, playerId, 'start the game');
-    requireRule(
-      next.players.length >= 2 && next.players.length <= MAX_PLAYERS,
-      'Invite at least one friend before starting.',
-    );
+  /**
+   * From the lobby: fix the seats, deal the table, and let the host look at the board. Again in the
+   * pick-board phase: draw another board (earlier ones stay to go back to).
+   */
+  'new-board'({ next, player, playerId, random }) {
+    needPhase(next, 'lobby', 'pick-board');
+    requireHost(next, playerId, 'draw the board');
+    if (next.phase === 'pick-board') return drawBoard(next, random);
+    requireStartable(next);
     dealTable(next, random);
+    next.phase = 'pick-board';
+    addLog(next, `${player.name} is choosing the board.`);
+  },
+
+  'show-board'({ next, playerId }, action) {
+    needPhase(next, 'pick-board');
+    requireHost(next, playerId, 'choose the board');
+    const seed = next.boardSeeds[action.board - 1];
+    requireRule(seed !== undefined, 'That board is gone.');
+    next.boardShown = action.board - 1;
+    showDraw(next, seed);
+  },
+
+  /** Begin setup on the board shown (from the lobby, a board is drawn first). */
+  start({ next, playerId, random }) {
+    needPhase(next, 'lobby', 'pick-board');
+    requireHost(next, playerId, 'start the game');
+    requireStartable(next);
+    if (next.phase === 'lobby') dealTable(next, random);
+    next.boardSeeds = [];
+    next.boardShown = 0;
     // Seats are drawn at random so the host (or whoever joined first) does not always go first.
     next.players = shuffled(next.players, random);
     const ids = next.players.map(candidate => candidate.id);

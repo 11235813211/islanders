@@ -280,19 +280,26 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
+/**
+ * One setting's control. `readOnly` (everyone but the host) still lets a select open and a number
+ * be read, so others can see the choices; nothing they pick is sent.
+ */
 export function SettingControl({
   def,
   settings,
   disabled,
+  readOnly,
   change,
 }: {
   def: SettingDef;
   settings: GameSettings;
   disabled: boolean;
+  readOnly: boolean;
   change: (next: Partial<GameSettings>) => void;
 }) {
   const value = settings[def.key];
   const { control } = def;
+  const locked = disabled || readOnly;
   if (control.kind === 'toggle')
     return (
       <input
@@ -300,7 +307,7 @@ export function SettingControl({
         type="checkbox"
         aria-label={def.label}
         checked={value as boolean}
-        disabled={disabled}
+        disabled={locked}
         onChange={e => change({ [def.key]: e.target.checked })}
       />
     );
@@ -309,8 +316,14 @@ export function SettingControl({
       <select
         aria-label={def.label}
         value={String(value)}
-        disabled={disabled}
+        disabled={disabled && !readOnly}
+        aria-readonly={readOnly || undefined}
         onChange={e => {
+          // Only the host's choice counts: put the room's value back.
+          if (readOnly) {
+            e.target.value = String(value);
+            return;
+          }
           const option = control.options.find(o => String(o.value) === e.target.value)!;
           change({ [def.key]: option.value });
         }}
@@ -329,7 +342,7 @@ export function SettingControl({
         <button
           type="button"
           aria-label={`Fewer ${def.label.toLowerCase()}`}
-          disabled={disabled || n <= control.min}
+          disabled={locked || n <= control.min}
           onClick={() => change({ [def.key]: n - 1 })}
         >
           <Minus size={16} />
@@ -338,7 +351,7 @@ export function SettingControl({
         <button
           type="button"
           aria-label={`More ${def.label.toLowerCase()}`}
-          disabled={disabled || n >= control.max}
+          disabled={locked || n >= control.max}
           onClick={() => change({ [def.key]: n + 1 })}
         >
           <Plus size={16} />
@@ -355,8 +368,10 @@ export function SettingControl({
       max={control.max}
       defaultValue={value as number}
       key={value as number}
-      disabled={disabled}
+      disabled={disabled && !readOnly}
+      readOnly={readOnly}
       onBlur={e => {
+        if (readOnly) return;
         const n = Number(e.target.value);
         if (n !== value && Number.isInteger(n) && n >= control.min && n <= control.max) change({ [def.key]: n });
       }}

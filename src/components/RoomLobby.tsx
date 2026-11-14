@@ -79,7 +79,8 @@ export default function RoomLobby({
         <SettingControl
           def={def}
           settings={view.settings}
-          disabled={busy || !host}
+          disabled={busy}
+          readOnly={!host}
           change={next => {
             const question = def.confirm?.(view, next[def.key]!);
             if (!question || window.confirm(question)) change(next);
@@ -260,7 +261,7 @@ export default function RoomLobby({
           <button
             className="button primary"
             disabled={busy || !host || view.players.length < 2}
-            onClick={() => send({ type: 'start' })}
+            onClick={() => send({ type: 'new-board' })}
           >
             <Swords size={21} />
             Start game

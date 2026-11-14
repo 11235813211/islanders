@@ -35,6 +35,8 @@ type FieldSpec = Field | `${Field}?`;
 
 const SPEC = {
   start: {},
+  'new-board': {},
+  'show-board': { board: 'count' },
   roll: {},
   'roll-volcanoes': {},
   'end-turn': {},

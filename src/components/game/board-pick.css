@@ -1,0 +1,65 @@
+/* The pick-board controls in the action bar, in place of the build buttons (see BoardPick.tsx). */
+.board-pick {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 16px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.board-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.board-pick-row > .button {
+  box-sizing: border-box;
+  height: 36px;
+  white-space: nowrap;
+}
+.board-pick-step {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+}
+.board-pick-label {
+  min-width: 104px;
+  text-align: center;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.board-pick-wait {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Phones: one row, so Play stays on screen; the label drops "Board". */
+@media (max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px) {
+  .board-pick {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .board-pick-row {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .board-pick-label {
+    min-width: 48px;
+  }
+  .board-pick-step {
+    width: 32px;
+  }
+  .board-pick-row > .button:not(.board-pick-step) {
+    padding-inline: 12px;
+  }
+  .board-pick-word {
+    display: none;
+  }
+}

@@ -117,6 +117,7 @@ export function tidy(design: BoardDesign): BoardDesign {
     robber: robber ? design.robber : null,
     pirate: pirate ? design.pirate : null,
     ...islandPoolsOn(design, byKey),
+    ...exactMixOn(design, byKey),
   };
 }
 
@@ -128,6 +129,16 @@ function noStartOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<Bo
     return !!tile && isLand(tile.kind);
   });
   return { noStart: kept.length ? kept : undefined };
+}
+
+/** Exact counts for the board's mix and for island mixes whose tile is still land. */
+function exactMixOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<BoardDesign, 'exactMix'> {
+  if (!design.exactMix) return {};
+  const kept = Object.entries(design.exactMix).filter(([k]) => {
+    const tile = byKey.get(k);
+    return k === '' || (!!tile && isLand(tile.kind) && !!design.islandPools?.[k]);
+  });
+  return { exactMix: kept.length ? Object.fromEntries(kept) : undefined };
 }
 
 /** Island mixes whose tile is still land (anything else drops them). */

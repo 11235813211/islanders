@@ -26,7 +26,7 @@ export const BOT_OFFER_WAIT_MS = 8000;
 const MAX_BOT_STEPS_PER_TURN = 30;
 
 const isBot = (state: GameState, id: string) => !!state.players.find(p => p.id === id)?.bot;
-const playing = (state: GameState) => !['lobby', 'finished'].includes(state.phase);
+const playing = (state: GameState) => !['lobby', 'pick-board', 'finished'].includes(state.phase);
 
 /** The bot seat that should act next, or null when no bot needs to act. */
 export function pendingBotActor(state: GameState): string | null {

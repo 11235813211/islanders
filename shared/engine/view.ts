@@ -136,7 +136,9 @@ export function getView(state: GameState, selfId: string): GameView {
     activePlayerId: active,
     setupOrder: state.setupOrder,
     setupIndex: state.setupIndex,
-    turnPlayerId: ['lobby', 'finished'].includes(state.phase) ? null : (state.players[state.turnIndex]?.id ?? null),
+    turnPlayerId: ['lobby', 'pick-board', 'finished'].includes(state.phase)
+      ? null
+      : (state.players[state.turnIndex]?.id ?? null),
     turn: state.turn,
     dice: state.dice,
     pendingDiscards: state.pendingDiscards,
@@ -195,6 +197,7 @@ export function getView(state: GameState, selfId: string): GameView {
     testMode: state.testMode,
     map: state.map,
     seafaring: seaRules(state),
+    boardPick: state.phase === 'pick-board' ? { shown: state.boardShown + 1, count: state.boardSeeds.length } : null,
   } satisfies GameView);
   view.board = freezeBoard(state.board);
   return view;

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { type BoardDesign, type BoardVersion, BUILTIN_BOARDS, VERSION_FIELDS } from '../shared/maps';
 import { server, signIn } from './server-helpers';
+import { startGame } from './ui-harness';
 
 test('the host picks a map from the picker; it shows in the lobby with its points and a player warning', async ({
   page,
@@ -44,7 +45,7 @@ test('the host picks a map from the picker; it shows in the lobby with its point
   await page.getByRole('button', { name: 'Add bot' }).click();
   await page.getByRole('button', { name: 'Add bot' }).click();
   await expect(page.getByRole('note')).toBeHidden();
-  await page.getByRole('button', { name: 'Start game' }).click();
+  await startGame(page);
   await expect(page.locator('.board-pirate')).toHaveCount(1);
   await expect(page.locator('.terrain-gold').first()).toBeVisible();
 });
@@ -68,7 +69,7 @@ test('on a sea map a real game lets a player place a ship in setup', async ({ pa
   await page.getByRole('radio', { name: 'Choose map' }).click();
   await page.getByRole('dialog', { name: 'Maps' }).getByRole('button', { name: 'Use Small Isles' }).click();
   await page.getByRole('button', { name: 'Add bot' }).click();
-  await page.getByRole('button', { name: 'Start game' }).click();
+  await startGame(page);
   // Our first settlement goes on the first open corner; then a ship goes on a sea edge beside it.
   const corner = page.getByRole('button', { name: /^Build settlement at / }).first();
   await expect(corner).toBeVisible({ timeout: 30_000 });

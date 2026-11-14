@@ -47,43 +47,61 @@ function NumberField({
 const defaultShare = (kind: FillKind | FogKind) =>
   (POOL_PRESETS.all as Record<string, number>)[kind] ?? FOG_POOL[kind as FogKind] ?? 1;
 
-/** One terrain's row: on/off, then its share (or, for icebergs, the percent of sea). */
+/**
+ * One terrain's row: on/off, then its share (or, for icebergs, the percent of sea). Given `exact`,
+ * the check has a third state, an exact count: off → share → exact → off.
+ */
 export default function PoolRow({
   kind,
   value,
   set,
   whole = false,
+  exact,
 }: {
   kind: FillKind | FogKind;
   value: number;
-  set: (n: number) => void;
+  /** `exact` comes back only for rows that take an exact count. */
+  set: (n: number, exact?: boolean) => void;
   /** Whole numbers (exact counts) instead of shares in tenths. */
   whole?: boolean;
+  /** This terrain is an exact count; undefined when the row has no exact state. */
+  exact?: boolean;
 }) {
   const iceberg = kind === 'iceberg';
-  const integer = iceberg || whole;
+  const integer = iceberg || whole || !!exact;
   const top = iceberg ? ICEBERG_MAX_PERCENT : 20;
+  const label = KIND_LABELS[kind];
+  /** The next state of the check. */
+  function cycle() {
+    if (!value) return set(defaultShare(kind), exact === undefined ? undefined : false);
+    if (exact === false) return set(Math.max(1, Math.round(value)), true);
+    set(0, exact === undefined ? undefined : false);
+  }
+  const tip = exact
+    ? `Exactly ${value} ${label} (click to turn off)`
+    : iceberg
+      ? 'Percent of sea tiles that become icebergs'
+      : exact === false && value
+        ? 'Share of these tiles (click again for an exact count)'
+        : 'Share of these tiles';
   return (
-    <div
-      className={`pool-row${value ? '' : ' off'}`}
-      title={iceberg ? 'Percent of sea tiles that become icebergs' : 'Share of these tiles'}
-    >
+    <div className={`pool-row${value ? '' : ' off'}${exact ? ' exact' : ''}`} title={tip}>
       <input
         type="checkbox"
-        aria-label={`Use ${KIND_LABELS[kind]}`}
+        aria-label={`Use ${label}${exact ? ' (exact count)' : ''}`}
         checked={value > 0}
-        onChange={e => set(e.target.checked ? defaultShare(kind) : 0)}
+        onChange={cycle}
       />
       <TileIcon kind={kind} size={22} />
       <span>{KIND_LABELS[kind]}</span>
       <NumberField
         max={top}
         step={integer ? 1 : 0.5}
-        label={iceberg ? 'Iceberg percent of sea' : `${KIND_LABELS[kind]} ${whole ? 'count' : 'share'}`}
+        label={iceberg ? 'Iceberg percent of sea' : `${label} ${whole || exact ? 'count' : 'share'}`}
         value={value}
         set={n => {
           const clamped = Math.max(0, Math.min(top, n));
-          set(integer ? Math.round(clamped) : tenths(clamped));
+          set(integer ? Math.round(clamped) : tenths(clamped), exact);
         }}
       />
       {iceberg && <small>% sea</small>}

@@ -240,7 +240,8 @@ test('the split panel fits a phone and its buttons are reachable', async ({ page
     .first()
     .click();
   const panel = page.getByRole('dialog', { name: 'Split a tile' });
-  await panel.getByRole('button', { name: 'Add Ore' }).click();
+  // Whatever the first tile is, it offers some other resource.
+  await panel.getByRole('button', { name: /^Add /, disabled: false }).first().click();
   await expectNoSpill(panel);
   await expect(panel.getByRole('button', { name: 'Split', exact: true })).toBeInViewport();
   await page.screenshot({ path: 'test-results/phone-split.png' });

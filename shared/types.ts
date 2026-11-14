@@ -150,6 +150,8 @@ export interface Spectator {
 }
 export type Phase =
   | 'lobby'
+  /** Seats are fixed; the host draws boards (and can go back to earlier ones) before setup. */
+  | 'pick-board'
   | 'setup-settlement'
   | 'setup-road'
   | 'roll'
@@ -366,6 +368,10 @@ export interface GameState {
   pirate: string | null;
   /** The hex the robber or pirate just moved to, during the steal phase. */
   stealHex: string | null;
+  /** Pick-board phase: the seed of each board drawn so far (oldest first), redrawn from it to go back. */
+  boardSeeds: number[];
+  /** Which of `boardSeeds` is on the table (0-based). */
+  boardShown: number;
   bank: ResourceBag;
   setupOrder: string[];
   setupIndex: number;
@@ -594,9 +600,15 @@ export interface GameView {
   map: MapInfo | null;
   /** True on maps with sea tiles: ships, the pirate, and island bonuses are in play. */
   seafaring: boolean;
+  /** Pick-board phase: which drawn board is shown (1-based) of how many. Null in other phases. */
+  boardPick: { shown: number; count: number } | null;
 }
 export type GameAction =
   | { type: 'start' }
+  /** Host: draw a board (from the lobby, this fixes the seats and opens the pick-board phase). */
+  | { type: 'new-board' }
+  /** Host: show an earlier drawn board again, 1-based. */
+  | { type: 'show-board'; board: number }
   | { type: 'configure'; settings: Partial<GameSettings> & Pick<GameSettings, 'autoRollSeconds' | 'trackDice'> }
   | { type: 'choose-color'; color: PlayerColor }
   | { type: 'ask-color-swap'; playerId: string }

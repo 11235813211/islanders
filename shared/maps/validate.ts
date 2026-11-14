@@ -167,6 +167,15 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
       islandPools[key] = parsePool(mix, FILL_KINDS) as Pool;
     }
   }
+  const exactMix: Record<string, FillKind[]> = {};
+  if (value.exactMix !== undefined) {
+    if (!record(value.exactMix) || Object.keys(value.exactMix).length > 41) fail('Invalid exact counts.');
+    for (const [key, kinds] of Object.entries(value.exactMix as Record<string, unknown>)) {
+      const valid = key === '' || /^-?\d{1,2},-?\d{1,2}$/.test(key);
+      if (!valid || !Array.isArray(kinds) || !kinds.every(k => FILL_KINDS.includes(k))) fail('Invalid exact counts.');
+      if ((kinds as FillKind[]).length) exactMix[key] = [...new Set(kinds as FillKind[])];
+    }
+  }
   const exclude = value.harborExclude;
   if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
     fail('Invalid harbor exclusions.');
@@ -193,6 +202,7 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     ...layout,
     pool,
     ...(Object.keys(islandPools).length ? { islandPools } : {}),
+    ...(Object.keys(exactMix).length ? { exactMix } : {}),
     harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
     ...(value.swapNumbers ? { swapNumbers: true } : {}),
     ...(value.noTwoTwelve ? { noTwoTwelve: true } : {}),

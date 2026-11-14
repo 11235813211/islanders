@@ -252,3 +252,37 @@ describe('events and stats', () => {
     expect(getView(stolen, 'p2').players[0]!.stats.cardsIn.steal).toBe(1);
   });
 });
+
+describe('pick-board phase', () => {
+  const draw = (g: ReturnType<typeof makeLobby>, seed: number) =>
+    applyAction(g, 'p0', { type: 'new-board' }, seeded(seed), now);
+  const layout = (g: ReturnType<typeof makeLobby>) => g.board.hexes.map(h => `${h.terrain}${h.number}`).join();
+
+  it('fixes the seats, lets the host redraw and go back, then starts setup on the board shown', () => {
+    let g = draw(makeLobby(3), 1);
+    expect(g.phase).toBe('pick-board');
+    expect(getView(g, 'p1').boardPick).toEqual({ shown: 1, count: 1 });
+    expect(getActivePlayerId(g)).toBeNull();
+    const first = layout(g);
+    g = draw(g, 2);
+    expect(layout(g)).not.toBe(first);
+    expect(getView(g, 'p0').boardPick).toEqual({ shown: 2, count: 2 });
+    g = act(g, 'p0', { type: 'show-board', board: 1 });
+    expect(layout(g)).toBe(first);
+    expect(() => act(g, 'p1', { type: 'new-board' })).toThrow(GameError);
+    expect(() => act(g, 'p0', { type: 'show-board', board: 3 })).toThrow(GameError);
+    expect(() => act(g, 'p0', { type: 'add-bot', level: 'beginner' })).toThrow(GameError);
+    g = act(g, 'p0', { type: 'start' });
+    expect(g.phase).toBe('setup-settlement');
+    expect(layout(g)).toBe(first);
+    expect(g.boardSeeds).toEqual([]);
+    expect(getView(g, 'p0').boardPick).toBeNull();
+  });
+
+  it('keeps at most 19 boards to go back to', () => {
+    let g = draw(makeLobby(2), 1);
+    for (let seed = 2; seed <= 25; seed++) g = draw(g, seed);
+    expect(g.boardSeeds).toHaveLength(19);
+    expect(g.boardShown).toBe(18);
+  });
+});

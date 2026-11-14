@@ -156,6 +156,11 @@ export interface BoardDesign {
   swapNumbers?: boolean;
   /** Own random-land mixes for some islands, keyed by one of the island's tiles (`q,r`). */
   islandPools?: Record<string, Pool>;
+  /**
+   * Terrains a mix gives an exact count of (its value, rounded) instead of a share, keyed like
+   * islandPools, with '' for the board's mix. The other terrains share the rest of the tiles.
+   */
+  exactMix?: Record<string, FillKind[]>;
   /** Random numbers are never 2 or 12 (set numbers and dot limits still may be). */
   noTwoTwelve?: boolean;
   /** Expansions whose rules or pieces the board needs. Absent: Seafarers when it has sea (see boardExpansions). */

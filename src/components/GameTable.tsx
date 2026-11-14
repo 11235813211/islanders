@@ -12,6 +12,7 @@ import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
 import BankFlights from './game/BankFlights';
+import BoardPick from './game/BoardPick';
 import BuildBar from './game/BuildBar';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
@@ -41,7 +42,7 @@ import './game/phone.css';
  */
 function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
   if (view.role !== 'player' || !isLargeGame(view.players.length)) return null;
-  if (['lobby', 'finished', 'setup-settlement', 'setup-road'].includes(view.phase)) return null;
+  if (['lobby', 'pick-board', 'finished', 'setup-settlement', 'setup-road'].includes(view.phase)) return null;
   if (view.turnPlayerId === view.selfId || view.activePlayerId === view.selfId) return null;
   if (view.specialQueue.includes(view.selfId)) return 'waiting';
   return view.specialAsked.includes(view.selfId) ? null : 'ask';
@@ -74,6 +75,8 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
       const winner = view.players.find(p => p.id === view.winnerId);
       return winner ? `${winner.name} wins!` : 'Game over';
     }
+    case 'pick-board':
+      return 'Choosing the board…';
     case 'setup-settlement':
       return `Placing ${setupPieceNow(view)}…`;
     case 'setup-road':
@@ -542,7 +545,8 @@ export default function GameTable({
         </section>
       )}
       <div className={`table-actions${view.seafaring ? ' sea' : ''}${view.cartographers ? ' cartographers' : ''}`}>
-        {!spectator && self && (
+        <BoardPick view={view} busy={busy} send={send} />
+        {!spectator && self && !view.boardPick && (
           <div className="build-buttons">
             <BuildBar
               view={view}

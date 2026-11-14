@@ -93,6 +93,8 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'switch-role',
   'configure',
   'start',
+  'new-board',
+  'show-board',
   'choose-color',
   'leave',
   'remove-player',
@@ -186,7 +188,9 @@ export class GameRoom extends DurableObject<Env> {
   }
   private recordingStatus(room: RoomRecord, playerId: string): RecordingStatus {
     const consent = room.consent ?? {};
-    const on = room.game.phase === 'lobby' ? shouldRecord(room.game, consent) : !!room.recording;
+    // Recording begins at setup, so until then it follows everyone's consent.
+    const before = room.game.phase === 'lobby' || room.game.phase === 'pick-board';
+    const on = before ? shouldRecord(room.game, consent) : !!room.recording;
     return { mine: consent[playerId] === true, on };
   }
   /** Add a step to this room's recording, if there is one. */

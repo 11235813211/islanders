@@ -199,9 +199,11 @@ function chooseLinks(
 
 /**
  * "Not A" tiles: swap a single tile's draw with another in the same mix when it came out as the
- * terrain its letter got, or draw again from the mix when no swap fits.
+ * terrain its letter got. Tiles with no swap left are drawn again as a balanced draw from the mix
+ * without that terrain, counting what the other tiles already hold (so a rare kind stays rare).
  */
 function keepNotLinks(
+  design: BoardDesign,
   singles: DesignTile[],
   kinds: FillKind[],
   links: Map<string, Terrain>,
@@ -210,6 +212,7 @@ function keepNotLinks(
   random: () => number,
 ): void {
   const banned = (i: number) => (singles[i]!.notLink ? links.get(singles[i]!.notLink!) : undefined);
+  const stuck = new Map<string, number[]>();
   singles.forEach((tile, i) => {
     const not = banned(i);
     if (!not || kinds[i] !== not) return;
@@ -221,10 +224,49 @@ function keepNotLinks(
     const j = partners.length ? partners[Math.floor(random() * partners.length)]! : -1;
     if (j >= 0) [kinds[i], kinds[j]] = [kinds[j]!, kinds[i]!];
     else {
-      const rest = [...pools.get(mixKey(tile))!.keys()].filter(k => k !== not);
-      if (rest.length) kinds[i] = rest[Math.floor(random() * rest.length)]!;
+      const key = `${mixKey(tile)}|${not}`;
+      stuck.set(key, [...(stuck.get(key) ?? []), i]);
     }
   });
+  for (const [key, tiles] of stuck) {
+    const [mix, not] = key.split('|') as [string, FillKind];
+    // Exact terrains already have their count, so the redraw takes from the shared ones.
+    const exact = new Set(design.exactMix?.[mix] ?? []);
+    const allowed = [...pools.get(mix)!].filter(([k]) => k !== not);
+    const shared = allowed.filter(([k]) => !exact.has(k));
+    const weights = new Map(shared.length ? shared : allowed);
+    const held = new Map<FillKind, number>();
+    singles.forEach((t, i) => {
+      if (mixKey(t) === mix && !tiles.includes(i)) held.set(kinds[i]!, (held.get(kinds[i]!) ?? 0) + 1);
+    });
+    const draw = shuffled(apportion(tiles.length, weights, held, random), random);
+    tiles.forEach((i, n) => {
+      kinds[i] = draw[n] ?? kinds[i]!;
+    });
+  }
+}
+
+/**
+ * The terrains a mix's `size` random tiles get: each exact terrain its count less the set tiles of
+ * that terrain (cut short when tiles run out), the rest a balanced draw by share. With every
+ * terrain exact, any tiles left over follow the exact counts' proportions.
+ */
+function mixDraw(
+  size: number,
+  pool: Map<FillKind, number>,
+  exact: FillKind[],
+  fixed: Map<FillKind, number>,
+  random: () => number,
+): FillKind[] {
+  const exactKinds = exact.filter(k => pool.has(k));
+  const drawn: FillKind[] = [];
+  for (const k of shuffled(exactKinds, random)) {
+    const n = Math.min(size - drawn.length, Math.max(0, Math.round(pool.get(k)!) - (fixed.get(k) ?? 0)));
+    drawn.push(...Array<FillKind>(n).fill(k));
+  }
+  const shares = new Map([...pool].filter(([k]) => !exactKinds.includes(k)));
+  if (!shares.size) return [...drawn, ...apportion(size - drawn.length, pool, new Map(), random)];
+  return [...drawn, ...apportion(size - drawn.length, shares, fixed, random)];
 }
 
 /**
@@ -256,7 +298,8 @@ function resolveTerrains(
     }
     const mine = new Map<FillKind, number>();
     const size = open.filter(t => mixKey(t) === key).length;
-    for (const kind of apportion(size, pool, fixedCounts, random)) mine.set(kind, (mine.get(kind) ?? 0) + 1);
+    const exact = design.exactMix?.[key] ?? [];
+    for (const kind of mixDraw(size, pool, exact, fixedCounts, random)) mine.set(kind, (mine.get(kind) ?? 0) + 1);
     counts.set(key, mine);
   }
 
@@ -288,7 +331,7 @@ function resolveTerrains(
   for (let attempt = 0; attempt < 24 && singles.length; attempt++) {
     const shuffledBags = new Map([...bags].map(([key, bag]) => [key, shuffled(bag, random)]));
     const kinds = singles.map(t => shuffledBags.get(mixKey(t))!.pop()!);
-    keepNotLinks(singles, kinds, links, pools, mixKey, random);
+    keepNotLinks(design, singles, kinds, links, pools, mixKey, random);
     const layout = new Map<string, Cell & { kind: string }>();
     for (const tile of design.tiles) {
       const k = tileKey(tile.q, tile.r);

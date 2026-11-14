@@ -725,6 +725,22 @@
   padding: 3px 5px;
   font-size: 13px;
 }
+.pool-row.exact {
+  background: #fbe2de;
+  border-radius: 5px;
+}
+/* The third state of a mix check: an exact count. */
+.pool-row.exact input[type="checkbox"] {
+  accent-color: #c2412d;
+}
+.pool-exact-note {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  background: #fbe2de;
+  border-radius: 6px;
+  color: #7a2416;
+  font-size: 12.5px;
+}
 .pool-row small {
   color: var(--muted);
   font-size: 12px;

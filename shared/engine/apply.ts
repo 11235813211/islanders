@@ -37,6 +37,8 @@ const HANDLERS: Handlers = {
 /** Actions a player may take when it is not their turn. */
 const OFF_TURN = new Set<GameAction['type']>([
   'start',
+  'new-board',
+  'show-board',
   'configure',
   'choose-color',
   'ask-color-swap',
@@ -168,7 +170,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   pruneTradeOffer(next);
   reproposeDeferred(next, now);
 
-  const playing = !['lobby', 'finished'].includes(next.phase);
+  const playing = !['lobby', 'pick-board', 'finished'].includes(next.phase);
   // The dice and the volcano dice both roll themselves after the room's auto-roll wait.
   const rolling = (phase: GameState['phase']) => phase === 'roll' || phase === 'eruption';
   if (rolling(next.phase) && next.phase !== state.phase) {

@@ -191,6 +191,11 @@ const MIGRATIONS: Migration[] = [
     s.routeOf ??= {};
     s.peakPoints ??= {};
   },
+  // 21 → 22: the pick-board phase keeps the seed of each board drawn.
+  s => {
+    s.boardSeeds ??= [];
+    s.boardShown ??= 0;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */
