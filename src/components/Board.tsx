@@ -9,8 +9,10 @@ import BoardScene, { type Drift } from './BoardScene';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
+import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
+import RouteZones from './RouteZones';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'survey';
@@ -231,6 +233,7 @@ export default function Board({
             rumbles={volcanoRumbles(view, rolled)}
             peeks={view.fogPeeks}
           />
+          <RouteZones zones={viewerZones(view)} />
           {Object.entries(view.roads).map(([edgeId, owner]) => {
             const [a, b] = edgeEnds(edgeId);
             const relay = view.relays.includes(edgeId);

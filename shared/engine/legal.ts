@@ -17,11 +17,12 @@ import {
   cartographersRules,
   discoveryRule,
   getActivePlayerId,
-  PIECE_LIMITS,
   pieceCounts,
+  pieceLimits,
   resourceCount,
   seaRules,
 } from './core';
+import { routeSetupSites } from './goals';
 
 /**
  * Open land corners at least two edges from any building; outside setup, touching your road or ship.
@@ -318,7 +319,9 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
   const player = state.players.find(candidate => candidate.id === selfId);
   if (!player || getActivePlayerId(state) !== selfId || state.pausedAt !== null) return legal;
   const pieces = pieceCounts(state, selfId);
-  if (state.phase === 'setup-settlement') legal.settlements = settlementSites(state, selfId, true);
+  const limits = pieceLimits(state, selfId);
+  if (state.phase === 'setup-settlement')
+    legal.settlements = routeSetupSites(state, selfId, settlementSites(state, selfId, true));
   if (state.phase === 'setup-road') {
     legal.roads = roadSites(state, selfId, true);
     legal.ships = shipSites(state, selfId, true);
@@ -326,25 +329,24 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
   if (state.phase === 'robber') legal.robberHexes = robberHexes(state, selfId);
   if (state.phase === 'steal') legal.stealTargets = stealTargets(state, selfId);
   if (state.phase === 'free-roads') {
-    if (pieces.roads < PIECE_LIMITS.roads) legal.roads = roadSites(state, selfId, false);
-    if (pieces.ships < PIECE_LIMITS.ships) legal.ships = shipSites(state, selfId, false);
+    if (pieces.roads < limits.roads) legal.roads = roadSites(state, selfId, false);
+    if (pieces.ships < limits.ships) legal.ships = shipSites(state, selfId, false);
   }
   if (state.phase === 'build' || state.phase === 'special-build') {
     legal.development = affordsDevelopment(state, player);
-    if (pieces.settlements < PIECE_LIMITS.settlements && canAfford(player, BUILD_COSTS.settlement))
+    if (pieces.settlements < limits.settlements && canAfford(player, BUILD_COSTS.settlement))
       legal.settlements = settlementSites(state, selfId, false);
-    if (pieces.roads < PIECE_LIMITS.roads && canAfford(player, BUILD_COSTS.road))
+    if (pieces.roads < limits.roads && canAfford(player, BUILD_COSTS.road))
       legal.roads = roadSites(state, selfId, false);
-    if (pieces.ships < PIECE_LIMITS.ships && canAfford(player, BUILD_COSTS.ship))
+    if (pieces.ships < limits.ships && canAfford(player, BUILD_COSTS.ship))
       legal.ships = shipSites(state, selfId, false);
-    if (pieces.cities < PIECE_LIMITS.cities && canAfford(player, BUILD_COSTS.city)) {
+    if (pieces.cities < limits.cities && canAfford(player, BUILD_COSTS.city)) {
       legal.cities = Object.entries(state.buildings)
         .filter(([, building]) => building.playerId === selfId && building.kind === 'settlement')
         .map(([vertexId]) => vertexId);
     }
-    if (pieces.relays < PIECE_LIMITS.relays && canAfford(player, BUILD_COSTS.relay))
-      legal.relays = relaySites(state, selfId);
-    if (pieces.surveys < PIECE_LIMITS.surveys && canAfford(player, BUILD_COSTS.survey)) {
+    if (pieces.relays < limits.relays && canAfford(player, BUILD_COSTS.relay)) legal.relays = relaySites(state, selfId);
+    if (pieces.surveys < limits.surveys && canAfford(player, BUILD_COSTS.survey)) {
       for (const edgeId of surveySites(state, selfId)) {
         const towns = surveyTowns(state, selfId, edgeId);
         if (towns.length) legal.surveyTowns[edgeId] = towns;

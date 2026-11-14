@@ -1,7 +1,7 @@
 import { emptyBag } from '../../engine/core';
 import { boardIndex } from '../../seafaring';
 import { type GameAction, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../types';
-import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths } from '../analysis';
+import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths, routeGoalAt } from '../analysis';
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
 import { makePlans, type Plan, type PlanKind, planScore } from './plans';
@@ -95,7 +95,8 @@ export class Economy {
     const land = new Map<string, Target>();
     const fog = new Map<string, Target>();
     for (const [vertexId, path] of roadPaths(this.board)) {
-      if (path.distance === 0 || path.distance > reach) continue;
+      // A route's finish area is worth heading for however far it is.
+      if (path.distance === 0 || (path.distance > reach && !routeGoalAt(this.view, vertexId))) continue;
       const c = this.geo.indexOf.get(vertexId)!;
       const target = { vertexId, value: 0, ...path };
       if (this.geo.land[c] && isOpen(this.geo, occupied, c)) land.set(vertexId, target);
@@ -173,7 +174,7 @@ export class Economy {
     const harbor = this.geo.harbor[c];
     if (harbor === 'any') value += 1.2;
     else if (harbor && this.production[harbor] >= 5) value += 2.5;
-    return value + this.islandBonus(c) * k.bonusValue;
+    return value + (this.islandBonus(c) + routeGoalAt(this.view, vertexId)) * k.bonusValue;
   }
 
   /** Bonus points this bot would get for settling corner `c`. */
@@ -209,7 +210,8 @@ export class Economy {
     let best: Target | null = null;
     let second: Target | null = null;
     for (const [vertexId, path] of paths) {
-      if (path.distance === 0 || path.distance > reach) continue;
+      // A route's finish area is worth heading for however far it is.
+      if (path.distance === 0 || (path.distance > reach && !routeGoalAt(this.view, vertexId))) continue;
       const c = this.geo.indexOf.get(vertexId)!;
       if (!this.geo.land[c] || !isOpen(this.geo, occupied, c)) continue;
       const them = this.opponentDistance(c);
@@ -246,7 +248,9 @@ export class Economy {
       const worth = this.spots
         ? Math.max(...this.spotIds.map(id => this.spotWorth(id)))
         : (this.target?.value ?? 0) * (1 + knobs.distanceCost * (this.target?.distance ?? 0) ** 1.5);
-      const bonusPoints = this.target ? this.islandBonus(this.geo.indexOf.get(this.target.vertexId)!) : 0;
+      const bonusPoints = this.target
+        ? this.islandBonus(this.geo.indexOf.get(this.target.vertexId)!) + routeGoalAt(this.view, this.target.vertexId)
+        : 0;
       goals.push({
         goal: 'settlement',
         cost,

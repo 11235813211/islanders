@@ -1,4 +1,5 @@
 import { emptyBag } from '../engine/core';
+import { routeCorners } from '../maps/special';
 import { linksAnywhere } from '../rules';
 import {
   boardIndex,
@@ -109,7 +110,19 @@ export function spotValue(board: Board, vertexId: string, weights: ResourceBag, 
   const production = board.production(board.view.selfId);
   if (harbor === 'any') value += 1.5 * tuning.harbor;
   else if (harbor) value += (production[harbor] + y[harbor] >= 6 ? 3 : 0.8) * tuning.harbor;
-  return value;
+  return value + routeGoalAt(board.view, vertexId) * 4;
+}
+
+/**
+ * What building here is worth to this bot in points for its route: the finish area it hasn't
+ * reached yet. A required finish counts extra, since without it the bot can't win.
+ */
+export function routeGoalAt(view: GameView, vertexId: string): number {
+  const goal = view.board.rules?.routeGoal;
+  const self = view.players.find(p => p.id === view.selfId);
+  if (!goal || !self || self.route === null || self.routeDone) return 0;
+  if (!routeCorners(view.board)[self.route]?.finish.has(vertexId)) return 0;
+  return goal.points + (goal.required ? 3 : 0);
 }
 
 type Link = 'road' | 'ship';
@@ -229,7 +242,9 @@ export function expansionTarget(
   let best: ({ vertexId: string; value: number } & Path) | null = null;
   const reach = expansionReach(board.view, maxDistance);
   for (const [vertexId, path] of roadPaths(board)) {
-    if (path.distance === 0 || path.distance > reach || !board.isOpenSpot(vertexId)) continue;
+    // A route's finish area is worth heading for however far it is.
+    const far = path.distance > reach && !routeGoalAt(board.view, vertexId);
+    if (path.distance === 0 || far || !board.isOpenSpot(vertexId)) continue;
     if (!isLandVertex(board.view.board, vertexId)) continue;
     const worth = spotValue(board, vertexId, weights) + islandBonusAt(board, vertexId) * 6;
     const value = worth / (1 + path.distance ** 1.5 * 0.35);

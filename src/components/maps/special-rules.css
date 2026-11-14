@@ -1,0 +1,80 @@
+/* Special rules in the map picker: tags on cards, and rule cards in the detail view (SpecialRules.tsx). */
+.special-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.special-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--special-color);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.special-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.special-rules h4 {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.special-rule {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--special-color) 40%, transparent);
+  border-left: 5px solid var(--special-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--special-color) 8%, #fffdf6);
+}
+.special-rule h5 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--special-color);
+}
+.special-rule ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.zone-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+.zone-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.zone-swatch {
+  box-sizing: border-box;
+  width: 18px;
+  height: 12px;
+  border: 3px solid var(--zone-color);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--zone-color) 20%, transparent);
+}
+.zone-swatch.zone-start {
+  border-style: dashed;
+}

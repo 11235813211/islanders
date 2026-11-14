@@ -9,8 +9,8 @@ import {
   discoveriesLeft,
   emptyBag,
   ownBoard,
-  PIECE_LIMITS,
   pieceCounts,
+  pieceLimits,
   resourceCount,
   tally,
 } from './core';
@@ -158,7 +158,7 @@ export function eruptAt(state: GameState, hexId: string, die: number): void {
   const owner = building ? state.players.find(p => p.id === building.playerId)! : null;
   let damage: 'none' | 'city' | 'settlement' = 'none';
   let text = `The volcano erupted toward corner ${die}. Nothing was there.`;
-  const stockLeft = owner && pieceCounts(state, owner.id).settlements < PIECE_LIMITS.settlements;
+  const stockLeft = owner && pieceCounts(state, owner.id).settlements < pieceLimits(state, owner.id).settlements;
   if (building?.kind === 'city' && stockLeft) {
     building.kind = 'settlement';
     damage = 'city';

@@ -73,6 +73,13 @@ interface Context {
   prizeCorners?: number[];
 }
 
+/** Seat indices in the game's setup order (longer on maps with more setup rounds). */
+function setupSeats(view: GameView, seats: number[]): number[] {
+  if (!view.setupOrder?.length) return [...seats, ...[...seats].reverse()];
+  const seat = new Map(view.players.map((p, i) => [p.id, i]));
+  return view.setupOrder.map(id => seat.get(id)!);
+}
+
 function context(view: GameView, params: AdvancedParams): Context {
   const geo = geometry(view);
   const players = view.players.length;
@@ -84,7 +91,7 @@ function context(view: GameView, params: AdvancedParams): Context {
     geo,
     knobs,
     params,
-    order: [...seats, ...[...seats].reverse()],
+    order: setupSeats(view, seats),
     me: view.players.findIndex(p => p.id === view.selfId),
     players,
     scarcity: CLASSIC_RESOURCES.map((_, r) => Math.min(2, Math.max(0.6, average / Math.max(1, geo.boardPips[r]!)))),

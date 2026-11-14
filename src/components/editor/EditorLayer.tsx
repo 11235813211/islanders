@@ -8,6 +8,7 @@ import { hexPoints } from '../../lib/geometry';
 import { tileVariant } from '../BoardScene';
 import IslandRims from '../IslandRims';
 import { oddsLabel } from '../maps/numberOdds';
+import RouteZones, { allZones } from '../RouteZones';
 import type { EditorSelection } from './EditorCanvas';
 
 /** A stable color per link letter, so linked tiles and harbors are easy to match by eye. */
@@ -76,6 +77,13 @@ function NoStartMarks({ design }: { design: BoardDesign }) {
       ))}
     </>
   );
+}
+
+/** Route areas to draw: every route's, or only the focused one (numbered as in the full list). */
+function routeZonesOf(design: BoardDesign, focus: number | undefined) {
+  const zones = allZones(design.routes);
+  if (focus === undefined || (design.routes?.length ?? 0) < 2) return zones;
+  return zones.filter(z => z.route === focus);
 }
 
 /** Where a harbor's sign and piers go. */
@@ -165,6 +173,7 @@ export default function EditorLayer({
   pickHarbor,
   stepNumber = () => {},
   readOnly = false,
+  routeFocus,
 }: {
   uid: string;
   design: BoardDesign;
@@ -174,6 +183,8 @@ export default function EditorLayer({
   pickHarbor?: (harbor: DesignHarbor) => void;
   stepNumber?: (q: number, r: number, delta: 1 | -1) => void;
   readOnly?: boolean;
+  /** Show only this route's areas (the Route tool's route); undefined shows every route. */
+  routeFocus?: number;
 }) {
   const occupied = new Set(design.tiles.map(t => tileKey(t.q, t.r)));
   const ghosts = new Map<string, { q: number; r: number }>();
@@ -287,6 +298,7 @@ export default function EditorLayer({
           </g>
         );
       })}
+      <RouteZones zones={routeZonesOf(design, routeFocus)} />
       <NoStartMarks design={design} />
       {selectedTile && <polygon className="editor-selected" points={hexPoints(55)} transform={place(selectedTile)} />}
     </>

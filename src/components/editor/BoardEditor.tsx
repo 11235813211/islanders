@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Eye, FlaskConical, LayoutGrid, Lock, Redo2, 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
 import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
+import type { RouteTarget } from '../../../shared/maps/special-edit';
 import type { AccountSession } from '../../../shared/types';
 import { publishLibrary, useBoardLibrary } from '../../hooks/useBoardLibrary';
 import { useBoardLock } from '../../hooks/useBoardLock';
@@ -18,6 +19,7 @@ import type { Refill } from './FillBar';
 import Inspector from './Inspector';
 import LinkRules from './LinkRules';
 import NumberSettings from './NumberSettings';
+import SpecialSettings from './SpecialSettings';
 import { freshId, KIND_LABELS, TOOLS, typing } from './tools';
 import VersionTabs from './VersionTabs';
 import { addVersion, editVersion, mergeShown, removeVersion, showVersion } from './versions';
@@ -53,6 +55,7 @@ export default function BoardEditor({
   const [tool, setTool] = useState<Tool>('select');
   const [brush, setBrush] = useState<DesignKind>('gold');
   const [linkLetter, setLinkLetter] = useState<string | null>('A');
+  const [routeTarget, setRouteTarget] = useState<RouteTarget>({ route: 0, zone: 'start' });
   /** Which version (by player count) is being edited: null for the main layout. */
   const [version, setVersionState] = useState<number | null>(null);
   const shown = useMemo(() => design && showVersion(design, version), [design, version]);
@@ -345,6 +348,8 @@ export default function BoardEditor({
           setBrush={setBrush}
           linkLetter={linkLetter}
           setLinkLetter={setLinkLetter}
+          routeTarget={routeTarget}
+          setRouteTarget={setRouteTarget}
           edit={edit}
           refill={refill}
           togglePanel={() => setPanel(p => (p === 'inspector' ? null : 'inspector'))}
@@ -364,6 +369,7 @@ export default function BoardEditor({
           tool={tool}
           brush={brush}
           linkLetter={linkLetter}
+          routeTarget={routeTarget}
           edit={edit}
           fitKey={`${design.id}:${version ?? ''}`}
         />
@@ -386,6 +392,17 @@ export default function BoardEditor({
         <BoardSettings design={shown!} edit={edit} selection={selection} />
         <NumberSettings design={shown!} edit={edit} selection={selection} />
         <LinkRules design={shown!} edit={edit} />
+        <SpecialSettings
+          design={shown!}
+          edit={edit}
+          routes={{
+            target: routeTarget,
+            paint: target => {
+              setRouteTarget(target);
+              setTool('route');
+            },
+          }}
+        />
       </aside>
       {message && <Toast message={message} dismiss={() => setMessage(null)} />}
       {preview && (

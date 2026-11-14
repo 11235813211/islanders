@@ -1,4 +1,5 @@
 import { shuffled } from './board';
+import { routeFinished } from './maps/special';
 import { boardIndex } from './seafaring';
 import {
   type DevelopmentCard,
@@ -140,7 +141,14 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
   const awards = (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
   // A survey ship is worth a point (Cartographers).
   const surveys = (state.surveys ?? []).filter(id => state.ships[id] === playerId).length;
-  return structures + surveys + cards + awards + (state.bonusPoints?.[playerId] ?? 0);
+  return structures + surveys + cards + awards + (state.bonusPoints?.[playerId] ?? 0) + routePoints(state, playerId);
+}
+
+/** Points for building in your route's finish area, on maps that give them. */
+export function routePoints(state: Pick<GameState, 'board' | 'buildings' | 'routeOf'>, playerId: string): number {
+  const points = state.board.rules?.routeGoal?.points ?? 0;
+  if (!points) return 0;
+  return routeFinished(state.board, state.buildings, playerId, state.routeOf?.[playerId]) ? points : 0;
 }
 
 /** Every number a tile pays on: its own, then any a survey ship charted (Cartographers). */

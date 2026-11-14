@@ -1,4 +1,4 @@
-import { Anchor, Ban, Hand, Link2, Sailboat, UserRound } from 'lucide-react';
+import { Anchor, Ban, Flag, Hand, Link2, Sailboat, UserRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { BoardLibrary, DesignKind } from '../../../shared/maps';
 import type { Tool } from './EditorCanvas';
@@ -25,6 +25,13 @@ export const TOOLS: { tool: Tool; key: string; label: string; icon: ReactNode; h
     label: 'No start',
     icon: <Ban size={17} />,
     hint: 'Click a corner so no starting settlement may go there (click again to clear)',
+  },
+  {
+    tool: 'route',
+    key: 'g',
+    label: 'Route',
+    icon: <Flag size={17} />,
+    hint: 'Click or drag land to add it to the chosen route area (click again to remove)',
   },
   {
     tool: 'harbor',

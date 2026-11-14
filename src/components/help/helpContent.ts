@@ -1,4 +1,5 @@
 import { isLargeGame } from '../../../shared/engine';
+import { setupPieces, specialRules } from '../../../shared/maps/special';
 import type { GameView, Terrain } from '../../../shared/types';
 import { ruleSections } from './helpRules';
 
@@ -52,8 +53,11 @@ function rightNow(view: GameView, v: Verbs): string | null {
     return `Waiting for ${name}. You can still answer trade offers and chat.`;
   }
   switch (view.phase) {
-    case 'setup-settlement':
-      return `Place a starting settlement: ${v.tap.toLowerCase()} a glowing corner, then the check mark.`;
+    case 'setup-settlement': {
+      const piece = setupPieces(view.board.rules)[Math.floor(view.setupIndex / view.players.length)] ?? 'settlement';
+      const route = view.board.rules?.routes ? ' Your route’s outlined areas show where it may go.' : '';
+      return `Place a starting ${piece}: ${v.tap.toLowerCase()} a glowing corner, then the check mark.${route}`;
+    }
     case 'setup-road':
       return `Place a ${pieces} next to it: ${v.tap.toLowerCase()} a glowing edge, then the check mark.`;
     case 'roll':
@@ -173,6 +177,7 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
   const now = rightNow(view, v);
   return [
     ...(now ? [{ title: 'Right now', lines: [now] }] : []),
+    ...mapRules(view),
     building(view, v),
     trading(view, v),
     development(v),
@@ -181,6 +186,11 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
     table(v),
     ...ruleSections(view),
   ];
+}
+
+/** The chosen map's special rules (setup pieces, extra pieces, routes), one section each. */
+function mapRules(view: GameView): HelpSection[] {
+  return specialRules(view.board.rules, view.seafaring).map(r => ({ title: `This map: ${r.title}`, lines: r.lines }));
 }
 
 /** Help for the room lobby, for the host or a guest. */
@@ -205,6 +215,7 @@ export function lobbyHelp(view: GameView): HelpSection[] {
         'Every game draws a new layout from the map.',
       ],
     },
+    ...mapRules(view),
     {
       title: 'Once the game starts',
       lines: ['Open this help again from the info button at the top of the table for how to play.'],

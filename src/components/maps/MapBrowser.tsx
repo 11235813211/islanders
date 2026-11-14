@@ -5,6 +5,7 @@ import CategoryHeader from './CategoryHeader';
 import MapDetail, { ExpansionTags } from './MapDetail';
 import MapThumbnail from './MapThumbnail';
 import { moveBoard, playersLabel, playersMismatch } from './mapInfo';
+import { SpecialTags } from './SpecialRules';
 import './maps.css';
 
 const COLORS = ['#1f7fa6', '#c4572b', '#3b8442', '#8a5bb8', '#b07c12', '#4f7684', '#c23a6b', '#2f9e8f'];
@@ -197,6 +198,7 @@ export default function MapBrowser({
                           <MapThumbnail tiles={(count === null ? board : designFor(board, count)).tiles} />
                           <span className="map-card-name">{board.name}</span>
                           <ExpansionTags design={board} />
+                          <SpecialTags design={board} />
                           <span className="map-card-meta">
                             <span>{playersLabel(board)} players</span>
                             <span>{board.victoryPoints} points</span>

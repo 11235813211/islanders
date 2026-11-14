@@ -7,6 +7,7 @@ import {
   Dices,
   Eraser,
   Eye,
+  Flag,
   FlaskConical,
   Gauge,
   Gift,
@@ -16,9 +17,11 @@ import {
   LayoutGrid,
   Link2,
   ListChecks,
+  ListOrdered,
   Map as MapIcon,
   Mountain,
   MousePointerClick,
+  PackagePlus,
   Paintbrush,
   Save,
   Shuffle,
@@ -44,7 +47,7 @@ export interface EditorHelpRow {
 
 /** A tab of editor help, in its own color (see editor-help.css). */
 export interface EditorHelpTab {
-  id: 'draw' | 'tools' | 'numbers' | 'land' | 'links' | 'save';
+  id: 'draw' | 'tools' | 'numbers' | 'land' | 'links' | 'rules' | 'save';
   label: string;
   icon: ReactNode;
   rows: EditorHelpRow[];
@@ -209,6 +212,34 @@ export const EDITOR_HELP: EditorHelpTab[] = [
         icon: <ListChecks size={ICON} />,
         title: 'Link rules',
         text: 'In the panel: keep letters to some terrains (B, C in Mountains or Hills), or make them all different.',
+      },
+    ],
+  },
+  {
+    id: 'rules',
+    label: 'Rules',
+    icon: <Flag size={15} />,
+    rows: [
+      {
+        icon: <ListOrdered size={ICON} />,
+        title: 'Setup rounds',
+        text: 'Special rules panel: 2 to 4 rounds, each a settlement or a city. Only the last round collects cards.',
+      },
+      {
+        icon: <PackagePlus size={ICON} />,
+        title: 'Extra pieces',
+        text: 'At the points you set, each player gets more settlements, cities, or roads. Raise points to win to match.',
+      },
+      {
+        icon: <Flag size={ICON} />,
+        keys: ['G'],
+        title: 'Routes',
+        text: 'Pick a route and an area (Start, Second, Finish), then click or drag land. Each version has its own routes.',
+      },
+      {
+        icon: <Flag size={ICON} />,
+        title: 'Finishing a route',
+        text: 'Needed to win, or only bonus points. Players see their Finish area outlined in green.',
       },
     ],
   },

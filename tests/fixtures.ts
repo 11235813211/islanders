@@ -7,7 +7,7 @@ import {
   getActivePlayerId,
   getView,
 } from '../shared/engine';
-import { BASE_POOL, type BoardDesign, type FogMix } from '../shared/maps';
+import { BASE_POOL, type BoardDesign, type FogMix, setupSequence } from '../shared/maps';
 import { parseGrid } from '../shared/maps/builtin';
 import { boardIndex } from '../shared/seafaring';
 import { type GameAction, type GameState, type Hex, RESOURCES, type ResourceBag, type Terrain } from '../shared/types';
@@ -26,7 +26,8 @@ export function inSeatOrder(game: GameState): GameState {
   const rank = (id: string) => (/^p\d+$/.test(id) ? Number(id.slice(1)) : Number.MAX_SAFE_INTEGER);
   const players = [...game.players].sort((a, b) => rank(a.id) - rank(b.id));
   const ids = players.map(p => p.id);
-  return { ...game, players, setupOrder: game.setupOrder.length ? [...ids, ...[...ids].reverse()] : [] };
+  const rounds = game.setupOrder.length / ids.length;
+  return { ...game, players, setupOrder: rounds ? setupSequence(ids, rounds) : [] };
 }
 export function makeLobby(count = 3) {
   let game = createGame('HARBOR42', seeded());

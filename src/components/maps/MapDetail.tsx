@@ -4,6 +4,7 @@ import { type BoardDesign, boardExpansions, EXPANSIONS, layoutsOf } from '../../
 import DesignView from './DesignView';
 import FogSummary from './FogSummary';
 import { playerRange, playersLabel, playersMismatch } from './mapInfo';
+import SpecialRulesList from './SpecialRules';
 
 /** Small labels for the expansions a board needs. */
 export function ExpansionTags({ design }: { design: Pick<BoardDesign, 'expansions' | 'tiles'> }) {
@@ -129,6 +130,7 @@ export default function MapDetail({
             This layout is made for {range} players. This room has {players}.
           </p>
         )}
+        <SpecialRulesList layout={shown} design={design} />
         <p className="map-note">Tiles, numbers, and harbors marked “?” are drawn at random when the game starts.</p>
         <FogSummary design={shown} />
         {canChoose && (

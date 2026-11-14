@@ -1,4 +1,4 @@
-import type { BoardDesign } from './maps/types';
+import type { BoardDesign, BoardRules } from './maps/types';
 /** Every resource. Lodestone is only in play on Cartographers maps (see cartographersRules). */
 export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore', 'lodestone'] as const;
 export type Resource = (typeof RESOURCES)[number];
@@ -74,6 +74,8 @@ export interface Board {
   vertices: Vertex[];
   edges: Edge[];
   harbors: Harbor[];
+  /** The map's special rules (setup pieces, piece rewards, routes); absent on boards without any. */
+  rules?: BoardRules;
 }
 export interface Building {
   playerId: string;
@@ -401,6 +403,10 @@ export interface GameState {
   /** Islands each player has settled, and the bonus points those islands gave. */
   islands: Record<string, number[]>;
   bonusPoints: Record<string, number>;
+  /** Maps with routes: the route (index into board.rules.routes) each player's starting settlements chose. */
+  routeOf: Record<string, number>;
+  /** The most public points each player has had (piece rewards stay once earned). */
+  peakPoints: Record<string, number>;
   /** The public count of each player's cards (engine/hands.ts). */
   handGuess: HandGuess;
   winnerId: string | null;
@@ -458,6 +464,11 @@ export interface PublicPlayer {
   knights: number;
   discoveries: number;
   bonusPoints: number;
+  /** Maps with routes: this player's route (index into board.rules.routes), and whether they built in its finish. */
+  route: number | null;
+  routeDone: boolean;
+  /** The most public points this player has had (what piece rewards count). */
+  peakPoints: number;
   longestRoad: number;
   bot: BotLevel | null;
   stats: PlayerStats;
@@ -538,6 +549,9 @@ export interface GameView {
   /** The map has a jungle, so discovery rules matter. */
   jungle: boolean;
   activePlayerId: string | null;
+  /** Who places in each setup step, and the step now (public; see setupSequence). */
+  setupOrder: string[];
+  setupIndex: number;
   /** Whose turn it is; differs from activePlayerId during setup and the special build phase. */
   turnPlayerId: string | null;
   turn: number;

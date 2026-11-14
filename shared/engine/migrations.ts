@@ -186,6 +186,11 @@ const MIGRATIONS: Migration[] = [
   s => {
     if (s.design) s.design = upgradeDesign(s.design);
   },
+  // 20 → 21: map special rules (routes each player chose, most points reached for piece rewards).
+  s => {
+    s.routeOf ??= {};
+    s.peakPoints ??= {};
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

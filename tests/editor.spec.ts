@@ -450,8 +450,8 @@ test('the (i) help teaches the editor by topic, and every tab fits', async ({ pa
     await page.getByRole('button', { name: 'How to use the board editor' }).click();
     const help = page.getByRole('dialog', { name: 'Board editor' });
     const tabs = help.getByRole('tab');
-    await expect(tabs).toHaveCount(6);
-    for (let i = 0; i < 6; i++) {
+    await expect(tabs).toHaveCount(7);
+    for (let i = 0; i < 7; i++) {
       await tabs.nth(i).click();
       await expect(tabs.nth(i)).toHaveAttribute('aria-selected', 'true');
       await expect(help.locator('.editor-help-row').first()).toBeVisible();

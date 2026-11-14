@@ -2,6 +2,7 @@ import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2 } from 'lucide-
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
 import { emptyBag, handSize, isLargeGame } from '../../shared/engine';
+import { setupPieces } from '../../shared/maps/special';
 import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView, Tradable, TradeBag } from '../../shared/types';
 import { SEA } from '../art';
@@ -21,6 +22,8 @@ import LeaveDialog from './game/LeaveDialog';
 import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
 import ResourceFlights, { useLandedView } from './game/ResourceFlights';
+import { routeReminder } from './game/routeView';
+import SetupOrder from './game/SetupOrder';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import { useTileTools } from './game/TileTools';
@@ -58,6 +61,10 @@ const secondsUntil = (deadline: number | null, clock: number) =>
 /** " · 12s" after an instruction, or nothing without a deadline. */
 const countdown = (seconds: number | null) => (seconds === null ? '' : ` · ${seconds}s`);
 
+/** What the current setup step places: a settlement, or a city on maps that start with cities. */
+const setupPieceNow = (view: GameView) =>
+  setupPieces(view.board.rules)[Math.floor(view.setupIndex / Math.max(1, view.players.length))] ?? 'settlement';
+
 function instructionFor(view: GameView, ownTurn: boolean, clock: number): string {
   const rollIn = secondsUntil(view.rollDeadline, clock);
   const active = view.players.find(p => p.id === view.activePlayerId);
@@ -68,7 +75,7 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
       return winner ? `${winner.name} wins!` : 'Game over';
     }
     case 'setup-settlement':
-      return 'Placing settlement…';
+      return `Placing ${setupPieceNow(view)}…`;
     case 'setup-road':
       return 'Placing road…';
     case 'free-roads':
@@ -92,7 +99,7 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     case 'special-build':
       return ownTurn ? 'Special build: no trading' : `${active?.name} is building…`;
     default:
-      return ownTurn ? 'Build or trade' : `${active?.name}’s turn`;
+      return ownTurn ? (routeReminder(view) ?? 'Build or trade') : `${active?.name}’s turn`;
   }
 }
 
@@ -473,6 +480,7 @@ export default function GameTable({
         }}
       >
         <ProposalNotice view={view} busy={busy} send={send} />
+        <SetupOrder view={view} />
         {view.phase === 'eruption' && (
           <div className="eruption-banner" role="alert">
             <Flame size={20} />

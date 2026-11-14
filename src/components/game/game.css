@@ -12,6 +12,22 @@
   flex: 0 0 auto;
   opacity: 0.85;
 }
+/* Route flag beside a name: a white chip, green once the player built in their Finish area. */
+.route-mark {
+  display: inline-flex;
+  flex: none;
+  padding: 1px;
+  border-radius: 4px;
+  background: #ffffffd9;
+  color: #6b7c84;
+}
+.route-mark.done {
+  background: #1fa83c;
+  color: #fff;
+}
+.route-mark svg {
+  opacity: 1;
+}
 
 /* End of game */
 /* While results show, the notice layer fills the board so the panel can center and scroll. */

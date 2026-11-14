@@ -1,6 +1,6 @@
 import { emptyBag } from '../engine/core';
 import { type GameAction, type GameView, RESOURCES, type ResourceBag, type TradeOffer } from '../types';
-import { Board, COSTS, canPay, linkAction, pips, roadPaths } from './analysis';
+import { Board, COSTS, canPay, linkAction, pips, roadPaths, routeGoalAt } from './analysis';
 import type { Brain, TurnOptions } from './types';
 
 /**
@@ -13,7 +13,8 @@ function cornerScore(board: Board, id: string): number {
   return (
     hexes.reduce((n, h) => n + pips(h.number), 0) +
     new Set(hexes.filter(h => h.terrain !== 'desert').map(h => h.terrain)).size * 1.5 +
-    (board.harborAt(id) ? 1.5 : 0)
+    (board.harborAt(id) ? 1.5 : 0) +
+    routeGoalAt(board.view, id) * 4
   );
 }
 

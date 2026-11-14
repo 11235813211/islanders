@@ -1,5 +1,6 @@
 import { copyData } from '../copy';
 import { fogLandShare, fogMayErupt } from '../maps/fog';
+import { routeFinished } from '../maps/special';
 import { boardExpansions, type Pool } from '../maps/types';
 import { longestRoad, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
@@ -10,8 +11,8 @@ import {
   emptyBag,
   emptyStats,
   getActivePlayerId,
-  PIECE_LIMITS,
   pieceCounts,
+  pieceLimits,
   requireRule,
   resourceCount,
   seaRules,
@@ -76,6 +77,8 @@ export function getView(state: GameState, selfId: string): GameView {
     colorSwaps: state.colorSwaps,
     players: state.players.map(candidate => {
       const pieces = pieceCounts(state, candidate.id);
+      const limits = pieceLimits(state, candidate.id);
+      const route = state.routeOf[candidate.id] ?? null;
       return {
         id: candidate.id,
         name: candidate.name,
@@ -88,13 +91,16 @@ export function getView(state: GameState, selfId: string): GameView {
         knights: candidate.knights,
         discoveries: candidate.discoveries,
         bonusPoints: state.bonusPoints[candidate.id] ?? 0,
+        route,
+        routeDone: routeFinished(state.board, state.buildings, candidate.id, route),
+        peakPoints: state.peakPoints[candidate.id] ?? 0,
         longestRoad: longestRoad(state, candidate.id),
-        roadsLeft: PIECE_LIMITS.roads - pieces.roads,
-        shipsLeft: PIECE_LIMITS.ships - pieces.ships,
-        relaysLeft: PIECE_LIMITS.relays - pieces.relays,
-        surveysLeft: PIECE_LIMITS.surveys - pieces.surveys,
-        settlementsLeft: PIECE_LIMITS.settlements - pieces.settlements,
-        citiesLeft: PIECE_LIMITS.cities - pieces.cities,
+        roadsLeft: limits.roads - pieces.roads,
+        shipsLeft: limits.ships - pieces.ships,
+        relaysLeft: limits.relays - pieces.relays,
+        surveysLeft: limits.surveys - pieces.surveys,
+        settlementsLeft: limits.settlements - pieces.settlements,
+        citiesLeft: limits.cities - pieces.cities,
         stats: publicStats(state, candidate.id),
       };
     }),
@@ -128,6 +134,8 @@ export function getView(state: GameState, selfId: string): GameView {
         : null,
     jungle: state.board.hexes.some(h => h.terrain === 'jungle'),
     activePlayerId: active,
+    setupOrder: state.setupOrder,
+    setupIndex: state.setupIndex,
     turnPlayerId: ['lobby', 'finished'].includes(state.phase) ? null : (state.players[state.turnIndex]?.id ?? null),
     turn: state.turn,
     dice: state.dice,

@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronUp, Route, WifiOff } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, Flag, Route, WifiOff } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import type { GameView } from '../../../shared/types';
@@ -92,6 +92,7 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
                       {offline && <WifiOff className="offline-mark" size={14} aria-label="Disconnected" />}
                       {p.bot && <Bot size={13} aria-label="Bot" />}
                       {p.name}
+                      <RouteMark view={view} player={p} />
                     </span>
                     {p.id === view.selfId && <small>you</small>}
                   </span>
@@ -132,6 +133,19 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
       </table>
       <BankCounts view={view} />
     </section>
+  );
+}
+
+/** A flag on maps with routes: green once this player has built in their Finish area. */
+function RouteMark({ view, player }: { view: GameView; player: GameView['players'][number] }) {
+  const goal = view.board.rules?.routeGoal;
+  if (!goal || player.route === null) return null;
+  const needed = goal.required ? ' (needed to win)' : goal.points ? ` (${goal.points} points)` : '';
+  const label = player.routeDone ? 'Route finished' : `Route not finished${needed}`;
+  return (
+    <span className={`route-mark${player.routeDone ? ' done' : ''}`} title={label} role="img" aria-label={label}>
+      <Flag size={13} />
+    </span>
   );
 }
 

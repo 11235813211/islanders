@@ -77,11 +77,56 @@ export interface DesignHarbor {
  */
 export type LinkRule = { kind: 'in'; links: string[]; terrains: FillKind[] } | { kind: 'distinct'; links: string[] };
 
+/** What a player places in one setup round. */
+export type SetupPiece = 'settlement' | 'city';
+
+/** Pieces added to a player's supply the first time their public points reach `points`. Roads also add ships. */
+export interface PieceReward {
+  points: number;
+  settlements: number;
+  cities: number;
+  roads: number;
+}
+
+/**
+ * One route, as tile keys (`q,r`). A player's starting settlements must include one touching
+ * `start` and another touching `next`; that player must then build in `finish` (the finish line).
+ */
+export interface RouteZones {
+  start: string[];
+  next: string[];
+  finish: string[];
+}
+export type RouteZone = keyof RouteZones;
+
+/** Finishing a route: `required` to win, and worth `points` (0–5) either way. */
+export interface RouteGoal {
+  required: boolean;
+  points: number;
+}
+
+/** A board's special rules as the game plays them, carried on the built Board (absent parts: usual rules). */
+export interface BoardRules {
+  setup?: SetupPiece[];
+  rewards?: PieceReward[];
+  routes?: RouteZones[];
+  routeGoal?: RouteGoal;
+}
+
 /** One corner of a tile, as the editor stores it: tile `q,r` and corner 0–5 (see Hex.vertexIds). */
 export type CornerKey = string;
 
 /** What a board's version for some player counts replaces; everything else is shared. */
-export const VERSION_FIELDS = ['players', 'victoryPoints', 'tiles', 'harbors', 'robber', 'pirate', 'noStart'] as const;
+export const VERSION_FIELDS = [
+  'players',
+  'victoryPoints',
+  'tiles',
+  'harbors',
+  'robber',
+  'pirate',
+  'noStart',
+  'routes',
+] as const;
 export type BoardVersion = Pick<BoardDesign, (typeof VERSION_FIELDS)[number]>;
 
 export interface BoardDesign {
@@ -119,6 +164,14 @@ export interface BoardDesign {
   linkRules?: LinkRule[];
   /** Corners where no starting settlement may go, beyond closed islands. */
   noStart?: CornerKey[];
+  /** What each player places in each setup round (2–4 rounds). Absent: two settlements. */
+  setupPieces?: SetupPiece[];
+  /** Pieces added to every player's supply once they reach some points (see shared/maps/special.ts). */
+  pieceRewards?: PieceReward[];
+  /** Routes players are held to (see RouteZones). Tile-based, so each version has its own. */
+  routes?: RouteZones[];
+  /** Whether finishing a route is needed to win, and the points it gives. Absent: 2 bonus points. */
+  routeGoal?: RouteGoal;
   /** Other layouts of this board for other player counts (the first whose range fits is played). */
   versions?: BoardVersion[];
   updatedAt: number;

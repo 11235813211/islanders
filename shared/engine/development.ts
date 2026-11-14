@@ -9,9 +9,9 @@ import {
   emptyBag,
   type Handlers,
   needPhase,
-  PIECE_LIMITS,
   pay,
   pieceCounts,
+  pieceLimits,
   requireRule,
   resourceCount,
   tally,
@@ -104,12 +104,13 @@ export const developmentHandlers: Pick<
     const { next, playerId } = ctx;
     const index = takeCard(ctx, action.type, action.cardId);
     const pieces = pieceCounts(next, playerId);
-    const roads = pieces.roads < PIECE_LIMITS.roads && roadSites(next, playerId, false).length > 0;
-    const ships = pieces.ships < PIECE_LIMITS.ships && shipSites(next, playerId, false).length > 0;
+    const limits = pieceLimits(next, playerId);
+    const roads = pieces.roads < limits.roads && roadSites(next, playerId, false).length > 0;
+    const ships = pieces.ships < limits.ships && shipSites(next, playerId, false).length > 0;
     requireRule(roads || ships, 'No roads or ships can be placed.');
     next.resumePhase = next.phase as 'roll' | 'build';
     next.phase = 'free-roads';
-    const left = (roads ? PIECE_LIMITS.roads - pieces.roads : 0) + (ships ? PIECE_LIMITS.ships - pieces.ships : 0);
+    const left = (roads ? limits.roads - pieces.roads : 0) + (ships ? limits.ships - pieces.ships : 0);
     next.freeRoads = Math.min(2, left);
     finishPlay(ctx, index, action.type, null);
   },

@@ -1,0 +1,73 @@
+/* The setup order card at the top of the board (SetupOrder.tsx). */
+.setup-order {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 9px;
+  border: 1px solid #779caa;
+  border-radius: 8px;
+  background: #fffdf4f0;
+  box-shadow: 0 3px 15px #0d556e25;
+  color: #163c50;
+}
+.setup-round {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.setup-round-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  width: 54px;
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.setup-round-label small {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4e6b78;
+}
+.setup-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.setup-step {
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--player-color);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #48606b;
+}
+.setup-step.mine {
+  box-shadow:
+    0 0 0 1px #48606b,
+    inset 0 0 0 2px var(--player-ink);
+}
+.setup-step.done {
+  opacity: 0.35;
+}
+.setup-step.now {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px #163c50;
+}
+@media (max-width: 720px) {
+  .setup-order {
+    padding: 4px 7px;
+    gap: 2px;
+  }
+  .setup-step {
+    width: 13px;
+    height: 13px;
+  }
+}

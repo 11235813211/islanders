@@ -1,3 +1,4 @@
+import { setupPieces } from '../maps/special';
 import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
 import { type GameState, RESOURCES, type Tradable } from '../types';
 import {
@@ -14,14 +15,15 @@ import {
   holding,
   isLargeGame,
   needPhase,
-  PIECE_LIMITS,
   pay,
   pieceCounts,
+  pieceLimits,
   requireRule,
   tally,
 } from './core';
 import { rollDice } from './dice';
 import { revealFog } from './fog';
+import { noteRoute } from './goals';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { drift, eruptingVolcanoes, produce } from './production';
 
@@ -70,8 +72,9 @@ export function finishFreeRoads(next: GameState): void {
 export function afterFreePiece(next: GameState, playerId: string): void {
   next.freeRoads--;
   const pieces = pieceCounts(next, playerId);
-  const roads = pieces.roads < PIECE_LIMITS.roads && roadSites(next, playerId, false).length;
-  const ships = pieces.ships < PIECE_LIMITS.ships && shipSites(next, playerId, false).length;
+  const limits = pieceLimits(next, playerId);
+  const roads = pieces.roads < limits.roads && roadSites(next, playerId, false).length;
+  const ships = pieces.ships < limits.ships && shipSites(next, playerId, false).length;
   if (!next.freeRoads || (!roads && !ships)) finishFreeRoads(next);
 }
 
@@ -150,12 +153,16 @@ export const turnHandlers: Pick<
       legalMoves(next, playerId).settlements.includes(action.vertexId),
       'Choose an open intersection at least two roads from other settlements.',
     );
-    next.buildings[action.vertexId] = { playerId, kind: 'settlement' };
+    const pieces = setupPieces(next.board.rules);
+    const round = Math.floor(next.setupIndex / next.players.length);
+    const kind = pieces[round] ?? 'settlement';
+    next.buildings[action.vertexId] = { playerId, kind };
     next.lastSettlement = action.vertexId;
-    tally(next, playerId, 'built', 'settlement');
+    tally(next, playerId, 'built', kind);
     visitIsland(next, playerId, action.vertexId, true);
-    // The second setup settlement collects one of each adjacent resource.
-    if (next.setupIndex >= next.players.length) {
+    noteRoute(next, playerId);
+    // The last setup round's piece collects one of each adjacent resource.
+    if (round === pieces.length - 1) {
       const index = boardIndex(next.board);
       for (const hexId of index.vertex.get(action.vertexId)!.hexIds) {
         const resource = terrainResource(index.hex.get(hexId)!.terrain);
@@ -167,7 +174,7 @@ export const turnHandlers: Pick<
       }
     }
     next.phase = 'setup-road';
-    addLog(next, `${player.name} founded a settlement.`, { kind: 'build', playerId, piece: 'settlement' });
+    addLog(next, `${player.name} founded a ${kind}.`, { kind: 'build', playerId, piece: kind });
   },
 
   'place-road'({ next, player, playerId }, action) {

@@ -88,7 +88,8 @@ describe('lobby setup', () => {
   it('ends the game at the configured points target', () => {
     const lobby = makeLobby(2);
     expect(validSettings({ ...lobby.settings, victoryPoints: 2 })).toBe(false);
-    expect(validSettings({ ...lobby.settings, victoryPoints: 21 })).toBe(false);
+    expect(validSettings({ ...lobby.settings, victoryPoints: 51 })).toBe(false);
+    expect(validSettings({ ...lobby.settings, victoryPoints: 50 })).toBe(true);
     expect(
       applyAction(lobby, 'p0', { type: 'configure', settings: { ...lobby.settings, victoryPoints: 3 } }, seeded(), now)
         .settings.victoryPoints,

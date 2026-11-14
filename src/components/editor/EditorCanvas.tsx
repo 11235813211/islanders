@@ -3,6 +3,7 @@ import { type PointerEvent as ReactPointerEvent, useEffect, useId, useLayoutEffe
 import { HEX_RADIUS, hexCenter } from '../../../shared/board';
 import { type BoardDesign, type DesignKind, tileKey } from '../../../shared/maps';
 import { cellAt, paint, sideAt, stepNumber, toggleHarbor, toggleNoStart, updateTile } from '../../../shared/maps/edit';
+import { inRouteZone, paintRoute, type RouteTarget } from '../../../shared/maps/special-edit';
 import { ArtDefs, SEA } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import EditorLayer from './EditorLayer';
@@ -10,7 +11,18 @@ import IslandLeanings from './IslandLeanings';
 import { applyLink, linkChoice } from './LinkPicker';
 
 /** Toolbar tools, plus the painting tools held keys switch to (sea, land, brush, erase). */
-export type Tool = 'select' | 'link' | 'nostart' | 'sea' | 'land' | 'brush' | 'erase' | 'harbor' | 'robber' | 'pirate';
+export type Tool =
+  | 'select'
+  | 'link'
+  | 'nostart'
+  | 'route'
+  | 'sea'
+  | 'land'
+  | 'brush'
+  | 'erase'
+  | 'harbor'
+  | 'robber'
+  | 'pirate';
 export type EditorSelection =
   | { kind: 'tile'; q: number; r: number }
   | { kind: 'harbor'; q: number; r: number; side: number }
@@ -53,7 +65,7 @@ function fitView(design: BoardDesign, width: number, height: number): View {
 
 /** Pixels a press may wander before it counts as a drag rather than a click. */
 const CLICK_SLOP = 5;
-const PAINTING: Tool[] = ['sea', 'land', 'brush', 'erase', 'link'];
+const PAINTING: Tool[] = ['sea', 'land', 'brush', 'erase', 'link', 'route'];
 
 /**
  * The editing surface, with the game board's controls: scroll or pinch zooms, dragging moves the
@@ -68,6 +80,7 @@ export default function EditorCanvas({
   tool,
   brush,
   linkLetter,
+  routeTarget,
   edit,
   fitKey,
 }: {
@@ -78,6 +91,8 @@ export default function EditorCanvas({
   brush: DesignKind;
   /** What the Link tool gives tiles and harbors (null unlinks). */
   linkLetter: string | null;
+  /** The route area the Route tool paints. */
+  routeTarget: RouteTarget;
   edit: Edit;
   /** Refit the view when this changes (a different board was opened). */
   fitKey: string;
@@ -95,6 +110,8 @@ export default function EditorCanvas({
     last: { x: number; y: number };
     moved: boolean;
     pan: boolean;
+    /** Route tool: a drag adds tiles, or (begun on a tile already in the area) removes them. */
+    add: boolean;
     screen: { x: number; y: number };
   } | null>(null);
   const touches = useRef(new Map<number, { x: number; y: number }>());
@@ -176,6 +193,7 @@ export default function EditorCanvas({
     );
     current.last = to;
     if (current.tool === 'link') return edit(d => applyLink(d, cells, [], linkLetter), current.group);
+    if (current.tool === 'route') return edit(d => paintRoute(d, routeTarget, cells, current.add), current.group);
     const mode =
       current.tool === 'sea' ? 'sea' : current.tool === 'land' ? 'land' : current.tool === 'brush' ? brush : 'erase';
     edit(d => paint(d, cells, mode), current.group);
@@ -189,6 +207,7 @@ export default function EditorCanvas({
     if (active === 'link' && tile)
       edit(d => applyLink(d, [{ q, r }], [], linkChoice(tile) === linkLetter ? null : linkLetter));
     if (active === 'nostart') edit(d => toggleNoStart(d, point.x, point.y));
+    if (active === 'route') edit(d => paintRoute(d, routeTarget, [{ q, r }], !inRouteZone(d, routeTarget, q, r)));
     if (active === 'harbor') {
       edit(d => toggleHarbor(d, q, r, sideAt(q, r, point.x, point.y)));
       select(null);
@@ -220,9 +239,10 @@ export default function EditorCanvas({
       moved: false,
       pan,
       screen: { x: event.clientX, y: event.clientY },
+      add: !inRouteZone(design, routeTarget, cellAt(point.x, point.y).q, cellAt(point.x, point.y).r),
     };
-    // A link click toggles (see click), so only drags paint links.
-    if (!pan && PAINTING.includes(active) && active !== 'link') strokeTo(point);
+    // Link and route clicks toggle (see click), so only drags paint them.
+    if (!pan && PAINTING.includes(active) && active !== 'link' && active !== 'route') strokeTo(point);
   }
 
   function move(event: ReactPointerEvent) {
@@ -295,6 +315,7 @@ export default function EditorCanvas({
         <EditorLayer
           uid={uid}
           design={design}
+          routeFocus={tool === 'route' ? routeTarget.route : undefined}
           selection={selection}
           select={select}
           pickHarbor={

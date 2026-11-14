@@ -22,6 +22,7 @@ import {
 import { fogIslandsOf, fogKinds, fogMayBeSea, fogMixOf } from './fog';
 import { autoHarbors, harborTarget } from './harbors';
 import { islandLevels, numberLeanings } from './numbers';
+import { rulesOf } from './special';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -519,6 +520,8 @@ export function buildBoard(
     robberHex && !isWater(robberHex.terrain) ? robberHex.id : (board.hexes.find(h => h.terrain === 'desert')?.id ?? '');
   const pirateHex = at(design.pirate);
   const pirate = pirateHex?.terrain === 'sea' ? pirateHex.id : farthestSea(board);
+  const rules = rulesOf(design);
+  if (rules) board.rules = rules;
   return { board, robber, pirate, fog: drawFog(design, board, random) };
 }
 

@@ -16,6 +16,7 @@ import {
   SPECIAL_BUILD_SECONDS,
 } from './core';
 import { developmentHandlers } from './development';
+import { routeMet, updatePeaks } from './goals';
 import { trackHands } from './hands';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
@@ -144,9 +145,15 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     addLog(next, 'No legal robber destination is available.');
   }
   updateAwards(next);
+  updatePeaks(next);
   trackHands(next);
   const activeId = getActivePlayerId(next);
-  if (next.turn > 0 && activeId && victoryPoints(next, activeId) >= next.settings.victoryPoints) {
+  if (
+    next.turn > 0 &&
+    activeId &&
+    victoryPoints(next, activeId) >= next.settings.victoryPoints &&
+    routeMet(next, activeId)
+  ) {
     const points = victoryPoints(next, activeId);
     next.phase = 'finished';
     next.winnerId = activeId;

@@ -46,7 +46,7 @@ export const DISCOVERY_RULES: Record<
     stealable: true,
   },
 };
-export const VICTORY_POINT_RANGE = { min: 3, max: 20 } as const;
+export const VICTORY_POINT_RANGE = { min: 3, max: 50 } as const;
 
 /** A room closes once no human player has been connected for this long. */
 export const EMPTY_ROOM_MS = 5 * 60 * 1000;

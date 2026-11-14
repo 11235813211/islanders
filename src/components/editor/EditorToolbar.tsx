@@ -1,16 +1,18 @@
 import { SlidersHorizontal } from 'lucide-react';
 import type { BoardDesign, DesignKind } from '../../../shared/maps';
+import type { RouteTarget } from '../../../shared/maps/special-edit';
 import BrushPicker from './BrushPicker';
 import type { Tool } from './EditorCanvas';
 import FillBar, { type Refill } from './FillBar';
 import LinkPicker from './LinkPicker';
+import RoutePicker from './RoutePicker';
 import { TOOLS } from './tools';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
 /**
- * The editor's second row: click tools (move, link, harbor, robber, pirate), the Ctrl/⌘-drag
- * brush, the Link tool's letter, and the fills. Sea, land and delete are drag gestures only.
+ * The editor's second row: click tools (move, link, no start, route, harbor, robber, pirate), the
+ * Ctrl/⌘-drag brush, the Link tool's letter or Route tool's area, and the fills. Sea, land and delete are drag gestures only.
  */
 export default function EditorToolbar({
   design,
@@ -20,6 +22,8 @@ export default function EditorToolbar({
   setBrush,
   linkLetter,
   setLinkLetter,
+  routeTarget,
+  setRouteTarget,
   edit,
   refill,
   togglePanel,
@@ -31,6 +35,8 @@ export default function EditorToolbar({
   setBrush: (kind: DesignKind) => void;
   linkLetter: string | null;
   setLinkLetter: (letter: string | null) => void;
+  routeTarget: RouteTarget;
+  setRouteTarget: (target: RouteTarget) => void;
   edit: Edit;
   refill: Refill;
   togglePanel: () => void;
@@ -58,6 +64,7 @@ export default function EditorToolbar({
           <LinkPicker design={design} value={linkLetter} change={setLinkLetter} noneLabel="Unlink" />
         </div>
       )}
+      {tool === 'route' && <RoutePicker design={design} target={routeTarget} setTarget={setRouteTarget} />}
       <FillBar design={design} edit={edit} refill={refill} />
       <button type="button" className="icon-button editor-panels" aria-label="Show settings" onClick={togglePanel}>
         <SlidersHorizontal size={19} />

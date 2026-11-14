@@ -1,6 +1,7 @@
 import { VICTORY_POINT_RANGE } from '../settings';
 import { RESOURCES, type Resource, SEA_TERRAINS, type Terrain } from '../types';
 import { NUMBER_LEVELS } from './balance';
+import { SPECIAL_LIMITS } from './special';
 import {
   type BoardCategory,
   type BoardDesign,
@@ -16,7 +17,11 @@ import {
   type LinkRule,
   NUMBER_KINDS,
   type NumberLevels,
+  type PieceReward,
   type Pool,
+  type RouteGoal,
+  type RouteZones,
+  type SetupPiece,
 } from './types';
 
 /** Limits that keep a board small enough to send and to play within the server's CPU budget. */
@@ -193,6 +198,7 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     ...(value.noTwoTwelve ? { noTwoTwelve: true } : {}),
     ...(expansions ? { expansions: [...new Set(expansions as Expansion[])] } : {}),
     ...(linkRules.length ? { linkRules } : {}),
+    ...parseSpecial(value),
     ...(versions.length ? { versions } : {}),
     updatedAt: 0,
   };
@@ -225,7 +231,69 @@ function parseLayout(value: Record<string, unknown>): BoardVersion {
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),
     ...((noStart as string[]).length ? { noStart: [...new Set(noStart as string[])] } : {}),
+    ...(value.routes === undefined ? {} : { routes: parseRoutes(value.routes) }),
   };
+}
+
+const TILE_KEY = /^-?\d{1,2},-?\d{1,2}$/;
+
+/** Routes: up to six, each with start, second, and finish areas of tile keys. */
+function parseRoutes(value: unknown): RouteZones[] {
+  if (!Array.isArray(value) || value.length > SPECIAL_LIMITS.routes)
+    return fail(`A board has at most ${SPECIAL_LIMITS.routes} routes.`);
+  const zone = (v: unknown) => {
+    if (
+      !Array.isArray(v) ||
+      v.length > SPECIAL_LIMITS.routeTiles ||
+      !v.every(k => typeof k === 'string' && TILE_KEY.test(k))
+    )
+      fail('Invalid route area.');
+    return [...new Set(v as string[])];
+  };
+  return value.map(r => {
+    if (!record(r)) return fail('Invalid route.');
+    return { start: zone(r.start), next: zone(r.next), finish: zone(r.finish) };
+  });
+}
+
+/** Setup pieces, piece rewards, and the route goal (board-wide special rules). */
+function parseSpecial(value: Record<string, unknown>): Partial<BoardDesign> {
+  const out: Partial<BoardDesign> = {};
+  const { min, max } = SPECIAL_LIMITS.setupRounds;
+  if (value.setupPieces !== undefined) {
+    const pieces = value.setupPieces;
+    if (
+      !Array.isArray(pieces) ||
+      pieces.length < min ||
+      pieces.length > max ||
+      !pieces.every(p => p === 'settlement' || p === 'city')
+    )
+      fail(`Setup has ${min}–${max} rounds of settlements or cities.`);
+    out.setupPieces = pieces as SetupPiece[];
+  }
+  if (value.pieceRewards !== undefined) {
+    const rewards = value.pieceRewards;
+    if (!Array.isArray(rewards) || rewards.length > SPECIAL_LIMITS.rewards) fail('Invalid piece rewards.');
+    const most = SPECIAL_LIMITS.rewardPieces;
+    out.pieceRewards = (rewards as unknown[]).map(r => {
+      if (
+        !record(r) ||
+        !int(r.points, 1, VICTORY_POINT_RANGE.max) ||
+        !int(r.settlements, 0, most) ||
+        !int(r.cities, 0, most) ||
+        !int(r.roads, 0, most * 3)
+      )
+        return fail('Invalid piece reward.');
+      return { points: r.points, settlements: r.settlements, cities: r.cities, roads: r.roads } as PieceReward;
+    });
+  }
+  if (value.routeGoal !== undefined) {
+    const goal = value.routeGoal;
+    if (!record(goal) || typeof goal.required !== 'boolean' || !int(goal.points, 0, SPECIAL_LIMITS.routePoints))
+      return fail('Invalid route goal.');
+    out.routeGoal = { required: goal.required, points: goal.points as number } as RouteGoal;
+  }
+  return out;
 }
 
 const CORNER = /^-?\d{1,2},-?\d{1,2},[0-5]$/;

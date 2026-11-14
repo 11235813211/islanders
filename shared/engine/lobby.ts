@@ -1,6 +1,7 @@
 import { assignNumbers, generateBoard, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
 import { buildBoard } from '../maps/generate';
+import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
 import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName } from '../settings';
@@ -52,6 +53,13 @@ export function boardFor(
  * (designFor then plays the layout that fits it).
  */
 const layoutCount = (next: GameState) => next.map?.layout?.min ?? next.players.length;
+
+/** The log line that opens setup: the usual two settlements, or what this map places instead. */
+function setupLogLine(pieces: string[]): string {
+  if (pieces.join() === DEFAULT_SETUP.join())
+    return 'Setup: each player places two settlements and roads, in snake order.';
+  return `Setup: each player places ${pieces.length} pieces (${pieces.join(', ')}), each with a road.`;
+}
 
 /** The board, bank, and development deck for the seats at the table (five or six get more of each). */
 function dealTable(next: GameState, random: () => number): void {
@@ -113,6 +121,8 @@ export function createGame(
     shipMoved: false,
     islands: {},
     bonusPoints: {},
+    routeOf: {},
+    peakPoints: {},
     handGuess: { seen: {}, likely: {}, logId: 0 },
     winnerId: null,
     log: [],
@@ -355,9 +365,10 @@ export const lobbyHandlers: Pick<
     // Seats are drawn at random so the host (or whoever joined first) does not always go first.
     next.players = shuffled(next.players, random);
     const ids = next.players.map(candidate => candidate.id);
-    next.setupOrder = [...ids, ...[...ids].reverse()];
+    const pieces = setupPieces(next.board.rules);
+    next.setupOrder = setupSequence(ids, pieces.length);
     next.phase = 'setup-settlement';
-    addLog(next, 'Setup: each player places two settlements and roads, in snake order.');
+    addLog(next, setupLogLine(pieces));
   },
 
   /** In the lobby the seat is removed; mid-game a bot takes it over so the game can continue. */
