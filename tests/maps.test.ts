@@ -139,6 +139,18 @@ describe('designed boards', () => {
     }
   });
 
+  it('draws random harbors only for resources the map produces', () => {
+    const d = structuredClone(BUILTIN_BOARDS[0]!);
+    d.tiles = d.tiles.map(t => (t.kind === 'ore' ? { ...t, kind: 'wheat' } : t));
+    d.pool = { ...d.pool, ore: 0 };
+    d.harbors = d.harbors.map(h => ({ ...h, kind: 'random' }));
+    for (let seed = 1; seed < 10; seed++)
+      expect(buildBoard(d, seeded(seed)).board.harbors.map(h => h.resource)).not.toContain('ore');
+    // A harbor the map sets stays.
+    d.harbors[0]!.kind = 'ore';
+    expect(buildBoard(d, seeded()).board.harbors.filter(h => h.resource === 'ore')).toHaveLength(1);
+  });
+
   it('numbers islands, spreads island flags, and finds starts', () => {
     const d = design(['~ ~ ~ ~ ~ ~ ~', ' ~ L L ~ L*! ~', '~ L L ~ ~ L ~', ' ~ ~ ~@ ~ ~ ~ ~']);
     const { board, pirate } = buildBoard(d, seeded());
@@ -175,6 +187,12 @@ describe('expansions a board needs', () => {
     const islands = parseGrid([' ~ ~ ~ ~ ~', '~ L ~ L ~', ' ~ ~ ~ ~ ~']);
     expect(boardExpansions(islands)).toEqual(['seafarers']);
     expect(boardExpansions({ ...ringed, expansions: ['seafarers'] })).toEqual(['seafarers']);
+  });
+
+  it('puts the pirate only on maps that play with ships', () => {
+    const ringed = design([' ~ ~ ~ ~ ~', '~ L L L ~', ' ~ L L L@ ~', '~ ~ ~ ~ ~']);
+    expect(buildBoard(ringed, seeded()).pirate).toBeNull();
+    expect(buildBoard({ ...ringed, expansions: ['seafarers'] }, seeded()).pirate).not.toBeNull();
   });
 });
 

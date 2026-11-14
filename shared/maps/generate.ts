@@ -1,5 +1,5 @@
 import { buildGraph, hexCenter, shuffled } from '../board';
-import { isLandTerrain, isProducing, isWater } from '../seafaring';
+import { isLandTerrain, isProducing, isWater, terrainResource } from '../seafaring';
 import {
   type Board,
   CLASSIC_RESOURCES,
@@ -40,9 +40,15 @@ import {
 
 /** How far a harbor sign sits out from its edge, toward the sea tile. */
 const HARBOR_OFFSET = 38;
-/** Base game harbor mix: four 3:1 harbors and one 2:1 per resource (lodestone only on Cartographers maps). */
-function harborWeights(design: BoardDesign): [Resource | 'any', number][] {
-  return [['any', 4], ...mapResources(design).map(r => [r, 1] as [Resource, number])];
+/**
+ * Base game harbor mix: four 3:1 harbors and one 2:1 per resource the map produces, from a tile
+ * or from fog that may hide one (lodestone also only on Cartographers maps).
+ */
+function harborWeights(design: BoardDesign, terrains: Map<string, Terrain>): [Resource | 'any', number][] {
+  const fog = fogIslandsOf(design).flatMap(island => fogKinds(fogMixOf(island)).map(([k]) => k));
+  const produced = new Set([...terrains.values(), ...fog].map(terrainResource));
+  const kinds = mapResources(design).filter(r => produced.has(r));
+  return [['any', 4], ...kinds.map(r => [r, 1] as [Resource, number])];
 }
 
 /** The resources a design's random harbors and links may draw: lodestone only on Cartographers maps. */
@@ -336,9 +342,10 @@ function resolveHarbors(
       h.kind !== 'random' ? h.kind : linked && RESOURCES.includes(linked as Resource) ? (linked as Resource) : null;
     return { q: h.q, r: h.r, side: h.side, resource };
   });
-  const allowed = harborWeights(design).filter(([k]) => !design.harborExclude.includes(k));
+  const kinds = harborWeights(design, terrains);
+  const allowed = kinds.filter(([k]) => !design.harborExclude.includes(k));
   // With every kind excluded, random harbors fall back to 3:1.
-  const weights = new Map(allowed.length ? allowed : harborWeights(design).slice(0, 1));
+  const weights = new Map(allowed.length ? allowed : kinds.slice(0, 1));
   const fixed = new Map<Resource | 'any', number>();
   for (const h of resolved) if (h.resource) fixed.set(h.resource, (fixed.get(h.resource) ?? 0) + 1);
   const draw = shuffled(apportion(resolved.filter(h => !h.resource).length, weights, fixed, random), random);
@@ -518,8 +525,7 @@ export function buildBoard(
   const robberHex = at(design.robber);
   const robber =
     robberHex && !isWater(robberHex.terrain) ? robberHex.id : (board.hexes.find(h => h.terrain === 'desert')?.id ?? '');
-  const pirateHex = at(design.pirate);
-  const pirate = pirateHex?.terrain === 'sea' ? pirateHex.id : farthestSea(board);
+  const pirate = pirateStart(design, board, at(design.pirate));
   const rules = rulesOf(design);
   if (rules) board.rules = rules;
   return { board, robber, pirate, fog: drawFog(design, board, random) };
@@ -577,6 +583,12 @@ function drawFog(design: BoardDesign, board: Board, random: () => number): GameS
       return [hex.id, { terrain, number: isProducing(terrain) ? (pools.get(levelAt(i))!.pop() ?? null) : null }];
     }),
   );
+}
+
+/** The pirate's starting tile: only maps that play with ships have one; the design's start, else the farthest sea. */
+function pirateStart(design: BoardDesign, board: Board, set: Board['hexes'][number] | undefined): string | null {
+  if (!boardExpansions(design).includes('seafarers')) return null;
+  return set?.terrain === 'sea' ? set.id : farthestSea(board);
 }
 
 /** Where the pirate starts when a map doesn't say: the open sea tile farthest from any land. */

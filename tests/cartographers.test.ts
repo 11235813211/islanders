@@ -76,6 +76,15 @@ describe('lodestone', () => {
     expect(kinds('compass-sea')).toContain('lodestone');
   });
 
+  it('a Cartographers map with no lodestone tile draws no lodestone harbors', () => {
+    const map = structuredClone(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!);
+    map.tiles = map.tiles.map(t => (t.kind === 'lodestone' ? { ...t, kind: 'wheat' } : t));
+    map.pool = { ...map.pool, lodestone: 0 };
+    map.harbors = map.harbors.map(h => ({ ...h, kind: 'random' }));
+    const drawn = Array.from({ length: 30 }, (_, seed) => buildBoard(map, seeded(seed + 1)).board.harbors).flat();
+    expect(drawn.map(h => h.resource)).not.toContain('lodestone');
+  });
+
   it('rooms saved before Cartographers gain empty lodestone counts', () => {
     const g = createGame('old', seeded());
     const old = structuredClone(g) as unknown as Record<string, unknown> & GameState;
