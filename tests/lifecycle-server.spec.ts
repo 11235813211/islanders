@@ -3,6 +3,7 @@ import { GUEST_NAMES } from '../shared/guest-names';
 import { join, origin, PlayerConnection, server } from './server-helpers';
 
 test('players leave, get removed, hand over hosting, and the room closes when the last person leaves', async ({
+  page,
   request,
 }) => {
   const hostSession = await join(request, 'Host');
@@ -40,6 +41,19 @@ test('players leave, get removed, hand over hosting, and the room closes when th
       data: { name: 'Late' },
     });
     expect(late.status()).toBe(404);
+
+    // A socket to the gone room is told why instead of failing like a dropped connection.
+    const stale = new PlayerConnection(hostSession.roomId);
+    await expect.poll(() => stale.closeCode).toBe(4404);
+    stale.dispose();
+    // Refreshing a page that still has the seat saved goes home and says the room is gone.
+    await page.addInitScript(
+      ([key, value]) => localStorage.setItem(key, value),
+      [`islanders:${guestSession.roomId}`, JSON.stringify(guestSession)],
+    );
+    await page.goto(`${origin}/#room=${guestSession.roomId}`);
+    await expect(page.getByRole('status')).toHaveText('This room no longer exists.');
+    await expect.poll(() => new URL(page.url()).hash).toBe('');
   } finally {
     host.dispose();
     guest.dispose();

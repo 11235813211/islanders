@@ -88,6 +88,19 @@ const IDLE_GRACE_MS = 60_000;
  * never sends a close. Clients ping every 20s; background tabs may stretch that to a minute.
  */
 const QUIET_SOCKET_MS = 75_000;
+/** Close code the client treats as "this room is gone": it goes home and says why. */
+const ROOM_GONE = 4404;
+const ROOM_GONE_REASON = 'This room no longer exists.';
+/**
+ * A browser can't read an HTTP 404 on a socket upgrade (it looks like a dropped connection and
+ * the client keeps retrying), so a gone room accepts the socket and closes it with a reason.
+ */
+function closedRoomSocket(): Response {
+  const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
+  server.accept();
+  server.close(ROOM_GONE, ROOM_GONE_REASON);
+  return new Response(null, { status: 101, webSocket: client });
+}
 /** Close code the client treats as "you're no longer in this room". */
 const LEFT_ROOM = 4000;
 /**
@@ -327,7 +340,7 @@ export class GameRoom extends DurableObject<Env> {
 
   /** Close the room for everyone and delete its storage. */
   private async destroy(reason: string): Promise<void> {
-    for (const socket of this.sockets()) socket.close(4404, reason);
+    for (const socket of this.sockets()) socket.close(ROOM_GONE, reason);
     await this.ctx.storage.deleteAll();
     this.record = undefined;
   }
@@ -494,9 +507,9 @@ export class GameRoom extends DurableObject<Env> {
           return json(session, existing ? 200 : 201);
         }
         if (path === '/socket' && request.method === 'GET') {
-          this.requireRoom();
           if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
             throw new ProtocolError('A WebSocket connection is required.', 426);
+          if (!this.record || this.expired(this.record)) return closedRoomSocket();
           if (this.sockets().length >= MAX_SOCKETS)
             throw new ProtocolError('Too many connections. Try again shortly.', 429);
           const pair = new WebSocketPair();
@@ -641,8 +654,8 @@ export class GameRoom extends DurableObject<Env> {
           message: expected ? error.message : 'The server could not complete that move. Reconnect and try again.',
           ...(actionId ? { id: actionId } : {}),
         });
-        if (!this.attachment(socket)?.playerId) socket.close(4401, 'Invalid authentication.');
-        else if (error instanceof ProtocolError && error.status === 404) socket.close(4404, 'Room expired.');
+        if (error instanceof ProtocolError && error.status === 404) socket.close(ROOM_GONE, ROOM_GONE_REASON);
+        else if (!this.attachment(socket)?.playerId) socket.close(4401, 'Invalid authentication.');
         if (!expected) logError('room action', error);
       }
     });

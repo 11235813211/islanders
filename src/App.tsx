@@ -10,6 +10,7 @@ import InviteDialog, { type InviteKind } from './components/InviteDialog';
 import RoomLobby from './components/RoomLobby';
 import { useAccount } from './hooks/useAccount';
 import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
+import { ApiError } from './lib/api';
 
 declare const __LAN_ORIGIN__: string;
 
@@ -99,6 +100,12 @@ function App() {
       void account.refresh();
     } catch (err) {
       if (entryRequest.current !== request) return;
+      // The room is gone: drop it from the address so a refresh doesn't try again.
+      if (kind === 'join' && err instanceof ApiError && err.status === 404) {
+        home();
+        setNotice(err.message);
+        return;
+      }
       setError(
         err instanceof Error && err.name !== 'TypeError'
           ? err.message
