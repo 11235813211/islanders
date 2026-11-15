@@ -21,6 +21,7 @@ import { trackHands } from './hands';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
 import { seaHandlers } from './sea';
+import { seatHandlers } from './seats';
 import { socialAction } from './social';
 import { pruneTradeOffer, reproposeDeferred, tradeHandlers } from './trade';
 import { afterRobber, turnHandlers } from './turn';
@@ -32,6 +33,7 @@ const HANDLERS: Handlers = {
   ...tradeHandlers,
   ...developmentHandlers,
   ...cartographersHandlers,
+  ...seatHandlers,
 } as Handlers;
 
 /** Actions a player may take when it is not their turn. */
@@ -46,6 +48,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'leave',
   'remove-player',
   'transfer-host',
+  'seat-to-bot',
   'add-bot',
   'set-bot-level',
   'play-again',
@@ -63,7 +66,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'cancel-trade',
 ]);
 /** Allowed while paused or after the game ends. */
-const ALWAYS = new Set<GameAction['type']>(['leave', 'transfer-host', 'play-again']);
+const ALWAYS = new Set<GameAction['type']>(['leave', 'transfer-host', 'seat-to-bot', 'play-again']);
 /** Moves players can vote to undo. */
 const REVERSIBLE = new Set<GameAction['type']>([
   'place-settlement',

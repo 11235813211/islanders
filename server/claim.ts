@@ -1,12 +1,12 @@
+import { renameId } from '../shared/copy';
 import type { GameState } from '../shared/types';
 
 /**
  * A guest who signs in keeps their seat: every mention of the guest's player id (seat, host,
- * sessions, log events, answers) becomes the account's id. Player ids are random UUIDs, so a
- * plain text replacement over the stored room can't touch anything else.
+ * sessions, log events, answers) becomes the account's id.
  */
 export function rekeyPlayer<T extends { game: GameState }>(room: T, guestId: string, accountId: string): T {
-  return JSON.parse(JSON.stringify(room).replaceAll(JSON.stringify(guestId), JSON.stringify(accountId))) as T;
+  return renameId(room, guestId, accountId);
 }
 
 /** In the lobby the seat also takes the account's name. */

@@ -617,6 +617,8 @@ export type GameAction =
   | { type: 'switch-role' }
   | { type: 'remove-player'; playerId: string }
   | { type: 'transfer-host'; playerId: string }
+  /** Host, mid-game: an Advanced bot takes the seat; the person watches (`watch`) or leaves the room. */
+  | { type: 'seat-to-bot'; playerId: string; watch: boolean }
   | { type: 'add-bot'; level: BotLevel }
   | { type: 'set-bot-level'; playerId: string; level: BotLevel }
   | { type: 'play-again' }
@@ -701,8 +703,11 @@ export interface RecordingStatus {
 export type ClientMessage =
   | { type: 'auth'; token: string }
   | { type: 'view-as'; playerId: string }
+  /** Pick-board phase: look at a drawn board (1-based) without changing the host's. */
+  | { type: 'peek-board'; board: number }
   | { type: 'consent'; value: boolean }
   | { type: 'action'; id: string; version: number; action: GameAction };
 export type ServerMessage =
   | { type: 'state'; state: GameView; online: string[]; recording?: RecordingStatus; acknowledgedId?: string }
-  | { type: 'error'; message: string; id?: string };
+  | { type: 'error'; message: string; id?: string }
+  | { type: 'board-peek'; board: number; peek: Pick<GameView, 'board' | 'robber' | 'pirate'> };

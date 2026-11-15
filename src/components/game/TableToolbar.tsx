@@ -2,6 +2,7 @@ import {
   Eye,
   FlaskConical,
   House,
+  LogIn,
   LogOut,
   MessageCircle,
   Pause,
@@ -40,6 +41,7 @@ export default function TableToolbar({
   invite,
   leave,
   home,
+  signIn,
 }: {
   view: GameView;
   connection: Connection;
@@ -53,6 +55,8 @@ export default function TableToolbar({
   leave: () => void;
   /** Go to the home screen without leaving the room. Shown when the site header is hidden. */
   home: () => void;
+  /** Guests: open sign-in (the seat stays theirs). Shown when the site header is hidden. */
+  signIn?: () => void;
 }) {
   const [sound, setSound] = useState(soundEnabled);
   const spectator = view.role === 'spectator';
@@ -63,6 +67,16 @@ export default function TableToolbar({
       <button className="icon-button phone-home" aria-label="Home" title="Home" onClick={home}>
         <House size={18} />
       </button>
+      {signIn && (
+        <button
+          className="icon-button phone-home toolbar-sign-in"
+          aria-label="Sign in"
+          title="Sign in"
+          onClick={signIn}
+        >
+          <LogIn size={18} />
+        </button>
+      )}
       <strong className="table-code">{view.roomId}</strong>
       <span className={`table-connection ${connection}`} title={connection}>
         <Wifi size={15} />

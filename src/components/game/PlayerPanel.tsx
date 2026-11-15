@@ -5,6 +5,7 @@ import type { GameView } from '../../../shared/types';
 import { ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
+import { canHandSeat } from './SeatDialog';
 import { resourcesIn, tradableStyle } from './tradables';
 
 const FOLDED_KEY = 'islanders:scoreboard-folded';
@@ -32,8 +33,17 @@ function useFolded(): [boolean, (folded: boolean) => void] {
 /**
  * Scoreboard: one row per seat, its name on a block of the seat's color. On a portrait phone it
  * folds (button at its top left) to one line of seat colors and points, giving the board the room.
+ * The host can tap another person's name to hand their seat to a bot (`pickSeat`).
  */
-export default function PlayerPanel({ view, online }: { view: GameView; online: string[] }) {
+export default function PlayerPanel({
+  view,
+  online,
+  pickSeat,
+}: {
+  view: GameView;
+  online: string[];
+  pickSeat: (playerId: string) => void;
+}) {
   const [folded, setFolded] = useFolded();
   return (
     <section className={`player-panel${folded ? ' folded' : ''}`} aria-label="Player scoreboard">
@@ -88,12 +98,7 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
                     className="player-name"
                     title={`${p.name}${p.bot ? ` · ${p.bot} bot` : ''}${offline ? ' · disconnected' : ''}. ${p.settlementsLeft} settlements, ${p.citiesLeft} cities, ${p.roadsLeft} roads${view.seafaring ? ` and ${p.shipsLeft} ships` : ''} remaining.`}
                   >
-                    <span className="player-name-text">
-                      {offline && <WifiOff className="offline-mark" size={14} aria-label="Disconnected" />}
-                      {p.bot && <Bot size={13} aria-label="Bot" />}
-                      {p.name}
-                      <RouteMark view={view} player={p} />
-                    </span>
+                    <NameText view={view} player={p} offline={offline} pickSeat={pickSeat} />
                     {p.id === view.selfId && <small>you</small>}
                   </span>
                 </th>
@@ -133,6 +138,39 @@ export default function PlayerPanel({ view, online }: { view: GameView; online: 
       </table>
       <BankCounts view={view} />
     </section>
+  );
+}
+
+/** A seat's name with its marks; for the host, a button that opens the hand-to-bot dialog. */
+function NameText({
+  view,
+  player,
+  offline,
+  pickSeat,
+}: {
+  view: GameView;
+  player: GameView['players'][number];
+  offline: boolean;
+  pickSeat: (playerId: string) => void;
+}) {
+  const marks = (
+    <>
+      {offline && <WifiOff className="offline-mark" size={14} aria-label="Disconnected" />}
+      {player.bot && <Bot size={13} aria-label="Bot" />}
+      {player.name}
+      <RouteMark view={view} player={player} />
+    </>
+  );
+  if (!canHandSeat(view, player)) return <span className="player-name-text">{marks}</span>;
+  return (
+    <button
+      type="button"
+      className="player-name-text player-name-button"
+      aria-label={`${player.name}: move to spectators or replace with a bot`}
+      onClick={() => pickSeat(player.id)}
+    >
+      {marks}
+    </button>
   );
 }
 

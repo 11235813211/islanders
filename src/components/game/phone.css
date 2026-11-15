@@ -75,7 +75,9 @@
 
 /* Narrow phones in a solo test room: give the seat picker the room code's space. */
 @media (max-width: 420px) {
-  .table-toolbar:has(.solo-compact) .table-code {
+  /* The room code is also in the invite dialog; these controls need its room. */
+  .table-toolbar:has(.solo-compact) .table-code,
+  .table-toolbar:has(.toolbar-sign-in) .table-code {
     display: none;
   }
   .solo-compact select {

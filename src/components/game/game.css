@@ -8,6 +8,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.player-name-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  max-width: 100%;
+}
+.player-name-button:hover,
+.player-name-button:focus-visible {
+  text-decoration: underline;
+}
 .player-name-text svg {
   flex: 0 0 auto;
   opacity: 0.85;

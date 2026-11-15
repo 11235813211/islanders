@@ -319,6 +319,62 @@ test('a guest who signs in keeps their seat and stays host', async ({ request })
   }
 });
 
+test('mid-game: anyone peeks at drawn boards, a guest signs in and keeps the seat, the host hands seats to bots', async ({
+  request,
+}) => {
+  const host = await join(request, 'Host');
+  const guest = await join(request, 'Guest', host.roomId);
+  const late = await join(request, 'Late', host.roomId);
+  const [a, b, c] = [host, guest, late].map(() => new PlayerConnection(host.roomId));
+  try {
+    await a!.authenticate(host);
+    await b!.authenticate(guest);
+    await c!.authenticate(late);
+    await a!.action({ type: 'new-board' });
+    const first = a!.state.board;
+    await a!.action({ type: 'new-board' });
+    // A player who isn't the host looks at the first board; the table still shows the second.
+    const after = b!.messages.length;
+    b!.socket.send(JSON.stringify({ type: 'peek-board', board: 1 }));
+    const peek = await b!.waitMessage(m => m.type === 'board-peek', after);
+    expect(peek.type === 'board-peek' && peek.peek.board).toEqual(first);
+    expect(a!.state.boardPick).toEqual({ shown: 2, count: 2 });
+    await a!.action({ type: 'start' });
+
+    // Signing in mid-game claims the guest seat instead of joining as a spectator.
+    const claimed = await request.post(`${server}/api/rooms/${host.roomId}/join`, {
+      headers: await registerAccount(request),
+      data: { autoSpectate: true, claim: late.token },
+    });
+    expect(claimed.status(), await claimed.text()).toBe(200);
+    const account = (await claimed.json()) as Session;
+    c!.dispose();
+    const signedIn = new PlayerConnection(host.roomId);
+    try {
+      const view = await signedIn.authenticate(account);
+      expect(view.role).toBe('player');
+      expect(view.players.map(p => p.id)).toContain(account.playerId);
+      expect(view.players.map(p => p.id)).not.toContain(late.playerId);
+
+      await a!.action({ type: 'seat-to-bot', playerId: guest.playerId, watch: true });
+      await expect.poll(() => b!.state.role).toBe('spectator');
+      await a!.action({ type: 'seat-to-bot', playerId: account.playerId, watch: false });
+      await expect.poll(() => signedIn.closeCode).toBe(4000);
+      const seats = a!.state.players;
+      expect(
+        seats
+          .filter(p => p.bot === 'advanced')
+          .map(p => p.id)
+          .sort(),
+      ).toEqual([`${guest.playerId}.bot`, `${account.playerId}.bot`].sort());
+    } finally {
+      signedIn.dispose();
+    }
+  } finally {
+    for (const client of [a, b, c]) client!.dispose();
+  }
+});
+
 test('solo rooms control all seats and auto-roll once on the durable deadline', async ({ request }) => {
   const response = await postRoom(request, {
     headers: { Origin: origin },

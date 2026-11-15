@@ -3,6 +3,8 @@ import type { AccountSession, GameAction, GameView, RecordingStatus, ServerMessa
 import { API, apiRequest, requestId } from '../lib/api';
 
 type Pending = { type: 'action'; id: string; version: number; action: GameAction };
+/** A drawn board someone looked at during the pick-board phase (see peekBoard). */
+export type BoardPeek = Extract<ServerMessage, { type: 'board-peek' }>;
 /** Server close code: you left, or the host removed you. */
 const LEFT_ROOM = 4000;
 export type Connection = 'connecting' | 'online' | 'reconnecting' | 'offline';
@@ -91,6 +93,7 @@ export function useRoom(session: Session | null, signedIn = false) {
   const [pending, setPending] = useState(false);
   /** Set when this seat is gone for good: left, removed by the host, or the room closed. */
   const [left, setLeft] = useState<string | null>(null);
+  const [boardPeek, setBoardPeek] = useState<BoardPeek | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const currentView = useRef<GameView | null>(null);
   const inFlight = useRef<Pending | null>(null);
@@ -98,6 +101,7 @@ export function useRoom(session: Session | null, signedIn = false) {
   useEffect(() => {
     setView(null);
     setLeft(null);
+    setBoardPeek(null);
     currentView.current = null;
     inFlight.current = null;
     setOnline([]);
@@ -146,6 +150,10 @@ export function useRoom(session: Session | null, signedIn = false) {
           }
           return;
         }
+        if (message.type === 'board-peek') {
+          setBoardPeek(message);
+          return;
+        }
         if (message.type !== 'state') return;
         clearTimeout(watchdog);
         attempt = 0;
@@ -190,7 +198,12 @@ export function useRoom(session: Session | null, signedIn = false) {
       ws.onerror = () => ws.close();
     }
     connect();
+    // A closed tab often never sends its close, which left the seat looking connected for minutes.
+    // Close it now; a page restored from the back-forward cache reconnects through onclose.
+    const hide = () => socket.current?.close(1000);
+    window.addEventListener('pagehide', hide);
     return () => {
+      window.removeEventListener('pagehide', hide);
       disposed = true;
       clearTimeout(reconnect);
       clearTimeout(watchdog);
@@ -243,8 +256,15 @@ export function useRoom(session: Session | null, signedIn = false) {
     },
     [connection],
   );
+  /** Pick-board phase: fetch one of the drawn boards to look at (the answer lands in boardPeek). */
+  const peekBoard = useCallback((board: number) => {
+    if (socket.current?.readyState === WebSocket.OPEN)
+      socket.current.send(JSON.stringify({ type: 'peek-board', board }));
+  }, []);
   return {
     view,
+    boardPeek,
+    peekBoard,
     online,
     recording,
     connection,

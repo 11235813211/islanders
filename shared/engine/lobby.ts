@@ -64,20 +64,34 @@ function setupLogLine(pieces: string[]): string {
 /** Most boards kept to go back to in the pick-board phase (the oldest is dropped). */
 const MAX_BOARD_DRAWS = 19;
 
-/** Put the board drawn from `seed` on the table. The same seed always draws the same board. */
-function showDraw(next: GameState, seed: number): void {
-  const { players, settings } = next;
-  Object.assign(
-    next,
-    boardFor(
-      next.design,
-      settings.numberLayout,
-      seededRandom(seed),
-      players.length,
-      settings.seafarers,
-      layoutCount(next),
-    ),
+/** The board drawn from `seed`. The same seed always draws the same board. */
+function drawFrom(state: GameState, seed: number): ReturnType<typeof boardFor> {
+  const { players, settings } = state;
+  return boardFor(
+    state.design,
+    settings.numberLayout,
+    seededRandom(seed),
+    players.length,
+    settings.seafarers,
+    layoutCount(state),
   );
+}
+
+/** Put the board drawn from `seed` on the table. */
+function showDraw(next: GameState, seed: number): void {
+  Object.assign(next, drawFrom(next, seed));
+}
+
+/**
+ * Pick-board phase: one of the drawn boards (1-based), for anyone to look at without changing what
+ * the host shows. Only public parts: fog tiles stay hidden.
+ */
+export function peekBoard(state: GameState, board: number): Pick<GameState, 'board' | 'robber' | 'pirate'> {
+  requireRule(state.phase === 'pick-board', 'The board has been chosen.');
+  const seed = state.boardSeeds[board - 1];
+  requireRule(seed !== undefined, 'That board is gone.');
+  const { board: drawn, robber, pirate } = drawFrom(state, seed);
+  return { board: drawn, robber, pirate };
 }
 
 /** Draw a fresh board and keep its seed, so the host can come back to it. */
@@ -263,11 +277,11 @@ const requireStartable = (next: GameState) =>
     'Invite at least one friend before starting.',
   );
 
-const requireHost = (next: GameState, playerId: string, what: string) =>
+export const requireHost = (next: GameState, playerId: string, what: string) =>
   requireRule(next.hostId === playerId, `Only the host can ${what}.`);
 
 /** Hand the host role to the first remaining human, or clear it if none are left. */
-function reassignHost(next: GameState): void {
+export function reassignHost(next: GameState): void {
   if (next.players.some(p => p.id === next.hostId && !p.bot)) return;
   next.hostId = humanPlayers(next)[0]?.id ?? '';
   const host = next.players.find(p => p.id === next.hostId);

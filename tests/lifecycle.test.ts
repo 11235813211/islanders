@@ -9,6 +9,7 @@ import {
   getView,
   idlePause,
   idleResume,
+  peekBoard,
   pendingBotActor,
   ROLL_SHOW_MS,
   UNDO_GRACE_MS,
@@ -22,6 +23,27 @@ const act = (g: ReturnType<typeof makeLobby>, id: string, action: Parameters<typ
   applyAction(g, id, action, seeded(), now);
 
 describe('room membership', () => {
+  it('lets the host hand a seat to an Advanced bot, the person watching or leaving', () => {
+    const g = settled(3);
+    const pieces = Object.values(g.buildings).filter(b => b.playerId === 'p1').length;
+    expect(() => act(g, 'p1', { type: 'seat-to-bot', playerId: 'p2', watch: true })).toThrow(GameError);
+    expect(() => act(g, 'p0', { type: 'seat-to-bot', playerId: 'p0', watch: true })).toThrow(GameError);
+    const watched = act(g, 'p0', { type: 'seat-to-bot', playerId: 'p1', watch: true });
+    // The person keeps their id (an account's id is the same in every room); the seat gets a new one.
+    expect(watched.spectators).toEqual([{ id: 'p1', name: g.players[1]!.name }]);
+    const seat = watched.players[1]!;
+    expect(seat).toMatchObject({ id: 'p1.bot', bot: 'advanced', name: g.players[1]!.name });
+    expect(Object.values(watched.buildings).filter(b => b.playerId === 'p1.bot')).toHaveLength(pieces);
+    expect(watched.stats['p1.bot']).toEqual(g.stats.p1);
+    expect(getView(watched, 'p1').role).toBe('spectator');
+    expect(() => act(watched, 'p0', { type: 'seat-to-bot', playerId: 'p1.bot', watch: true })).toThrow(GameError);
+    const gone = act(g, 'p0', { type: 'seat-to-bot', playerId: 'p2', watch: false });
+    expect(gone.spectators).toEqual([]);
+    expect(gone.players[2]).toMatchObject({ id: 'p2.bot', bot: 'advanced' });
+    expect(() => getView(gone, 'p2')).toThrow(GameError);
+    expect(() => act(makeLobby(3), 'p0', { type: 'seat-to-bot', playerId: 'p1', watch: true })).toThrow(GameError);
+  });
+
   it('removes a player who leaves the lobby and hands hosting to the next person', () => {
     let g = makeLobby(3);
     g = act(g, 'p0', { type: 'leave' });
@@ -277,6 +299,18 @@ describe('pick-board phase', () => {
     expect(layout(g)).toBe(first);
     expect(g.boardSeeds).toEqual([]);
     expect(getView(g, 'p0').boardPick).toBeNull();
+  });
+
+  it('lets anyone look at an earlier board without changing the one shown', () => {
+    let g = draw(makeLobby(3), 1);
+    const first = layout(g);
+    g = draw(g, 2);
+    const peeked = peekBoard(g, 1);
+    expect(peeked.board.hexes.map(h => `${h.terrain}${h.number}`).join()).toBe(first);
+    expect(layout(g)).not.toBe(first);
+    expect(g.boardShown).toBe(1);
+    expect(() => peekBoard(g, 3)).toThrow(GameError);
+    expect(() => peekBoard(act(g, 'p0', { type: 'start' }), 1)).toThrow(GameError);
   });
 
   it('keeps at most 19 boards to go back to', () => {

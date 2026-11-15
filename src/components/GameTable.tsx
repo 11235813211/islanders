@@ -12,7 +12,7 @@ import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
 import BankFlights from './game/BankFlights';
-import BoardPick from './game/BoardPick';
+import BoardPick, { useBoardLook } from './game/BoardPick';
 import BuildBar from './game/BuildBar';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DevelopmentDialog from './game/DevelopmentDialog';
@@ -24,6 +24,7 @@ import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
 import ResourceFlights, { useLandedView } from './game/ResourceFlights';
 import { routeReminder } from './game/routeView';
+import SeatDialog from './game/SeatDialog';
 import SetupOrder from './game/SetupOrder';
 import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
@@ -114,6 +115,7 @@ export default function GameTable({
   leaving,
   setLeaving,
   signedIn,
+  signIn,
 }: {
   room: ReturnType<typeof useRoom>;
   invite: () => void;
@@ -122,6 +124,8 @@ export default function GameTable({
   leaving: boolean;
   setLeaving: (open: boolean) => void;
   signedIn: boolean;
+  /** Open the sign-in dialog; signing in keeps this seat (see afterSignIn in App). */
+  signIn: () => void;
 }) {
   const view = room.view!;
   const send = room.send;
@@ -133,8 +137,12 @@ export default function GameTable({
   const [discard, setDiscard] = useState<TradeBag>(emptyBag);
   const [endHidden, setEndHidden] = useState(false);
   const [buying, setBuying] = useState(false);
+  /** Host: the seat whose hand-to-bot dialog is open. */
+  const [seatPick, setSeatPick] = useState<string | null>(null);
   /** Hands and counts without the cards still flying to their owners. */
   const { shown, flights } = useLandedView(view);
+  /** Before setup, players other than the host may look at another drawn board. */
+  const boardLook = useBoardLook(view, room.boardPeek, room.peekBoard);
   /** Where the robber or pirate was just put, before confirming. */
   const [hexPick, setHexPick] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
@@ -455,12 +463,13 @@ export default function GameTable({
         invite={invite}
         leave={() => setLeaving(true)}
         home={() => (!spectator && isBotGame(view) ? setLeaving(true) : home())}
+        signIn={signedIn || view.testMode ? undefined : signIn}
       />
-      <PlayerPanel view={shown} online={room.online} />
+      <PlayerPanel view={shown} online={room.online} pickSeat={setSeatPick} />
       <ResourceFlights view={view} {...flights} />
       <BankFlights view={view} />
       <BoardViewport
-        view={view}
+        view={boardLook.view}
         mode={view.phase === 'robber' ? 'robber' : mode}
         disabled={blocked}
         selected={selected}
@@ -545,7 +554,7 @@ export default function GameTable({
         </section>
       )}
       <div className={`table-actions${view.seafaring ? ' sea' : ''}${view.cartographers ? ' cartographers' : ''}`}>
-        <BoardPick view={view} busy={busy} send={send} />
+        <BoardPick view={view} busy={busy} send={send} looking={boardLook.board} look={boardLook.look} />
         {!spectator && self && !view.boardPick && (
           <div className="build-buttons">
             <BuildBar
@@ -567,6 +576,9 @@ export default function GameTable({
       <TablePanel view={view} busy={busy} send={send} panel={panel} setPanel={setPanel} />
       {(devKind === 'knight' || devKind === 'road-building' || devKind === 'victory-point') && (
         <DevelopmentDialog view={view} kind={devKind} busy={busy} send={send} close={() => setDevKind(null)} />
+      )}
+      {seatPick && (
+        <SeatDialog view={view} playerId={seatPick} busy={busy} send={send} close={() => setSeatPick(null)} />
       )}
       {leaving && (
         <LeaveDialog

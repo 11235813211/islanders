@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTime, applyAction, botDueAt } from '../shared/engine';
+import { advanceTime, applyAction, botDueAt, nextDueAt } from '../shared/engine';
 import {
   anonymizeLobby,
   buildRecord,
@@ -11,6 +11,7 @@ import {
   shouldRecord,
   tape,
   toStep,
+  withBotSeat,
 } from '../shared/replay';
 import type { GameState } from '../shared/types';
 import { makeLobby, seeded, TEST_NOW } from './fixtures';
@@ -87,6 +88,40 @@ describe('game records', () => {
     const { record, final } = recordGame(11);
     expect(record.steps.length).toBeGreaterThan(100);
     expect(plain(replayRecord(record))).toEqual(final);
+  });
+
+  it('replays a seat the host handed to a bot', () => {
+    const random = seeded(21);
+    const lobby = makeLobby(3);
+    lobby.players.forEach((p, i) => {
+      p.name = `Seat ${i + 1}`;
+    });
+    lobby.players[2]!.bot = 'intermediate';
+    let ids = seatIds(lobby);
+    const initial = anonymizeLobby(lobby, ids);
+    const steps: RecordedStep[] = [];
+    let now = TEST_NOW;
+    let game = lobby;
+    const run = (actor: string, action: Parameters<typeof applyAction>[2]) => {
+      const t = tape(random);
+      const before = game;
+      game = applyAction(game, actor, action, t.random, now);
+      steps.push(toStep(ids, { kind: 'action', actor, action, now, random: t.draws })!);
+      if (action.type === 'seat-to-bot') ids = withBotSeat(ids, before, game);
+    };
+    run('p0', { type: 'start' });
+    run('p0', { type: 'seat-to-bot', playerId: 'p1', watch: true });
+    expect(ids['p1.bot']).toBe('s1.bot');
+    // The host sits out its turns (they time out); the bots play theirs.
+    for (let i = 0; i < 400 && game.phase !== 'finished'; i++) {
+      now = Math.max(now, nextDueAt(game) ?? now);
+      const t = tape(random);
+      game = advanceTime(game, now, t.random);
+      steps.push(toStep(ids, { kind: 'time', now, random: t.draws })!);
+    }
+    expect(Object.values(game.buildings).some(b => b.playerId === 'p1.bot')).toBe(true);
+    const record = buildRecord(initial, steps, game, ids, now);
+    expect(plain(replayRecord(record))).toEqual(plain(renameIds(game, ids)));
   });
 
   it('survives a JSON round trip and calls onStep for every step', () => {

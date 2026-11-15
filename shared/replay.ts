@@ -61,6 +61,17 @@ export function renameIds<T>(value: T, ids: SeatIds): T {
   return out as T;
 }
 
+/**
+ * After the host hands a seat to a bot, the bot's new id (`<person>.bot`, see engine/seats.ts) maps
+ * to the seat's id renamed the same way, which is what the replay's engine calls it.
+ */
+export function withBotSeat(ids: SeatIds, before: GameState, after: GameState): SeatIds {
+  const botId = after.players.find(p => !before.players.some(old => old.id === p.id))?.id;
+  const personId = botId && before.players.find(p => botId.startsWith(`${p.id}.`))?.id;
+  const seat = personId && ids[personId];
+  return seat ? { ...ids, [botId]: `${seat}${botId.slice(personId.length)}` } : ids;
+}
+
 /** Seat ids for a lobby's players, in seat order. */
 export function seatIds(lobby: GameState): SeatIds {
   return Object.fromEntries(lobby.players.map((p, i) => [p.id, `s${i}`]));

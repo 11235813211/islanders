@@ -52,6 +52,7 @@ const SPEC = {
   'answer-color-swap': { playerId: 'id', accept: 'bool' },
   'remove-player': { playerId: 'id' },
   'transfer-host': { playerId: 'id' },
+  'seat-to-bot': { playerId: 'id', watch: 'bool' },
   'add-bot': { level: 'botLevel' },
   'set-bot-level': { playerId: 'id', level: 'botLevel' },
   'offer-trade': { give: 'tradeBag', want: 'tradeBag', to: 'players?' },

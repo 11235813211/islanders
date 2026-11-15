@@ -27,6 +27,22 @@ test('the game screen fits a phone: no sideways scroll, header hidden, controls 
   expect(game.errors).toEqual([]);
 });
 
+test('a guest can sign in from the game toolbar on a phone, and the toolbar still fits', async ({ page }) => {
+  const g = richGame();
+  // Not a solo test room: a guest at a real table, who is also the host (names become buttons).
+  g.testMode = false;
+  await mountGame(page, g);
+  const toolbar = page.locator('.table-toolbar');
+  for (const width of [390, 360]) {
+    await page.setViewportSize({ width, height: 664 });
+    await expectNoSpill(toolbar);
+  }
+  await expectNoSpill(page.locator('.player-table tbody'));
+  await page.getByRole('button', { name: 'Sign in' }).tap();
+  await expect(page.getByRole('dialog', { name: /Sign in/ })).toBeVisible();
+  await page.screenshot({ path: 'test-results/phone-toolbar-guest.png' });
+});
+
 test('the help button opens touch-worded help that fits a phone', async ({ page }) => {
   const game = await mountGame(page, richGame());
   await page.getByRole('button', { name: 'How to play here' }).tap();

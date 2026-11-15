@@ -74,7 +74,8 @@ function App() {
       const target = roomCode.trim().toUpperCase();
       // A blank guest name is filled in by the server from shared/guest-names.ts.
       const displayName = account.account?.displayName ?? account.account?.username ?? name.trim();
-      const cached = kind === 'join' && !account.account ? savedSession(target) : null;
+      const saved = kind === 'join' ? savedSession(target) : null;
+      const cached = account.account ? null : saved;
       const watching =
         kind === 'join' &&
         (directInvite ? new URLSearchParams(location.hash.slice(1)).get('spectate') === '1' : spectate);
@@ -88,6 +89,8 @@ function App() {
           watching,
           directInvite,
           mapId,
+          // Signed in since playing here as a guest: that guest seat becomes the account's.
+          saved?.token,
         ));
       if (entryRequest.current !== request) return;
       history.replaceState(null, '', `${location.pathname}${location.search}#room=${next.roomId}`);
@@ -284,6 +287,7 @@ function App() {
         leaving={leavingGame}
         setLeaving={setLeavingGame}
         signedIn={Boolean(account.account)}
+        signIn={() => setDialog('sign-in')}
       />
     );
 

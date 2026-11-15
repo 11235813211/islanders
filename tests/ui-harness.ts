@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { PLAYER_COLORS } from '../shared/colors';
-import { applyAction, getView } from '../shared/engine';
+import { applyAction, getView, peekBoard } from '../shared/engine';
 import type { ClientMessage, GameState, PlayerColor, ServerMessage } from '../shared/types';
 import { seeded } from './fixtures';
 /**
@@ -31,6 +31,10 @@ export async function mountGame(page: Page, initial: GameState) {
       }
       const message = JSON.parse(String(raw)) as ClientMessage;
       try {
+        if (message.type === 'peek-board') {
+          send({ type: 'board-peek', board: message.board, peek: peekBoard(game, message.board) });
+          return;
+        }
         if (message.type === 'view-as') selfId = message.playerId;
         if (message.type === 'action') game = applyAction(game, selfId, message.action, seeded(), Date.now());
         send({

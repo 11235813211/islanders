@@ -14,9 +14,10 @@ import {
   MAX_PLAYERS,
   nextDueAt,
   normalizeGame,
+  peekBoard,
 } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
-import { type RecordedStep, shouldRecord, tape } from '../shared/replay';
+import { type RecordedStep, shouldRecord, tape, withBotSeat } from '../shared/replay';
 import { emptyRoomMs, guestName } from '../shared/settings';
 import type {
   AccountRoomStatus,
@@ -71,6 +72,8 @@ interface Attachment {
   tokenHash?: string;
   controlledId?: string;
   connectedAt: number;
+  /** Set when the room closed this socket for going quiet, so its late close event isn't logged twice. */
+  dropped?: boolean;
   windowStart: number;
   messageCount: number;
 }
@@ -80,6 +83,11 @@ const MAX_PLAYER_SOCKETS = 4;
 const MAX_MESSAGES_PER_MINUTE = 90;
 /** A reload or brief drop shouldn't pause the game, so wait this long first. */
 const IDLE_GRACE_MS = 60_000;
+/**
+ * A socket that sent no ping for this long is treated as gone: a closed tab or a locked phone often
+ * never sends a close. Clients ping every 20s; background tabs may stretch that to a minute.
+ */
+const QUIET_SOCKET_MS = 75_000;
 /** Close code the client treats as "you're no longer in this room". */
 const LEFT_ROOM = 4000;
 /**
@@ -99,6 +107,7 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'leave',
   'remove-player',
   'transfer-host',
+  'seat-to-bot',
   'add-bot',
   'set-bot-level',
   'play-again',
@@ -130,7 +139,7 @@ export class GameRoom extends DurableObject<Env> {
     return socket.deserializeAttachment() as Attachment;
   }
   private sockets(): WebSocket[] {
-    return this.ctx.getWebSockets().filter(socket => socket.readyState === 1);
+    return this.ctx.getWebSockets().filter(socket => socket.readyState === 1 && !this.attachment(socket)?.dropped);
   }
   /** Connected members (players and spectators). */
   private online(): string[] {
@@ -145,6 +154,11 @@ export class GameRoom extends DurableObject<Env> {
   private onlinePlayers(game: GameState): string[] {
     const online = this.online();
     return game.players.filter(p => !p.bot && online.includes(p.id)).map(p => p.id);
+  }
+  /** When this socket was last heard from: its latest ping (answered without waking the room) or its opening. */
+  private lastHeard(socket: WebSocket): number {
+    const ping = this.ctx.getWebSocketAutoResponseTimestamp(socket)?.getTime() ?? 0;
+    return Math.max(ping, this.attachment(socket)?.connectedAt ?? 0);
   }
   private send(socket: WebSocket, message: ServerMessage): void {
     try {
@@ -233,6 +247,7 @@ export class GameRoom extends DurableObject<Env> {
       for (const socket of this.sockets()) {
         const saved = this.savedFor(this.attachment(socket));
         if (saved?.account) deadlines.push(saved.account.expiresAt);
+        if (this.attachment(socket)?.playerId) deadlines.push(this.lastHeard(socket) + QUIET_SOCKET_MS);
       }
     }
     if (deadlines.length) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, Math.min(...deadlines)));
@@ -514,6 +529,7 @@ export class GameRoom extends DurableObject<Env> {
           socket.close(4401, 'Authentication required.');
           return;
         }
+        if (attachment.dropped) return;
         if (Date.now() - attachment.windowStart >= 60_000) {
           attachment.windowStart = Date.now();
           attachment.messageCount = 0;
@@ -547,6 +563,11 @@ export class GameRoom extends DurableObject<Env> {
         }
         if (message.type === 'consent') {
           await this.setConsent(room, saved, attachment.playerId, message.value);
+          return;
+        }
+        if (message.type === 'peek-board') {
+          const peek = peekBoard(room.game, message.board);
+          this.send(socket, { type: 'board-peek', board: message.board, peek });
           return;
         }
         if (message.type !== 'action') throw new ProtocolError('Already authenticated.');
@@ -602,6 +623,11 @@ export class GameRoom extends DurableObject<Env> {
         if (action.type === 'leave') next = await this.dropMember(next, attachment.playerId, 'You left the room.');
         if (action.type === 'remove-player')
           next = await this.dropMember(next, action.playerId, 'The host removed you from the room.');
+        if (action.type === 'seat-to-bot') {
+          if (next.recording)
+            next.recording = { ...next.recording, ids: withBotSeat(next.recording.ids, room.game, next.game) };
+          if (!action.watch) next = await this.dropMember(next, action.playerId, 'The host gave your seat to a bot.');
+        }
         if (!next.game.players.some(p => !p.bot)) {
           await this.destroy('Everyone left, so the room closed.');
           return;
@@ -677,17 +703,35 @@ export class GameRoom extends DurableObject<Env> {
 
   async webSocketClose(socket: WebSocket, code: number): Promise<void> {
     await this.serial(async () => {
-      try {
-        socket.close(code === 1005 || code === 1006 ? 1000 : code);
-      } catch {
-        /* Already closed. */
-      }
-      await this.announceLeft(socket);
-      if (this.record && !this.onlinePlayers(this.record.game).length && this.record.emptySince === undefined)
-        await this.commit({ ...this.record, emptySince: Date.now() });
+      if (this.attachment(socket)?.dropped) return;
+      await this.closeSocket(socket, code === 1005 || code === 1006 ? 1000 : code);
       this.broadcast();
       await this.scheduleAlarm();
     });
+  }
+
+  /** Close a socket and, if it was someone's last, log that they left (and start the empty-room clock). */
+  private async closeSocket(socket: WebSocket, code: number, reason?: string): Promise<void> {
+    try {
+      socket.close(code, reason);
+    } catch {
+      /* Already closed. */
+    }
+    await this.announceLeft(socket);
+    if (this.record && !this.onlinePlayers(this.record.game).length && this.record.emptySince === undefined)
+      await this.commit({ ...this.record, emptySince: Date.now() });
+  }
+
+  /** Close sockets that went quiet, so everyone sees the person disconnected without waiting for TCP. */
+  private async dropQuietSockets(now: number): Promise<boolean> {
+    const quiet = this.sockets().filter(
+      socket => this.attachment(socket)?.playerId && now - this.lastHeard(socket) >= QUIET_SOCKET_MS,
+    );
+    for (const socket of quiet) {
+      socket.serializeAttachment({ ...this.attachment(socket), dropped: true });
+      await this.closeSocket(socket, 4408, 'Connection went quiet.');
+    }
+    return quiet.length > 0;
   }
 
   /** Log that a player disconnected, once their last open socket has closed. */
@@ -718,6 +762,7 @@ export class GameRoom extends DurableObject<Env> {
         const saved = this.savedFor(attachment);
         if (saved?.account && saved.account.expiresAt <= now) socket.close(4401, 'Sign-in expired.');
       }
+      if (await this.dropQuietSockets(now)) this.broadcast();
       if (this.record && this.expired(this.record, now)) {
         await this.destroy('This room closed because no players were connected.');
         return;
