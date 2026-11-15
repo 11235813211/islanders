@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chooseBotAction } from '../shared/bots';
-import { choiceFits, choiceGroups, choiceLimit } from '../shared/choices';
+import { choiceFits, choiceGroups, choiceLimit, fillChoice } from '../shared/choices';
 import { advanceTime, createGame, getView, normalizeGame } from '../shared/engine';
 import { chartHexes } from '../shared/engine/legal';
 import { chartedNumbers, hexNumbers } from '../shared/rules';
@@ -46,6 +46,21 @@ describe('choices from gold and split tiles', () => {
     expect(choiceLimit(groups, plenty)).toBe(3);
     expect(choiceLimit(groups, { ...plenty, wheat: 1, ore: 0 })).toBe(1);
     expect(choiceLimit(choiceGroups(2), { ...plenty, wheat: 0 })).toBe(2);
+  });
+
+  it('a fill takes as many as the bank can pay, even when the preferred card strands another split', () => {
+    // Seed 100368 on Magnetic North: taking wood for the first split left the second with nothing.
+    const groups = choiceGroups(6, [
+      { options: ['wood', 'brick'], count: 1 },
+      { options: ['wheat', 'wood'], count: 6 },
+    ]);
+    const stock = bag({ wood: 2, brick: 1, sheep: 13, ore: 16, lodestone: 24 });
+    const woodFirst = (options: readonly Resource[]) =>
+      [...options].sort((a, b) => Number(b === 'wood') - Number(a === 'wood'));
+    const picked = fillChoice(groups, stock, woodFirst);
+    expect(picked).toEqual(bag({ wood: 2, brick: 1 }));
+    expect(choiceFits(picked, groups)).toBe(true);
+    expect(fillChoice(groups, stock, woodFirst, 2)).toEqual(bag({ wood: 2 }));
   });
 });
 

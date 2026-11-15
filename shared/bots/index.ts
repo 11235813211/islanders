@@ -48,9 +48,14 @@ export function actWith(brain: Brain, view: GameView, options: TurnOptions = {})
     // The player whose turn it is can be sent an offer too, by someone trading off turn.
     if (offer.to.includes(view.selfId) && !answered)
       // Bots don't value discoveries, so they pass on offers that include them.
-      return offer.give.discovery || offer.want.discovery || keepsLodestone(view, offer)
+      return offer.give.discovery || offer.want.discovery || keepsLodestone(view, offer, reserveOf(brain, view))
         ? { type: 'decline-trade', offerId: offer.id }
         : brain.respond(view, offer);
   }
-  return cartographersTurn(view, brain.turn(view, options));
+  return cartographersTurn(view, brain.turn(view, options), reserveOf(brain, view));
+}
+
+/** Lodestone the brain's own plans are saving (Cartographers only). */
+function reserveOf(brain: Brain, view: GameView): number {
+  return view.cartographers && brain.lodestoneReserve ? brain.lodestoneReserve(view) : 0;
 }

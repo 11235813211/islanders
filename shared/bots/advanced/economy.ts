@@ -5,6 +5,7 @@ import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths, route
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
 import { makePlans, type Plan, type PlanKind, planScore } from './plans';
+import { type SurveyRoute, surveyRoute } from './survey';
 
 const GOAL: Record<PlanKind, Goal> = {
   city: 'city',
@@ -31,7 +32,7 @@ export interface Target {
 }
 
 export interface GoalOption {
-  goal: Goal;
+  goal: Goal | 'survey';
   cost: ResourceBag;
   value: number;
 }
@@ -56,6 +57,8 @@ export class Economy {
   readonly spotIds: string[] = [];
   /** Per seat (view.players order): corners its routes can grow from. */
   readonly frontiers: number[][];
+  /** Cartographers: the way to the next survey ship, if any. */
+  readonly survey: SurveyRoute | null;
 
   constructor(
     readonly view: GameView,
@@ -70,6 +73,7 @@ export class Economy {
     this.choicePips = choice;
     this.frontiers = view.players.map(p => this.frontier(p.id));
     this.target = this.expansionTarget();
+    this.survey = surveyRoute(this);
     if (knobs.planner < 0.5) {
       this.goals = this.goalOptions();
       return;
@@ -171,6 +175,9 @@ export class Economy {
       const have = this.production[RESOURCES[r]!];
       value += this.geo.pips[c * 5 + r]! * (1.6 - Math.min(1, have / 10));
     }
+    // Lodestone pays for survey ships, worth less once the bot already earns plenty.
+    if (this.survey)
+      value += this.geo.lodestone[c]! * k.lodestoneSpot * (1.6 - Math.min(1, this.production.lodestone / 10));
     const harbor = this.geo.harbor[c];
     if (harbor === 'any') value += 1.2;
     else if (harbor && this.production[harbor] >= 5) value += 2.5;
@@ -259,6 +266,8 @@ export class Economy {
     }
     if (view.developmentRemaining)
       goals.push({ goal: 'development', cost: COSTS.development, value: knobs.developmentValue });
+    if (this.survey && knobs.surveyValue > 0)
+      goals.push({ goal: 'survey', cost: this.survey.cost, value: knobs.surveyValue * push });
     return goals;
   }
 

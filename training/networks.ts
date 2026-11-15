@@ -40,7 +40,8 @@ export const FEATURES: Record<Kind, readonly string[]> = {
 
 /** A row's stored label: the winner (seat order from the viewer) for value rows, none for moves. */
 function rowLabel(kind: Kind, r: JobResult, seat: number, n: number): number {
-  if (kind === 'value') return (r.winner! - seat + n) % n;
+  // Value rows list seats in turn order from the viewer, so the label is the winner's place after it.
+  if (kind === 'value') return (r.order.indexOf(r.winner!) - r.order.indexOf(seat) + n) % n;
   return kind === 'moves' ? 0 : label(r, seat);
 }
 

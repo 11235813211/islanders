@@ -9,6 +9,7 @@ import {
   type TradeOffer,
 } from '../../types';
 import type { Economy } from './economy';
+import { couldWinNext } from './endgame';
 import { threat } from './robber';
 
 /**
@@ -32,6 +33,8 @@ export function tradeGain(econ: Economy, partnerId: string, get: TradeBag, give:
   const { view, knobs } = econ;
   const partner = view.players.find(p => p.id === partnerId);
   if (!partner || partner.publicPoints >= view.settings.victoryPoints - knobs.tradeCutoff) return -Infinity;
+  // Never hand the cards for a win to someone who could win next turn.
+  if (couldWinNext(econ, partnerId)) return -Infinity;
   const after = apply(view.hand, get, give);
   if (RESOURCES.some(r => after[r] < 0)) return -Infinity;
   const ours = econ.handValue(after) - econ.handValue(view.hand);
@@ -180,7 +183,7 @@ export function nextOffer(econ: Economy): GameAction | null {
     if (made.some(m => same(m.give, c.give) && same(m.want, c.want))) continue;
     const to = view.players
       .filter(p => p.id !== view.selfId && p.resourceCount > 0 && mayHold(econ, p.id, c.want))
-      .filter(p => p.publicPoints < view.settings.victoryPoints - knobs.tradeCutoff)
+      .filter(p => p.publicPoints < view.settings.victoryPoints - knobs.tradeCutoff && !couldWinNext(econ, p.id))
       .filter(p => p.bot || (askPeople && c.fair))
       .map(p => p.id);
     if (to.length) return { type: 'offer-trade', give: c.give, want: c.want, to };

@@ -45,22 +45,36 @@ export function choiceFits(bag: ResourceBag, groups: readonly ChoiceGroup[]): bo
 }
 
 /**
- * A pick that fits and that `stock` can pay, card by card in the order `rank` prefers (best first).
- * Tight groups go first, so a free pick never takes the last card a split tile needed.
+ * A pick that fits and that `stock` can pay, card by card in the order `rank` prefers (best first),
+ * as many cards as can be paid (at most `cap`). Each card is kept only if the rest can still be
+ * filled, so a greedy choice never strands a split tile whose other half is gone.
  */
 export function fillChoice(
   groups: readonly ChoiceGroup[],
   stock: Record<Resource, number>,
   rank: (options: readonly Resource[], bag: ResourceBag) => Resource[],
+  cap = Number.POSITIVE_INFINITY,
 ): ResourceBag {
   const bag = Object.fromEntries(RESOURCES.map(r => [r, 0])) as ResourceBag;
   const left = { ...stock };
-  for (const group of [...groups].sort((a, b) => a.options.length - b.options.length))
-    for (let i = 0; i < group.count; i++) {
-      const pick = rank(group.options, bag).find(r => left[r] > 0);
-      if (!pick) break;
+  const target = Math.min(cap, choiceLimit(groups, stock));
+  // Tight groups first: they have the fewest ways to be paid.
+  const open = [...groups].sort((a, b) => a.options.length - b.options.length).map(g => ({ ...g }));
+  let taken = 0;
+  for (const group of open)
+    while (group.count > 0 && taken < target) {
+      group.count--;
+      const pick = rank(group.options, bag).find(r => {
+        if (left[r] <= 0) return false;
+        left[r]--;
+        const fits = taken + 1 + choiceLimit(open, left) >= target;
+        left[r]++;
+        return fits;
+      });
+      if (!pick) continue;
       left[pick]--;
       bag[pick]++;
+      taken++;
     }
   return bag;
 }

@@ -29,6 +29,7 @@ describe('bot seats', () => {
       () => makeLobby(6),
       () => seaLobby(BUILTIN_BOARDS.find(b => b.id === 'wide-sea')!, 6),
       () => seaLobby(BUILTIN_BOARDS.find(b => b.id === 'four-isles')!, 4),
+      () => seaLobby(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!, 4),
     ];
     const times: number[] = [];
     const slowest = { ms: 0, phase: '' };

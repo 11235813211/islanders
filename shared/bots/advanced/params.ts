@@ -56,6 +56,14 @@ export const KNOBS = {
   /** Chase Longest Road when this many roads would take it. */
   longestRoadReach: [2, 0, 4],
 
+  // Cartographers
+  /** A survey ship as a goal (a point that also charts tiles), like cityValue. */
+  surveyValue: [2.6, 1, 5],
+  /** Worth of a lodestone pip at a new settlement, against a scarce pip of another resource. */
+  lodestoneSpot: [1.2, 0, 3],
+  /** Setup: score per lodestone pip at a seat's starting corners (outside the setup network). */
+  setupLodestone: [1, 0, 4],
+
   // Robber and pirate
   /** Opponent threat: 1 + threatPoints * (their points / target)^2 + threatLeader if they lead. */
   threatPoints: [3, 0, 8],

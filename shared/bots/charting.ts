@@ -1,4 +1,4 @@
-import { type ChoiceGroup, choiceGroups, fillChoice } from '../choices';
+import { type ChoiceGroup, choiceGroups, choiceLimit, fillChoice } from '../choices';
 import { affordsSplit, chartHexes } from '../engine/legal';
 import { chartedNumbers, hexNumbers } from '../rules';
 import { boardIndex, terrainResource } from '../seafaring';
@@ -13,17 +13,26 @@ import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, typ
 const dots = (n: number) => 6 - Math.abs(7 - n);
 export const tileDots = (numbers: number[]) => numbers.reduce((sum, n) => sum + dots(n), 0);
 
-/** How much of a tile's payout goes to this seat: 1 per settlement or relay station, 2 per city. */
-export function share(view: GameView, hex: Hex): number {
+/** How much of a tile's payout goes to a seat (this one by default): 1 per settlement or relay station, 2 per city. */
+export function share(view: GameView, hex: Hex, playerId = view.selfId): number {
   const index = boardIndex(view.board);
   let owned = 0;
   for (const id of hex.vertexIds) {
     const building = view.buildings[id];
-    if (building?.playerId === view.selfId) owned += building.kind === 'city' ? 2 : 1;
+    if (building?.playerId === playerId) owned += building.kind === 'city' ? 2 : 1;
   }
   for (const id of view.relays)
-    if (view.roads[id] === view.selfId && index.edgeHexes.get(id)!.some(h => h.id === hex.id)) owned++;
+    if (view.roads[id] === playerId && index.edgeHexes.get(id)!.some(h => h.id === hex.id)) owned++;
   return owned;
+}
+
+/** Cards an opponent gains count against ours at this rate (helping one rival of several costs less than it pays us). */
+const RIVAL_SHARE = 0.6;
+
+/** This seat's share of a tile less its rivals', for moves that improve the tile for everyone on it. */
+function netShare(view: GameView, hex: Hex): number {
+  const rivals = view.players.filter(p => p.id !== view.selfId).reduce((n, p) => n + share(view, hex, p.id), 0);
+  return share(view, hex) - RIVAL_SHARE * rivals;
 }
 
 /** This seat's dots per resource (what its tiles pay), for preferring what it lacks. */
@@ -39,7 +48,7 @@ function income(view: GameView): ResourceBag {
 /** Dots this seat gains from one chart step on a tile. */
 function chartGain(view: GameView, hex: Hex): number {
   const now = hexNumbers(hex);
-  return (tileDots(chartedNumbers(now) ?? now) - tileDots(now)) * share(view, hex);
+  return (tileDots(chartedNumbers(now) ?? now) - tileDots(now)) * netShare(view, hex);
 }
 
 /** A chart on the tile it gains most from, when that gain is worth the lodestone (at least 2 dots). */
@@ -60,7 +69,7 @@ export function splitMove(view: GameView): GameAction | null {
   const tile = view.legal.splitHexes
     .map(id => index.hex.get(id)!)
     .filter(hex => hex.id !== view.robber)
-    .map(hex => ({ hex, value: tileDots(hexNumbers(hex)) * share(view, hex) }))
+    .map(hex => ({ hex, value: tileDots(hexNumbers(hex)) * netShare(view, hex) }))
     .sort((a, b) => b.value - a.value)[0];
   if (!tile || tile.value < 5) return null;
   const own = terrainResource(tile.hex.terrain);
@@ -87,14 +96,20 @@ export function surveyTown(view: GameView, edgeId: string): string | null {
  * free ones to whatever `free` (the level's own gold choice) picks for the rest.
  */
 export function splitGoldChoice(view: GameView, free: (view: GameView) => GameAction): GameAction {
-  const owed = view.pendingGold[view.selfId] ?? 0;
+  const pending = view.pendingGold[view.selfId] ?? 0;
   const splits = view.pendingSplit[view.selfId] ?? [];
-  const limited: ChoiceGroup[] = choiceGroups(owed, splits).filter(g => g.options.length < RESOURCES.length);
   const stock = Object.fromEntries(
-    RESOURCES.map(r => [r, view.bankCounts?.[r] ?? (view.bank[r] ? owed : 0)]),
+    RESOURCES.map(r => [r, view.bankCounts?.[r] ?? (view.bank[r] ? pending : 0)]),
   ) as Record<Resource, number>;
-  const bag = fillChoice(limited, stock, (options, picked) =>
-    [...options].sort((a, b) => view.hand[a] + picked[a] - (view.hand[b] + picked[b])),
+  const groups = choiceGroups(pending, splits);
+  // The bank may pay fewer than are owed (the engine asks for exactly what it can pay).
+  const owed = Math.min(pending, choiceLimit(groups, stock));
+  const limited: ChoiceGroup[] = groups.filter(g => g.options.length < RESOURCES.length);
+  const bag = fillChoice(
+    limited,
+    stock,
+    (options, picked) => [...options].sort((a, b) => view.hand[a] + picked[a] - (view.hand[b] + picked[b])),
+    owed,
   );
   const rest = owed - RESOURCES.reduce((n, r) => n + bag[r], 0);
   if (rest <= 0) return { type: 'choose-gold', resources: bag };

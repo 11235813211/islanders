@@ -2,6 +2,10 @@ import { boardIndex } from '../../seafaring';
 import { type GameView, RESOURCES } from '../../types';
 import { pips } from '../analysis';
 import type { Economy } from './economy';
+import { couldWinNext } from './endgame';
+
+/** Threat multiplier for a player who could win on their next turn. */
+const WINNING_THREAT = 2.5;
 
 /**
  * Where to put the robber or the pirate, and whom to rob. Every option is scored the same way:
@@ -17,7 +21,8 @@ export function threat(econ: Economy, playerId: string): number {
     .filter(p => p.id !== view.selfId)
     .reduce((a, b) => (b.publicPoints > a.publicPoints ? b : a));
   const share = (player.publicPoints + player.developmentCount * 0.3) / view.settings.victoryPoints;
-  return 1 + knobs.threatPoints * share * share + (leader.id === playerId ? knobs.threatLeader : 0);
+  const base = 1 + knobs.threatPoints * share * share + (leader.id === playerId ? knobs.threatLeader : 0);
+  return couldWinNext(econ, playerId) ? base * WINNING_THREAT : base;
 }
 
 /** Expected worth of one card stolen from this player (more if they hold what we're missing). */

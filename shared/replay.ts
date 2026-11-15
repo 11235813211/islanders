@@ -1,4 +1,4 @@
-import { advanceTime, applyAction, idlePause, idleResume, logPresence } from './engine';
+import { advanceTime, applyAction, idlePause, idleResume, logPresence, normalizeGame } from './engine';
 import type { BotLevel, GameAction, GameState } from './types';
 
 /**
@@ -152,7 +152,8 @@ function runStep(state: GameState, step: RecordedStep, random: () => number): Ga
  * which means the engine no longer behaves as it did when the game was played.
  */
 export function replayRecord(record: GameRecord, onStep?: (event: ReplayEvent) => void): GameState {
-  let state = record.initial;
+  // A record keeps the lobby as it was stored then; upgrade it like a stored room.
+  let state = normalizeGame(record.initial, record.steps[0]?.now ?? record.endedAt, () => 0.5);
   record.steps.forEach((step, index) => {
     let used = 0;
     const random = () => {

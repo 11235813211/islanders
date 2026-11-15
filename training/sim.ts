@@ -43,6 +43,8 @@ export interface GameResult {
   winner: number | null;
   /** Visible + hidden points per seat at the end. */
   points: number[];
+  /** Seats in turn order (the engine draws who goes first). */
+  order: number[];
   turns: number;
   steps: number;
   victoryPoints: number;
@@ -70,16 +72,25 @@ export function playGame(
   let g = scenarioLobby(scenario, brains.length, random);
   g = applyAction(g, 'p0', { type: 'start' }, random, NOW);
   const actions = brains.map(() => ({}) as Record<string, number>);
-  const played = playOn(g, brains, random, { hooks, maxSteps, actions });
+  let played: ReturnType<typeof playOn>;
+  try {
+    played = playOn(g, brains, random, { hooks, maxSteps, actions });
+  } catch (error) {
+    // Say which game, so it can be replayed (`replay --seed`).
+    throw new Error(`seed ${seed} (${scenario.name}): ${(error as Error).message}`, { cause: error });
+  }
   g = played.state;
   hooks.end?.(g);
-  endDiagnostics(g).forEach((counts, seat) => {
-    Object.assign(actions[seat]!, counts);
+  // Diagnostics come in turn order; seat i is player p{i}.
+  endDiagnostics(g).forEach((counts, k) => {
+    Object.assign(actions[Number(g.players[k]!.id.slice(1))]!, counts);
   });
-  const points = g.players.map(p => getView(g, p.id).players.find(q => q.id === p.id)!.points);
+  // By seat (p{i}), not turn order: the engine shuffles who goes first.
+  const points = brains.map((_, i) => getView(g, `p${i}`).players.find(q => q.id === `p${i}`)!.points);
   return {
     winner: g.winnerId ? Number(g.winnerId.slice(1)) : null,
     points,
+    order: g.players.map(p => Number(p.id.slice(1))),
     turns: g.turn,
     steps: played.steps,
     victoryPoints: g.settings.victoryPoints,
@@ -148,5 +159,9 @@ export function step(g: GameState, actor: string, brain: Brain, turnSteps: numbe
   lastAction = 'fallback';
   if (g.phase === 'build' && getActivePlayerId(g) === actor)
     return applyAction(g, actor, { type: 'end-turn' }, random, NOW);
-  throw new Error(`Seat ${actor} has no legal move in phase ${g.phase}.`);
+  const owed =
+    g.phase === 'gold'
+      ? ` Owed ${g.pendingGold[actor]}, splits ${JSON.stringify(g.pendingSplit[actor])}, bank ${JSON.stringify(g.bank)}.`
+      : '';
+  throw new Error(`Seat ${actor} has no legal move in phase ${g.phase}.${owed}`);
 }

@@ -46,13 +46,26 @@ itself scores exactly ×1.00):
   bot on hidden facts resampled from its view; every seed once per seat. Slow: ~4.5 CPU-minutes
   per game at the defaults.
 - `profile --games 10` single-thread timing; `scenarios` prints the map/size mix.
+- `replay --seed N --seat S` replays one game with the hero in seat S (as `eval --rotate` played it);
+  a failing training game's error names its seed and map.
+- `--cartographers` (any command with a scenario filter): only maps that play Cartographers.
+- `boards` refreshes `boards/library.json` from the live site; with `ISLANDERS_AUTH=user:token`
+  it includes the admin-only "AI Training" boards, without it those are kept from the old snapshot.
 
 Saved games (people opt in with "Save my games to improve the bots"; recorded only if every human
 at the table agreed; format in `shared/replay.ts`, storage in `server/recording.ts`, newest 500 kept):
-- Export with an account listed in `PLAYTEST_USERS`: `GET /api/records` lists them, and
+- `node training/run.mjs records-fetch` asks for the playtest username and token (the token hidden
+  as you type; or set ISLANDERS_AUTH=user:token) and saves them all to `training/data/records.json`
+  (gitignored). Run it in your own terminal so the token stays out of logs and chats.
+- Export by hand with an account listed in `PLAYTEST_USERS`: `GET /api/records` lists them, and
   `GET /api/records/<id>` returns one (send `Authorization: Bearer <username>:<token>`; the token is in the
   browser's `islanders-account` localStorage entry). Save one or an array of them to a file.
-- `replays --file records.json` re-runs each through the engine and says whether it ends as recorded.
+- `replays --file records.json [--dump training/data/dumps]` re-runs each through the engine and
+  says whether it ends as recorded; `--dump` saves each game's final state and logged events, and
+  `records-study [--dir training/data/dumps]` prints a seat-by-seat table (points, survey ships,
+  charts, lodestone, …). A record replays only on the engine it was played on: when the rules have
+  changed since, dump it from a git worktree at that commit (copy `study.ts` in). The 14 records
+  of 2026-11-12..14 replay on 0526457 (0–2), 0ac5720 (3–4), d924f4f (5), 6cd02ca (6–8), e9fc693 (9–13).
   In code, `replayGame(record, onMove)` in `training/replays.ts` gives the state before and after every step.
 
 Train:
@@ -72,7 +85,8 @@ Train:
 
 Seats by name: `ref:advanced` (or another level) as a git ref plays it, with `--ref origin/main`
 (compares against the pushed bot even when the code differs); checkpoints, `shipped`, `default`, `beginner`, `intermediate`, styles
-(`style:trader|hoarder|cards|builder`, the shipped bot pushed one way), and hybrids for
+(`style:trader|hoarder|cards|builder|lodeblind`, the shipped bot pushed one way; `lodeblind` is the
+Advanced bot before it valued lodestone), and hybrids for
 diagnosis (`intermediate+t1:setup`; parts: setup, robber, build, trade, gold, discard).
 
 Scenarios (`scenarios.ts`, `scenarios --games 20000` prints the mix): the standard island at 2–6
@@ -162,3 +176,24 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
 - Branch vs pushed main (`--ref origin/main`, 2026-11-12, rotated): shipped vs main's Advanced,
   all scenarios ×1.44 (39.1% vs 27.2% fair, 1103 games, seeds 1100000); base/4 ×1.30 (32.6%
   ±1.7%, 800 games). Control: main vs itself ×1.00; main vs Intermediate ×1.25 (as logged).
+- Seat order bug (found 2026-11-14): since random turn order (2026-11-12), `points` and end
+  diagnostics were stored by turn order but read by seat, and setup/value rows were labeled by turn
+  order against a winner stored by seat. Win counts were always right; anything collected or tuned
+  after 2026-11-12 had wrong points/labels (no logged run was). Fixed in `sim.ts`, `jobs.ts`,
+  `networks.ts`, `rollouts.ts`.
+- Cartographers planner (2026-11-14; all 8 Cartographers maps, live library of that date, rotated):
+  the shipped Advanced bot fit out 0.05 survey ships per seat per game. Now: lodestone in setup and
+  spot value, a survey-ship goal (sails out for it), lodestone kept off tiles while saving.
+  Vs `ref:advanced` (HEAD before): ×1.09 (28.6% ±1.6% vs 26.3% fair, 761 games); vs
+  `style:lodeblind` ×1.13–1.17. Survey ships 0.02 → 0.27, lodestone produced 3.8 → 10.3 per game.
+  Looks weaker at 5–6 players (Magnetic North 6p 13% vs 17% fair; small samples). Raising
+  `surveyValue` to 4–5 changed nothing measurable.
+- Endgame check (`advanced/endgame.ts`: buy the win this turn when some set of builds and trades
+  does it; treat an opponent who could win next turn as the threat for robber and trades): ×1.01
+  ±0.04 overall vs `ref:advanced` (1836 games). Bots rarely miss wins against bots; it guards
+  against people.
+- Per-seat action report (2026-11-14): field seats were averaged over all field seats, so big
+  tables (fewer turns each) counted more for the field than for the hero, and mixed-size runs
+  showed the hero "ending turns" more (ref:advanced vs itself: 19.89 vs 18.31). Each game's seats
+  are now averaged first; the same bots then match exactly. Action counts logged above this entry
+  from mixed table sizes carry that skew.

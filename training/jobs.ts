@@ -176,13 +176,14 @@ export function runJob(job: GameJob): JobResult {
         // The first move after setup: every seat's starting position is final.
         if (setupDone) return;
         setupDone = true;
-        state.players.forEach((p, seat) => {
-          recorded.push({ seat, features: finalSetupFeatures(getView(state, p.id), params) });
+        // Seats are p{i} (labels use them), not turn order: the engine shuffles who goes first.
+        state.players.forEach(p => {
+          recorded.push({ seat: Number(p.id.slice(1)), features: finalSetupFeatures(getView(state, p.id), params) });
         });
       } else if (state.phase === 'roll' && sampled(state.version, job.seed)) {
         // A sample of turn starts, seen by one seat per game (so TD targets have a sequence).
         const viewer = viewSeat(job.seed, state.players.length);
-        const econ = new Economy(getView(state, state.players[viewer]!.id), params.knobs);
+        const econ = new Economy(getView(state, `p${viewer}`), params.knobs);
         recorded.push({ seat: viewer, features: paddedSeats(seatFeatures(econ, seatPositions(econ))) });
       }
     },

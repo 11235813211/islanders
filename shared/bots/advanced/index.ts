@@ -1,8 +1,10 @@
+import { BUILD_COSTS } from '../../engine/core';
 import type { GameAction, GameView, TradeOffer } from '../../types';
 import { linkAction } from '../analysis';
 import type { Brain, TurnOptions } from '../types';
 import { valueBuild } from './choose';
 import { discard, Economy, goldChoice } from './economy';
+import { winningMove } from './endgame';
 import { type AdvancedParams, TRAINED } from './params';
 import { robberHex, stealTarget } from './robber';
 import { setupRoad, setupSettlement } from './setup';
@@ -34,7 +36,10 @@ export function makeAdvanced(params: AdvancedParams): Brain {
             linkAction(view, view.legal.roads[0] ?? view.legal.ships[0]) ?? { type: 'finish-free-roads' }
           );
         case 'build':
-          return params.valueNet ? valueBuild(econ, params.valueNet, options) : buildStep(econ, options);
+          return (
+            winningMove(econ) ??
+            (params.valueNet ? valueBuild(econ, params.valueNet, options) : buildStep(econ, options))
+          );
         default:
           return { type: 'end-turn' };
       }
@@ -43,6 +48,9 @@ export function makeAdvanced(params: AdvancedParams): Brain {
     respond: (view: GameView, offer: TradeOffer) => respond(new Economy(view, knobs), offer),
     review: (view: GameView, offer: TradeOffer) => review(new Economy(view, knobs), offer),
     gold: (view: GameView) => goldChoice(view, knobs),
+    // Saving for a survey ship it can reach: its lodestone stays off tiles and out of trades.
+    lodestoneReserve: (view: GameView) =>
+      knobs.surveyValue > 0 && new Economy(view, knobs).survey ? BUILD_COSTS.survey.lodestone : 0,
     specialBuild(view: GameView): GameAction {
       // Only building is allowed here: a city, then a settlement.
       const econ = new Economy(view, knobs);

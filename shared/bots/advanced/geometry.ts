@@ -30,6 +30,8 @@ export interface Geometry {
   /** Pips per resource per corner: pips[c * 5 + r]. The robber is ignored here. */
   pips: Float32Array;
   gold: Float32Array;
+  /** Lodestone pips (Cartographers), kept apart from the five the network knows. */
+  lodestone: Float32Array;
   volcano: Float32Array;
   jungle: Float32Array;
   /** Distinct numbers touching each corner (for spread). */
@@ -85,6 +87,7 @@ function build(board: Board, seafaring: boolean): Geometry {
     indexOf,
     pips: new Float32Array(n * 5),
     gold: new Float32Array(n),
+    lodestone: new Float32Array(n),
     volcano: new Float32Array(n),
     jungle: new Float32Array(n),
     numbers: [],
@@ -115,6 +118,7 @@ function build(board: Board, seafaring: boolean): Geometry {
       if (!p) continue;
       const slot = classicSlot(terrainResource(hex.terrain) ?? '');
       if (slot >= 0) geo.pips[c * 5 + slot]! += p;
+      else if (hex.terrain === 'lodestone') geo.lodestone[c]! += p;
       else if (hex.terrain === 'gold') geo.gold[c]! += p;
       else if (hex.terrain === 'volcano') geo.volcano[c]! += p;
       else if (hex.terrain === 'jungle') geo.jungle[c]! += p;

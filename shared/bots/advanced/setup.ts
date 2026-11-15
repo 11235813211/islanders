@@ -117,6 +117,7 @@ function cornerValue(ctx: Context, c: number, knobs = ctx.knobs): number {
   const volcano = ctx.view.settings.volcanoGold ? gold * 0.75 : 0;
   let v = geo.gold[c]! * gold + geo.volcano[c]! * volcano + geo.jungle[c]! * 0.5;
   for (let r = 0; r < 5; r++) v += geo.pips[c * 5 + r]! * ctx.scarcity[r]!;
+  if (ctx.view.cartographers) v += geo.lodestone[c]! * knobs.setupLodestone;
   return v;
 }
 
@@ -316,7 +317,20 @@ function prior(ctx: Context, f: number[]): number {
 /** Score of a finished (or played-out) starting position for `seat`. */
 function evaluate(ctx: Context, owners: Int8Array, seat: number): number {
   const f = features(ctx, owners, seat);
-  return ctx.params.setupNet ? predict(ctx.params.setupNet, f) * 100 : prior(ctx, f);
+  const score = ctx.params.setupNet ? predict(ctx.params.setupNet, f) * 100 : prior(ctx, f);
+  return score + lodestoneScore(ctx, owners, seat);
+}
+
+/**
+ * Cartographers: lodestone pays for survey ships (a point for 3 lodestone and 1 ore), which the
+ * setup network was never trained on, so its worth is added on top. Past about two survey ships'
+ * worth of income, more counts for little.
+ */
+function lodestoneScore(ctx: Context, owners: Int8Array, seat: number): number {
+  if (!ctx.view.cartographers) return 0;
+  let pips = 0;
+  for (const c of cornersOf(owners, seat)) pips += ctx.geo.lodestone[c]!;
+  return ctx.knobs.setupLodestone * Math.min(pips, 8);
 }
 
 /** Play out the draft from `step`: opponents pick greedily; this bot picks by lookahead. */

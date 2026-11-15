@@ -48,15 +48,15 @@ export function summarize(results: JobResult[]): Score {
   const byScenario = new Map<string, { games: number; wins: number; fair: number }>();
   const heroActions: Record<string, number> = {};
   const fieldActions: Record<string, number> = {};
-  let heroSeats = 0;
-  let fieldSeats = 0;
   for (const r of results) {
+    // Each game's seats are averaged first, so hero and field weigh every game the same (a field
+    // seat at a big table, with fewer turns, would otherwise count more than the hero's one seat).
+    const heroes = r.heroSeats.length;
+    const field = r.players - heroes;
     r.actions.forEach((counts, seat) => {
       const hero = r.heroSeats.includes(seat);
-      if (hero) heroSeats++;
-      else fieldSeats++;
-      for (const [k, v] of Object.entries(counts))
-        (hero ? heroActions : fieldActions)[k] = ((hero ? heroActions : fieldActions)[k] ?? 0) + v;
+      const into = hero ? heroActions : fieldActions;
+      for (const [k, v] of Object.entries(counts)) into[k] = (into[k] ?? 0) + v / (hero ? heroes : field);
     });
     const won = r.winner !== null && r.heroSeats.includes(r.winner);
     if (r.winner === null) unfinished++;
@@ -86,8 +86,8 @@ export function summarize(results: JobResult[]): Score {
     heroPoints: points / n,
     byScenario,
     avgMs: ms / n,
-    heroActions: Object.fromEntries(Object.entries(heroActions).map(([k, v]) => [k, v / (heroSeats || 1)])),
-    fieldActions: Object.fromEntries(Object.entries(fieldActions).map(([k, v]) => [k, v / (fieldSeats || 1)])),
+    heroActions: Object.fromEntries(Object.entries(heroActions).map(([k, v]) => [k, v / n])),
+    fieldActions: Object.fromEntries(Object.entries(fieldActions).map(([k, v]) => [k, v / n])),
   };
 }
 

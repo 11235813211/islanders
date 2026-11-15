@@ -24,7 +24,14 @@ export function endDiagnostics(g: GameState): Record<string, number>[] {
       changed = keep.length < live.length;
       live = keep;
     }
-    return { 'end: dead routes': edges.length - live.length, 'end: routes': edges.length };
+    const out: Record<string, number> = { 'end: dead routes': edges.length - live.length, 'end: routes': edges.length };
+    if (g.bank.lodestone || g.surveys.length || g.stats[p.id]?.produced.lodestone) {
+      // Cartographers: lodestone earned, and survey ships at the end (a point each).
+      out['end: lodestone produced'] = g.stats[p.id]?.produced.lodestone ?? 0;
+      out['end: survey ships'] = g.surveys.filter(id => g.ships[id] === p.id).length;
+      out['end: won with survey ships'] = g.winnerId === p.id ? out['end: survey ships'] : 0;
+    }
+    return out;
   });
 }
 

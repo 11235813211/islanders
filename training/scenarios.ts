@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type BoardDesign, BUILTIN_BOARDS, isAdminOnlyCategory, playerRanges, upgradeDesign } from '../shared/maps';
+import { boardExpansions } from '../shared/maps/types';
 import type { GameSettings } from '../shared/types';
 import { seeded } from './sim';
 
@@ -104,6 +105,8 @@ export interface ScenarioFilter {
   maps?: string[];
   /** Only these table sizes. */
   players?: number[];
+  /** Only maps that play Cartographers (lodestone, survey ships). */
+  cartographers?: boolean;
   /** Share of games on the standard island (default 0.3). */
   baseShare?: number;
   /** Share of games on "AI Training" boards (default 0.25); other designed maps get the rest. */
@@ -114,6 +117,8 @@ export interface ScenarioFilter {
 export function drawScenario(seed: number, filter: ScenarioFilter = {}): Scenario {
   const random = seeded(seed * 7919 + 17);
   let tables = mapTables().filter(t => !filter.maps || filter.maps.includes(t.id));
+  if (filter.cartographers)
+    tables = tables.filter(t => t.design && boardExpansions(t.design).includes('cartographers'));
   if (filter.players)
     tables = tables
       .map(t => ({ ...t, players: t.players.filter(n => filter.players!.includes(n)) }))

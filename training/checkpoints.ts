@@ -56,6 +56,8 @@ export const STYLES: Record<string, Record<string, number>> = {
   cards: { developmentValue: 3, spareDevelopment: 5, cityValue: 1.5, longestRoadReach: 0 },
   /** Roads and settlements first, chases Longest Road. */
   builder: { settlementValue: 3.5, spareRoads: 4, longestRoadReach: 4, developmentValue: 0.6, spareDevelopment: 0 },
+  /** Blind to lodestone (as before the Cartographers planner): survey ships only when they come. */
+  lodeblind: { surveyValue: 0, lodestoneSpot: 0, setupLodestone: 0 },
 };
 
 export function loadCheckpoint(name: string): Checkpoint {

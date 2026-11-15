@@ -152,7 +152,7 @@ function seatPosition(econ: Economy, seat: number, open: number[]): Position {
 }
 
 /** Bank rates from the harbors a player has built on. */
-function harborRates(econ: Economy, playerId: string): Record<Resource, number> {
+export function harborRates(econ: Economy, playerId: string): Record<Resource, number> {
   const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4 };
   for (const [vertexId, b] of Object.entries(econ.view.buildings)) {
     if (b.playerId !== playerId) continue;

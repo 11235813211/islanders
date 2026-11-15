@@ -89,26 +89,28 @@ function tradeToward(view: GameView, piece: 'survey' | 'relay'): GameAction | nu
 
 /**
  * Cartographers on a bot's own turn: a survey ship first (a point), else a split or chart on its
- * tiles with lodestone it doesn't need for a planned survey ship or relay station; and before
- * ending the turn, a relay station or the trade that completes one of the two.
+ * tiles with lodestone it doesn't need for a planned survey ship or relay station (or what its own
+ * plans `reserve`); and before ending the turn, a relay station or the trade that completes one of the two.
  */
-export function cartographersTurn(view: GameView, planned: GameAction): GameAction {
+export function cartographersTurn(view: GameView, planned: GameAction, reserve = 0): GameAction {
   if (!view.cartographers || view.phase !== 'build' || view.activePlayerId !== view.selfId) return planned;
   const survey = surveyMove(view);
   if (survey) return survey;
   const use = lodestoneUse(view);
   // Charts and splits are cheap, so only lodestone beyond the planned piece's goes on tiles.
-  const spare = view.hand.lodestone - (use ? BUILD_COSTS[use].lodestone : 0);
+  const spare = view.hand.lodestone - Math.max(reserve, use ? BUILD_COSTS[use].lodestone : 0);
   if (spare >= BUILD_COSTS.chart.lodestone) {
     const tile = splitMove(view) ?? chartMove(view);
     if (tile) return tile;
   }
-  const finish = () => relayMove(view) ?? (use ? tradeToward(view, use) : null);
-  if (use && givesLodestone(planned)) return finish() ?? { type: 'end-turn' };
+  // A relay station spends lodestone too, so not out of a reserve.
+  const finish = () =>
+    (spare >= BUILD_COSTS.relay.lodestone ? relayMove(view) : null) ?? (use ? tradeToward(view, use) : null);
+  if ((use || reserve) && givesLodestone(planned)) return finish() ?? { type: 'end-turn' };
   return planned.type === 'end-turn' ? (finish() ?? planned) : planned;
 }
 
-/** Turn down offers for lodestone while it has a use. */
-export function keepsLodestone(view: GameView, offer: TradeOffer): boolean {
-  return view.cartographers && (offer.want.lodestone ?? 0) > 0 && lodestoneUse(view) !== null;
+/** Turn down offers for lodestone while it has a use (or the bot's plans `reserve` some). */
+export function keepsLodestone(view: GameView, offer: TradeOffer, reserve = 0): boolean {
+  return view.cartographers && (offer.want.lodestone ?? 0) > 0 && (reserve > 0 || lodestoneUse(view) !== null);
 }

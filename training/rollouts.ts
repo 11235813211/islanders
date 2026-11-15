@@ -107,9 +107,10 @@ export function rollout(
   }
   g = playOn(g, brains, random, { untilTurn: state.turn + options.rounds * state.players.length }).state;
   const n = g.players.length;
-  const seat = Number(id.slice(1));
+  // Seats in turn order from ours, as the scorer lists them.
+  const place = (playerId: string) => g.players.findIndex(p => p.id === playerId);
   if (g.winnerId) {
-    const winner = (Number(g.winnerId.slice(1)) - seat + n) % n;
+    const winner = (place(g.winnerId) - place(id) + n) % n;
     return Array.from({ length: n }, (_, k) => (k === winner ? 1 : 0));
   }
   if (!options.scorer) return new Array(n).fill(0);

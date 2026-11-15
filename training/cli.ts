@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import type { Knob } from '../shared/bots/advanced/params';
 import { makeParams } from '../shared/bots/advanced/params';
 import { getView } from '../shared/engine';
@@ -9,12 +10,14 @@ import { reportDisagreements } from './disagree';
 import { matchJobs, pairedDifference, playMatch, report, summarize } from './evaluate';
 import { runGauntlet } from './gauntlet';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
+import { askAuth, fetchRecords, SITE, saveLibrary } from './live';
 import { collect, fitNetwork } from './networks';
 import { runJobs } from './pool';
 import { loadRecords, replayGame } from './replays';
 import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { playGame } from './sim';
+import { eventCollector, studyDumps, writeDump } from './study';
 import { TUNABLE, tune } from './tune';
 
 /**
@@ -34,7 +37,8 @@ const list = (value: string | undefined) => (value ? value.split(',').map(s => s
 export function filterFromFlags(): ScenarioFilter | undefined {
   const maps = list(flags.maps);
   const players = list(flags.players)?.map(Number);
-  return maps || players ? { maps, players } : undefined;
+  const cartographers = flags.cartographers === 'true';
+  return maps || players || cartographers ? { maps, players, cartographers } : undefined;
 }
 
 /** Apply --knobs '{"name":value}' on top of an Advanced seat. */
@@ -125,13 +129,39 @@ function fitFor(kind: Kind, hidden: string) {
 
 Object.assign(COMMANDS, {
   /** Replay saved games and check they end as recorded: --file records.json (from /api/records). */
+  /** Refresh training/boards/library.json from the live site ([ISLANDERS_AUTH=user:token] for the admin-only boards). */
+  async boards() {
+    console.log(await saveLibrary(flags.site ?? SITE, 'training/boards/library.json', process.env.ISLANDERS_AUTH));
+  },
+  /** Seat-by-seat table of dumped games (`replays --file f --dump dir`): records-study --dir dir. */
+  'records-study'() {
+    const rows = studyDumps(flags.dir ?? 'training/data/dumps');
+    const keys = Object.keys(rows[0] ?? {});
+    console.log(keys.join('\t'));
+    for (const row of rows) console.log(keys.map(k => row[k]).join('\t'));
+  },
+  /** Save every record from the live site: records-fetch [--out file] [--site url]; asks for the login (or ISLANDERS_AUTH=user:token). */
+  async 'records-fetch'() {
+    const auth = await askAuth();
+    const out = flags.out ?? 'training/data/records.json';
+    const records = await fetchRecords(flags.site ?? SITE, auth);
+    writeFileSync(out, JSON.stringify(records));
+    console.log(`${records.length} records saved to ${out}`);
+  },
   replays() {
-    for (const record of loadRecords(flags.file ?? '')) {
-      const end = replayGame(record);
-      const ok = end.version === record.finalVersion && end.phase === 'finished';
-      console.log(
-        `${ok ? 'ok' : 'DIFFERS'}  ${record.steps.length} steps  ${end.players.length} players  turn ${end.turn}`,
-      );
+    for (const [i, record] of loadRecords(flags.file ?? '').entries()) {
+      const when = new Date(record.endedAt).toISOString().slice(0, 16);
+      try {
+        const collect = eventCollector();
+        const end = replayGame(record, collect.onStep);
+        if (flags.dump) writeDump(flags.dump, i, { ...record, final: end, events: collect.events });
+        const ok = end.version === record.finalVersion;
+        console.log(
+          `${i} ${when} ${ok ? 'ok' : 'DIFFERS'}  ${record.steps.length} steps  ${end.players.length} players  turn ${end.turn}`,
+        );
+      } catch (error) {
+        console.log(`${i} ${when} FAILS  ${(error as Error).message}`);
+      }
     }
   },
   /** Self-play recording starting positions: --from shipped --games 40000 --out r1 [--explore 0.35]. */
@@ -204,6 +234,8 @@ Object.assign(COMMANDS, {
       seed,
       hero: withKnobs(seatFor(flags.hero ?? 'shipped')),
       field: (list(flags.field) ?? ['intermediate']).map(seatFor),
+      // --seat n: the hero's seat, as eval --rotate plays it.
+      seat: flags.seat === undefined ? undefined : Number(flags.seat),
     };
     const scenario = drawScenario(seed, filterFromFlags());
     const heroes = heroSeats(job, scenario.players);

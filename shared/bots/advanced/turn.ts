@@ -160,6 +160,11 @@ export function buildStep(econ: Economy, options: TurnOptions): GameAction {
   const award = longestRoadMove(econ);
   if (award) return award.action;
   const goal = econ.bestGoal();
+  // Saving for a survey ship: sail out to open sea first.
+  if (goal?.goal === 'survey') {
+    const ship = linkAction(view, econ.survey?.firstEdge, 'ship');
+    if (ship) return ship;
+  }
   // With a corner already in reach, save for the settlement instead of roads to the next one.
   if (goal?.goal === 'settlement' && !econ.spots) {
     const road = towardTarget(econ);
