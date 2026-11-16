@@ -35,6 +35,17 @@ describe('Advanced endgame check', () => {
     const g = nearTheEnd(3, { ore: 6, wheat: 2, sheep: 8 });
     expect(winningMove(new Economy(getView(g, 'p0'), TRAINED.knobs))).toBeNull();
   });
+
+  it('picks the gold that lets it win on its turn', () => {
+    // One point short with a settlement to upgrade: two wheat and two ore in hand, one gold owed.
+    const g = nearTheEnd(1, { ore: 2, wheat: 2 });
+    g.phase = 'gold';
+    g.pendingGold = { p0: 1 };
+    expect(chooseBotAction(getView(g, 'p0'), { level: 'advanced' })).toMatchObject({
+      type: 'choose-gold',
+      resources: { ore: 1, wheat: 0, wood: 0, brick: 0, sheep: 0 },
+    });
+  });
 });
 
 describe('Advanced bots in whole games', () => {

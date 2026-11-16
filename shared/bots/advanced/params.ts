@@ -63,6 +63,14 @@ export const KNOBS = {
   lodestoneSpot: [1.2, 0, 3],
   /** Setup: score per lodestone pip at a seat's starting corners (outside the setup network). */
   setupLodestone: [1, 0, 4],
+  /** Charts and splits: a rival's card counts against ours at this rate (charting.ts TileTuning). */
+  chartRivalShare: [1, 0, 3],
+  /** Charts and splits: weight of rivals likely to settle a tile's open corners later, or build cities there. */
+  chartFutureRivals: [1, 0, 2],
+  /** Chart gain on a lodestone tile is multiplied by this. */
+  chartLodestoneTile: [1, 0.5, 3],
+  /** 1: split into the resource it earns none of, trading for the card first. */
+  splitTrade: [1, 0, 1],
 
   // Robber and pirate
   /** Opponent threat: 1 + threatPoints * (their points / target)^2 + threatLeader if they lead. */

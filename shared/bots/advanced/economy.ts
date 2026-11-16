@@ -2,6 +2,7 @@ import { emptyBag } from '../../engine/core';
 import { boardIndex } from '../../seafaring';
 import { type GameAction, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../types';
 import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths, routeGoalAt } from '../analysis';
+import { winningGold } from './endgame';
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
 import { makePlans, type Plan, type PlanKind, planScore } from './plans';
@@ -375,13 +376,22 @@ const plus = (a: ResourceBag, b: ResourceBag): ResourceBag => {
 export function goldChoice(view: GameView, knobs: Knobs): GameAction {
   const econ = new Economy(view, knobs);
   const owed = view.pendingGold[view.selfId] ?? 0;
+  const picks = choices(econ, owed);
+  // A pick that wins this turn beats any hand value.
+  const wins = winningGold(econ, picks);
+  if (wins) return finishGold(econ, owed, { ...wins });
   let best = emptyBag();
   let score = -Infinity;
-  for (const bag of choices(econ, owed)) {
+  for (const bag of picks) {
     const s = econ.handValue(plus(view.hand, bag));
     if (s > score) [best, score] = [bag, s];
   }
-  // More than four owed: the rest go greedily, one at a time.
+  return finishGold(econ, owed, best);
+}
+
+/** Cards owed beyond the four searched go greedily, one at a time. */
+function finishGold(econ: Economy, owed: number, best: ResourceBag): GameAction {
+  const { view } = econ;
   for (let left = owed - Math.min(owed, 4); left > 0; left--) {
     const hand = plus(view.hand, best);
     const r = [...RESOURCES]

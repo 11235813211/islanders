@@ -21,6 +21,8 @@ export { awayHostSuccessor, botSeatId, passHost } from './seats';
 export { idlePause, idleResume, logPresence } from './social';
 export {
   advanceTime,
+  BOT_ANSWER_MS,
+  BOT_ANSWER_SPREAD_MS,
   BOT_OFFER_WAIT_MS,
   BOT_THINK_MS,
   botDueAt,

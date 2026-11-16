@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import type { Knob } from '../shared/bots/advanced/params';
 import { makeParams } from '../shared/bots/advanced/params';
 import { getView } from '../shared/engine';
@@ -13,6 +13,14 @@ import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { askAuth, fetchRecords, SITE, saveLibrary } from './live';
 import { collect, fitNetwork } from './networks';
 import { runJobs } from './pool';
+import {
+  type DecisionResult,
+  decisionsAt,
+  type Position,
+  type RecordDecision,
+  recordPositions,
+  reportRecordDecisions,
+} from './record-disagree';
 import { loadRecords, replayGame } from './replays';
 import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
@@ -163,6 +171,45 @@ Object.assign(COMMANDS, {
         console.log(`${i} ${when} FAILS  ${(error as Error).message}`);
       }
     }
+  },
+  /**
+   * The person's moves in saved games with the position before each, for records-disagree:
+   * records-positions --file records.json --out positions.json [--only 0,4]. Run it on the engine
+   * the games were played on (a git worktree at that commit, if the rules changed since).
+   */
+  'records-positions'() {
+    const only = list(flags.only)?.map(Number);
+    const positions = loadRecords(flags.file ?? 'training/data/records.json').flatMap((record, i) => {
+      if (only && !only.includes(i)) return [];
+      try {
+        return recordPositions(record, i);
+      } catch (error) {
+        console.log(`game ${i}: ${(error as Error).message}`);
+        return [];
+      }
+    });
+    writeFileSync(flags.out ?? 'positions.json', JSON.stringify(positions));
+    console.log(`${positions.length} positions saved`);
+  },
+  /**
+   * Where the person in saved games played otherwise than the bot, and which move won more in
+   * rollouts: records-disagree --positions a.json,b.json (from records-positions) [--bot shipped
+   * --rollouts 32 --top 25 --out file.json].
+   */
+  async 'records-disagree'() {
+    const seat = withKnobs(seatFor(flags.bot ?? 'shipped'));
+    const positions = (list(flags.positions) ?? []).flatMap(
+      file => JSON.parse(readFileSync(file, 'utf8')) as Position[],
+    );
+    const decisions = decisionsAt(positions, seat, Number(flags.rollouts ?? 32));
+    console.log(`${decisions.length} of ${positions.length} moves where the bot would have played otherwise`);
+    const results = (
+      await runJobs<RecordDecision, DecisionResult | null>(decisions, done =>
+        process.stderr.write(`  ${done}/${decisions.length}\r`),
+      )
+    ).filter(r => r !== null);
+    if (flags.out) writeFileSync(flags.out, JSON.stringify(results, null, 1));
+    reportRecordDecisions(results, Number(flags.top ?? 25));
   },
   /** Self-play recording starting positions: --from shipped --games 40000 --out r1 [--explore 0.35]. */
   'setup-collect': () => collectFor('setup', 0.35),

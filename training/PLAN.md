@@ -88,3 +88,17 @@ diagnostics in eval (dead routes, fog revealed), `moves-collect` and seat-net TD
 - 2026-11-12: step 1 run (above): small, real headroom from build-decision search; under the
   45% bar. Next is the owner's call: step 2 (people), or a wider/larger search (robber, setup,
   more road targets, margin 0, more rollouts) before step 3.
+- 2026-11-16: step 2 with the saved games (README results log): `records-disagree` compares each
+  of the person's moves with the bot's by rollouts. It catches immediate mistakes (special build,
+  fixed; an off-turn gold pick) but undervalues a move that starts a plan, because the bot plays the
+  rest of the person's game. Tile-judgment knobs (rival share, future rivals, lodestone first,
+  split trading) all measured within noise against bots. More knob tuning looks unlikely to give
+  the jump we want. Next: study repeated strategic failures across the human games (where the
+  bots fall behind and why, by phase of the game), not single moves; then test each candidate
+  fix against people.
+- 2026-11-16, whole-game study (README log): the person out-grows the bots in mid-game, through a
+  lodestone source taken at setup and charts on tiles they hold alone; the bots stall. Smaller:
+  spot races the bot doesn't contest or block, and trades that complete the person's build.
+  Candidate fixes: lodestone source in setup, contesting and blocking roads, declining a trade that
+  completes an opponent's build. Bot-vs-bot games barely show these (bots don't exploit them), so
+  each fix needs a regression check vs `ref:advanced` (base, The Channel) and then games vs people.

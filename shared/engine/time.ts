@@ -22,6 +22,12 @@ export const UNDO_GRACE_MS = 3500;
 export const ROLL_SHOW_MS = 3000;
 /** How long a bot's offer stays open for people to answer once someone has already said yes. */
 export const BOT_OFFER_WAIT_MS = 8000;
+/**
+ * A bot answers another bot's offer this long after it was made, plus up to BOT_ANSWER_SPREAD_MS
+ * (different for each bot), so people can read a trade between bots before it closes.
+ */
+export const BOT_ANSWER_MS = 1500;
+export const BOT_ANSWER_SPREAD_MS = 1500;
 /** Safety valve: a bot that has done this much in one turn ends it. */
 const MAX_BOT_STEPS_PER_TURN = 30;
 
@@ -59,8 +65,12 @@ export function botDueAt(state: GameState): number | null {
   const actor = pendingBotActor(state);
   if (!actor) return null;
   if (state.phase === 'build') {
-    // Answering someone else's trade offer needs no show of thinking.
-    if (state.tradeOffers.some(o => o.to.includes(actor) && !hasAnswered(o, actor))) return state.updatedAt;
+    // A person's offer is answered at once; another bot's after a moment people can follow.
+    const incoming = state.tradeOffers.find(o => o.to.includes(actor) && !hasAnswered(o, actor));
+    if (incoming)
+      return isBot(state, incoming.fromId)
+        ? Math.max(state.updatedAt, incoming.createdAt + answerDelay(state, incoming.id, actor))
+        : state.updatedAt;
     // A bot's offer with a yes but people still to answer waits a while, so they can say yes too.
     const offer = state.tradeOffers.find(o => o.fromId === actor);
     if (offer && !offer.to.every(id => hasAnswered(offer, id)))
@@ -68,6 +78,17 @@ export function botDueAt(state: GameState): number | null {
   }
   const grace = endTurnUndoable(state) ? UNDO_GRACE_MS : justRolled(state, actor) ? ROLL_SHOW_MS : 0;
   return state.updatedAt + BOT_THINK_MS + grace;
+}
+
+/**
+ * When a bot answers a bot's offer, after it was made: BOT_ANSWER_MS plus a per-bot share of the
+ * spread. Hashed by seat, not player id, so recorded games (which rename ids) replay the same.
+ */
+function answerDelay(state: GameState, offerId: string, botId: string): number {
+  const seat = state.players.findIndex(p => p.id === botId);
+  let hash = seat + 1;
+  for (const c of offerId) hash = (Math.imul(hash, 31) + c.charCodeAt(0)) >>> 0;
+  return BOT_ANSWER_MS + (hash % (BOT_ANSWER_SPREAD_MS + 1));
 }
 
 function botStepsThisTurn(state: GameState, id: string): number {

@@ -1,6 +1,8 @@
 import { BUILD_COSTS } from '../../engine/core';
 import type { GameAction, GameView, TradeOffer } from '../../types';
 import { linkAction } from '../analysis';
+import { surveyMove } from '../cartographers';
+import type { TileTuning } from '../charting';
 import type { Brain, TurnOptions } from '../types';
 import { valueBuild } from './choose';
 import { discard, Economy, goldChoice } from './economy';
@@ -11,6 +13,16 @@ import { setupRoad, setupSettlement } from './setup';
 import { respond, review } from './trade';
 import { bestCity, bestSettlement, buildStep, knightNow, towardTarget } from './turn';
 
+/** What a bot may build in another player's special build phase (no trades or cards). */
+const SPECIAL_BUILDS = new Set<GameAction['type']>([
+  'build-city',
+  'build-settlement',
+  'build-road',
+  'build-ship',
+  'build-survey',
+  'buy-development',
+]);
+
 /**
  * The Advanced bot. Setup uses a draft lookahead scored by a network trained on self-play
  * (setup.ts); the rest is a planner whose numbers (params.ts KNOBS) are tuned by self-play
@@ -18,6 +30,12 @@ import { bestCity, bestSettlement, buildStep, knightNow, towardTarget } from './
  */
 export function makeAdvanced(params: AdvancedParams): Brain {
   const { knobs } = params;
+  const tiles: TileTuning = {
+    rivalShare: knobs.chartRivalShare,
+    futureRivals: knobs.chartFutureRivals,
+    lodestoneTile: knobs.chartLodestoneTile,
+    splitTrade: knobs.splitTrade >= 0.5,
+  };
   return {
     turn(view: GameView, options: TurnOptions): GameAction {
       if (view.phase === 'setup-settlement') return setupSettlement(view, params, knobs.setupExplore);
@@ -51,12 +69,16 @@ export function makeAdvanced(params: AdvancedParams): Brain {
     // Saving for a survey ship it can reach: its lodestone stays off tiles and out of trades.
     lodestoneReserve: (view: GameView) =>
       knobs.surveyValue > 0 && new Economy(view, knobs).survey ? BUILD_COSTS.survey.lodestone : 0,
+    tiles,
     specialBuild(view: GameView): GameAction {
-      // Only building is allowed here: a city, then a settlement.
+      // Only building is allowed here: a city or settlement first, then what its turn would build.
       const econ = new Economy(view, knobs);
       if (view.legal.cities.length) return { type: 'build-city', vertexId: bestCity(econ) };
       if (view.legal.settlements.length) return { type: 'build-settlement', vertexId: bestSettlement(econ) };
-      return { type: 'end-turn' };
+      const survey = view.cartographers ? surveyMove(view, tiles) : null;
+      if (survey) return survey;
+      const step = buildStep(econ, { builds: 0, allowOffers: false });
+      return SPECIAL_BUILDS.has(step.type) ? step : { type: 'end-turn' };
     },
   };
 }

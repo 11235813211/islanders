@@ -165,6 +165,30 @@ export function winningMove(econ: Economy): GameAction | null {
   return null;
 }
 
+/**
+ * A gold pick that lets this seat win on the turn it is about to play, or null. Only the seat whose
+ * turn it is can use it at once; for everyone else the normal hand value decides.
+ */
+export function winningGold(econ: Economy, picks: ResourceBag[]): ResourceBag | null {
+  const { view } = econ;
+  const owed = view.pendingGold[view.selfId] ?? 0;
+  const need = pointsToGo(econ);
+  const goal = view.board.rules?.routeGoal;
+  if (view.activePlayerId !== view.selfId || !owed || need > MAX_PIECES * 2 || need < 1) return null;
+  if (goal?.required && !econ.self.routeDone) return null;
+  const scores = ownScores(econ);
+  if (scores.reduce((n, s) => n + s.points, 0) < need) return null;
+  const plenty = view.development.some(c => c.kind === 'year-of-plenty' && view.playableDevelopment.includes(c.id));
+  const wild = plenty ? 2 : 0;
+  // One check with every owed card free first: most of the time nothing wins and this is all it costs.
+  if (!bestPlan(econ, scores, need, view.hand, view.tradeRates, wild + Math.min(owed, 4))) return null;
+  for (const bag of picks) {
+    const hand = Object.fromEntries(RESOURCES.map(r => [r, view.hand[r] + bag[r]])) as ResourceBag;
+    if (bestPlan(econ, scores, need, hand, view.tradeRates, wild)) return bag;
+  }
+  return null;
+}
+
 /** What the first move of a settlement plan costs: a road or ship, or the settlement itself. */
 function startCost(item: Score): ResourceBag {
   if (!item.route) return item.cost;

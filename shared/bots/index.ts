@@ -54,7 +54,7 @@ export function actWith(brain: Brain, view: GameView, options: TurnOptions = {})
     const own = view.tradeOffers.find(o => o.fromId === view.selfId);
     if (own) return brain.review(view, own);
   }
-  return cartographersTurn(view, brain.turn(view, options), reserveOf(brain, view));
+  return cartographersTurn(view, brain.turn(view, options), reserveOf(brain, view), brain.tiles);
 }
 
 /** Lodestone the brain's own plans are saving (Cartographers only). */

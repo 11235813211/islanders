@@ -3,6 +3,8 @@ import { chooseBotAction } from '../shared/bots';
 import {
   advanceTime,
   applyAction,
+  BOT_ANSWER_MS,
+  BOT_ANSWER_SPREAD_MS,
   BOT_OFFER_WAIT_MS,
   botDueAt,
   getActivePlayerId,
@@ -57,6 +59,37 @@ describe('bot trade offers', () => {
     const traded = advanceTime(g, now + BOT_OFFER_WAIT_MS, seeded());
     expect(traded.tradeOffers[0]).toBeUndefined();
     expect(traded.players[0]!.resources.ore).toBe(1);
+  });
+});
+
+describe('trades between bots', () => {
+  it('waits a moment before bots answer a bot, so people can see the offer', () => {
+    let g = settled();
+    clearHands(g);
+    for (const p of g.players) p.bot = 'beginner';
+    g.phase = 'build';
+    g.rollDeadline = null;
+    grant(g, 'p0', { wood: 2 });
+    grant(g, 'p1', { ore: 2 });
+    grant(g, 'p2', { ore: 2 });
+    const terms = {
+      give: { ...g.players[0]!.resources, wood: 1 },
+      want: { ...g.players[0]!.resources, wood: 0, ore: 1 },
+      to: ['p1', 'p2'],
+    };
+    g = applyAction(g, 'p0', { type: 'offer-trade', ...terms }, seeded(), now);
+    const due = botDueAt(g)!;
+    expect(due).toBeGreaterThanOrEqual(now + BOT_ANSWER_MS);
+    expect(due).toBeLessThanOrEqual(now + BOT_ANSWER_MS + BOT_ANSWER_SPREAD_MS);
+    expect(advanceTime(g, now + BOT_ANSWER_MS - 1, seeded())).toBe(g);
+    // Answers, then the pick, all land within a few seconds.
+    let at = now;
+    for (let i = 0; i < 6 && g.tradeOffers.length; i++) {
+      at = botDueAt(g)!;
+      g = advanceTime(g, at, seeded());
+    }
+    expect(g.tradeOffers).toHaveLength(0);
+    expect(at).toBeLessThan(now + BOT_ANSWER_MS + BOT_ANSWER_SPREAD_MS + 1000);
   });
 });
 

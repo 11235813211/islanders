@@ -64,9 +64,26 @@ at the table agreed; format in `shared/replay.ts`, storage in `server/recording.
   says whether it ends as recorded; `--dump` saves each game's final state and logged events, and
   `records-study [--dir training/data/dumps]` prints a seat-by-seat table (points, survey ships,
   charts, lodestone, …). A record replays only on the engine it was played on: when the rules have
-  changed since, dump it from a git worktree at that commit (copy `study.ts` in). The 14 records
-  of 2026-11-12..14 replay on 0526457 (0–2), 0ac5720 (3–4), d924f4f (5), 6cd02ca (6–8), e9fc693 (9–13).
+  changed since, dump it from a git worktree at that commit (copy `study.ts` in). The 11 finished
+  records of 2026-11-12..16 (unfinished ones deleted) replay on 0526457 (0–2), 0ac5720 (3–4),
+  d924f4f (5), 6cd02ca (6–7), e9fc693 (8), 7755fe5 (9), a47da1c (10). Bot trade timing changed
+  after a47da1c (2026-11-16), so newer engines don't replay any of them.
   In code, `replayGame(record, onMove)` in `training/replays.ts` gives the state before and after every step.
+- Delete unfinished games from `records.json` before studying (`winnerSeat` null); they add noise.
+- Person vs bot, move by move (`record-disagree.ts`), in two halves:
+  1. `records-positions --file records.json --only 3,4 --out pos.json` saves each of the person's
+     moves with the position before it. Run it on the engine the games were played on: a git
+     worktree at that commit (`git worktree add --detach <dir> <commit>`, symlink `node_modules`,
+     copy the current `training/*.ts` and `run.mjs` in). Commits per game are listed above.
+  2. `records-disagree --positions a.json,b.json [--rollouts 64 --top 40 --out res.json --bot shipped
+     --knobs '{...}']` on the current code: upgrades each position with the room migrations, asks
+     the bot what it would play, and where it differs plays both moves out to the end with the bot
+     in every seat on the same dice. Prints the largest gaps each way (person − bot win share, ±
+     standard error) and the average by pair of move types. Trade offers and answers are skipped.
+     About a minute per 3-player game at 64 rollouts on 14 cores. Read it with care: the rollouts
+     play the person's seat as the bot, so a move only scores well if the bot can follow it up, and
+     one move rarely moves a whole game by more than the ±6% noise. Late moves of a game already won
+     show exactly 0.
 
 Train:
 - `setup-collect --from t1 --games 40000 --out r2 --seed 1000000 [--explore 0.35]` and
@@ -197,3 +214,47 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
   showed the hero "ending turns" more (ref:advanced vs itself: 19.89 vs 18.31). Each game's seats
   are now averaged first; the same bots then match exactly. Action counts logged above this entry
   from mixed table sizes carry that skew.
+- Person vs bot on saved games (`records-disagree`, 2026-11-16, 11 finished games of one strong
+  player vs Advanced bots; the person won 6; 944 of the person's moves, the bot would have played 354 of
+  them otherwise; 64 paired rollouts each, shipped bot in every seat). Mean person − bot win share
+  per decision: build +0.7% ±0.4%, gold +1.7% ±0.8%, special build +4.4% ±1.3% (14), robber −4.8%
+  ±0.9%, setup settlement −7.5% ±1.7% (18), charts and splits 0.0% ±1.0% (41). By this measure the
+  person's single moves are not better than the bot's, and their charting isn't either: rollouts
+  play the person's seat as the bot, so a plan the bot wouldn't follow up scores nothing. What it
+  did find: (1) in the special build phase (5–6 players) the bot only built cities and settlements,
+  the person also built roads, ships, survey ships and cards; (2) a gold pick off turn, from a
+  split tile, at 11 of 13 points (+69%, game 6 turn 84): the person's brick + 2 wheat set up the
+  next turn's win, the bot's 2 brick + wheat didn't; neither won at once. Fixed (1); for gold, the
+  bot now takes a pick that wins on its own turn (below), which does not cover this off-turn case.
+  Single results at ±6–9% over 354 tests include several 2σ flukes; trust only groups or gaps over ~25%.
+- Tile judgment knobs (2026-11-16, `TileTuning` in `shared/bots/charting.ts`; Advanced only, the
+  other levels keep `SIMPLE_TILES`): rivals' cards count fully against ours (`chartRivalShare` 1,
+  was 0.6), open corners rivals reach first and their future cities count too
+  (`chartFutureRivals` 1), and a split goes to a resource the bot earns none of, trading for the
+  card first (`splitTrade`; before, it only split into what it held, so on a sheep-less map it
+  never split into sheep). Vs `ref:advanced`, Cartographers maps, seeds 1200000, 1143 games each,
+  ±1.3%: all on ×1.03; old rival weighting with only splitTrade ×1.03; no future term ×1.08;
+  rivalShare 1.5 ×1.07; lodestone tiles weighted ×2 ×1.11; splitTrade off ×1.06 (the later runs
+  also had the special-build and gold fixes). All within noise of each other. Lodestone tiles ×2
+  head to head against the same bot without it: ×1.01 (26.6% ±0.8% vs 26.3%, 3416 games), though
+  it charts more (2.80 vs 2.19) and makes more lodestone (7.1 vs 6.4): left at 1. Against bots,
+  how tiles are judged barely matters; whether it matters against people is untested.
+- Special build (5–6 players): Advanced now builds what its turn would (roads, ships, survey
+  ships, cards) after any city or settlement. Gold: a pick that wins this turn (`winningGold` in
+  `endgame.ts`) beats hand value. Regression vs `ref:advanced`: base ×1.01 (25.3% ±0.9%, 2399
+  games; 2–4 players identical games, 5p 21.0% vs 20%, 6p 16.8% vs 16.7%); The Channel ×1.03
+  (22.8% ±1.0%, 1803 games). Vs Intermediate (2000 seeds, rotated): ×1.72, old bot ×1.71; both
+  leave 1.0% of games unfinished.
+- Bot trade timing (not a strength change): a bot answers another bot's offer 1.5–3 s after it is
+  made (`BOT_ANSWER_MS` in `engine/time.ts`); people's offers are still answered at once.
+- Whole-game study of the saved games (2026-11-16, 12 finished games; scratch scripts, not yet a
+  command): at turn 1 the person's income (dots per 36 rolls, charts included) is within a few dots
+  of the best bot's in every game. The gap opens between turns 15 and 45: in the person's
+  Cartographers wins the person's income doubles or triples while the best bot's stalls (game 21,
+  room TIGER28: person 33 → 76 from turn 15 to 45, best bot 36 → 36). In that game the person took
+  a lodestone tile with the first setup pick, made 15 lodestone and spent it all on 12 charts and a
+  split; white made none, blue 3. Two other patterns, smaller: in 5 of the person's 37 later
+  settlements a bot was as close to the corner and didn't take or block it (TIGER28: white's turn-1
+  road went elsewhere when the one road from its own road end would have reached v52 and cut red
+  off), and 4 were built on a turn the person traded with a bot (TIGER28 turn 14: white accepted
+  2 ore for wheat and ore for brick, which completed red's settlement).

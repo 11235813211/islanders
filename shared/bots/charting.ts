@@ -1,8 +1,10 @@
 import { type ChoiceGroup, choiceGroups, choiceLimit, fillChoice } from '../choices';
-import { affordsSplit, chartHexes } from '../engine/legal';
+import { BUILD_COSTS } from '../engine/core';
+import { affordsSplit, chartHexes, splitHexes } from '../engine/legal';
 import { chartedNumbers, hexNumbers } from '../rules';
-import { boardIndex, terrainResource } from '../seafaring';
+import { boardIndex, isLandVertex, terrainResource } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
+import { Board, roadPaths } from './analysis';
 
 /**
  * Cartographers tile moves for every bot level, kept cheap: chart or split the tile that pays the
@@ -26,13 +28,68 @@ export function share(view: GameView, hex: Hex, playerId = view.selfId): number 
   return owned;
 }
 
-/** Cards an opponent gains count against ours at this rate (helping one rival of several costs less than it pays us). */
-const RIVAL_SHARE = 0.6;
+/**
+ * How a level judges tiles. Simple levels weigh only who is on a tile now; Advanced (its knobs) also
+ * counts the open corners rivals are likely to settle, and trades for the card a needed split costs.
+ */
+export interface TileTuning {
+  /** Each card a rival gains counts against ours at this rate. */
+  rivalShare: number;
+  /** Weight of later rivals on the tile: open corners they reach first, and cities they may build. */
+  futureRivals: number;
+  /** Chart gain on a lodestone tile is multiplied by this (it pays for more charts). */
+  lodestoneTile: number;
+  /** Trade for the card a split into a missing resource costs, instead of splitting into what's in hand. */
+  splitTrade: boolean;
+}
 
-/** This seat's share of a tile less its rivals', for moves that improve the tile for everyone on it. */
-function netShare(view: GameView, hex: Hex): number {
-  const rivals = view.players.filter(p => p.id !== view.selfId).reduce((n, p) => n + share(view, hex, p.id), 0);
-  return share(view, hex) - RIVAL_SHARE * rivals;
+/** The tile judgment of the Beginner and Intermediate bots (and Advanced before 2026-11-16). */
+export const SIMPLE_TILES: TileTuning = { rivalShare: 0.6, futureRivals: 0, lodestoneTile: 1, splitTrade: false };
+
+/** Chance a rival settles an open corner this many new roads from its network, before we do. */
+const SETTLE_CHANCE = [1, 0.8, 0.5, 0.25];
+/** A corner we reach first is less likely theirs. */
+const RACE_LOST = 0.4;
+/** Expected extra share from a settlement there becoming a city. */
+const CITY_LATER = 0.5;
+
+/** A land corner nothing is on or next to (a settlement could still go there). */
+export function settleable(view: GameView, vertexId: string): boolean {
+  const index = boardIndex(view.board);
+  if (!isLandVertex(view.board, vertexId) || view.buildings[vertexId]) return false;
+  return index.vertex.get(vertexId)!.edgeIds.every(id => {
+    const edge = index.edge.get(id)!;
+    return !view.buildings[edge.a === vertexId ? edge.b : edge.a];
+  });
+}
+
+/** Rival share a tile is likely to gain later: settlements on its open corners, and cities. */
+function laterRivals(view: GameView, hex: Hex): number {
+  const board = new Board(view);
+  const rivals = view.players.filter(p => p.id !== view.selfId).map(p => roadPaths(board, p.id));
+  const mine = roadPaths(board);
+  let later = 0;
+  for (const id of hex.vertexIds) {
+    const building = view.buildings[id];
+    if (building) {
+      if (building.playerId !== view.selfId && building.kind === 'settlement') later += CITY_LATER;
+      continue;
+    }
+    if (!settleable(view, id)) continue;
+    const near = Math.min(...rivals.map(paths => paths.get(id)?.distance ?? Infinity));
+    const chance = SETTLE_CHANCE[near] ?? 0;
+    later += (mine.get(id)?.distance ?? Infinity) < near ? chance * RACE_LOST : chance;
+  }
+  return later;
+}
+
+/** This seat's share of a tile less its rivals' (now, and later as tuned), for moves that improve the tile for everyone on it. */
+function netShare(view: GameView, hex: Hex, tuning: TileTuning): number {
+  const own = share(view, hex);
+  if (!own) return 0;
+  let rivals = view.players.filter(p => p.id !== view.selfId).reduce((n, p) => n + share(view, hex, p.id), 0);
+  if (tuning.futureRivals) rivals += tuning.futureRivals * laterRivals(view, hex);
+  return own - tuning.rivalShare * rivals;
 }
 
 /** This seat's dots per resource (what its tiles pay), for preferring what it lacks. */
@@ -46,48 +103,75 @@ function income(view: GameView): ResourceBag {
 }
 
 /** Dots this seat gains from one chart step on a tile. */
-function chartGain(view: GameView, hex: Hex): number {
+function chartGain(view: GameView, hex: Hex, tuning: TileTuning): number {
   const now = hexNumbers(hex);
-  return (tileDots(chartedNumbers(now) ?? now) - tileDots(now)) * netShare(view, hex);
+  const gain = (tileDots(chartedNumbers(now) ?? now) - tileDots(now)) * netShare(view, hex, tuning);
+  return hex.terrain === 'lodestone' && gain > 0 ? gain * tuning.lodestoneTile : gain;
 }
 
 /** A chart on the tile it gains most from, when that gain is worth the lodestone (at least 2 dots). */
-export function chartMove(view: GameView): GameAction | null {
+export function chartMove(view: GameView, tuning = SIMPLE_TILES): GameAction | null {
   const index = boardIndex(view.board);
   let best: { hexId: string; gain: number } | null = null;
   for (const hexId of view.legal.chartHexes) {
-    const gain = chartGain(view, index.hex.get(hexId)!);
+    const gain = chartGain(view, index.hex.get(hexId)!, tuning);
     if (gain >= 2 && (!best || gain > best.gain)) best = { hexId, gain };
   }
   return best ? { type: 'chart-hex', hexId: best.hexId } : null;
 }
 
-/** A split on its best-paying tile, adding the resource it earns least of and can pay for. */
-export function splitMove(view: GameView): GameAction | null {
+/**
+ * A split on its best-paying tile, adding the resource it earns least of. Simple levels add only
+ * what they can pay for now; with `splitTrade` the bot adds the resource it most lacks, trading
+ * for the card first when that resource is one it doesn't earn at all.
+ */
+export function splitMove(view: GameView, tuning = SIMPLE_TILES): GameAction | null {
   const index = boardIndex(view.board);
   const earns = income(view);
-  const tile = view.legal.splitHexes
+  const candidates = view.legal.splitHexes.length || !tuning.splitTrade ? view.legal.splitHexes : splitHexes(view);
+  const tile = candidates
     .map(id => index.hex.get(id)!)
     .filter(hex => hex.id !== view.robber)
-    .map(hex => ({ hex, value: tileDots(hexNumbers(hex)) * netShare(view, hex) }))
+    .map(hex => ({ hex, value: tileDots(hexNumbers(hex)) * netShare(view, hex, tuning) }))
     .sort((a, b) => b.value - a.value)[0];
   if (!tile || tile.value < 5) return null;
   const own = terrainResource(tile.hex.terrain);
-  const resource = RESOURCES.filter(r => r !== own && r !== 'lodestone' && affordsSplit(view.hand, r)).sort(
-    (a, b) => earns[a] - earns[b],
-  )[0];
-  return resource ? { type: 'split-hex', hexId: tile.hex.id, resource } : null;
+  const options = RESOURCES.filter(r => r !== own && r !== 'lodestone').sort((a, b) => earns[a] - earns[b]);
+  const split = (resource: Resource): GameAction => ({ type: 'split-hex', hexId: tile.hex.id, resource });
+  if (tuning.splitTrade) {
+    const need = options.find(r => view.bank[r]);
+    if (need && affordsSplit(view.hand, need)) return split(need);
+    if (need && !earns[need] && view.hand.lodestone >= BUILD_COSTS.split.lodestone) {
+      const trade = bankTradeFor(view, need, BUILD_COSTS.split);
+      if (trade) return trade;
+    }
+  }
+  const resource = options.find(r => affordsSplit(view.hand, r));
+  return resource && view.legal.splitHexes.length ? split(resource) : null;
+}
+
+/**
+ * A bank trade (at this seat's rates) for one `want`, paid with the resource it has most spare of
+ * beyond `keep`, never lodestone. Null when nothing spare covers a trade.
+ */
+export function bankTradeFor(view: GameView, want: Resource, keep: ResourceBag): GameAction | null {
+  if (!view.bank[want]) return null;
+  const spare = (r: Resource) => view.hand[r] - keep[r] - view.tradeRates[r];
+  const give = RESOURCES.filter(r => r !== 'lodestone' && r !== want && spare(r) >= 0).sort(
+    (a, b) => spare(b) - spare(a),
+  );
+  return give[0] ? { type: 'trade', give: give[0], receive: want } : null;
 }
 
 /** Of the towns tied nearest a survey ship, the one whose tiles this seat gains most from charting. */
-export function surveyTown(view: GameView, edgeId: string): string | null {
+export function surveyTown(view: GameView, edgeId: string, tuning = SIMPLE_TILES): string | null {
   const index = boardIndex(view.board);
   const chartable = new Set(view.legal.chartHexes.length ? view.legal.chartHexes : chartHexes(view));
   const value = (vertexId: string) =>
     index.vertex
       .get(vertexId)!
       .hexIds.filter(id => chartable.has(id))
-      .reduce((sum, id) => sum + chartGain(view, index.hex.get(id)!), 0);
+      .reduce((sum, id) => sum + chartGain(view, index.hex.get(id)!, tuning), 0);
   return [...(view.legal.surveyTowns[edgeId] ?? [])].sort((a, b) => value(b) - value(a))[0] ?? null;
 }
 

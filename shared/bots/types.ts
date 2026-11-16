@@ -1,4 +1,5 @@
 import type { BotLevel, GameAction, GameView, TradeOffer } from '../types';
+import type { TileTuning } from './charting';
 
 export interface TurnOptions {
   /** Purchases already made this turn. Timed-out turns stop after two. */
@@ -27,4 +28,6 @@ export interface Brain {
   specialBuild?(view: GameView): GameAction;
   /** Cartographers: lodestone its own plans are saving (not to be spent on tiles or traded away). */
   lodestoneReserve?(view: GameView): number;
+  /** Cartographers: how it judges tiles to chart and split (SIMPLE_TILES when absent). */
+  tiles?: TileTuning;
 }
