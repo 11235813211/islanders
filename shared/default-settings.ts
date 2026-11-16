@@ -57,8 +57,8 @@ export const TUNING = {
   // Seconds the host may be disconnected before hosting passes to someone connected.
   hostAwaySeconds: 20,
   // Seconds between a client's pings. Background tabs may slow this down.
-  pingSeconds: 10,
+  pingSeconds: 3,
   // Seconds without a ping before a person counts as disconnected. Keep well above pingSeconds,
   // or background tabs flicker between connected and disconnected.
-  disconnectSeconds: 45,
+  disconnectSeconds: 10,
 } as const;
