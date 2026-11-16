@@ -1,6 +1,7 @@
 import { type APIRequestContext, type APIResponse, expect, type Page } from '@playwright/test';
 import WebSocket from 'ws';
 import { chooseBotAction } from '../shared/bots';
+import { TUNING } from '../shared/default-settings';
 import { type GameAction, type GameView, RESOURCES, type ServerMessage, type Session } from '../shared/types';
 
 export const server = 'http://127.0.0.1:8787';
@@ -32,10 +33,10 @@ export class PlayerConnection {
       if (data.toString() === 'pong') this.pongs++;
       else this.messages.push(JSON.parse(data.toString()) as ServerMessage);
     });
-    // Ping like the real client does (useRoom.ts), or the room drops the socket as gone after 45s.
+    // Ping like the real client does (useRoom.ts), or the room drops the socket as gone.
     const heartbeat = setInterval(() => {
       if (this.socket.readyState === WebSocket.OPEN) this.socket.send('ping');
-    }, 20_000);
+    }, TUNING.pingSeconds * 1000);
     this.socket.on('close', code => {
       clearInterval(heartbeat);
       this.closeCode = code;
