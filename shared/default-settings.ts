@@ -44,3 +44,21 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // Cartographers: gold fields and volcanoes may be charted too: true or false.
   chartSpecial: true,
 };
+
+/**
+ * Back-end tuning: the same for every room, never shown in the lobby. Edit the values here.
+ */
+export const TUNING = {
+  // Seconds each trade, build, or card played during the build phase adds to the turn clock
+  // (never above a full turn).
+  actionBonusSeconds: 20,
+  // Trade offers one person may have open at once.
+  maxOpenOffers: 3,
+  // Seconds the host may be disconnected before hosting passes to someone connected.
+  hostAwaySeconds: 20,
+  // Seconds between a client's pings. Background tabs may slow this down.
+  pingSeconds: 10,
+  // Seconds without a ping before a person counts as disconnected. Keep well above pingSeconds,
+  // or background tabs flicker between connected and disconnected.
+  disconnectSeconds: 45,
+} as const;

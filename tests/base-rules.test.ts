@@ -2,6 +2,7 @@
 // Edge-case reference: https://www.catan.com/faq/basegame
 import { describe, expect, it } from 'vitest';
 import { assignNumbers, generateBoard, ORDERED_NUMBERS, spiralHexes } from '../shared/board';
+import { TUNING } from '../shared/default-settings';
 import { addSpectator, advanceTime, applyAction, emptyBag, getView, normalizeGame } from '../shared/engine';
 import { produce } from '../shared/engine/production';
 import { developmentDeck, longestRoad, tradeRates, updateAwards, victoryPoints } from '../shared/rules';
@@ -216,9 +217,10 @@ describe('clocks, consent, spectators and chat', () => {
     g.phase = 'build';
     g.turnDeadline = now + 30_000;
     grant(g, 'p0', { wood: 8 });
+    const bonus = TUNING.actionBonusSeconds * 1000;
     const traded = act(g, 'p0', { type: 'trade', give: 'wood', receive: 'ore' }, now);
-    expect(traded.turnDeadline).toBe(now + 40_000);
-    traded.turnDeadline = now + 115_000;
+    expect(traded.turnDeadline).toBe(now + 30_000 + bonus);
+    traded.turnDeadline = now + 120_000 - bonus / 2;
     expect(act(traded, 'p0', { type: 'trade', give: 'wood', receive: 'ore' }, now).turnDeadline).toBe(now + 120_000);
   });
   it('expires a turn once, lets the bot finish, and gives the next player a full clock', () => {

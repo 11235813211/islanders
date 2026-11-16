@@ -1,3 +1,4 @@
+import { TUNING } from '../default-settings';
 import { bankTradeSize, tradeRates } from '../rules';
 import {
   type DeferredTrade,
@@ -43,7 +44,7 @@ const clean = (bag: TradeBag): TradeBag => {
 };
 
 /** How many offers one person may have open at once. */
-export const MAX_OPEN_OFFERS = 3;
+export const MAX_OPEN_OFFERS = TUNING.maxOpenOffers;
 
 function openOffer(next: GameState, offerId: string, now: number): TradeOffer {
   const offer = next.tradeOffers.find(o => o.id === offerId);

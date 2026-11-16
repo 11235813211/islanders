@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { TUNING } from '../shared/default-settings';
 import {
   addPlayer,
   addSpectator,
@@ -88,13 +89,13 @@ const MAX_MESSAGES_PER_MINUTE = 90;
 /** A reload or brief drop shouldn't pause the game, so wait this long first. */
 const IDLE_GRACE_MS = 60_000;
 /** A host gone this long (a reload is back well before) hands hosting to someone connected. */
-const HOST_AWAY_MS = 20_000;
+const HOST_AWAY_MS = TUNING.hostAwaySeconds * 1000;
 /**
  * A socket that sent no ping for this long is treated as gone: a closed tab or a locked phone often
- * never sends a close. Clients ping every 10s (answered without waking the room, so pings cost no
- * CPU); much shorter would drop background tabs whose timers the browser slows down.
+ * never sends a close. Clients ping every TUNING.pingSeconds (answered without waking the room, so
+ * pings cost no CPU); much shorter would drop background tabs whose timers the browser slows down.
  */
-const QUIET_SOCKET_MS = 45_000;
+const QUIET_SOCKET_MS = TUNING.disconnectSeconds * 1000;
 /** Close code the client treats as "this room is gone": it goes home and says why. */
 const ROOM_GONE = 4404;
 const ROOM_GONE_REASON = 'This room no longer exists.';

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { TUNING } from '../../shared/default-settings';
 import type { AccountSession, GameAction, GameView, RecordingStatus, ServerMessage, Session } from '../../shared/types';
 import { API, apiRequest, requestId } from '../lib/api';
 
@@ -128,9 +129,10 @@ export function useRoom(session: Session | null, signedIn = false) {
         ws.send(JSON.stringify({ type: 'auth', token: session.token }));
         lastSeen = Date.now();
         heartbeat = setInterval(() => {
-          if (Date.now() - lastSeen > 35_000) ws.close();
+          // No pong for three and a half pings: the connection is dead, so reconnect.
+          if (Date.now() - lastSeen > TUNING.pingSeconds * 3500) ws.close();
           else if (ws.readyState === WebSocket.OPEN) ws.send('ping');
-        }, 10_000);
+        }, TUNING.pingSeconds * 1000);
       };
       ws.onmessage = (event: MessageEvent<string>) => {
         if (disposed || socket.current !== ws) return;

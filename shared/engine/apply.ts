@@ -1,5 +1,6 @@
 import { parseAction } from '../actions';
 import { copyData } from '../copy';
+import { TUNING } from '../default-settings';
 import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
@@ -101,7 +102,7 @@ const PASSIVE = new Set<GameAction['type']>([
   'transfer-host',
 ]);
 
-/** Moves during the build phase that give the turn more time (see ACTION_BONUS_MS). */
+/** Moves during the build phase that give the turn more time (TUNING.actionBonusSeconds). */
 const TIME_BONUS = new Set<GameAction['type']>([
   'trade',
   'bank-trade',
@@ -123,8 +124,6 @@ const TIME_BONUS = new Set<GameAction['type']>([
   'play-monopoly',
   'play-plenty',
 ]);
-/** Each such move (by anyone: trades take two) adds this much, up to a full turn's time left. */
-export const ACTION_BONUS_MS = 10_000;
 
 /** Every accepted command returns a new state; rejected commands throw GameError and leave input intact. */
 export function applyAction(
@@ -227,7 +226,10 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     next.turnDeadline = now + seconds * 1000;
     next.turnExpired = false;
   } else if (playing && next.phase === 'build' && next.turnDeadline !== null && TIME_BONUS.has(action.type)) {
-    next.turnDeadline = Math.min(next.turnDeadline + ACTION_BONUS_MS, now + next.settings.turnSeconds * 1000);
+    next.turnDeadline = Math.min(
+      next.turnDeadline + TUNING.actionBonusSeconds * 1000,
+      now + next.settings.turnSeconds * 1000,
+    );
   }
   if (!playing) {
     next.turnDeadline = null;
