@@ -55,7 +55,10 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   for (const resource of RESOURCES) {
     const recipients = state.players.filter(player => demand.get(player.id)![resource] > 0);
     const needed = recipients.reduce((sum, player) => sum + demand.get(player.id)![resource], 0);
-    if (recipients.length > 1 && needed > state.bank[resource]) continue;
+    if (recipients.length > 1 && needed > state.bank[resource]) {
+      addLog(state, `The bank is short of ${resource}: nobody collects it.`);
+      continue;
+    }
     for (const player of recipients) {
       const amount = Math.min(demand.get(player.id)![resource], state.bank[resource]);
       state.bank[resource] -= amount;

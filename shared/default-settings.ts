@@ -8,11 +8,13 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // Points to win: 3 to 20.
   victoryPoints: 10,
   // Seconds per turn: 15 to 900.
-  turnSeconds: 120,
+  turnSeconds: 90,
   // Seconds before the dice roll themselves: 0 (off), 5, 8, 10, 15, or 30.
   autoRollSeconds: 8,
   // Seconds a trade offer stays open: 15, 30, 45, 60, 90, or 120.
   tradeSeconds: 30,
+  // Seconds for short choices (robber, pirate, gold picks): 10, 15, 20, 25, 30, 45, or 60.
+  decisionSeconds: 20,
   // Cards you may hold on a 7 without discarding: 3 to 20.
   discardLimit: 7,
   // Robber can't block players with 2 or fewer points: true or false.

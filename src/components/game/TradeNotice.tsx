@@ -241,27 +241,44 @@ function offerTitle(view: GameView, offer: TradeOffer, asked: boolean): string {
   return offer.fromId === view.selfId ? `Your offer${recipients}` : `${name(offer.fromId)} offers${recipients}`;
 }
 
-/**
- * An open offer, as seen by everyone at the table. Its author and the players it was sent to see
- * it from their side: what you get (green, down) and what you give (red, up). Recipients keep
- * seeing it after answering, so they can change their answer until it closes. Every answer and
- * counter shows to everyone.
- */
-export function TradeNotice({
-  view,
-  busy,
-  now,
-  send,
-  counter,
-}: {
+/** Every open offer, oldest first, one below another. */
+export function TradeNotice(props: {
   view: GameView;
   busy: boolean;
   now: number;
   send: (a: GameAction) => void;
   counter: (offer: TradeOffer) => void;
 }) {
-  const offer = view.tradeOffer;
-  if (!offer) return null;
+  return (
+    <>
+      {props.view.tradeOffers.map(offer => (
+        <OfferCard key={offer.id} {...props} offer={offer} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * An open offer, as seen by everyone at the table. Its author and the players it was sent to see
+ * it from their side: what you get (green, down) and what you give (red, up). Recipients keep
+ * seeing it after answering, so they can change their answer until it closes. Every answer and
+ * counter shows to everyone.
+ */
+function OfferCard({
+  view,
+  offer,
+  busy,
+  now,
+  send,
+  counter,
+}: {
+  view: GameView;
+  offer: TradeOffer;
+  busy: boolean;
+  now: number;
+  send: (a: GameAction) => void;
+  counter: (offer: TradeOffer) => void;
+}) {
   const mine = offer.fromId === view.selfId;
   const asked = offer.to.includes(view.selfId) && view.role !== 'spectator';
   const name = (id: string) => view.players.find(p => p.id === id)?.name ?? 'Someone';

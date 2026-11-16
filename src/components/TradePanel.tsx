@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, Check, Landmark, Users, X } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playerVars } from '../../shared/colors';
-import { emptyBag } from '../../shared/engine';
+import { emptyBag, MAX_OPEN_OFFERS } from '../../shared/engine';
 import { bankTradeSize } from '../../shared/rules';
 import {
   type GameAction,
@@ -130,13 +130,12 @@ export default function TradeComposer({
   close: () => void;
 }) {
   const { give, want, counterOf } = draft;
-  const offer = view.tradeOffer;
+  const offer = view.tradeOffers.find(o => o.id === counterOf);
   const countering = !!counterOf;
   const ownTurn = view.activePlayerId === view.selfId;
   const trading = view.phase === 'build' && view.pausedAt === null;
-  // Off turn, someone else's open offer has to close first; the player whose turn it is replaces it.
-  const othersOffer = !!offer && offer.fromId !== view.selfId && !ownTurn;
-  const active = countering ? offer?.id === counterOf && trading : trading && !othersOffer;
+  const full = view.tradeOffers.filter(o => o.fromId === view.selfId).length >= MAX_OPEN_OFFERS;
+  const active = countering ? !!offer && trading : trading && !full;
   const valid =
     bagTotal(give) > 0 &&
     bagTotal(want) > 0 &&
@@ -162,7 +161,7 @@ export default function TradeComposer({
     ? countering
       ? 'This offer has closed'
       : trading
-        ? 'Wait for the open offer to close'
+        ? `Up to ${MAX_OPEN_OFFERS} offers at once`
         : 'Trade after the roll'
     : countering
       ? `Counter to ${view.players.find(p => p.id === offer?.fromId)?.name ?? 'the offer'}`
@@ -249,7 +248,7 @@ export default function TradeComposer({
         {!countering && (
           <button
             className="button secondary"
-            disabled={busy || !active || !bank}
+            disabled={busy || !trading || !bank}
             data-tip={
               !ownTurn
                 ? 'Bank trades only on your turn'

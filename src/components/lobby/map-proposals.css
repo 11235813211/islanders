@@ -1,0 +1,91 @@
+/* Lobby map proposals: a wrapping row of small previews with backers' color squares beneath. */
+.map-proposals {
+  margin-top: 10px;
+}
+.map-proposals h4 {
+  margin: 0 0 6px;
+  color: #3b525c;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.map-proposal-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.map-proposal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 84px;
+  min-width: 0;
+}
+.map-proposal-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.map-proposal-pick[aria-pressed="true"] {
+  border-color: var(--self-accent, #0e9c87);
+  background: #eef7f2;
+}
+.map-proposal-pick .map-thumbnail {
+  width: 72px;
+}
+/* One square per backer, hanging from the preview's bottom edge. */
+.map-proposal-backers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 72px;
+  margin-top: -6px;
+}
+.map-proposal-backers i {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #fff;
+  border-radius: 2px;
+  background: var(--player-color);
+  box-shadow: 0 0 0 1px var(--player-accent);
+}
+.map-proposal-name {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 700;
+}
+.map-proposal-host {
+  display: flex;
+  gap: 4px;
+}
+.map-proposal-host button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid #b8cfd2;
+  border-radius: 6px;
+  background: #fff;
+  color: #163c50;
+  cursor: pointer;
+}
+.map-proposal-host button:first-child {
+  border-color: #0e9c87;
+  color: #0b7a69;
+}

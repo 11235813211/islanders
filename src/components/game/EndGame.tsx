@@ -2,7 +2,9 @@ import { Bot, LogOut, Map as MapIcon, RotateCcw, Trophy } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import type { GameAction, GameView } from '../../../shared/types';
-import { STAT_CATEGORIES, type StatCategory, visibleColumns } from './endStats';
+import { ResourceIcon } from '../../art';
+import { cardStyle } from '../ResourceHand';
+import { STAT_CATEGORIES, type StatCategory, type StatColumn, visibleColumns } from './endStats';
 import { DiceTracker } from './TablePanel';
 
 /** Final standings with hidden points revealed, stats by category, and what to do next. */
@@ -86,6 +88,11 @@ function StatTabs({ selected, select }: { selected: StatCategory; select: (categ
 function StatTable({ view, category }: { view: GameView; category: StatCategory }) {
   const standings = [...view.players].sort((a, b) => b.points - a.points);
   const columns = visibleColumns(category, view);
+  // The most in each column, or nothing when everyone ties.
+  const most = columns.map(column => {
+    const values = view.players.map(p => column.value(p, view));
+    return new Set(values).size > 1 ? Math.max(...values) : null;
+  });
   return (
     <div className="end-table-scroll">
       <table className="end-standings" aria-label={category.label}>
@@ -93,8 +100,8 @@ function StatTable({ view, category }: { view: GameView; category: StatCategory 
           <tr>
             <th>Player</th>
             {columns.map((column, index) => (
-              <th key={index} title={column.title}>
-                {column.label}
+              <th key={index} title={column.title} style={columnStyle(column)}>
+                <ColumnHead column={column} />
               </th>
             ))}
           </tr>
@@ -110,15 +117,42 @@ function StatTable({ view, category }: { view: GameView; category: StatCategory 
                   </span>
                 </span>
               </th>
-              {columns.map((column, index) => (
-                <td key={index} className={column.total ? 'points' : undefined}>
-                  {column.value(p, view)}
-                </td>
-              ))}
+              {columns.map((column, index) => {
+                const value = column.value(p, view);
+                const top = value > 0 && value === most[index];
+                const className = [column.total && 'points', top && 'most'].filter(Boolean).join(' ');
+                return (
+                  <td key={index} className={className || undefined} style={columnStyle(column)}>
+                    {value}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** A resource column takes its card color; the rest stay plain. */
+const columnStyle = (column: StatColumn): CSSProperties | undefined =>
+  column.resource ? cardStyle(column.resource) : undefined;
+
+/** A column heading: a resource's icon alone, or an icon over the label. */
+function ColumnHead({ column }: { column: StatColumn }) {
+  if (column.resource)
+    return (
+      <span className="stat-head">
+        <ResourceIcon resource={column.resource} size={22} />
+        <span className="sr-only">{column.label}</span>
+      </span>
+    );
+  const Icon = column.icon;
+  return (
+    <span className="stat-head">
+      {Icon && <Icon size={14} aria-hidden="true" />}
+      {column.label}
+    </span>
   );
 }

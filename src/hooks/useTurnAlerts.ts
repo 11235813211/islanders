@@ -8,8 +8,10 @@ const BASE_TITLE = 'Islanders · Join the game';
 function needsMe(view: GameView): string | null {
   if (view.role !== 'player' || view.pausedAt !== null) return null;
   if ((view.pendingDiscards[view.selfId] ?? 0) > 0) return 'discard';
-  const offer = view.tradeOffer;
-  if (offer?.to.includes(view.selfId) && !offer.declinedBy.includes(view.selfId)) return `offer:${offer.id}`;
+  const offer = [...view.tradeOffers]
+    .reverse()
+    .find(o => o.to.includes(view.selfId) && !o.declinedBy.includes(view.selfId));
+  if (offer) return `offer:${offer.id}`;
   if (view.activePlayerId === view.selfId && !['lobby', 'finished'].includes(view.phase))
     return `turn:${view.turn}:${view.phase.startsWith('setup') ? Object.keys(view.buildings).length : ''}`;
   return null;

@@ -1,5 +1,5 @@
 import { copyData } from '../copy';
-import type { GameAction, GameState } from '../types';
+import type { GameAction, GameState, Proposal } from '../types';
 import { addLog, cloneState, requireRule } from './core';
 
 const ACTIVE_PHASES = (state: GameState) => !['lobby', 'pick-board', 'finished'].includes(state.phase);
@@ -9,15 +9,27 @@ export const PROPOSAL_MS = 45_000;
 export function shiftClocks(state: GameState, milliseconds: number): void {
   if (state.turnDeadline !== null) state.turnDeadline += milliseconds;
   if (state.rollDeadline !== null) state.rollDeadline += milliseconds;
-  if (state.tradeOffer) {
-    state.tradeOffer.createdAt += milliseconds;
-    state.tradeOffer.expiresAt += milliseconds;
+  if (state.goldDeadline !== null) state.goldDeadline += milliseconds;
+  if (state.robberDeadline !== null) state.robberDeadline += milliseconds;
+  for (const offer of state.tradeOffers) {
+    offer.createdAt += milliseconds;
+    offer.expiresAt += milliseconds;
   }
+}
+
+/**
+ * Votes a proposal needs: an undo needs everyone; pause and resume need one other person to agree,
+ * so with two people the proposer alone decides.
+ */
+export function votesNeeded(proposal: Pick<Proposal, 'kind' | 'required'>): number {
+  if (proposal.kind === 'undo') return proposal.required.length;
+  return Math.min(proposal.required.length, proposal.required.length <= 2 ? 1 : 2);
 }
 
 function resolveProposal(state: GameState, now: number): GameState {
   const proposal = state.proposal!;
-  if (!proposal.required.every(id => proposal.accepted.includes(id))) return state;
+  const yes = proposal.accepted.filter(id => proposal.required.includes(id)).length;
+  if (yes < votesNeeded(proposal)) return state;
   if (proposal.kind === 'pause') {
     state.pausedAt = now;
     state.pauseReason = 'vote';
@@ -114,7 +126,7 @@ export function socialAction(
           action.kind === 'undo'
             ? next.undo!.description
             : action.kind === 'pause'
-              ? 'Pause the game and its clocks'
+              ? 'Pauses once another player agrees'
               : 'Resume the game',
       };
       next = resolveProposal(next, now);

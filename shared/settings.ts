@@ -16,6 +16,9 @@ export function bankShown(settings: Pick<GameSettings, 'showBank'>, players: num
 /** Trade offer lengths the lobby offers. */
 export const TRADE_SECONDS = [15, 30, 45, 60, 90, 120] as const;
 
+/** Lengths the lobby offers for short choices: the robber or pirate, gold, volcano picks. */
+export const DECISION_SECONDS = [10, 15, 20, 25, 30, 45, 60] as const;
+
 /**
  * Discovery rules: what jungle discoveries can do besides paying for development cards.
  * `kept` is the published jungle rule.
@@ -82,6 +85,7 @@ export function validSettings(
     (s.victoryPoints === undefined || integerIn(s.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max)) &&
     (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never)) &&
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
+    (s.decisionSeconds === undefined || DECISION_SECONDS.includes(s.decisionSeconds as never)) &&
     (s.showBank === undefined || ['auto', 'always', 'never'].includes(s.showBank as string)) &&
     (s.discoveries === undefined || Object.hasOwn(DISCOVERY_RULES, s.discoveries as string)) &&
     (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&

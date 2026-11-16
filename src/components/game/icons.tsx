@@ -44,9 +44,18 @@ export function KnightIcon({ size = 21 }: { size?: number }) {
 }
 
 /** Small card-shaped count badge (resource or development cards). */
-export function CardCount({ count, development = false }: { count: number; development?: boolean }) {
+export function CardCount({
+  count,
+  development = false,
+  over = false,
+}: {
+  count: number;
+  development?: boolean;
+  /** More cards than the discard limit: outlined red. */
+  over?: boolean;
+}) {
   return (
-    <span className={`stat-card ${development ? 'stat-dev' : ''}`}>
+    <span className={['stat-card', development && 'stat-dev', over && 'over-limit'].filter(Boolean).join(' ')}>
       <strong>{count}</strong>
     </span>
   );

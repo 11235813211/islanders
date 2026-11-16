@@ -107,7 +107,7 @@ export class PlayerConnection {
       const view = this.messages.at(-1)?.type === 'state' ? this.state : null;
       if (!view || view.version === answered || !mustAct(view)) return;
       answered = view.version;
-      const offer = view.tradeOffer;
+      const offer = view.tradeOffers[0];
       if (offer?.to.includes(view.selfId) && !offer.declinedBy.includes(view.selfId))
         this.send({ type: 'decline-trade', offerId: offer.id });
       else this.send(chooseBotAction(view, { level: 'beginner', builds: 99, allowOffers: false }));
@@ -122,7 +122,7 @@ export class PlayerConnection {
 /** Whether this seat has something to do now (its turn, a discard, gold, or an offer to answer). */
 function mustAct(view: GameView): boolean {
   if (view.role !== 'player' || view.phase === 'lobby' || view.phase === 'finished') return false;
-  const offer = view.tradeOffer;
+  const offer = view.tradeOffers[0];
   if (offer?.to.includes(view.selfId) && !offer.declinedBy.includes(view.selfId)) return true;
   if (view.phase === 'discard') return (view.pendingDiscards[view.selfId] ?? 0) > 0;
   if (view.phase === 'gold') return (view.pendingGold[view.selfId] ?? 0) > 0;

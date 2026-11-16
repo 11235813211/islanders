@@ -28,7 +28,6 @@ export function chooseBotAction(view: GameView, options: BotOptions = {}): GameA
 
 /** The same, for any brain (training plays candidate brains this way). */
 export function actWith(brain: Brain, view: GameView, options: TurnOptions = {}): GameAction {
-  const offer = view.tradeOffer;
   if (view.phase === 'discard') {
     // Where discoveries count toward the limit, a bot gives them up only once its cards run out.
     const owed = view.pendingDiscards[view.selfId] ?? 0;
@@ -42,15 +41,18 @@ export function actWith(brain: Brain, view: GameView, options: TurnOptions = {})
   }
   if (view.phase === 'special-build') return (brain.specialBuild ?? specialBuild)(view);
   if (view.phase === 'eruption') return { type: 'roll-volcanoes' };
-  if (offer && view.phase === 'build') {
-    if (offer.fromId === view.selfId) return brain.review(view, offer);
-    const answered = hasAnswered(offer, view.selfId);
+  if (view.phase === 'build') {
     // The player whose turn it is can be sent an offer too, by someone trading off turn.
-    if (offer.to.includes(view.selfId) && !answered)
+    const incoming = view.tradeOffers.find(o => o.to.includes(view.selfId) && !hasAnswered(o, view.selfId));
+    if (incoming)
       // Bots don't value discoveries, so they pass on offers that include them.
-      return offer.give.discovery || offer.want.discovery || keepsLodestone(view, offer, reserveOf(brain, view))
-        ? { type: 'decline-trade', offerId: offer.id }
-        : brain.respond(view, offer);
+      return incoming.give.discovery ||
+        incoming.want.discovery ||
+        keepsLodestone(view, incoming, reserveOf(brain, view))
+        ? { type: 'decline-trade', offerId: incoming.id }
+        : brain.respond(view, incoming);
+    const own = view.tradeOffers.find(o => o.fromId === view.selfId);
+    if (own) return brain.review(view, own);
   }
   return cartographersTurn(view, brain.turn(view, options), reserveOf(brain, view));
 }

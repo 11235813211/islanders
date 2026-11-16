@@ -64,10 +64,6 @@ export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
 
 export const MAX_PLAYERS = 6;
-/** Seconds everyone has to pick gold or volcano resources before a choice is made for them. */
-export const GOLD_SECONDS = 25;
-/** Seconds to place the robber or pirate before it is placed for you. */
-export const ROBBER_SECONDS = 15;
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
 export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
   state.settings.seafarers !== false && boardIndex(state.board).seafaring;

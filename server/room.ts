@@ -85,9 +85,10 @@ const MAX_MESSAGES_PER_MINUTE = 90;
 const IDLE_GRACE_MS = 60_000;
 /**
  * A socket that sent no ping for this long is treated as gone: a closed tab or a locked phone often
- * never sends a close. Clients ping every 20s; background tabs may stretch that to a minute.
+ * never sends a close. Clients ping every 10s (answered without waking the room, so pings cost no
+ * CPU); much shorter would drop background tabs whose timers the browser slows down.
  */
-const QUIET_SOCKET_MS = 75_000;
+const QUIET_SOCKET_MS = 45_000;
 /** Close code the client treats as "this room is gone": it goes home and says why. */
 const ROOM_GONE = 4404;
 const ROOM_GONE_REASON = 'This room no longer exists.';
@@ -125,9 +126,23 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'set-bot-level',
   'play-again',
   'choose-map',
+  'propose-map',
+  'decline-map',
 ]);
 
 /** One serialized, durable source of truth per invite code. No client owns game state. */
+/**
+ * A person already in the room under this name (or account username), so a guest on another device
+ * gets their seat back by typing the same name. Bots are never matched.
+ */
+function seatNamed(room: RoomRecord, typed: string): { id: string; name: string } | undefined {
+  const key = typed.trim().toLowerCase();
+  const byAccount = room.sessions.find(s => s.account?.username.toLowerCase() === key)?.playerId;
+  return [...room.game.players.filter(p => !p.bot), ...room.game.spectators].find(
+    member => member.name.trim().toLowerCase() === key || member.id === byAccount,
+  );
+}
+
 export class GameRoom extends DurableObject<Env> {
   private record: RoomRecord | undefined;
   private queue: Promise<unknown> = Promise.resolve();
@@ -470,15 +485,18 @@ export class GameRoom extends DurableObject<Env> {
             claim?: string;
           };
           const room = await this.claimGuestSeat(this.requireRoom(), body.identity, body.claim, body.name);
+          const typed = parseOptionalName(body);
           const name =
-            parseOptionalName(body) ??
+            typed ??
             guestName(
               [...room.game.players, ...room.game.spectators].map(p => p.name),
               secureRandom,
             );
           const identity = body.identity;
           const existing =
-            identity && [...room.game.players, ...room.game.spectators].find(player => player.id === identity.playerId);
+            (identity &&
+              [...room.game.players, ...room.game.spectators].find(player => player.id === identity.playerId)) ||
+            (!identity && typed ? seatNamed(room, typed) : undefined);
           if (
             body.autoSpectate &&
             (room.game.testMode || room.game.phase !== 'lobby' || room.game.players.length >= MAX_PLAYERS)
@@ -611,7 +629,9 @@ export class GameRoom extends DurableObject<Env> {
         const action = message.action;
         const actor = SELF_ACTIONS.has(action.type) ? attachment.playerId : this.actor(attachment);
         const design =
-          action.type === 'choose-map' ? await this.design(action.mapId, saved.account?.username) : undefined;
+          action.type === 'choose-map' || action.type === 'propose-map'
+            ? await this.design(action.mapId, saved.account?.username)
+            : undefined;
         const actionTape = tape(secureRandom);
         const actedAt = Date.now();
         const online = room.game.testMode ? room.game.players.map(p => p.id) : this.online();

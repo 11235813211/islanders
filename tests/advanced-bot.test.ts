@@ -103,7 +103,7 @@ describe('advanced trading with people at the table', () => {
       const spare = (['wood', 'brick', 'sheep', 'wheat', 'ore'] as const).find(r => me.resources[r] > 0);
       const lack = (['ore', 'wheat', 'sheep', 'brick', 'wood'] as const).find(r => r !== spare);
       let action: Parameters<typeof applyAction>[2];
-      if (g.tradeOffer?.fromId === 'p0') action = { type: 'cancel-trade', offerId: g.tradeOffer.id };
+      if (g.tradeOffers[0]?.fromId === 'p0') action = { type: 'cancel-trade', offerId: g.tradeOffers[0].id };
       else if (g.phase === 'build' && getActivePlayerId(g) === 'p0' && spare && lack && offeredTurn !== g.turn) {
         offeredTurn = g.turn;
         action = { type: 'offer-trade', give: { ...grantBag(), [spare]: 1 }, want: { ...grantBag(), [lack]: 1 } };
@@ -143,7 +143,7 @@ describe('advanced trading with people at the table', () => {
         continue;
       }
       // The person: plays simply, and turns down every offer.
-      const offer = g.tradeOffer;
+      const offer = g.tradeOffers[0];
       const id = offer && offer.to.includes('p0') ? 'p0' : (getActivePlayerId(g) ?? 'p0');
       const action = offer?.to.includes('p0')
         ? { type: 'decline-trade' as const, offerId: offer.id }

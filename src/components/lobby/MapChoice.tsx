@@ -7,10 +7,12 @@ import { useBoardLibrary } from '../../hooks/useBoardLibrary';
 import MapBrowser from '../maps/MapBrowser';
 import MapThumbnail from '../maps/MapThumbnail';
 import { LARGE_ISLAND, playerRange, roomMapPlayers, roomMapWarning, STANDARD_ISLAND } from '../maps/mapInfo';
+import MapProposals from './MapProposals';
 
 /**
  * The lobby's map: the standard island or a chosen map, previewed as designed (the actual layout
- * is drawn when the game starts). Everyone can browse maps; the host chooses.
+ * is drawn when the game starts). Everyone can browse maps; the host chooses, and the others
+ * propose maps for the host to pick (MapProposals).
  */
 export default function MapChoice({
   view,
@@ -32,6 +34,8 @@ export default function MapChoice({
   // The thumbnail shows the layout that will be played.
   const design = map ? found && designFor(found, map.layout?.min ?? players) : base;
   const warning = map && roomMapWarning(map, players);
+  // The host picks; other seated people propose (spectators only look).
+  const canPick = host || view.role === 'player';
   return (
     <div className="map-choice">
       <div className="map-choice-switch" role="radiogroup" aria-label="Map">
@@ -40,14 +44,15 @@ export default function MapChoice({
           type="button"
           role="radio"
           aria-checked={!map}
-          disabled={!host || busy}
-          onClick={() => map && send({ type: 'choose-map', mapId: 'base' })}
+          disabled={!canPick || busy || (!host && !map)}
+          data-tip={host ? undefined : 'Propose the base game'}
+          onClick={() => map && send({ type: host ? 'choose-map' : 'propose-map', mapId: 'base' })}
         >
           Base game
         </button>
         {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control of buttons. */}
         <button type="button" role="radio" aria-checked={!!map} disabled={busy} onClick={() => setBrowsing(true)}>
-          {host ? 'Choose map' : 'View maps'}
+          {host ? 'Choose map' : canPick ? 'Propose map' : 'View maps'}
         </button>
       </div>
       <div className="mode-card tone-sea">
@@ -61,6 +66,7 @@ export default function MapChoice({
           Maps
         </button>
       </div>
+      <MapProposals view={view} host={host} busy={busy} boards={library?.boards} send={send} />
       {warning && (
         <p className="map-warning" role="note">
           <AlertTriangle size={17} />
@@ -74,9 +80,11 @@ export default function MapChoice({
           players={players}
           currentId={map?.id ?? null}
           currentLayout={map?.layout ?? null}
-          canChoose={host}
+          canChoose={canPick}
+          proposing={!host}
           choose={(chosen, layoutFor) => {
-            send({ type: 'choose-map', mapId: chosen.id, ...(layoutFor === undefined ? {} : { layoutFor }) });
+            const type = host ? 'choose-map' : 'propose-map';
+            send({ type, mapId: chosen.id, ...(layoutFor === undefined ? {} : { layoutFor }) });
             setBrowsing(false);
           }}
           close={() => setBrowsing(false)}

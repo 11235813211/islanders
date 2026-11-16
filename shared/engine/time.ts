@@ -34,14 +34,15 @@ export function pendingBotActor(state: GameState): string | null {
   if (state.phase === 'discard')
     return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0 && isBot(state, id)) ?? null;
   if (state.phase === 'gold') return Object.keys(state.pendingGold).find(id => isBot(state, id)) ?? null;
-  const offer = state.tradeOffer;
-  if (offer && state.phase === 'build') {
+  const offers = state.phase === 'build' ? state.tradeOffers : [];
+  for (const offer of offers) {
     const responder = offer.to.find(id => isBot(state, id) && !hasAnswered(offer, id));
     if (responder) return responder;
-    // A bot that made an offer picks a partner once someone says yes (see botDueAt for the wait) or everyone has answered.
-    if (isBot(state, offer.fromId))
-      return offer.acceptedBy.length || offer.to.every(id => hasAnswered(offer, id)) ? offer.fromId : null;
   }
+  // A bot that made an offer picks a partner once someone says yes (see botDueAt for the wait) or everyone has answered.
+  const botOffer = offers.find(offer => isBot(state, offer.fromId));
+  if (botOffer)
+    return botOffer.acceptedBy.length || botOffer.to.every(id => hasAnswered(botOffer, id)) ? botOffer.fromId : null;
   const active = getActivePlayerId(state);
   return active && isBot(state, active) ? active : null;
 }
@@ -57,13 +58,14 @@ const justRolled = (state: GameState, actor: string) =>
 export function botDueAt(state: GameState): number | null {
   const actor = pendingBotActor(state);
   if (!actor) return null;
-  // Answering someone else's trade offer needs no show of thinking.
-  const offer = state.tradeOffer;
-  const answering = offer?.to.includes(actor) && offer.fromId !== actor;
-  if (answering) return state.updatedAt;
-  // A bot's offer with a yes but people still to answer waits a while, so they can say yes too.
-  if (offer?.fromId === actor && state.phase === 'build' && !offer.to.every(id => hasAnswered(offer, id)))
-    return Math.max(state.updatedAt + BOT_THINK_MS, Math.min(offer.createdAt + BOT_OFFER_WAIT_MS, offer.expiresAt));
+  if (state.phase === 'build') {
+    // Answering someone else's trade offer needs no show of thinking.
+    if (state.tradeOffers.some(o => o.to.includes(actor) && !hasAnswered(o, actor))) return state.updatedAt;
+    // A bot's offer with a yes but people still to answer waits a while, so they can say yes too.
+    const offer = state.tradeOffers.find(o => o.fromId === actor);
+    if (offer && !offer.to.every(id => hasAnswered(offer, id)))
+      return Math.max(state.updatedAt + BOT_THINK_MS, Math.min(offer.createdAt + BOT_OFFER_WAIT_MS, offer.expiresAt));
+  }
   const grace = endTurnUndoable(state) ? UNDO_GRACE_MS : justRolled(state, actor) ? ROLL_SHOW_MS : 0;
   return state.updatedAt + BOT_THINK_MS + grace;
 }
@@ -117,7 +119,7 @@ function phaseDeadline(state: GameState): number | null {
 export function nextDueAt(state: GameState): number | null {
   const times: (number | null)[] = [state.proposal?.expiresAt ?? null];
   if (state.pausedAt === null) {
-    times.push(state.tradeOffer?.expiresAt ?? null, phaseDeadline(state), botDueAt(state));
+    times.push(...state.tradeOffers.map(o => o.expiresAt), phaseDeadline(state), botDueAt(state));
     if (playing(state)) times.push(state.turnDeadline);
   }
   const due = times.filter((time): time is number => time !== null);
@@ -159,8 +161,8 @@ export function advanceTime(state: GameState, now: number, random: () => number 
     changed = true;
   }
   if (next.pausedAt === null) {
-    if (next.tradeOffer && next.tradeOffer.expiresAt <= now) {
-      next.tradeOffer = null;
+    if (next.tradeOffers.some(o => o.expiresAt <= now)) {
+      next.tradeOffers = next.tradeOffers.filter(o => o.expiresAt > now);
       reproposeDeferred(next, now);
       next.updatedAt = now;
       changed = true;

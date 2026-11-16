@@ -95,15 +95,20 @@ export default function TablePanel({
             <>
               <div className="chat-messages" role="log" aria-live="polite">
                 {view.chat.length ? (
-                  view.chat.map(m => (
-                    <p key={m.id}>
-                      <strong>
-                        {m.name}
-                        {m.spectator ? ' · watching' : ''}
-                      </strong>
-                      <span>{m.text}</span>
-                    </p>
-                  ))
+                  view.chat.map((m, index) => {
+                    const continued = view.chat[index - 1]?.senderId === m.senderId;
+                    return (
+                      <p key={m.id} className={continued ? 'continued' : undefined}>
+                        {!continued && (
+                          <strong>
+                            {m.name}
+                            {m.spectator ? ' · watching' : ''}
+                          </strong>
+                        )}
+                        <span>{m.text}</span>
+                      </p>
+                    );
+                  })
                 ) : (
                   <p className="chat-empty">Room chat. Only people with this code can join.</p>
                 )}

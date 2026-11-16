@@ -1,3 +1,4 @@
+import { Map as MapIcon } from 'lucide-react';
 import type { GameSettings, GameView } from '../../../shared/types';
 import { CATEGORIES, type SettingDef } from '../lobby/settings';
 
@@ -19,7 +20,12 @@ export default function SettingsSummary({ view }: { view: GameView }) {
           <h4>Map</h4>
           <dl>
             <div>
-              <dt>Board</dt>
+              <dt>
+                <span className="summary-icon" aria-hidden="true">
+                  <MapIcon size={20} />
+                </span>
+                Board
+              </dt>
               <dd>{view.map.name}</dd>
             </div>
           </dl>
@@ -34,7 +40,12 @@ export default function SettingsSummary({ view }: { view: GameView }) {
             <dl>
               {rows.map(def => (
                 <div key={def.key}>
-                  <dt>{def.label}</dt>
+                  <dt>
+                    <span className="summary-icon" aria-hidden="true">
+                      {def.icon}
+                    </span>
+                    {def.label}
+                  </dt>
                   <dd>{valueText(def, view.settings[def.key])}</dd>
                 </div>
               ))}

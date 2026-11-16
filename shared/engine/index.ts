@@ -29,4 +29,5 @@ export {
   ROLL_SHOW_MS,
   UNDO_GRACE_MS,
 } from './time';
+export { MAX_OPEN_OFFERS } from './trade';
 export { getView } from './view';

@@ -251,6 +251,8 @@ export interface GameSettings {
   pieceStyle: PieceStyle;
   /** Seconds a trade offer stays open. */
   tradeSeconds: number;
+  /** Seconds for short choices (the robber or pirate, gold, volcano picks) before one is made for you. */
+  decisionSeconds: number;
   /** Everyone sees how many cards of each resource the bank has left. */
   showBank: BankDisplay;
   /** How jungle discoveries behave (only matters on maps with a jungle). */
@@ -344,7 +346,17 @@ export interface UndoRecord {
     | 'diceDeck'
     | 'fog'
     | 'colorSwaps'
+    | 'mapProposals'
   >;
+}
+/** A map someone put forward in the lobby, with everyone backing it (first is the proposer). */
+export interface MapProposal {
+  /** A board id, or 'base' for the standard island. */
+  mapId: string;
+  name: string;
+  /** The layout picked for a map with several, as in choose-map. */
+  layoutFor: number | null;
+  by: string[];
 }
 export interface GameState {
   /** See shared/engine/migrations.ts. Bump when the stored shape changes. */
@@ -357,6 +369,8 @@ export interface GameState {
   hostId: string;
   /** Lobby color swap requests waiting for an answer. */
   colorSwaps: ColorSwap[];
+  /** Lobby: maps players would like to play, for the host to pick from. */
+  mapProposals: MapProposal[];
   phase: Phase;
   buildings: Record<string, Building>;
   roads: Record<string, string>;
@@ -423,7 +437,8 @@ export interface GameState {
   map: MapInfo | null;
   rollDeadline: number | null;
   diceCounts: Record<number, number>;
-  tradeOffer: TradeOffer | null;
+  /** Open player trade offers, oldest first (several people may offer at once). */
+  tradeOffers: TradeOffer[];
   /** Off-turn trades waiting for either player's turn (engine/trade.ts reproposeDeferred). */
   deferredTrades: DeferredTrade[];
   testMode: boolean;
@@ -531,6 +546,7 @@ export interface GameView {
   spectators: Spectator[];
   hostId: string;
   colorSwaps: ColorSwap[];
+  mapProposals: MapProposal[];
   phase: Phase;
   buildings: Record<string, Building>;
   roads: Record<string, string>;
@@ -581,7 +597,7 @@ export interface GameView {
   settings: GameSettings;
   rollDeadline: number | null;
   diceCounts: Record<number, number>;
-  tradeOffer: TradeOffer | null;
+  tradeOffers: TradeOffer[];
   testMode: boolean;
   development: DevelopmentCard[];
   developmentRemaining: number;
@@ -615,7 +631,12 @@ export type GameAction =
   | { type: 'answer-color-swap'; playerId: string; accept: boolean }
   | { type: 'leave' }
   | { type: 'switch-role' }
-  | { type: 'remove-player'; playerId: string }
+  /** `watch`: move the person to the spectators instead of out of the room. */
+  | { type: 'remove-player'; playerId: string; watch?: boolean }
+  /** Put a map forward for the host, or back (or stop backing) one already proposed. */
+  | { type: 'propose-map'; mapId: string; layoutFor?: number }
+  /** Host: turn a map proposal down. */
+  | { type: 'decline-map'; mapId: string }
   | { type: 'transfer-host'; playerId: string }
   /** Host, mid-game: an Advanced bot takes the seat; the person watches (`watch`) or leaves the room. */
   | { type: 'seat-to-bot'; playerId: string; watch: boolean }

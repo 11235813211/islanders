@@ -60,6 +60,7 @@ export default function MapDetail({
   design,
   players,
   canChoose,
+  proposing = false,
   current,
   currentLayout,
   choose,
@@ -68,6 +69,8 @@ export default function MapDetail({
   design: BoardDesign;
   players: number;
   canChoose: boolean;
+  /** Choosing proposes the map to the host instead. */
+  proposing?: boolean;
   /** This map is the room's map. */
   current: boolean;
   /** The layout of the room's map the host picked, if any. */
@@ -141,7 +144,11 @@ export default function MapDetail({
             onClick={() => choose(several ? shown.players.min : undefined)}
           >
             <Check size={18} />
-            {inUse ? 'This room’s map' : several ? `Use this ${range} player map` : 'Use this map'}
+            {inUse
+              ? 'This room’s map'
+              : several
+                ? `${proposing ? 'Propose' : 'Use'} this ${range} player map`
+                : `${proposing ? 'Propose' : 'Use'} this map`}
           </button>
         )}
       </aside>

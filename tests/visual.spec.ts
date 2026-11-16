@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import { getActivePlayerId } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps/builtin';
 import type { PieceStyle, PlayerColor } from '../shared/types';
-import { grant, richGame, seaSettled } from './fixtures';
+import { grant, makeLobby, richGame, seaSettled } from './fixtures';
 import { mountGame } from './ui-harness';
 
 // Screenshot review for art and seat colors: writes test-results/visual-*.png.
@@ -81,18 +81,20 @@ test('trade offers read from each side, with answers in seat colors', async ({ p
   const game = richGame();
   game.settings.showBank = 'always';
   const now = Date.now();
-  game.tradeOffer = {
-    id: 'trade-visual',
-    fromId: 'p0',
-    give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
-    want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0 },
-    to: ['p1', 'p2', 'p3'],
-    acceptedBy: ['p1'],
-    declinedBy: ['p2'],
-    counters: [],
-    createdAt: now - 10_000,
-    expiresAt: now + 20_000,
-  };
+  game.tradeOffers = [
+    {
+      id: 'trade-visual',
+      fromId: 'p0',
+      give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
+      want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0 },
+      to: ['p1', 'p2', 'p3'],
+      acceptedBy: ['p1'],
+      declinedBy: ['p2'],
+      counters: [],
+      createdAt: now - 10_000,
+      expiresAt: now + 20_000,
+    },
+  ];
   game.players[1]!.resources.ore += 1;
   game.bank.ore -= 1;
   await mountGame(page, game);
@@ -128,4 +130,58 @@ test('phone tour: landscape sea map', async ({ page }) => {
   await page.screenshot({ path: 'test-results/phone-landscape-sea.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/phone-portrait-sea.png' });
+});
+
+/** New table cues: stacked offers, the short-choice timer, your-turn tint, red over-limit stacks, results, and lobby proposals. */
+test('table cues and lobby map proposals', async ({ page }) => {
+  const game = richGame();
+  const now = Date.now();
+  const bag = (wood: number, ore: number, sheep = 0) => ({ wood, brick: 0, sheep, wheat: 0, ore, lodestone: 0 });
+  const offer = (id: string, fromId: string, give: ReturnType<typeof bag>, want: ReturnType<typeof bag>) => ({
+    id,
+    fromId,
+    give,
+    want,
+    to: game.players.filter(p => p.id !== fromId).map(p => p.id),
+    acceptedBy: [],
+    declinedBy: [],
+    counters: [],
+    createdAt: now,
+    expiresAt: now + 600_000,
+  });
+  game.tradeOffers = [offer('trade-a', 'p0', bag(1, 0), bag(0, 1)), offer('trade-b', 'p0', bag(1, 0), bag(0, 0, 1))];
+  grant(game, 'p2', { wood: 9 });
+  await mountGame(page, game);
+  await page.screenshot({ path: 'test-results/visual-cues-offers.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/phone-cues-offers.png' });
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  const robber = richGame();
+  robber.phase = 'robber';
+  robber.robberDeadline = Date.now() + 12_000;
+  await mountGame(page, robber);
+  await page.locator('.decision-timer').waitFor();
+  await page.screenshot({ path: 'test-results/visual-cues-robber.png' });
+
+  const done = richGame();
+  done.phase = 'finished';
+  done.winnerId = 'p0';
+  done.players.forEach((p, i) => {
+    done.stats[p.id]!.produced = { wood: 4 + i, brick: 3, sheep: 6 - i, wheat: 2 * i, ore: 5, lodestone: 0 };
+  });
+  await mountGame(page, done);
+  await page.getByRole('tab', { name: 'Production' }).click();
+  await page.locator('.end-game').screenshot({ path: 'test-results/visual-cues-results.png' });
+
+  const lobby = makeLobby(3);
+  lobby.mapProposals = [
+    { mapId: 'base', name: 'Base game', layoutFor: null, by: ['p1', 'p2'] },
+    { mapId: BUILTIN_BOARDS[1]!.id, name: BUILTIN_BOARDS[1]!.name, layoutFor: null, by: ['p0'] },
+  ];
+  await mountGame(page, lobby);
+  await page.locator('.map-proposals').scrollIntoViewIfNeeded();
+  await page.locator('.map-choice').screenshot({ path: 'test-results/visual-cues-proposals.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.map-choice').screenshot({ path: 'test-results/phone-cues-proposals.png' });
 });

@@ -136,13 +136,13 @@ describe('eruptions', () => {
     expect(g.phase).toBe('build');
   });
 
-  it('gold choices are made for anyone who has not chosen after 25 seconds, and the room wakes up for it', () => {
+  it('gold choices are made for anyone who has not chosen in time, and the room wakes up for it', () => {
     let g = building(g => {
       g.buildings[hexOf(g, 'gold').vertexIds[0]!] = { playerId: 'p0', kind: 'settlement' };
       g.phase = 'roll';
     });
     g = act(g, 'p0', { type: 'roll' }, sequence(0.5, 0.2)); // 4 + 2... sets up gold on 8 below
-    const deadline = TEST_NOW + 25_000;
+    const deadline = TEST_NOW + 20_000;
     Object.assign(g, {
       phase: 'gold',
       pendingGold: { p0: 1 },
@@ -181,10 +181,13 @@ describe('friendly robber at sea', () => {
     expect(allowed.some(id => index.hex.get(id)!.terrain === 'sea')).toBe(true);
   });
 
-  it('a robber not placed in 15 seconds is placed for the player', () => {
-    let g = building(g => {
-      g.phase = 'roll';
-    });
+  it('a robber not placed in the short-choice time is placed for the player', () => {
+    let g = building(
+      g => {
+        g.phase = 'roll';
+      },
+      { decisionSeconds: 15 },
+    );
     g = act(g, 'p0', { type: 'roll' }, sequence(0.5, 0.4)); // 4 + 3 = 7
     expect(g.phase).toBe('robber');
     expect(g.robberDeadline).toBe(TEST_NOW + 15_000);

@@ -65,17 +65,14 @@ test('pause excludes disconnected seats, blocks moves, and undo votes restore a 
       settings: { autoRollSeconds: 0, trackDice: true, numberLayout: 'ordered', turnSeconds: 30 },
     });
     await host.action({ type: 'start' });
+    // With only two people connected, the one who asks decides.
     await host.action({ type: 'propose', kind: 'pause' });
-    await expect.poll(() => friend.state.proposal?.required.length).toBe(2);
-    await friend.action({ type: 'vote', proposalId: friend.state.proposal!.id, accept: true });
     await expect.poll(() => host.state.pausedAt).not.toBeNull();
     const rejected = host.send({ type: 'place-settlement', vertexId: 'v1' });
     const error = await host.waitMessage(m => m.type === 'error' && m.id === rejected.id, rejected.after);
     expect(error.type === 'error' && error.message).toMatch(/paused/);
     await friend.action({ type: 'propose', kind: 'resume' });
-    await expect.poll(() => host.state.proposal?.kind).toBe('resume');
-    await host.action({ type: 'vote', proposalId: host.state.proposal!.id, accept: true });
-    expect(host.state.pausedAt).toBeNull();
+    await expect.poll(() => host.state.pausedAt).toBeNull();
     // Turn order is drawn at random: the first seat places, and another seat votes on its undo.
     await away.authenticate(a);
     const seats = [

@@ -1,0 +1,23 @@
+/*
+ * Your turn: your seat color rims your hand and the turn bar, and lightly tints the side panels,
+ * so it's plain at a glance that the table is waiting on you. Rings are box-shadows so nothing moves.
+ */
+.game-table.own-turn .table-hand,
+.game-table.own-turn .table-turn {
+  border-color: var(--self-accent);
+  box-shadow: 0 0 0 2px var(--self-accent);
+}
+.game-table.own-turn .table-hand.over-limit {
+  border-color: #d2543c;
+}
+.game-table.own-turn .table-turn {
+  background: color-mix(in srgb, var(--self-accent) 10%, #fffcf1);
+}
+.game-table.own-turn .player-panel {
+  border-color: color-mix(in srgb, var(--self-accent) 55%, #a3c4d0);
+  background: color-mix(in srgb, var(--self-accent) 7%, #fffcf0);
+}
+.game-table.own-turn .chat-panel {
+  border-color: color-mix(in srgb, var(--self-accent) 55%, #adc8cf);
+  background: color-mix(in srgb, var(--self-accent) 7%, #fffdf6);
+}

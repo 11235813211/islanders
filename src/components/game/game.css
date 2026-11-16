@@ -144,6 +144,26 @@
   font-weight: 900;
   font-size: 16px;
 }
+.stat-head {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
+}
+/* Resource columns wear their card color. */
+.end-standings [style*="--card"] {
+  background: color-mix(in srgb, var(--card-light) 55%, transparent);
+}
+.end-standings thead [style*="--card"] {
+  border-bottom: 3px solid var(--card);
+}
+/* The most in each column. */
+.end-standings td.most {
+  color: #8a5a00;
+  font-weight: 900;
+  box-shadow: inset 0 -3px 0 #f2c94c;
+}
 .end-game .compact-tracker {
   margin-top: 10px;
 }

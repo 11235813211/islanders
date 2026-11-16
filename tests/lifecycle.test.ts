@@ -73,9 +73,25 @@ describe('room membership', () => {
     expect(() => act(g, 'p0', { type: 'transfer-host', playerId: bot.id })).toThrow(/another person/);
     g = act(g, 'p0', { type: 'remove-player', playerId: bot.id });
     expect(g.players).toHaveLength(2);
+    const watching = act(g, 'p0', { type: 'remove-player', playerId: 'p1', watch: true });
+    expect(watching.players.map(p => p.id)).toEqual(['p0']);
+    expect(watching.spectators.map(s => s.id)).toEqual(['p1']);
     g = act(g, 'p0', { type: 'transfer-host', playerId: 'p1' });
     expect(g.hostId).toBe('p1');
     expect(() => act(g, 'p0', { type: 'remove-player', playerId: 'p1' })).toThrow(/host/);
+  });
+
+  it('lets players propose and back maps, one each, for the host to pick or turn down', () => {
+    let g = makeLobby(3);
+    g = act(g, 'p1', { type: 'propose-map', mapId: 'base' });
+    g = act(g, 'p2', { type: 'propose-map', mapId: 'base' });
+    expect(g.mapProposals).toEqual([{ mapId: 'base', name: 'Base game', layoutFor: null, by: ['p1', 'p2'] }]);
+    expect(() => act(g, 'p1', { type: 'propose-map', mapId: 'nowhere' })).toThrow(/not available/);
+    g = act(g, 'p1', { type: 'propose-map', mapId: 'base' });
+    expect(g.mapProposals[0]!.by).toEqual(['p2']);
+    expect(() => act(g, 'p1', { type: 'decline-map', mapId: 'base' })).toThrow(/host/);
+    expect(act(g, 'p0', { type: 'decline-map', mapId: 'base' }).mapProposals).toEqual([]);
+    expect(act(g, 'p0', { type: 'remove-player', playerId: 'p2' }).mapProposals).toEqual([]);
   });
 
   it('starts a fresh game with the same seats after the game ends', () => {
@@ -177,6 +193,7 @@ describe('bot scheduling', () => {
     g.phase = 'build';
     g.players[1]!.bot = 'beginner';
     grant(g, 'p0', { wood: 2 });
+    grant(g, 'p1', { ore: 1 });
     let offered = act(g, 'p0', {
       type: 'offer-trade',
       give: { ...emptyBag(), wood: 1 },
@@ -184,7 +201,7 @@ describe('bot scheduling', () => {
     });
     expect(pendingBotActor(offered)).toBe('p1');
     offered = advanceTime(offered, botDueAt(offered)!, seeded());
-    const answered = !offered.tradeOffer || hasAnswered(offered.tradeOffer, 'p1');
+    const answered = !offered.tradeOffers[0] || hasAnswered(offered.tradeOffers[0], 'p1');
     expect(answered).toBe(true);
     expect(pendingBotActor(offered)).toBeNull();
   });
@@ -215,21 +232,21 @@ describe('trades and counter-offers', () => {
     const give = { ...emptyBag(), wood: 1 };
     const want = { ...emptyBag(), ore: 1 };
     g = act(g, 'p0', { type: 'offer-trade', give, want, to: ['p1'] });
-    expect(() => act(g, 'p2', { type: 'accept-trade', offerId: g.tradeOffer!.id })).toThrow(/not sent to you/);
+    expect(() => act(g, 'p2', { type: 'accept-trade', offerId: g.tradeOffers[0]!.id })).toThrow(/not sent to you/);
     expect(() => act(g, 'p0', { type: 'offer-trade', give, want, to: ['p0'] })).toThrow(/who receives/);
     g = act(g, 'p1', {
       type: 'counter-trade',
-      offerId: g.tradeOffer!.id,
+      offerId: g.tradeOffers[0]!.id,
       give: want,
       want: { ...emptyBag(), wood: 2 },
     });
-    const counter = g.tradeOffer!.counters[0]!;
-    expect(() => act(g, 'p1', { type: 'accept-counter', offerId: g.tradeOffer!.id, counterId: counter.id })).toThrow(
-      /offering player/,
-    );
+    const counter = g.tradeOffers[0]!.counters[0]!;
+    expect(() =>
+      act(g, 'p1', { type: 'accept-counter', offerId: g.tradeOffers[0]!.id, counterId: counter.id }),
+    ).toThrow(/offering player/);
     const before = structuredClone(g.players);
-    g = act(g, 'p0', { type: 'accept-counter', offerId: g.tradeOffer!.id, counterId: counter.id });
-    expect(g.tradeOffer).toBeNull();
+    g = act(g, 'p0', { type: 'accept-counter', offerId: g.tradeOffers[0]!.id, counterId: counter.id });
+    expect(g.tradeOffers[0]).toBeUndefined();
     expect(g.players[0]!.resources.wood).toBe(before[0]!.resources.wood - 2);
     expect(g.players[1]!.resources.ore).toBe(before[1]!.resources.ore - 1);
     expect(g.stats.p0!.trades).toBe(1);
@@ -243,7 +260,7 @@ describe('trades and counter-offers', () => {
     grant(g, 'p0', { wood: 1 });
     g = act(g, 'p0', { type: 'offer-trade', give: { ...emptyBag(), wood: 1 }, want: { ...emptyBag(), ore: 1 } });
     expect(() =>
-      act(g, 'p1', { type: 'counter-trade', offerId: g.tradeOffer!.id, give: emptyBag(), want: emptyBag() }),
+      act(g, 'p1', { type: 'counter-trade', offerId: g.tradeOffers[0]!.id, give: emptyBag(), want: emptyBag() }),
     ).toThrow(GameError);
   });
 });

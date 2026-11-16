@@ -15,6 +15,7 @@ import BankFlights from './game/BankFlights';
 import BoardPick, { useBoardLook } from './game/BoardPick';
 import BuildBar from './game/BuildBar';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
+import DecisionTimer from './game/DecisionTimer';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
 import DiscoveryPanel from './game/DiscoveryPanel';
@@ -35,6 +36,7 @@ import TradeComposer, { addTradeResource, counterDraft, type TradeDraft } from '
 import './GameTable.css';
 import './game/game.css';
 import './game/trade.css';
+import './game/own-turn.css';
 import './game/phone.css';
 
 /**
@@ -162,6 +164,8 @@ export default function GameTable({
     !!self && handSize(shown, { resources: shown.hand, discoveries: self.discoveries }) > shown.settings.discardLimit;
   const active = view.players.find(p => p.id === view.activePlayerId);
   const blocked = busy || paused || spectator || !ownTurn;
+  // Your seat color marks the table while it waits on you.
+  const myMove = ownTurn && !spectator && !finished && view.phase !== 'pick-board';
   useTurnAlerts(view);
   const landscapePhone = useMedia(LANDSCAPE_PHONE);
 
@@ -187,7 +191,7 @@ export default function GameTable({
   }, [spectator]);
   // Solo test rooms: switch to whichever seat needs to act.
   useEffect(() => {
-    if (!view.testMode || spectator || !follow || busy || view.proposal || view.tradeOffer || paused) return;
+    if (!view.testMode || spectator || !follow || busy || view.proposal || view.tradeOffers.length || paused) return;
     const next =
       view.phase === 'discard'
         ? Object.keys(view.pendingDiscards).find(id => (view.pendingDiscards[id] ?? 0) > 0)
@@ -211,8 +215,8 @@ export default function GameTable({
   useEffect(() => setTrade(null), [view.selfId]);
   // A counter draft closes with its offer.
   useEffect(() => {
-    if (trade?.counterOf && view.tradeOffer?.id !== trade.counterOf) setTrade(null);
-  }, [trade, view.tradeOffer?.id]);
+    if (trade?.counterOf && !view.tradeOffers.some(o => o.id === trade.counterOf)) setTrade(null);
+  }, [trade, view.tradeOffers]);
   useEffect(() => {
     if (!finished) setEndHidden(false);
   }, [finished]);
@@ -448,7 +452,7 @@ export default function GameTable({
 
   return (
     <main
-      className={`game-table${spectator ? ' spectating' : ''}`}
+      className={`game-table${spectator ? ' spectating' : ''}${myMove ? ' own-turn' : ''}`}
       style={playerVars(self?.color, 'self') as CSSProperties}
     >
       <TableToolbar
@@ -491,6 +495,7 @@ export default function GameTable({
           setHexPick(null);
         }}
       >
+        <DecisionTimer view={view} now={clock} />
         <ProposalNotice view={view} busy={busy} send={send} />
         <SetupOrder view={view} />
         {view.phase === 'eruption' && (

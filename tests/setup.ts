@@ -13,6 +13,7 @@ Object.assign(DEFAULT_SETTINGS, {
   victoryPoints: 10,
   pieceStyle: 'classic',
   tradeSeconds: 30,
+  decisionSeconds: 20,
   showBank: 'auto',
   discoveries: 'kept',
   volcanoGold: true,

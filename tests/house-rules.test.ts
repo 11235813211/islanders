@@ -83,8 +83,8 @@ describe('discovery rules', () => {
       give: { ...emptyBag(), discovery: 2 },
       want: { ...emptyBag(), ore: 1 },
     });
-    g = act(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffer!.id });
-    g = act(g, 'p0', { type: 'confirm-trade', offerId: g.tradeOffer!.id, playerId: 'p1' });
+    g = act(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffers[0]!.id });
+    g = act(g, 'p0', { type: 'confirm-trade', offerId: g.tradeOffers[0]!.id, playerId: 'p1' });
     expect(g.players[1]!.discoveries).toBe(2);
     expect(g.players[0]!.resources.ore).toBe(1);
   });
@@ -212,14 +212,15 @@ describe('room options', () => {
     g.phase = 'build';
     g.settings.tradeSeconds = 60;
     grant(g, 'p0', { wood: 1 });
+    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5']) grant(g, id, { ore: 1 });
     g = act(g, 'p0', {
       type: 'offer-trade',
       give: { ...emptyBag(), wood: 1 },
       want: { ...emptyBag(), ore: 1 },
       to: ['p1', 'p2', 'p3', 'p4', 'p5'],
     });
-    expect(g.tradeOffer!.to).toHaveLength(5);
-    expect(g.tradeOffer!.expiresAt - g.tradeOffer!.createdAt).toBe(60_000);
+    expect(g.tradeOffers[0]!.to).toHaveLength(5);
+    expect(g.tradeOffers[0]!.expiresAt - g.tradeOffers[0]!.createdAt).toBe(60_000);
   });
 });
 

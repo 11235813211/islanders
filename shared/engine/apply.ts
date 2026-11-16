@@ -8,10 +8,8 @@ import {
   type ActionContext,
   addLog,
   cloneState,
-  GOLD_SECONDS,
   getActivePlayerId,
   type Handlers,
-  ROBBER_SECONDS,
   requireRule,
   SPECIAL_BUILD_SECONDS,
 } from './core';
@@ -20,10 +18,11 @@ import { routeMet, updatePeaks } from './goals';
 import { trackHands } from './hands';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
+import { mapProposalHandlers, pruneMapProposals } from './proposals';
 import { seaHandlers } from './sea';
 import { seatHandlers } from './seats';
 import { socialAction } from './social';
-import { pruneTradeOffer, reproposeDeferred, tradeHandlers } from './trade';
+import { pruneTradeOffers, reproposeDeferred, tradeHandlers } from './trade';
 import { afterRobber, turnHandlers } from './turn';
 
 const HANDLERS: Handlers = {
@@ -34,6 +33,7 @@ const HANDLERS: Handlers = {
   ...developmentHandlers,
   ...cartographersHandlers,
   ...seatHandlers,
+  ...mapProposalHandlers,
 } as Handlers;
 
 /** Actions a player may take when it is not their turn. */
@@ -53,6 +53,8 @@ const OFF_TURN = new Set<GameAction['type']>([
   'set-bot-level',
   'play-again',
   'choose-map',
+  'propose-map',
+  'decline-map',
   'discard',
   'choose-gold',
   'request-special-build',
@@ -97,6 +99,31 @@ const PASSIVE = new Set<GameAction['type']>([
   'leave',
   'transfer-host',
 ]);
+
+/** Moves during the build phase that give the turn more time (see ACTION_BONUS_MS). */
+const TIME_BONUS = new Set<GameAction['type']>([
+  'trade',
+  'bank-trade',
+  'offer-trade',
+  'counter-trade',
+  'accept-trade',
+  'confirm-trade',
+  'accept-counter',
+  'build-road',
+  'build-ship',
+  'move-ship',
+  'build-settlement',
+  'build-city',
+  'build-relay',
+  'build-survey',
+  'buy-development',
+  'play-knight',
+  'play-road-building',
+  'play-monopoly',
+  'play-plenty',
+]);
+/** Each such move (by anyone: trades take two) adds this much, up to a full turn's time left. */
+export const ACTION_BONUS_MS = 10_000;
 
 /** Every accepted command returns a new state; rejected commands throw GameError and leave input intact. */
 export function applyAction(
@@ -149,6 +176,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     afterRobber(next);
     addLog(next, 'No legal robber destination is available.');
   }
+  pruneMapProposals(next);
   updateAwards(next);
   updatePeaks(next);
   trackHands(next);
@@ -162,7 +190,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     const points = victoryPoints(next, activeId);
     next.phase = 'finished';
     next.winnerId = activeId;
-    next.tradeOffer = null;
+    next.tradeOffers = [];
     next.proposal = null;
     addLog(next, `${next.players.find(p => p.id === activeId)!.name} reached ${points} points and won.`, {
       kind: 'win',
@@ -170,7 +198,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
       points,
     });
   }
-  pruneTradeOffer(next);
+  pruneTradeOffers(next, now);
   reproposeDeferred(next, now);
 
   const playing = !['lobby', 'pick-board', 'finished'].includes(next.phase);
@@ -179,9 +207,11 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   if (rolling(next.phase) && next.phase !== state.phase) {
     next.rollDeadline = next.settings.autoRollSeconds ? now + next.settings.autoRollSeconds * 1000 : null;
   } else if (!rolling(next.phase)) next.rollDeadline = null;
-  if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + GOLD_SECONDS * 1000;
+  // Gold picks and the robber share the room's short-choice clock.
+  const decision = next.settings.decisionSeconds * 1000;
+  if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + decision;
   else if (next.phase !== 'gold') next.goldDeadline = null;
-  if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + ROBBER_SECONDS * 1000;
+  if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + decision;
   else if (next.phase !== 'robber') next.robberDeadline = null;
   const newSeat =
     action.type === 'start' ||
@@ -195,6 +225,8 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         : next.settings.turnSeconds;
     next.turnDeadline = now + seconds * 1000;
     next.turnExpired = false;
+  } else if (playing && next.phase === 'build' && next.turnDeadline !== null && TIME_BONUS.has(action.type)) {
+    next.turnDeadline = Math.min(next.turnDeadline + ACTION_BONUS_MS, now + next.settings.turnSeconds * 1000);
   }
   if (!playing) {
     next.turnDeadline = null;
@@ -226,6 +258,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         testMode: _test,
         design: _design,
         map: _map,
+        mapProposals: _proposals,
         ...rest
       } = state;
       const snapshot = copyData(rest);

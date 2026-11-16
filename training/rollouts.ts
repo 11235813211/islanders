@@ -38,7 +38,7 @@ const knobs = makeParams().knobs;
 
 /** A build decision worth labelling: the active seat, no offer pending, sampled by hash. */
 export function isDecision(state: GameState, seat: number, seed: number, rate: number): boolean {
-  if (state.phase !== 'build' || state.tradeOffer || getActivePlayerId(state) !== `p${seat}`) return false;
+  if (state.phase !== 'build' || state.tradeOffers.length || getActivePlayerId(state) !== `p${seat}`) return false;
   const h = Math.imul(state.version ^ Math.imul(seed, 2654435761), 2246822519) >>> 0;
   return h / 2 ** 32 < rate;
 }

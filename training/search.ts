@@ -54,7 +54,7 @@ export function searchBrain(
     turn(view, turnOptions) {
       const own = base.turn(view, turnOptions);
       const state = live();
-      if (view.phase !== 'build' || state.tradeOffer || getActivePlayerId(state) !== view.selfId) return own;
+      if (view.phase !== 'build' || state.tradeOffers.length || getActivePlayerId(state) !== view.selfId) return own;
       return searchMove(state, view.selfId, own, brains(), seed, options, stats);
     },
   };

@@ -1,0 +1,34 @@
+/* Short-choice countdown, pinned to the board's top left (inside .board-notices). */
+.board-notices > .decision-timer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.decision-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid #779caa;
+  border-radius: 999px;
+  background: #fffdf4f5;
+  box-shadow: 0 3px 15px #0d556e25;
+  color: #163c50;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.decision-ring {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf4 58%, transparent 60%), conic-gradient(#0e9c87 var(--progress), #dbe4dc 0);
+}
+.decision-timer.urgent {
+  border-color: #d2543c;
+  color: #a3301c;
+}
+.decision-timer.urgent .decision-ring {
+  background: radial-gradient(circle, #fffdf4 58%, transparent 60%), conic-gradient(#e0402a var(--progress), #f3d6cf 0);
+}

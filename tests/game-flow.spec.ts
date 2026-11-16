@@ -16,7 +16,7 @@ test('a player counters an offer and the offerer accepts the counter', async ({ 
   await composer.getByRole('button', { name: 'Offer to Player 2' }).click();
   await composer.getByRole('button', { name: 'Offer to Player 3' }).click();
   await composer.getByRole('button', { name: 'Offer to players' }).click();
-  await expect.poll(() => game.state().tradeOffer?.to).toEqual(['p1']);
+  await expect.poll(() => game.state().tradeOffers[0]?.to).toEqual(['p1']);
 
   // Player 1 asks for two Lumber instead.
   await page.getByLabel('Play as', { exact: true }).selectOption('p1');
@@ -25,13 +25,13 @@ test('a player counters an offer and the offerer accepts the counter', async ({ 
   await expect(counter.getByText('Counter-offer', { exact: true })).toBeVisible();
   await counter.getByRole('button', { name: 'Request one more Lumber' }).click();
   await counter.getByRole('button', { name: 'Send counter' }).click();
-  await expect.poll(() => game.state().tradeOffer?.counters.length).toBe(1);
+  await expect.poll(() => game.state().tradeOffers[0]?.counters.length).toBe(1);
 
   // Player 0 accepts it: 2 Lumber for 1 Ore.
   const before = { ...game.state().players[0]!.resources };
   await page.getByLabel('Play as', { exact: true }).selectOption('p0');
   await page.getByRole('button', { name: "Accept Player 1's counter-offer" }).click();
-  await expect.poll(() => game.state().tradeOffer).toBeNull();
+  await expect.poll(() => game.state().tradeOffers[0]).toBeUndefined();
   expect(game.state().players[0]!.resources.wood).toBe(before.wood - 2);
   expect(game.state().players[0]!.resources.ore).toBe(before.ore + 1);
   expect(game.errors).toEqual([]);

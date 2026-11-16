@@ -196,6 +196,12 @@ const MIGRATIONS: Migration[] = [
     s.boardSeeds ??= [];
     s.boardShown ??= 0;
   },
+  // 22 → 23: several trade offers may be open at once; players propose maps in the lobby.
+  s => {
+    s.tradeOffers ??= s.tradeOffer ? [s.tradeOffer] : [];
+    delete s.tradeOffer;
+    s.mapProposals ??= [];
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

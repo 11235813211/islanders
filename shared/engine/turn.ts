@@ -338,7 +338,7 @@ export const turnHandlers: Pick<
   'end-turn'({ next, player }) {
     needPhase(next, 'build', 'special-build');
     if (next.phase === 'build') addLog(next, `${player.name} ended their turn.`);
-    next.tradeOffer = null;
+    next.tradeOffers = [];
     const builder = nextSpecialBuilder(next);
     if (builder) {
       next.phase = 'special-build';

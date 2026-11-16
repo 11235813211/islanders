@@ -75,6 +75,7 @@ export function getView(state: GameState, selfId: string): GameView {
     board: null as unknown as GameView['board'],
     hostId: state.hostId,
     colorSwaps: state.colorSwaps,
+    mapProposals: state.mapProposals,
     players: state.players.map(candidate => {
       const pieces = pieceCounts(state, candidate.id);
       const limits = pieceLimits(state, candidate.id);
@@ -193,7 +194,7 @@ export function getView(state: GameState, selfId: string): GameView {
     settings: state.settings,
     rollDeadline: state.rollDeadline,
     diceCounts: state.settings.trackDice || finished ? state.diceCounts : {},
-    tradeOffer: state.tradeOffer,
+    tradeOffers: state.tradeOffers,
     testMode: state.testMode,
     map: state.map,
     seafaring: seaRules(state),

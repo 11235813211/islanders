@@ -210,12 +210,12 @@ test('resource click creates a compact timed offer, other seats accept, chat wor
   expect(board.x + board.width - (banner.x + banner.width)).toBeLessThan(24);
   const wood = game.state().players[1].resources.wood;
   await page.getByRole('button', { name: 'Accept trade', exact: true }).click();
-  await expect.poll(() => game.state().tradeOffer?.acceptedBy).toEqual(['p1']);
+  await expect.poll(() => game.state().tradeOffers[0]?.acceptedBy).toEqual(['p1']);
   // The offer stays up for p1; p0 sees p1's check and taps it to trade.
   await expect(notice.getByText(/Waiting for/)).toBeVisible();
   await page.getByLabel('Play as', { exact: true }).selectOption('p0');
   await page.getByRole('button', { name: 'Trade with Player 1' }).click();
-  await expect.poll(() => game.state().tradeOffer).toBeNull();
+  await expect.poll(() => game.state().tradeOffers[0]).toBeUndefined();
   expect(game.state().players[1].resources.wood).toBe(wood + 1);
   await page.getByLabel('Play as', { exact: true }).selectOption('p1');
   await page.getByLabel('Chat message').fill('Trading works!');
@@ -233,23 +233,19 @@ test('resource click creates a compact timed offer, other seats accept, chat wor
   expect(game.errors).toEqual([]);
 });
 
-test('players can propose and unanimously confirm pause while everyone is connected', async ({ page }) => {
+test('a pause or resume takes one other person agreeing', async ({ page }) => {
   const game = await mountGame(page, richGame());
   await page.getByLabel('Follow current turn').uncheck();
   await page.getByRole('button', { name: 'Propose pause', exact: true }).click();
   expect(game.state().pausedAt).toBeNull();
   expect(game.state().proposal!.required).toHaveLength(4);
-  for (const id of ['p1', 'p2', 'p3']) {
-    await page.getByLabel('Play as', { exact: true }).selectOption(id);
-    await page.getByRole('button', { name: 'Approve proposal' }).click();
-  }
+  await page.getByLabel('Play as', { exact: true }).selectOption('p1');
+  await page.getByRole('button', { name: 'Approve proposal' }).click();
   await expect.poll(() => game.state().pausedAt).not.toBeNull();
   await expect(page.getByText('Paused · clocks are stopped')).toBeVisible();
   await page.getByRole('button', { name: 'Propose resume', exact: true }).click();
-  for (const id of ['p0', 'p1', 'p2']) {
-    await page.getByLabel('Play as', { exact: true }).selectOption(id);
-    await page.getByRole('button', { name: 'Approve proposal' }).click();
-  }
+  await page.getByLabel('Play as', { exact: true }).selectOption('p2');
+  await page.getByRole('button', { name: 'Approve proposal' }).click();
   await expect.poll(() => game.state().pausedAt).toBeNull();
   expect(game.errors).toEqual([]);
 });
@@ -421,18 +417,20 @@ test('an off-turn offer to five players shows every answer, the counter, and the
   grant(game, 'p2', { wood: 3 });
   grant(game, 'p3', { ore: 2 });
   const bag = (wood: number, ore: number) => ({ wood, brick: 0, sheep: 0, wheat: 0, ore, lodestone: 0 });
-  game.tradeOffer = {
-    id: 'trade-wide',
-    fromId: 'p2',
-    give: bag(2, 0),
-    want: bag(0, 1),
-    to: ['p0', 'p1', 'p3', 'p4', 'p5'],
-    acceptedBy: ['p3'],
-    declinedBy: ['p1', 'p4'],
-    counters: [{ id: 'counter-wide', fromId: 'p5', give: bag(0, 1), want: bag(3, 0) }],
-    createdAt: Date.now(),
-    expiresAt: Date.now() + 600_000,
-  };
+  game.tradeOffers = [
+    {
+      id: 'trade-wide',
+      fromId: 'p2',
+      give: bag(2, 0),
+      want: bag(0, 1),
+      to: ['p0', 'p1', 'p3', 'p4', 'p5'],
+      acceptedBy: ['p3'],
+      declinedBy: ['p1', 'p4'],
+      counters: [{ id: 'counter-wide', fromId: 'p5', give: bag(0, 1), want: bag(3, 0) }],
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 600_000,
+    },
+  ];
   await mountGame(page, game);
   await page.getByLabel('Follow current turn').uncheck();
   const notice = page.getByRole('region', { name: 'Trade offer' });

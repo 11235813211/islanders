@@ -1,10 +1,10 @@
-import { Bot, Crown, UserMinus } from 'lucide-react';
+import { Bot, Crown, Eye, UserMinus } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { BOTS } from '../../../shared/bots';
 import { PLAYER_COLORS, playerVars } from '../../../shared/colors';
 import { BOT_LEVELS, type BotLevel, type GameAction, type GameView, type PublicPlayer } from '../../../shared/types';
 
-/** One seat in the lobby. The host can change bot levels, remove seats, and hand over hosting. */
+/** One seat in the lobby. The host can change bot levels, move people to spectators, remove seats, and hand over hosting. */
 export default function LobbySeat({
   view,
   seat,
@@ -71,6 +71,17 @@ export default function LobbySeat({
                 <Crown size={18} />
               </button>
             )
+          )}
+          {!seat.bot && !view.testMode && (
+            <button
+              className="icon-button"
+              aria-label={`Move ${seat.name} to spectators`}
+              title="Move to spectators"
+              disabled={busy}
+              onClick={() => send({ type: 'remove-player', playerId: seat.id, watch: true })}
+            >
+              <Eye size={18} />
+            </button>
           )}
           <button
             className="icon-button"

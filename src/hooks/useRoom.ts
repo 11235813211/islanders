@@ -128,9 +128,9 @@ export function useRoom(session: Session | null, signedIn = false) {
         ws.send(JSON.stringify({ type: 'auth', token: session.token }));
         lastSeen = Date.now();
         heartbeat = setInterval(() => {
-          if (Date.now() - lastSeen > 50_000) ws.close();
+          if (Date.now() - lastSeen > 35_000) ws.close();
           else if (ws.readyState === WebSocket.OPEN) ws.send('ping');
-        }, 20_000);
+        }, 10_000);
       };
       ws.onmessage = (event: MessageEvent<string>) => {
         if (disposed || socket.current !== ws) return;

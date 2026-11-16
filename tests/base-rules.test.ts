@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { assignNumbers, generateBoard, ORDERED_NUMBERS, spiralHexes } from '../shared/board';
 import { addSpectator, advanceTime, applyAction, emptyBag, getView, normalizeGame } from '../shared/engine';
+import { produce } from '../shared/engine/production';
 import { developmentDeck, longestRoad, tradeRates, updateAwards, victoryPoints } from '../shared/rules';
 import { CLASSIC_RESOURCES, type DevelopmentType, type GameState, RESOURCES } from '../shared/types';
 import { conserved, grant, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
@@ -15,7 +16,8 @@ function card(g: GameState, kind: DevelopmentType, id = 'test-card') {
 }
 function voteAll(game: GameState, kind: 'undo' | 'pause' | 'resume', at = now) {
   let g = act(game, 'p0', { type: 'propose', kind }, at);
-  for (const id of ['p1', 'p2']) g = act(g, id, { type: 'vote', proposalId: g.proposal!.id, accept: true }, at);
+  for (const id of ['p1', 'p2'])
+    if (g.proposal) g = act(g, id, { type: 'vote', proposalId: g.proposal.id, accept: true }, at);
   return g;
 }
 describe('base board and ports', () => {
@@ -141,6 +143,23 @@ describe('development cards and awards', () => {
       /bank/,
     );
   });
+  it('pays nobody a resource the bank cannot cover for everyone, unless only one player is owed', () => {
+    const g = settled();
+    const hex = g.board.hexes.find(h => h.terrain === 'wood' && h.number && h.id !== g.robber)!;
+    g.buildings = {
+      [hex.vertexIds[0]!]: { playerId: 'p0', kind: 'city' },
+      [hex.vertexIds[3]!]: { playerId: 'p1', kind: 'settlement' },
+    };
+    g.bank.wood = 2;
+    const shared = structuredClone(g);
+    expect(produce(shared, hex.number!)).toEqual({});
+    expect(shared.bank.wood).toBe(2);
+    expect(shared.log.at(-1)!.text).toMatch(/short of wood/);
+    delete g.buildings[hex.vertexIds[3]!];
+    g.bank.wood = 1;
+    expect(produce(g, hex.number!).p0?.wood).toBe(1);
+    expect(g.bank.wood).toBe(0);
+  });
   it('counts loops once, excludes branches, and stops at opponent buildings', () => {
     const g = makeLobby();
     g.roads = {};
@@ -192,6 +211,16 @@ describe('development cards and awards', () => {
   });
 });
 describe('clocks, consent, spectators and chat', () => {
+  it('adds time to the turn for each trade or build, up to a full turn', () => {
+    const g = settled();
+    g.phase = 'build';
+    g.turnDeadline = now + 30_000;
+    grant(g, 'p0', { wood: 8 });
+    const traded = act(g, 'p0', { type: 'trade', give: 'wood', receive: 'ore' }, now);
+    expect(traded.turnDeadline).toBe(now + 40_000);
+    traded.turnDeadline = now + 115_000;
+    expect(act(traded, 'p0', { type: 'trade', give: 'wood', receive: 'ore' }, now).turnDeadline).toBe(now + 120_000);
+  });
   it('expires a turn once, lets the bot finish, and gives the next player a full clock', () => {
     let g = settled();
     g.settings.autoRollSeconds = 0;
@@ -205,9 +234,14 @@ describe('clocks, consent, spectators and chat', () => {
     expect(advanceTime(g, now + 10_000)).toBe(g);
     expect(g.turn).toBe(2);
   });
-  it('pauses only on approval, blocks game moves, and restores all clock time on resume', () => {
+  it('pauses once one other person agrees, blocks game moves, and restores all clock time on resume', () => {
     const original = settled();
-    let g = voteAll(original, 'pause', now + 1000);
+    const asked = act(original, 'p0', { type: 'propose', kind: 'pause' }, now + 1000);
+    expect(asked.pausedAt).toBeNull();
+    let g = act(asked, 'p2', { type: 'vote', proposalId: asked.proposal!.id, accept: true }, now + 1000);
+    expect(g.pausedAt).toBe(now + 1000);
+    expect(act(settled(2), 'p0', { type: 'propose', kind: 'pause' }).pausedAt).not.toBeNull();
+    g = voteAll(original, 'pause', now + 1000);
     expect(g.pausedAt).toBe(now + 1000);
     expect(advanceTime(g, now + 500_000)).toBe(g);
     expect(() => act(g, 'p0', { type: 'roll' })).toThrow(/paused/);
@@ -244,9 +278,11 @@ describe('clocks, consent, spectators and chat', () => {
     g.phase = 'build';
     grant(g, 'p0', { wood: 1 });
     g = act(g, 'p0', { type: 'offer-trade', give: { ...emptyBag(), wood: 1 }, want: { ...emptyBag(), ore: 1 } });
-    expect(() => act(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffer!.id }, now + 30_001)).toThrow(/no longer/);
+    expect(() => act(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffers[0]!.id }, now + 30_001)).toThrow(
+      /no longer/,
+    );
     g = advanceTime(g, now + 30_001);
-    expect(g.tradeOffer).toBeNull();
+    expect(g.tradeOffers[0]).toBeUndefined();
     g = act(g, 'p0', { type: 'propose', kind: 'pause' }, now + 31_000);
     expect(advanceTime(g, now + 80_000).proposal).toBeNull();
   });

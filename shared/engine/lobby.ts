@@ -130,6 +130,7 @@ export function createGame(
     spectators: [],
     hostId: '',
     colorSwaps: [],
+    mapProposals: [],
     phase: 'lobby',
     buildings: {},
     roads: {},
@@ -172,7 +173,7 @@ export function createGame(
     map: null,
     rollDeadline: null,
     diceCounts: emptyDiceCounts(),
-    tradeOffer: null,
+    tradeOffers: [],
     deferredTrades: [],
     fogPeeks: {},
     testMode: options.testMode === true,
@@ -371,6 +372,7 @@ export const lobbyHandlers: Pick<
     );
     const which = layout && layouts.length > 1 ? ` (the ${playerRange(layout)} player map)` : '';
     addLog(next, `${player.name} chose ${chosen ? chosen.name : 'the standard island'}${which}.`);
+    next.mapProposals = next.mapProposals.filter(p => p.mapId !== action.mapId);
   },
 
   'choose-color'({ next, player, playerId }, action) {
@@ -469,10 +471,13 @@ export const lobbyHandlers: Pick<
     requireRule(action.playerId !== playerId, 'Use Leave room to leave.');
     const target = next.players.find(p => p.id === action.playerId);
     requireRule(target, 'That player is not in this room.');
+    const watch = action.watch && !target.bot;
+    if (watch) requireRule(next.spectators.length < 16, 'This room already has sixteen spectators.');
     next.players = next.players.filter(p => p.id !== target.id);
     next.colorSwaps = next.colorSwaps.filter(s => s.from !== target.id && s.to !== target.id);
     delete next.stats[target.id];
-    addLog(next, `${target.name} was removed.`);
+    if (watch) next.spectators.push({ id: target.id, name: target.name });
+    addLog(next, watch ? `${target.name} is now watching.` : `${target.name} was removed.`);
   },
 
   'transfer-host'({ next, playerId }, action) {

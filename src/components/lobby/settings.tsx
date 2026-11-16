@@ -5,6 +5,7 @@ import {
   Dices,
   Flame,
   Hash,
+  Hourglass,
   House,
   Landmark,
   Minus,
@@ -17,7 +18,13 @@ import {
   Trophy,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { AUTO_ROLL_SECONDS, DISCOVERY_RULES, TRADE_SECONDS, VICTORY_POINT_RANGE } from '../../../shared/settings';
+import {
+  AUTO_ROLL_SECONDS,
+  DECISION_SECONDS,
+  DISCOVERY_RULES,
+  TRADE_SECONDS,
+  VICTORY_POINT_RANGE,
+} from '../../../shared/settings';
 import type { DiscoveryRule, GameSettings, GameView } from '../../../shared/types';
 
 /**
@@ -234,6 +241,13 @@ export const CATEGORIES: Category[] = [
         hint: 'How long other players have to answer a trade offer.',
         icon: <ArrowLeftRight size={20} />,
         control: { kind: 'select', options: TRADE_SECONDS.map(n => ({ value: n, label: `${n} seconds` })) },
+      },
+      {
+        key: 'decisionSeconds',
+        label: 'Short choices',
+        hint: 'Seconds to place the robber or pirate or pick gold before a bot picks for you.',
+        icon: <Hourglass size={20} />,
+        control: { kind: 'select', options: DECISION_SECONDS.map(n => ({ value: n, label: `${n} seconds` })) },
       },
     ],
   },

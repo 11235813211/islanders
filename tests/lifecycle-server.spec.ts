@@ -14,7 +14,15 @@ test('players leave, get removed, hand over hosting, and the room closes when th
     await host.authenticate(hostSession);
     await guest.authenticate(guestSession);
     // A blank name gets a guest name from shared/guest-names.ts.
-    expect(GUEST_NAMES).toContain(host.state.players.find(p => p.id === guestSession.playerId)!.name);
+    const guestName = host.state.players.find(p => p.id === guestSession.playerId)!.name;
+    expect(GUEST_NAMES).toContain(guestName);
+    // On another device, typing the same name (any case) takes the seat back instead of adding one.
+    const again = await request.post(`${server}/api/rooms/${hostSession.roomId}/join`, {
+      headers: { Origin: origin },
+      data: { name: guestName.toUpperCase() },
+    });
+    expect(again.status()).toBe(200);
+    expect((await again.json()).playerId).toBe(guestSession.playerId);
 
     let view = await host.action({ type: 'add-bot', level: 'intermediate' });
     const bot = view.players.find(p => p.bot)!;

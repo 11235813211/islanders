@@ -1,6 +1,7 @@
 import { Bot, ChevronDown, ChevronUp, Flag, Route, WifiOff } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
+import { DISCOVERY_RULES } from '../../../shared/settings';
 import type { GameView } from '../../../shared/types';
 import { ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
@@ -102,8 +103,11 @@ export default function PlayerPanel({
                     {p.id === view.selfId && <small>you</small>}
                   </span>
                 </th>
-                <td aria-label={`${p.resourceCount} resource cards`}>
-                  <CardCount count={p.resourceCount} />
+                <td
+                  aria-label={`${p.resourceCount} resource cards`}
+                  title={overLimit(view, p) ? `Over ${view.settings.discardLimit}: discards on a 7` : undefined}
+                >
+                  <CardCount count={p.resourceCount} over={overLimit(view, p)} />
                 </td>
                 <td aria-label={`${p.developmentCount} development cards`}>
                   {p.developmentCount > 0 && <CardCount count={p.developmentCount} development />}
@@ -140,6 +144,11 @@ export default function PlayerPanel({
     </section>
   );
 }
+
+/** A seat holds more cards than the discard limit, counting discoveries where they count. */
+const overLimit = (view: GameView, player: GameView['players'][number]) =>
+  player.resourceCount + (DISCOVERY_RULES[view.settings.discoveries].inHand ? player.discoveries : 0) >
+  view.settings.discardLimit;
 
 /** A seat's name with its marks; for the host, a button that opens the hand-to-bot dialog. */
 function NameText({

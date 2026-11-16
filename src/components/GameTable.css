@@ -258,6 +258,11 @@
   font-size: 15px;
   text-shadow: 0 1px #165039;
 }
+/* The seat would discard on a 7. */
+.stat-card.over-limit {
+  outline: 2.5px solid #e0402a;
+  outline-offset: 1px;
+}
 .stat-dev {
   background: linear-gradient(135deg, #8a70ca, #5c4596);
   border-color: #66518a;
@@ -755,7 +760,14 @@
   overflow-wrap: anywhere;
 }
 .chat-messages p {
-  margin: 0 0 13px;
+  margin: 13px 0 0;
+}
+.chat-messages p:first-child {
+  margin-top: 0;
+}
+/* The same person again: no name, tucked under their last message. */
+.chat-messages p.continued {
+  margin-top: 3px;
 }
 .chat-messages strong {
   display: block;
@@ -1995,7 +2007,20 @@
   font-size: 13px;
 }
 .settings-summary dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   color: #3b525c;
+}
+.summary-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--tone);
+}
+.summary-icon svg {
+  width: 15px;
+  height: 15px;
 }
 .settings-summary dd {
   margin: 0;

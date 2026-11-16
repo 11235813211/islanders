@@ -11,7 +11,7 @@ function midGame(): GameState {
   const brains = Array.from({ length: 4 }, () => BOTS.intermediate.brain);
   playGame(drawScenario(3, { maps: ['base'], players: [4] }), brains, 3, {
     beforeMove(state, seat) {
-      if (!found && seat === 0 && state.phase === 'build' && state.turn > 24 && !state.tradeOffer) {
+      if (!found && seat === 0 && state.phase === 'build' && state.turn > 24 && !state.tradeOffers[0]) {
         const hands = state.players.filter(p => p.id !== 'p0').filter(p => RESOURCES.some(r => p.resources[r] > 0));
         if (hands.length >= 2) found = structuredClone(state);
       }

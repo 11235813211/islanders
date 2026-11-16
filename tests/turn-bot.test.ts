@@ -43,13 +43,19 @@ describe('bot trade offers', () => {
       want: { ...g.players[0]!.resources, wood: 0, ore: 1 },
     };
     g = applyAction(g, 'p0', { type: 'offer-trade', ...terms }, seeded(), now);
-    g = applyAction(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffer!.id }, seeded(), now + 100);
+    g = applyAction(g, 'p1', { type: 'accept-trade', offerId: g.tradeOffers[0]!.id }, seeded(), now + 100);
     expect(botDueAt(g)).toBe(now + BOT_OFFER_WAIT_MS);
     expect(advanceTime(g, now + 1000, seeded())).toBe(g);
-    const answered = applyAction(g, 'p2', { type: 'decline-trade', offerId: g.tradeOffer!.id }, seeded(), now + 2000);
+    const answered = applyAction(
+      g,
+      'p2',
+      { type: 'decline-trade', offerId: g.tradeOffers[0]!.id },
+      seeded(),
+      now + 2000,
+    );
     expect(botDueAt(answered)).toBeLessThan(now + BOT_OFFER_WAIT_MS);
     const traded = advanceTime(g, now + BOT_OFFER_WAIT_MS, seeded());
-    expect(traded.tradeOffer).toBeNull();
+    expect(traded.tradeOffers[0]).toBeUndefined();
     expect(traded.players[0]!.resources.ore).toBe(1);
   });
 });

@@ -90,9 +90,9 @@ test('trade stays beside the hand, collects hand clicks and supports bank exchan
     await page.screenshot({ path: `test-results/trading-${label}.png` });
   }
   await dialog.getByRole('button', { name: 'Offer to players' }).click();
-  await expect.poll(() => game.state().tradeOffer?.give.wood).toBe(2);
-  expect(game.state().tradeOffer?.give.brick).toBe(1);
-  expect(game.state().tradeOffer?.want).toMatchObject({ ore: 1, wheat: 1 });
+  await expect.poll(() => game.state().tradeOffers[0]?.give.wood).toBe(2);
+  expect(game.state().tradeOffers[0]?.give.brick).toBe(1);
+  expect(game.state().tradeOffers[0]?.want).toMatchObject({ ore: 1, wheat: 1 });
   await page.getByRole('button', { name: 'Withdraw offer' }).click();
   // A bank trade is the same draft at your harbor rate: Bank stays off until it matches.
   const before = game.state().players[0].resources.wood,

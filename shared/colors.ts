@@ -13,7 +13,7 @@ export const PLAYER_COLORS: Record<PlayerColor, { label: string; fill: string; i
   blue: { label: 'Blue', fill: '#1f4fd6', ink: '#ffffff', accent: '#1f4fd6' },
   green: { label: 'Green', fill: '#0c9a6a', ink: '#ffffff', accent: '#0c9a6a' },
   brown: { label: 'Brown', fill: '#7a4822', ink: '#ffffff', accent: '#7a4822' },
-  black: { label: 'Black', fill: '#24272d', ink: '#ffffff', accent: '#24272d' },
+  black: { label: 'Black', fill: '#353941', ink: '#ffffff', accent: '#24272d' },
   purple: { label: 'Purple', fill: '#8a3cd8', ink: '#ffffff', accent: '#8a3cd8' },
 };
 
