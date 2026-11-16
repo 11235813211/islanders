@@ -1,0 +1,41 @@
+/* The lobby's list of people watching; the host's seat picker sits at the end of each row. */
+.lobby-spectators {
+  margin-top: 14px;
+}
+.lobby-spectators h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: #3b525c;
+  font-size: 13px;
+}
+.lobby-spectator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 1px solid #d3e1e3;
+  border-radius: 8px;
+  background: #fffdf6;
+}
+.lobby-spectator + .lobby-spectator {
+  margin-top: 6px;
+}
+.lobby-spectator-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.lobby-spectator select {
+  flex: none;
+  width: 160px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  font-size: 13px;
+}

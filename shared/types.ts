@@ -635,6 +635,8 @@ export type GameAction =
   | { type: 'remove-player'; playerId: string; watch?: boolean }
   /** Put a map forward for the host, or back (or stop backing) one already proposed. */
   | { type: 'propose-map'; mapId: string; layoutFor?: number }
+  /** Host: someone watching takes a seat: an open one in the lobby (no `playerId`), or a player's or bot's. */
+  | { type: 'seat-spectator'; spectatorId: string; playerId?: string }
   /** Host: turn a map proposal down. */
   | { type: 'decline-map'; mapId: string }
   | { type: 'transfer-host'; playerId: string }

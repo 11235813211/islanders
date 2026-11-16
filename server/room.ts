@@ -4,6 +4,7 @@ import {
   addSpectator,
   advanceTime,
   applyAction,
+  awayHostSuccessor,
   createGame,
   GameError,
   getActivePlayerId,
@@ -14,6 +15,7 @@ import {
   MAX_PLAYERS,
   nextDueAt,
   normalizeGame,
+  passHost,
   peekBoard,
 } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
@@ -41,7 +43,7 @@ import {
   readBody,
   secureRandom,
 } from './protocol';
-import { appendStep, beginRecording, finishRecording, type Recording } from './recording';
+import { appendStep, beginRecording, discardRecording, finishRecording, type Recording } from './recording';
 
 interface AccountBinding {
   username: string;
@@ -66,6 +68,8 @@ interface RoomRecord {
   recording?: Recording;
   /** When the last human player disconnected. The game pauses after IDLE_GRACE_MS and the room closes after EMPTY_ROOM_MS. */
   emptySince?: number;
+  /** When the host disconnected. Hosting passes to someone connected after HOST_AWAY_MS. */
+  hostAwaySince?: number;
 }
 interface Attachment {
   playerId: string | null;
@@ -83,6 +87,8 @@ const MAX_PLAYER_SOCKETS = 4;
 const MAX_MESSAGES_PER_MINUTE = 90;
 /** A reload or brief drop shouldn't pause the game, so wait this long first. */
 const IDLE_GRACE_MS = 60_000;
+/** A host gone this long (a reload is back well before) hands hosting to someone connected. */
+const HOST_AWAY_MS = 20_000;
 /**
  * A socket that sent no ping for this long is treated as gone: a closed tab or a locked phone often
  * never sends a close. Clients ping every 10s (answered without waking the room, so pings cost no
@@ -122,6 +128,7 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'remove-player',
   'transfer-host',
   'seat-to-bot',
+  'seat-spectator',
   'add-bot',
   'set-bot-level',
   'play-again',
@@ -269,6 +276,9 @@ export class GameRoom extends DurableObject<Env> {
       // Only a future pause deadline: once it passes, the alarm below has paused the game (or there was nothing to pause).
       const pauseAt = (this.record.emptySince ?? Number.NEGATIVE_INFINITY) + IDLE_GRACE_MS;
       if (pauseAt > Date.now()) deadlines.push(pauseAt);
+      // The host's grace runs out, or it already has and someone is here to take over.
+      const handOver = this.hostHandOverAt(this.record);
+      if (handOver !== null) deadlines.push(handOver);
       // Every game deadline and bot move (gold, robber, and volcano dice included).
       const due = nextDueAt(game);
       if (due !== null) deadlines.push(due);
@@ -280,6 +290,22 @@ export class GameRoom extends DurableObject<Env> {
     }
     if (deadlines.length) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, Math.min(...deadlines)));
     else await this.ctx.storage.deleteAlarm();
+  }
+  /** When hosting should pass to someone else, or null when it shouldn't (the host is here, or nobody is). */
+  private hostHandOverAt(room: RoomRecord): number | null {
+    if (room.hostAwaySince === undefined) return null;
+    const at = room.hostAwaySince + HOST_AWAY_MS;
+    if (at > Date.now()) return at;
+    return awayHostSuccessor(room.game, this.online()) ? Date.now() : null;
+  }
+  /** Hand hosting to the first connected person once the host has been away long enough. */
+  private async handOverHost(room: RoomRecord, now: number): Promise<RoomRecord> {
+    if (room.hostAwaySince === undefined || now < room.hostAwaySince + HOST_AWAY_MS) return room;
+    if (this.online().includes(room.game.hostId)) return { ...room, hostAwaySince: undefined };
+    const successor = awayHostSuccessor(room.game, this.online());
+    if (!successor) return room;
+    const logged = await this.logStep(room, { kind: 'host', actor: successor, now, random: [] });
+    return { ...logged, game: passHost(room.game, successor), hostAwaySince: undefined };
   }
   /** When an empty room closes (later for a game against bots). A room nobody has connected to yet counts from its last join or move. */
   private closesAt(room: RoomRecord): number {
@@ -656,6 +682,11 @@ export class GameRoom extends DurableObject<Env> {
         if (action.type === 'leave') next = await this.dropMember(next, attachment.playerId, 'You left the room.');
         if (action.type === 'remove-player')
           next = await this.dropMember(next, action.playerId, 'The host removed you from the room.');
+        // A newcomer at the table hasn't agreed to be recorded (and isn't in the recorded lobby).
+        if (action.type === 'seat-spectator' && next.recording && room.game.phase !== 'lobby') {
+          await discardRecording(this.ctx.storage);
+          next = { ...next, recording: undefined };
+        }
         if (action.type === 'seat-to-bot') {
           if (next.recording)
             next.recording = { ...next.recording, ids: withBotSeat(next.recording.ids, room.game, next.game) };
@@ -717,6 +748,11 @@ export class GameRoom extends DurableObject<Env> {
     attachment.tokenHash = tokenHash;
     attachment.controlledId = saved.playerId;
     socket.serializeAttachment(attachment);
+    // The host is back in time: hosting stays with them.
+    if (saved.playerId === room.game.hostId && room.hostAwaySince !== undefined) {
+      room = { ...room, hostAwaySince: undefined };
+      await this.commit(room);
+    }
     // Someone is back: cancel a pending idle pause, or resume one that already started.
     if (room.game.players.some(p => p.id === saved.playerId && !p.bot)) {
       const now = Date.now();
@@ -774,10 +810,15 @@ export class GameRoom extends DurableObject<Env> {
     if (!playerId || !room) return;
     const stillHere = this.sockets().some(other => other !== socket && this.attachment(other)?.playerId === playerId);
     if (stillHere) return;
-    const game = logPresence(room.game, playerId, false);
-    if (game === room.game) return;
     const now = Date.now();
-    const logged = await this.logStep(room, { kind: 'disconnected', actor: playerId, now, random: [] });
+    const hostLeft = playerId === room.game.hostId && !room.game.testMode;
+    const marked = hostLeft ? { ...room, hostAwaySince: now } : room;
+    const game = logPresence(room.game, playerId, false);
+    if (game === room.game) {
+      if (marked !== room) await this.commit(marked);
+      return;
+    }
+    const logged = await this.logStep(marked, { kind: 'disconnected', actor: playerId, now, random: [] });
     await this.commit({ ...logged, game });
   }
 
@@ -796,6 +837,13 @@ export class GameRoom extends DurableObject<Env> {
         if (saved?.account && saved.account.expiresAt <= now) socket.close(4401, 'Sign-in expired.');
       }
       if (await this.dropQuietSockets(now)) this.broadcast();
+      if (this.record) {
+        const handed = await this.handOverHost(this.record, now);
+        if (handed !== this.record) {
+          await this.commit(handed);
+          this.broadcast();
+        }
+      }
       if (this.record && this.expired(this.record, now)) {
         await this.destroy('This room closed because no players were connected.');
         return;

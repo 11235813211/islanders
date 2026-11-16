@@ -133,3 +133,24 @@ test('client error reports are accepted', async ({ request }) => {
   });
   expect(report.status()).toBe(204);
 });
+
+test('hosting passes to a connected player once the host has been away a while', { tag: '@slow' }, async ({
+  request,
+}) => {
+  const hostSession = await join(request, 'Host');
+  const guestSession = await join(request, 'Guest', hostSession.roomId);
+  const host = new PlayerConnection(hostSession.roomId);
+  const guest = new PlayerConnection(hostSession.roomId);
+  try {
+    await host.authenticate(hostSession);
+    await guest.authenticate(guestSession);
+    host.dispose();
+    // Not at once (a reload is back sooner), but within the 20 s grace and an alarm.
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    expect(guest.state.hostId).toBe(hostSession.playerId);
+    await expect.poll(() => guest.state.hostId, { timeout: 30_000, intervals: [1000] }).toBe(guestSession.playerId);
+  } finally {
+    host.dispose();
+    guest.dispose();
+  }
+});

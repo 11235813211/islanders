@@ -32,7 +32,7 @@ export class PlayerConnection {
       if (data.toString() === 'pong') this.pongs++;
       else this.messages.push(JSON.parse(data.toString()) as ServerMessage);
     });
-    // Ping like the real client does (useRoom.ts), or the room drops the socket as gone after 75s.
+    // Ping like the real client does (useRoom.ts), or the room drops the socket as gone after 45s.
     const heartbeat = setInterval(() => {
       if (this.socket.readyState === WebSocket.OPEN) this.socket.send('ping');
     }, 20_000);

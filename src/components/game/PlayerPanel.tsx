@@ -175,7 +175,7 @@ function NameText({
     <button
       type="button"
       className="player-name-text player-name-button"
-      aria-label={`${player.name}: move to spectators or replace with a bot`}
+      aria-label={`${player.name}: change who plays this seat`}
       onClick={() => pickSeat(player.id)}
     >
       {marks}

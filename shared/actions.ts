@@ -79,6 +79,7 @@ const SPEC = {
   'choose-map': { mapId: 'id', layoutFor: 'count?' },
   'propose-map': { mapId: 'id', layoutFor: 'count?' },
   'decline-map': { mapId: 'id' },
+  'seat-spectator': { spectatorId: 'id', playerId: 'id?' },
   trade: { give: 'resource', receive: 'resource', count: 'count?' },
   'bank-trade': { give: 'bag', receive: 'bag' },
   discard: { resources: 'tradeBag' },

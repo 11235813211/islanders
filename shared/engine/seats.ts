@@ -1,7 +1,7 @@
 import { renameId } from '../copy';
 import { DEFAULT_BOT_LEVEL, type GameState } from '../types';
-import { addLog, type Handlers, requireRule } from './core';
-import { requireHost } from './lobby';
+import { addLog, cloneState, emptyStats, type Handlers, MAX_PLAYERS, requireRule } from './core';
+import { newSeat, requireHost } from './lobby';
 
 /** Most spectators a room holds. */
 const MAX_SPECTATORS = 16;
@@ -17,7 +17,66 @@ export function botSeatId(state: GameState, personId: string): string {
   return id;
 }
 
-export const seatHandlers: Pick<Handlers, 'seat-to-bot'> = {
+/** Swap one player id for another everywhere in the game (the board never holds player ids). */
+function renameSeat(next: GameState, from: string, to: string): void {
+  const { board: _board, chat: _chat, ...rest } = next;
+  Object.assign(next, renameId(rest, from, to));
+}
+
+/**
+ * Who should host while the host is away: the first connected person in seat order, or null when
+ * nobody else is here (the server calls this once the host has been gone a while).
+ */
+export function awayHostSuccessor(state: GameState, online: readonly string[]): string | null {
+  if (state.testMode || online.includes(state.hostId)) return null;
+  return state.players.find(p => !p.bot && p.id !== state.hostId && online.includes(p.id))?.id ?? null;
+}
+
+/** Hosting moves to `id`, a person at the table. Returns the same object when that changes nothing. */
+export function passHost(state: GameState, id: string): GameState {
+  const player = state.players.find(p => p.id === id && !p.bot);
+  if (!player || state.hostId === id) return state;
+  const next = cloneState(state);
+  next.hostId = id;
+  next.version++;
+  addLog(next, `${player.name} is now the host while the host is away.`);
+  return next;
+}
+
+export const seatHandlers: Pick<Handlers, 'seat-to-bot' | 'seat-spectator'> = {
+  /**
+   * Host: someone watching takes a seat. In the lobby that can be an open seat; otherwise (and at
+   * any time during a game) they take over a player's or bot's seat as it stands, and a person they
+   * replace starts watching.
+   */
+  'seat-spectator'({ next, playerId }, action) {
+    requireRule(next.phase !== 'finished', 'This game has finished.');
+    requireRule(!next.testMode, 'Solo test rooms have fixed seats.');
+    requireHost(next, playerId, 'seat spectators');
+    const watcher = next.spectators.find(s => s.id === action.spectatorId);
+    requireRule(watcher, 'Choose someone who is watching.');
+    next.spectators = next.spectators.filter(s => s.id !== watcher.id);
+    if (!action.playerId) {
+      requireRule(next.phase === 'lobby', 'Choose a seat to take over.');
+      requireRule(next.players.length < MAX_PLAYERS, 'This island already has six players.');
+      next.players.push(newSeat(next, watcher.id, watcher.name));
+      next.stats[watcher.id] = emptyStats();
+      addLog(next, `${watcher.name} took a seat.`);
+      return;
+    }
+    const seat = next.players.find(p => p.id === action.playerId);
+    requireRule(seat, 'Choose a seat to take over.');
+    requireRule(seat.id !== playerId, 'Move yourself to the spectators instead.');
+    const replaced = { id: seat.id, name: seat.name, bot: seat.bot };
+    renameSeat(next, replaced.id, watcher.id);
+    const taken = next.players.find(p => p.id === watcher.id)!;
+    taken.name = watcher.name;
+    delete taken.bot;
+    if (next.proposal?.required.includes(watcher.id)) next.proposal = null;
+    if (!replaced.bot) next.spectators.push({ id: replaced.id, name: replaced.name });
+    addLog(next, `${watcher.name} took over ${replaced.name}’s seat.`);
+  },
+
   /**
    * Host, mid-game: an Advanced bot takes over someone's seat (pieces, cards, and points stay with
    * the seat). With `watch` the person stays as a spectator; otherwise they leave the room.
@@ -30,9 +89,7 @@ export const seatHandlers: Pick<Handlers, 'seat-to-bot'> = {
     requireRule(seat.id !== playerId, 'Use Leave game to give up your own seat.');
     requireRule(!action.watch || next.spectators.length < MAX_SPECTATORS, 'This room already has sixteen spectators.');
     const botId = botSeatId(next, seat.id);
-    // The board never holds player ids, so it is left out of the (whole-state) rename.
-    const { board: _board, ...rest } = next;
-    Object.assign(next, renameId(rest, seat.id, botId));
+    renameSeat(next, seat.id, botId);
     next.players.find(p => p.id === botId)!.bot = DEFAULT_BOT_LEVEL;
     if (next.proposal?.required.includes(botId)) next.proposal = null;
     if (action.watch) {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addSpectator,
   advanceTime,
   applyAction,
+  awayHostSuccessor,
   BOT_THINK_MS,
   botDueAt,
   GameError,
@@ -9,6 +11,7 @@ import {
   getView,
   idlePause,
   idleResume,
+  passHost,
   peekBoard,
   pendingBotActor,
   ROLL_SHOW_MS,
@@ -23,6 +26,42 @@ const act = (g: ReturnType<typeof makeLobby>, id: string, action: Parameters<typ
   applyAction(g, id, action, seeded(), now);
 
 describe('room membership', () => {
+  it('lets the host seat a spectator: an open lobby seat, or anyone’s seat mid-game', () => {
+    const lobby = addSpectator(makeLobby(3), { id: 'w', name: 'Watcher' });
+    expect(() => act(lobby, 'p1', { type: 'seat-spectator', spectatorId: 'w' })).toThrow(/host/);
+    const seated = act(lobby, 'p0', { type: 'seat-spectator', spectatorId: 'w' });
+    expect(seated.players.map(p => p.id)).toEqual(['p0', 'p1', 'p2', 'w']);
+    expect(seated.spectators).toEqual([]);
+
+    const game = addSpectator(settled(3), { id: 'w', name: 'Watcher' });
+    grant(game, 'p1', { ore: 2 });
+    expect(() => act(game, 'p0', { type: 'seat-spectator', spectatorId: 'w' })).toThrow(/seat to take over/);
+    expect(() => act(game, 'p0', { type: 'seat-spectator', spectatorId: 'w', playerId: 'p0' })).toThrow(/yourself/);
+    const took = act(game, 'p0', { type: 'seat-spectator', spectatorId: 'w', playerId: 'p1' });
+    const seat = took.players[1]!;
+    expect([seat.id, seat.name, seat.bot]).toEqual(['w', 'Watcher', undefined]);
+    expect(seat.resources).toEqual(game.players[1]!.resources);
+    expect(Object.values(took.buildings).filter(b => b.playerId === 'w')).toHaveLength(2);
+    expect(took.spectators).toEqual([{ id: 'p1', name: 'Player 1' }]);
+    expect(conserved(took)).toBe(true);
+    // A bot's seat can be taken too; the bot just goes.
+    const botGame = act(game, 'p0', { type: 'seat-to-bot', playerId: 'p2', watch: false });
+    const botId = botGame.players[2]!.id;
+    const fromBot = act(botGame, 'p0', { type: 'seat-spectator', spectatorId: 'w', playerId: botId });
+    expect(fromBot.players[2]!.id).toBe('w');
+    expect(fromBot.spectators).toEqual([]);
+  });
+
+  it('passes hosting to the first connected person while the host is away', () => {
+    const g = settled(3);
+    expect(awayHostSuccessor(g, ['p0', 'p1'])).toBeNull();
+    expect(awayHostSuccessor(g, ['p2'])).toBe('p2');
+    expect(awayHostSuccessor(g, [])).toBeNull();
+    const passed = passHost(g, 'p2');
+    expect(passed.hostId).toBe('p2');
+    expect(passHost(passed, 'p2')).toBe(passed);
+  });
+
   it('lets the host hand a seat to an Advanced bot, the person watching or leaving', () => {
     const g = settled(3);
     const pieces = Object.values(g.buildings).filter(b => b.playerId === 'p1').length;

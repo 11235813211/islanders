@@ -1,4 +1,4 @@
-import { advanceTime, applyAction, idlePause, idleResume, logPresence, normalizeGame } from './engine';
+import { advanceTime, applyAction, idlePause, idleResume, logPresence, normalizeGame, passHost } from './engine';
 import type { BotLevel, GameAction, GameState } from './types';
 
 /**
@@ -9,7 +9,7 @@ import type { BotLevel, GameAction, GameState } from './types';
 
 export const RECORD_FORMAT = 1;
 
-export type StepKind = 'action' | 'time' | 'idle-pause' | 'idle-resume' | 'connected' | 'disconnected';
+export type StepKind = 'action' | 'time' | 'idle-pause' | 'idle-resume' | 'connected' | 'disconnected' | 'host';
 export interface RecordedStep {
   kind: StepKind;
   /** Seat id (`s0`, `s1`, ...) of whoever acted (or connected or disconnected). */
@@ -93,7 +93,7 @@ export function anonymizeLobby(lobby: GameState, ids: SeatIds): GameState {
 
 /** One step for storage, or null when it came from someone without a seat (spectators). Chat text is dropped. */
 export function toStep(ids: SeatIds, step: RecordedStep): RecordedStep | null {
-  const seated = step.kind === 'action' || step.kind === 'connected' || step.kind === 'disconnected';
+  const seated = step.kind !== 'time' && step.kind !== 'idle-pause' && step.kind !== 'idle-resume';
   if (seated && !(step.actor && ids[step.actor])) return null;
   const online = step.online?.flatMap(id => (ids[id] ? [ids[id]!] : []));
   const action = step.action && renameIds(step.action, ids);
@@ -152,6 +152,7 @@ function runStep(state: GameState, step: RecordedStep, random: () => number): Ga
   if (step.kind === 'time') return advanceTime(state, step.now, random);
   if (step.kind === 'idle-pause') return idlePause(state, step.now);
   if (step.kind === 'idle-resume') return idleResume(state, step.now);
+  if (step.kind === 'host') return passHost(state, step.actor!);
   if (step.kind === 'connected' || step.kind === 'disconnected')
     return logPresence(state, step.actor!, step.kind === 'connected');
   return applyAction(state, step.actor!, step.action!, random, step.now, { online: step.online });

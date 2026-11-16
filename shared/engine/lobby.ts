@@ -200,7 +200,8 @@ export function createGame(
   };
 }
 
-function newSeat(state: GameState, id: string, name: string): Player {
+/** A fresh seat for a person joining the lobby, in the first free color. */
+export function newSeat(state: GameState, id: string, name: string): Player {
   return {
     id,
     name,

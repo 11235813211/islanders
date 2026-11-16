@@ -127,6 +127,8 @@ test('a movable ship is picked up by tapping it; trade offers show every answer 
   const ships = getView(g, 'p0').legal.ships;
   g.ships[ships[0]!] = 'p0';
   g.shipsBuilt = [];
+  // Player 1 can pay the ore, so the offer waits on their answer (others who can't are declined for them).
+  grant(g, 'p1', { ore: 1 });
   const game = await mountGame(page, g);
   const movable = Object.keys(getView(game.state(), 'p0').legal.shipMoves);
   test.skip(!movable.length, 'No ship can move on this seed');

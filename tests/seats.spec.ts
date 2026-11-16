@@ -30,14 +30,14 @@ test('a player who is not the host steps through the drawn boards without changi
   expect(game.errors).toEqual([]);
 });
 
-test('the host taps a name to move that player to spectators, after confirming', async ({ page }) => {
+test('the host moves a player to spectators, then seats them back in place of the bot', async ({ page }) => {
   const g = settled(3);
   g.phase = 'build';
   const game = await mountGame(page, g);
   const name = g.players[1]!.name;
   // Only other people's names are buttons, and only for the host.
   await expect(page.locator('.player-name-button')).toHaveCount(2);
-  await page.getByRole('button', { name: `${name}: move to spectators or replace with a bot` }).click();
+  await page.getByRole('button', { name: `${name}: change who plays this seat` }).click();
   const choose = page.getByRole('dialog', { name });
   await expectNoSpill(choose);
   await choose.getByRole('button', { name: 'Move to spectators' }).click();
@@ -46,6 +46,19 @@ test('the host taps a name to move that player to spectators, after confirming',
   await confirm.getByRole('button', { name: 'Move to spectators' }).click();
   await expect.poll(() => game.state().spectators.map(s => s.id)).toEqual(['p1']);
   expect(game.state().players[1]).toMatchObject({ id: 'p1.bot', bot: 'advanced' });
-  await expect(page.locator('.player-name-button')).toHaveCount(1);
+  // With someone watching, the bot's seat can be handed to them.
+  await expect(page.locator('.player-name-button')).toHaveCount(2);
+  await page.getByRole('button', { name: `${name}: change who plays this seat` }).click();
+  await page
+    .getByRole('dialog', { name })
+    .getByRole('button', { name: `Seat ${name}` })
+    .click();
+  await page
+    .getByRole('dialog', { name: `Seat ${name} in place of ${name}?` })
+    .getByRole('button', { name: `Seat ${name}` })
+    .click();
+  await expect.poll(() => game.state().players[1]!.id).toBe('p1');
+  expect(game.state().players[1]!.bot).toBeUndefined();
+  expect(game.state().spectators).toEqual([]);
   expect(game.errors).toEqual([]);
 });

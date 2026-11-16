@@ -179,7 +179,9 @@ test('table cues and lobby map proposals', async ({ page }) => {
     { mapId: 'base', name: 'Base game', layoutFor: null, by: ['p1', 'p2'] },
     { mapId: BUILTIN_BOARDS[1]!.id, name: BUILTIN_BOARDS[1]!.name, layoutFor: null, by: ['p0'] },
   ];
+  lobby.spectators = [{ id: 'w', name: 'Watcher with a long name' }];
   await mountGame(page, lobby);
+  await page.locator('.lobby-spectators').screenshot({ path: 'test-results/visual-cues-spectators.png' });
   await page.locator('.map-proposals').scrollIntoViewIfNeeded();
   await page.locator('.map-choice').screenshot({ path: 'test-results/visual-cues-proposals.png' });
   await page.setViewportSize({ width: 390, height: 844 });

@@ -29,6 +29,7 @@ import HelpButton from './help/HelpButton';
 import { lobbyHelp } from './help/helpContent';
 import ColorPicker, { ColorSwapNotice } from './lobby/ColorPicker';
 import LobbySeat from './lobby/LobbySeat';
+import LobbySpectators from './lobby/LobbySpectators';
 import MapChoice from './lobby/MapChoice';
 import { CATEGORIES, SettingControl, type SettingDef, THEMES, type Theme } from './lobby/settings';
 
@@ -189,6 +190,7 @@ export default function RoomLobby({
               Invite a player
             </button>
           ))}
+        <LobbySpectators view={view} host={host} busy={busy} send={send} />
         {self && !view.testMode && (
           <div className="save-games">
             <label>
