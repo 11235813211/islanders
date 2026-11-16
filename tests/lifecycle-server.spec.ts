@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { GUEST_NAMES } from '../shared/guest-names';
-import { join, origin, PlayerConnection, server } from './server-helpers';
+import { join, origin, PlayerConnection, registerAccount, server } from './server-helpers';
 
 test('players leave, get removed, hand over hosting, and the room closes when the last person leaves', async ({
   page,
@@ -152,5 +152,28 @@ test('hosting passes to a connected player once the host has been away a while',
   } finally {
     host.dispose();
     guest.dispose();
+  }
+});
+
+test('typing a signed-in person’s name never takes their seat', async ({ request }) => {
+  const hostSession = await join(request, 'Host');
+  const host = new PlayerConnection(hostSession.roomId);
+  try {
+    await host.authenticate(hostSession);
+    const signedIn = await request.post(`${server}/api/rooms/${hostSession.roomId}/join`, {
+      headers: await registerAccount(request),
+      data: {},
+    });
+    const member = (await signedIn.json()) as { playerId: string };
+    await expect.poll(() => host.state.players.some(p => p.id === member.playerId)).toBe(true);
+    const name = host.state.players.find(p => p.id === member.playerId)!.name;
+    const copy = await request.post(`${server}/api/rooms/${hostSession.roomId}/join`, {
+      headers: { Origin: origin },
+      data: { name },
+    });
+    expect(copy.status()).toBe(201);
+    expect((await copy.json()).playerId).not.toBe(member.playerId);
+  } finally {
+    host.dispose();
   }
 });

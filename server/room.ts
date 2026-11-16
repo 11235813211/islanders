@@ -138,19 +138,19 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'decline-map',
 ]);
 
-/** One serialized, durable source of truth per invite code. No client owns game state. */
 /**
- * A person already in the room under this name (or account username), so a guest on another device
- * gets their seat back by typing the same name. Bots are never matched.
+ * A guest already in the room under this name, so they get their seat back on another device by
+ * typing the same name. Signed-in people's seats and bots are never matched.
  */
 function seatNamed(room: RoomRecord, typed: string): { id: string; name: string } | undefined {
   const key = typed.trim().toLowerCase();
-  const byAccount = room.sessions.find(s => s.account?.username.toLowerCase() === key)?.playerId;
+  const signedIn = new Set(room.sessions.filter(s => s.account).map(s => s.playerId));
   return [...room.game.players.filter(p => !p.bot), ...room.game.spectators].find(
-    member => member.name.trim().toLowerCase() === key || member.id === byAccount,
+    member => member.name.trim().toLowerCase() === key && !signedIn.has(member.id),
   );
 }
 
+/** One serialized, durable source of truth per invite code. No client owns game state. */
 export class GameRoom extends DurableObject<Env> {
   private record: RoomRecord | undefined;
   private queue: Promise<unknown> = Promise.resolve();
