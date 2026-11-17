@@ -39,7 +39,7 @@ const SHIP = BUILD_COSTS.ship;
 const DECK = { point: 5 / 25, knight: 14 / 25, progress: 6 / 25 };
 
 /** Points per card, and rounds the game probably has left. */
-function horizon(econ: Economy): { card: number; rounds: number } {
+export function horizon(econ: Economy): { card: number; rounds: number } {
   const { view, knobs } = econ;
   const leader = Math.max(...view.players.map(p => (p.id === view.selfId ? p.points : p.publicPoints)));
   const left = Math.max(1, view.settings.victoryPoints - leader);

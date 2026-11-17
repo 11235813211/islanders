@@ -8,17 +8,27 @@ In short, every earlier experiment measured or learned from the current bot's ow
 so it could only find one-step improvements. People beat the bot with strategies that pay off
 over many turns. The plan below tests that gap directly and then builds on it.
 
-## Status (2026-11-17, early morning)
+## Status (2026-11-17, end of day)
 
-- **Shipped `r1`:** the plan-based planner with rival-model races and "what a settlement opens
-  next": +2.4 to +3.8 pp vs `s2` on fresh seeds, vs Intermediate ×1.91 (was ×1.65).
-- **Phase 1 probe:** with the dice leak fixed (04:30; the pilot's +8.5 and v2's +13.3 were inflated),
-  v3 gains +6.7 ±3.2 pp vs r1 at 3 players. Strategies are goal-kind leans inside the plan-based
-  planner (`strategy.ts`). A selector trained on its choices learned nothing yet (labels too noisy).
-- **Phase 2 started:** `selector.ts` (one small network per strategy predicting its advantage
-  from the position) and `selector-fit`; the shipped bot uses it when `weights.json` has one.
-- **Rival model checked on a person:** 73% top 1, 89% top 3 (37 settlements).
-- Details and verdicts: [ANALYSIS.md](ANALYSIS.md).
+- **Shipped `r1`** (committed): the plan-based planner with rival-model races and "what a
+  settlement opens next": +2.4 to +3.8 pp vs `s2` on fresh seeds, vs Intermediate ×1.91.
+- **Phase 1 probe:** with the dice leak fixed, choosing strategies by full rollouts gains
+  +6.7 ±3.2 pp vs r1 at 3 players (~250 CPU-s per game). Strategies are goal-kind leans
+  (`strategy.ts`).
+- **Phase 2:** `selector.ts` and `selector-fit` exist; a selector trained on the probe's choices
+  learned nothing (labels are mostly rollout noise).
+- **Static valuation has plateaued:** need-based income and measured enabling (`goalModel`) played
+  like r1 at twice the CPU; reverted. Knob tuning: null again. The measured headroom is lookahead.
+- **Rival model on a person:** 73% top 1, 89% top 3 (37 settlements).
+- Details, verdicts and weak points: [ANALYSIS.md](ANALYSIS.md).
+
+## Next (start here)
+
+1. **Phase 3, value network as a rollout stand-in** (below). Done when stopped rollouts scored by
+   it reproduce full rollouts on the probe's positions; then the probe is cheap enough to teach
+   a live selector.
+2. **Longest Road and Largest Army** (owner: people keep both away from the bot, especially at
+   2 players and on Jumbotan): measure first, then value the awards as races (Smaller items).
 
 ## How we work
 
@@ -168,14 +178,22 @@ Retry the learned evaluation with the flaws in [ANALYSIS.md](ANALYSIS.md) fixed.
   turns), which makes the teacher cheaper and stronger; then in the shipped bot as a one-ply
   move chooser or folded into the Phase 2 selector, inside the CPU limits.
 
-Order of work (2026-11-17), from what Phase 1 showed:
-1. **Cheaper teacher first.** `strategy-probe --rounds N --scorer <net>` stops rollouts and
-   scores them with a value network. Validate with the old `w1` against full rollouts on the
-   same seeds (agreement of choices, win gain, time). If it agrees, the probe can make 3–5×
-   more selector data per CPU-hour.
-2. **Refit on r1 games** with the missing inputs (lodestone, surveys) and TD labels, and use it
-   as the scorer. Judge it by how well stopped rollouts reproduce full ones, not by loss alone.
-3. Only then try it inside the live bot (one-ply move choice), where the earlier versions hoarded.
+Order of work (updated 2026-11-17 evening):
+1. **Done: the cheap teacher with `w1` fails.** Rollouts stopped after 6 rounds and scored by `w1`
+   lost the probe's whole gain (−1.1 ±3.3 vs +6.7 with full rollouts, same seeds). `w1` has old
+   inputs, was trained on s2's play, and was never judged on this task.
+2. **A benchmark for any scorer, before training.** From `strategy-probe-3.json` positions (or
+   re-collected ones with states saved), measure how often a stopped-rollout scorer picks the
+   same strategy as full rollouts, and the correlation of their scores. Cheap to run, and the
+   target a new network must hit. (The probe files hold features and scores, not game states;
+   saving the states, or seeds plus steps to rebuild them, is part of this step.)
+3. **Refit on r1 self-play** with better inputs: the seat summaries plus lodestone and surveys,
+   pace and trade-aware affordability (`goals.ts`), the rival model's odds on our next targets,
+   pieces left, award gaps. Labels: TD(λ) or n-step returns and final points, not only the winner.
+4. **Judge by the benchmark** (agreement with full rollouts), then rerun the probe with the new
+   scorer on v3's seeds. Only if it keeps most of +6.7 at a fraction of the cost, collect 10× the
+   choices and retry the selector.
+5. Only then consider it inside the live bot (one-ply move choice), where earlier versions hoarded.
 
 ## Phase 4: Ship and measure against people
 
@@ -186,6 +204,15 @@ Order of work (2026-11-17), from what Phase 1 showed:
   still do better.
 
 ## Smaller items alongside
+
+- **Longest Road and Largest Army, especially at 2 players and on Jumbotan (owner, 2026-11-17):**
+  people keep both awards away from the bot with little effort. In the planner, Longest Road is a
+  fixed-value goal (1.2–1.4 points, only when 1–3 roads would take it) and the army counts only
+  inside a development card's value; neither weighs what the award is worth at this table size
+  and point target, nor what it would take to keep it or take it back. A 2-point swing in a
+  2-player game is worth far more than in a 4-player one. Diagnose first: award holders and
+  swings in 2-player and Jumbotan games (bot vs bot, and the saved games), then value awards by
+  the race for them like settlements (who can get there, how fast, and what it denies).
 
 These are cheap and can run any time:
 - C3 (Cartographers can replace a winning move) and C7 (gold choices beyond bank stock) from

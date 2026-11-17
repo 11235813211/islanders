@@ -10,6 +10,14 @@ _Nothing running._
 
 ## Finished
 
+### Goal valuation v2 (goalModel 1) vs r1: no gain
+
+- **Result (2026-11-17 afternoon, 400 seeds 7400000, field r1):** need-based income and measured enabling
+  (goals.ts): enableValue 0 +0.05 ±1.11, 3 −0.98 ±1.06, 6 −0.78 ±1.08 pp; with enabling over the best
+  three next goals: 3 −1.15 ±1.11, 6 −0.43 ±1.08 pp. With enabling it plays almost like r1 (settlements
+  2.9 vs 3.1, cities 2.2 vs 2.1, cards 4.4 vs 4.3). One seat's CPU per game roughly doubles (profile: 569
+  vs 257 ms). Not shipped.
+
 ### Tuning the plan-based planner's knobs (from r1): no gain
 
 - **Result (2026-11-17 06:08–06:50):** 12 generations × 2,400 games (field r1, r1, trader, hoarder). Moves:

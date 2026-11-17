@@ -9,6 +9,7 @@ import { endDiagnostics, type RouteLog, traceRoutes } from './diagnostics';
 import { reportDisagreements } from './disagree';
 import { matchJobs, pairedDifference, playMatch, report, summarize } from './evaluate';
 import { runGauntlet } from './gauntlet';
+import { goalReport } from './goal-report';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { askAuth, fetchRecords, SITE, saveLibrary } from './live';
 import { collect, fitNetwork } from './networks';
@@ -553,6 +554,10 @@ Object.assign(COMMANDS, {
       hidden: hidden ? [hidden] : [],
       epochs: Number(flags.epochs ?? 200),
     });
+  },
+  /** The planner's goal values and pace in one position: goal-report --seed 5 --turn 20 --seat 0 [--players 4]. */
+  'goal-report'() {
+    goalReport(Number(flags.seed ?? 5), Number(flags.turn ?? 20), Number(flags.seat ?? 0), filterFromFlags());
   },
   /** List checkpoints with their last note. */
   checkpoints() {
