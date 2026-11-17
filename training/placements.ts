@@ -71,7 +71,10 @@ export function setupPicks(seed: number, spec: SeatSpec, filter?: ScenarioFilter
   const starts = end.players.map(p => {
     const sum = [0, 0, 0, 0, 0];
     for (const [v, b] of Object.entries(end.buildings))
-      if (b.playerId === p.id) corner(end, p.id, v).byResource.forEach((x, r) => (sum[r]! += x));
+      if (b.playerId === p.id)
+        corner(end, p.id, v).byResource.forEach((x, r) => {
+          sum[r]! += x;
+        });
     return sum;
   });
   return { picks, starts };
@@ -97,7 +100,9 @@ export function reportPlacements(games: number, firstSeed: number, spec: SeatSpe
     for (const s of starts) {
       seats++;
       kinds[s.filter(x => x > 0).length]!++;
-      s.forEach((x, r) => (total[r]! += x));
+      s.forEach((x, r) => {
+        total[r]! += x;
+      });
     }
   }
   for (const [i, r] of rounds.entries())
