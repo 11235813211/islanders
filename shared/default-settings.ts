@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // Seconds for short choices (robber, pirate, gold picks): 10, 15, 20, 25, 30, 45, or 60.
   decisionSeconds: 20,
   // Cards you may hold on a 7 without discarding: 3 to 20.
-  discardLimit: 7,
+  discardLimit: 10,
   // Robber can't block players with 2 or fewer points: true or false.
   friendlyRobber: true,
   // Dice: 'balanced' (shuffled deck of the 36 rolls) or 'random'.
