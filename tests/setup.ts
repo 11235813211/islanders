@@ -11,6 +11,7 @@ Object.assign(DEFAULT_SETTINGS, {
   friendlyRobber: true,
   discardLimit: 7,
   victoryPoints: 10,
+  pieceRewards: [],
   pieceStyle: 'classic',
   tradeSeconds: 30,
   decisionSeconds: 20,

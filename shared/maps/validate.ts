@@ -1,4 +1,4 @@
-import { VICTORY_POINT_RANGE } from '../settings';
+import { VICTORY_POINT_RANGE, validReward } from '../settings';
 import { RESOURCES, type Resource, SEA_TERRAINS, type Terrain } from '../types';
 import { NUMBER_LEVELS } from './balance';
 import { SPECIAL_LIMITS } from './special';
@@ -284,14 +284,10 @@ function parseSpecial(value: Record<string, unknown>): Partial<BoardDesign> {
   if (value.pieceRewards !== undefined) {
     const rewards = value.pieceRewards;
     if (!Array.isArray(rewards) || rewards.length > SPECIAL_LIMITS.rewards) fail('Invalid piece rewards.');
-    const most = SPECIAL_LIMITS.rewardPieces;
     out.pieceRewards = (rewards as unknown[]).map(r => {
       if (
         !record(r) ||
-        !int(r.points, 1, VICTORY_POINT_RANGE.max) ||
-        !int(r.settlements, 0, most) ||
-        !int(r.cities, 0, most) ||
-        !int(r.roads, 0, most * 3)
+        !validReward({ points: r.points, settlements: r.settlements, cities: r.cities, roads: r.roads })
       )
         return fail('Invalid piece reward.');
       return { points: r.points, settlements: r.settlements, cities: r.cities, roads: r.roads } as PieceReward;

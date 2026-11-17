@@ -4,6 +4,7 @@ import { type BoardDesign, boardExpansions, EXPANSIONS, layoutsOf } from '../../
 import DesignView from './DesignView';
 import FogSummary from './FogSummary';
 import { playerRange, playersLabel, playersMismatch } from './mapInfo';
+import ProposeButton, { type Proposing } from './ProposeButton';
 import SpecialRulesList from './SpecialRules';
 
 /** Small labels for the expansions a board needs. */
@@ -53,33 +54,31 @@ function LayoutSwitch({ index, count, go }: { index: number; count: number; go: 
 }
 
 /**
- * One map, large, with its rules. Read-only; the host can choose it from here. A map with layouts
+ * One map, large, with its rules. Read-only; seated people can propose it and the host can use it from here. A map with layouts
  * for other player counts shows one at a time (the one for this room first), with arrows between.
  */
 export default function MapDetail({
   design,
   players,
   layoutFor = players,
-  canChoose,
-  proposing = false,
   current,
   currentLayout,
   choose,
+  propose,
   back,
 }: {
   design: BoardDesign;
   players: number;
   /** Show the layout for this many players first (default: the room's). */
   layoutFor?: number;
-  canChoose: boolean;
-  /** Choosing proposes the map to the host instead. */
-  proposing?: boolean;
   /** This map is the room's map. */
   current: boolean;
   /** The layout of the room's map the host picked, if any. */
   currentLayout: { min: number; max: number } | null;
-  /** Choose this map; `layoutFor` picks the shown layout when the map has several. */
-  choose: (layoutFor?: number) => void;
+  /** The host uses this map; `layoutFor` picks the shown layout when the map has several. */
+  choose?: (layoutFor?: number) => void;
+  /** Seated people propose it (or take that back). */
+  propose?: Proposing;
   back: () => void;
 }) {
   const layouts = layoutsOf(design);
@@ -139,7 +138,16 @@ export default function MapDetail({
         <SpecialRulesList layout={shown} design={design} />
         <p className="map-note">Tiles, numbers, and harbors marked “?” are drawn at random when the game starts.</p>
         <FogSummary design={shown} />
-        {canChoose && (
+        {propose && (
+          <ProposeButton
+            design={design}
+            propose={propose}
+            layoutFor={several ? shown.players.min : undefined}
+            label={several ? `Propose this ${range} player map` : 'Propose this map'}
+            full
+          />
+        )}
+        {choose && (
           <button
             type="button"
             className="button primary full"
@@ -147,11 +155,7 @@ export default function MapDetail({
             onClick={() => choose(several ? shown.players.min : undefined)}
           >
             <Check size={18} />
-            {inUse
-              ? 'This room’s map'
-              : several
-                ? `${proposing ? 'Propose' : 'Use'} this ${range} player map`
-                : `${proposing ? 'Propose' : 'Use'} this map`}
+            {inUse ? 'This room’s map' : several ? `Use this ${range} player map` : 'Use this map'}
           </button>
         )}
       </aside>

@@ -4,7 +4,7 @@ import { buildBoard } from '../maps/generate';
 import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
 import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
 import { developmentDeck } from '../rules';
-import { DEFAULT_SETTINGS, guestName } from '../settings';
+import { DEFAULT_SETTINGS, guestName, pointRewards } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
 import {
   addLog,
@@ -100,6 +100,14 @@ function drawBoard(next: GameState, random: () => number): void {
   next.boardSeeds = [...next.boardSeeds.slice(-(MAX_BOARD_DRAWS - 1)), seed];
   next.boardShown = next.boardSeeds.length - 1;
   showDraw(next, seed);
+}
+
+/** The room's extra pieces go on a board that has none of its own, where the engine reads them. */
+function addRoomRewards(next: GameState): void {
+  const rewards = next.settings.pieceRewards;
+  if (!rewards.length || next.board.rules?.rewards?.length) return;
+  ownBoard(next);
+  next.board.rules = { ...next.board.rules, rewards };
 }
 
 /** The board, bank, and development deck for the seats at the table (five or six get more of each). */
@@ -317,6 +325,9 @@ export const lobbyHandlers: Pick<
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'change room settings');
     next.settings = { ...next.settings, ...action.settings };
+    // New points to win bring their own extra pieces (the host can edit them after).
+    if (state.settings.victoryPoints !== next.settings.victoryPoints)
+      next.settings.pieceRewards = pointRewards(next.settings.victoryPoints);
     // Turning Seafarers on or off redraws the preview (the standard island gains or loses its sea).
     if (state.settings.seafarers !== next.settings.seafarers)
       Object.assign(
@@ -354,10 +365,13 @@ export const lobbyHandlers: Pick<
     next.design = chosen;
     next.map = chosen ? { id: chosen.id, name: chosen.name, layouts: playerRanges(chosen), layout } : null;
     const newMap = (before?.id ?? 'base') !== action.mapId;
-    if (newMap || before?.layout?.min !== layout?.min)
+    if (newMap || before?.layout?.min !== layout?.min) {
       next.settings.victoryPoints = chosen
         ? designFor(chosen, layoutCount(next)).victoryPoints
         : DEFAULT_SETTINGS.victoryPoints;
+      // A map's own points to win need no extra pieces; only the host raising them does.
+      next.settings.pieceRewards = [];
+    }
     // Sea maps start with Seafarers on; the host may still turn it off.
     if (newMap) next.settings.seafarers = !!chosen && boardExpansions(chosen).includes('seafarers');
     Object.assign(
@@ -437,6 +451,7 @@ export const lobbyHandlers: Pick<
     if (next.phase === 'lobby') dealTable(next, random);
     next.boardSeeds = [];
     next.boardShown = 0;
+    addRoomRewards(next);
     // Seats are drawn at random so the host (or whoever joined first) does not always go first.
     next.players = shuffled(next.players, random);
     const ids = next.players.map(candidate => candidate.id);

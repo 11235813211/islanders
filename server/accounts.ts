@@ -11,9 +11,13 @@ export interface AccountIdentity {
   playerId: string;
   sessionHash: string;
   expiresAt: number;
-  /** The person's choice to have their games saved for bot training. */
+  /** As host, the person saves games for bot training. */
   saveGames?: boolean;
+  /** As a guest, the person keeps games out of bot training. */
+  declineGames?: boolean;
 }
+/** The two remembered choices about saving games (see RecordingStatus). */
+export type RecordingChoice = 'saveGames' | 'declineGames';
 interface SavedLogin {
   tokenHash: string;
   createdAt: number;
@@ -31,8 +35,10 @@ interface AccountRecord {
   recoveryHash?: string;
   sessions: SavedLogin[];
   rooms: AccountRoom[];
-  /** Consent to record games with this person in them (off unless set). */
+  /** As host, save games for bot training (off unless set). */
   saveGames?: boolean;
+  /** As a guest, opt out of saved games (off unless set). */
+  declineGames?: boolean;
 }
 /** Login sessions that ended, and the rooms whose seats should drop them. */
 export interface Revoked {
@@ -204,6 +210,7 @@ export class AccountStore extends DurableObject<Env> {
           sessionHash,
           expiresAt: session.expiresAt,
           saveGames: this.account.saveGames === true,
+          declineGames: this.account.declineGames === true,
         },
         rooms: this.account.rooms,
         hasRecoveryCode: !!this.account.recoveryHash,
@@ -211,11 +218,11 @@ export class AccountStore extends DurableObject<Env> {
     });
   }
 
-  /** Remember whether this account's games may be recorded. */
-  async setSaveGames(sessionHash: string, value: boolean): Promise<boolean> {
+  /** Remember one of this account's choices about saving games. */
+  async setRecordingChoice(sessionHash: string, choice: RecordingChoice, value: boolean): Promise<boolean> {
     return this.serial(async () => {
       if (!this.account || !this.liveSession(sessionHash)) return false;
-      await this.save({ ...this.account, saveGames: value });
+      await this.save({ ...this.account, [choice]: value });
       return true;
     });
   }

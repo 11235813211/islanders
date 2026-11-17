@@ -24,13 +24,14 @@ import {
   type GameView,
   type RecordingStatus,
 } from '../../shared/types';
-import type { Connection } from '../hooks/useRoom';
+import type { Connection, RecordingChoice } from '../hooks/useRoom';
 import HelpButton from './help/HelpButton';
 import { lobbyHelp } from './help/helpContent';
 import ColorPicker, { ColorSwapNotice } from './lobby/ColorPicker';
 import LobbySeat from './lobby/LobbySeat';
 import LobbySpectators from './lobby/LobbySpectators';
 import MapChoice from './lobby/MapChoice';
+import SaveGames from './lobby/SaveGames';
 import { CATEGORIES, SettingControl, type SettingDef, THEMES, type Theme } from './lobby/settings';
 
 /** Empty seats to show: up to four, then one more at a time up to six, so a small table looks complete. */
@@ -46,7 +47,7 @@ export interface RoomLobbyProps {
   busy: boolean;
   send: (action: GameAction) => void;
   recording: RecordingStatus;
-  setSaveGames: (value: boolean) => void;
+  setRecordingChoice: (kind: RecordingChoice, value: boolean) => void;
   invite: () => void;
 }
 
@@ -58,7 +59,7 @@ export default function RoomLobby({
   busy,
   send,
   recording,
-  setSaveGames,
+  setRecordingChoice,
   invite,
 }: RoomLobbyProps) {
   const host = playerId === view.hostId;
@@ -192,19 +193,7 @@ export default function RoomLobby({
           ))}
         <LobbySpectators view={view} host={host} busy={busy} send={send} />
         {self && !view.testMode && (
-          <div className="save-games">
-            <label>
-              <input
-                type="checkbox"
-                checked={recording.mine}
-                disabled={connection !== 'online'}
-                onChange={e => setSaveGames(e.target.checked)}
-              />
-              Save my games to improve the bots
-            </label>
-            <small>Keeps moves, dice, and results. Not names or chat.</small>
-            {recording.on && <small>This game will be saved for bot training.</small>}
-          </div>
+          <SaveGames host={host} recording={recording} disabled={connection !== 'online'} choose={setRecordingChoice} />
         )}
         <div className="room-code-box">
           <span>Room code</span>
@@ -237,10 +226,12 @@ export default function RoomLobby({
         {CATEGORIES.map(category => {
           const shown = category.settings.filter(def => def.when?.(view) ?? true);
           if (!shown.length) return null;
+          const Extra = category.extra;
           return (
             <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
               <legend>{category.title}</legend>
               {shown.filter(def => !def.theme).map(renderSetting)}
+              {Extra && <Extra view={view} host={host} busy={busy} change={change} />}
               {(Object.keys(THEMES) as Theme[]).map(theme => {
                 const rows = shown.filter(def => def.theme === theme);
                 return rows.length ? (

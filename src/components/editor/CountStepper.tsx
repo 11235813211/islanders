@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
+import './count-stepper.css';
 
 /** A − count + control for small whole numbers (setup rounds, points, pieces). */
 export default function CountStepper({

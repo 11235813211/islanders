@@ -56,41 +56,6 @@
   font-size: 13px;
 }
 
-.count-stepper {
-  display: inline-grid;
-  flex: none;
-  grid-template-columns: 26px 34px 26px;
-  box-sizing: border-box;
-  height: 28px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-}
-.count-stepper button {
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-}
-.count-stepper button:hover:not(:disabled) {
-  background: #edf7fa;
-}
-.count-stepper button:disabled {
-  color: var(--line);
-  cursor: default;
-}
-.count-stepper output {
-  display: grid;
-  place-items: center;
-  border-inline: 1px solid var(--line);
-  font-size: 14px;
-  font-weight: 800;
-}
-
 .reward-row {
   display: grid;
   gap: 4px;

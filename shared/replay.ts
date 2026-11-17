@@ -2,7 +2,7 @@ import { advanceTime, applyAction, idlePause, idleResume, logPresence, normalize
 import type { BotLevel, GameAction, GameState } from './types';
 
 /**
- * Replayable game records, kept only with every human player's consent. A record is the lobby state
+ * Replayable game records, kept only when the host chose to save the game and no other person opted out. A record is the lobby state
  * right before `start` (seats, no names or chat) plus every change after it, each with the random
  * numbers it used, so the engine reproduces the game exactly. Server storage lives in server/recording.ts.
  */
@@ -45,10 +45,18 @@ export interface RecordInfo {
 /** Real player id → seat id. */
 export type SeatIds = Record<string, string>;
 
-/** True when the game may be recorded: a real game with at least one person, every person having consented. */
-export function shouldRecord(game: GameState, consent: Record<string, boolean | undefined>): boolean {
-  const humans = game.players.filter(p => !p.bot);
-  return !game.testMode && humans.length > 0 && humans.every(p => consent[p.id] === true);
+/**
+ * True when the game may be recorded: a real game whose host chose to save it (`saves`), with no
+ * other person having opted out (`declined`).
+ */
+export function shouldRecord(
+  game: GameState,
+  saves: Record<string, boolean | undefined>,
+  declined: Record<string, boolean | undefined> = {},
+): boolean {
+  const host = game.players.find(p => p.id === game.hostId && !p.bot);
+  if (game.testMode || !host || saves[host.id] !== true) return false;
+  return game.players.every(p => p.bot || p.id === host.id || declined[p.id] !== true);
 }
 
 /** Copy of a value with player ids (as strings and as object keys) replaced by seat ids. */

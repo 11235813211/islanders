@@ -1,4 +1,4 @@
-import type { BoardDesign, BoardRules } from './maps/types';
+import type { BoardDesign, BoardRules, PieceReward } from './maps/types';
 /** Every resource. Lodestone is only in play on Cartographers maps (see cartographersRules). */
 export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore', 'lodestone'] as const;
 export type Resource = (typeof RESOURCES)[number];
@@ -248,6 +248,8 @@ export interface GameSettings {
   friendlyRobber: boolean;
   discardLimit: number;
   victoryPoints: number;
+  /** Extra pieces at some points (see POINT_REWARDS). Used only on maps without their own. */
+  pieceRewards: PieceReward[];
   pieceStyle: PieceStyle;
   /** Seconds a trade offer stays open. */
   tradeSeconds: number;
@@ -718,9 +720,18 @@ export interface AccountRoomStatus extends AccountRoom {
   yourTurn: boolean;
   winner: string | null;
 }
-/** Whether this player agreed to have games saved, and whether this game is (or will be) saved. */
+/**
+ * Saving games for bot training: the host chooses to save, and anyone else may opt out.
+ * `mine` and `declined` are this player's own choices (each remembered for next time).
+ */
 export interface RecordingStatus {
+  /** As host, this player saves games. */
   mine: boolean;
+  /** As a guest, this player opts out of saved games. */
+  declined: boolean;
+  /** The host chose to save this game. */
+  hostSaves: boolean;
+  /** This game is (or will be) saved. */
   on: boolean;
 }
 export type ClientMessage =
@@ -728,7 +739,10 @@ export type ClientMessage =
   | { type: 'view-as'; playerId: string }
   /** Pick-board phase: look at a drawn board (1-based) without changing the host's. */
   | { type: 'peek-board'; board: number }
+  /** Host: save this game for bot training. */
   | { type: 'consent'; value: boolean }
+  /** Anyone else: keep this game out of bot training. */
+  | { type: 'decline'; value: boolean }
   | { type: 'action'; id: string; version: number; action: GameAction };
 export type ServerMessage =
   | { type: 'state'; state: GameView; online: string[]; recording?: RecordingStatus; acknowledgedId?: string }

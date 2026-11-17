@@ -63,8 +63,10 @@ interface RoomRecord {
   game: GameState;
   sessions: SavedSession[];
   lastActivity: number;
-  /** Player id → agreed to have this game saved for bot training. Only the choice is kept, never names. */
+  /** Player id → saves games when hosting (bot training). Only the choice is kept, never names. */
   consent?: Record<string, boolean>;
+  /** Player id → opted out of saved games when not hosting. */
+  declined?: Record<string, boolean>;
   /** Set while this game is being recorded (see recording.ts). */
   recording?: Recording;
   /** When the last human player disconnected. The game pauses after IDLE_GRACE_MS and the room closes after EMPTY_ROOM_MS. */
@@ -238,10 +240,16 @@ export class GameRoom extends DurableObject<Env> {
   }
   private recordingStatus(room: RoomRecord, playerId: string): RecordingStatus {
     const consent = room.consent ?? {};
-    // Recording begins at setup, so until then it follows everyone's consent.
+    const declined = room.declined ?? {};
+    // Recording begins at setup, so until then it follows the host's choice and any opt-outs.
     const before = room.game.phase === 'lobby' || room.game.phase === 'pick-board';
-    const on = before ? shouldRecord(room.game, consent) : !!room.recording;
-    return { mine: consent[playerId] === true, on };
+    const on = before ? shouldRecord(room.game, consent, declined) : !!room.recording;
+    return {
+      mine: consent[playerId] === true,
+      declined: declined[playerId] === true,
+      hostSaves: consent[room.game.hostId] === true,
+      on,
+    };
   }
   /** Add a step to this room's recording, if there is one. */
   private async logStep(room: RoomRecord, step: RecordedStep): Promise<RoomRecord> {
@@ -339,11 +347,13 @@ export class GameRoom extends DurableObject<Env> {
     };
     const otherSessions = room.sessions.filter(candidate => candidate.playerId !== playerId);
     const ownSessions = room.sessions.filter(candidate => candidate.playerId === playerId).slice(-11);
-    // A signed-in person's saved choice applies to every room they join.
+    // A signed-in person's saved choices apply to every room they join.
     const consent = identity ? { ...room.consent, [playerId]: identity.saveGames === true } : room.consent;
+    const declined = identity ? { ...room.declined, [playerId]: identity.declineGames === true } : room.declined;
     await this.commit({
       ...room,
       consent,
+      declined,
       sessions: [...otherSessions, ...ownSessions, saved],
       lastActivity: Date.now(),
     });
@@ -619,8 +629,8 @@ export class GameRoom extends DurableObject<Env> {
           this.snapshot(socket);
           return;
         }
-        if (message.type === 'consent') {
-          await this.setConsent(room, saved, attachment.playerId, message.value);
+        if (message.type === 'consent' || message.type === 'decline') {
+          await this.setRecordingChoice(room, saved, attachment.playerId, message.type, message.value);
           return;
         }
         if (message.type === 'peek-board') {
@@ -669,7 +679,7 @@ export class GameRoom extends DurableObject<Env> {
             : session,
         );
         let next: RoomRecord = { ...room, game, sessions, lastActivity: Date.now() };
-        if (action.type === 'start' && !room.recording && shouldRecord(room.game, room.consent ?? {}))
+        if (action.type === 'start' && !room.recording && shouldRecord(room.game, room.consent ?? {}, room.declined))
           next.recording = await beginRecording(this.ctx.storage, room.game);
         next = await this.logStep(next, {
           kind: 'action',
@@ -713,13 +723,27 @@ export class GameRoom extends DurableObject<Env> {
     });
   }
 
-  /** Save a person's choice about recording. It can only change before the game starts. */
-  private async setConsent(room: RoomRecord, saved: SavedSession, playerId: string, value: boolean): Promise<void> {
+  /**
+   * Save a person's choice about recording: `consent` (save, as host) or `decline` (opt out, as
+   * anyone else). Both are kept, so each is ready if the host changes. Only before the game starts.
+   */
+  private async setRecordingChoice(
+    room: RoomRecord,
+    saved: SavedSession,
+    playerId: string,
+    kind: 'consent' | 'decline',
+    value: boolean,
+  ): Promise<void> {
     if (room.game.phase !== 'lobby')
       throw new ProtocolError('Saving games can only be changed before the game starts.');
-    await this.commit({ ...room, consent: { ...room.consent, [playerId]: value } });
+    const field = kind === 'consent' ? 'consent' : 'declined';
+    await this.commit({ ...room, [field]: { ...room[field], [playerId]: value } });
     if (saved.account)
-      await accountStub(this.env, saved.account.username).setSaveGames(saved.account.sessionHash, value);
+      await accountStub(this.env, saved.account.username).setRecordingChoice(
+        saved.account.sessionHash,
+        kind === 'consent' ? 'saveGames' : 'declineGames',
+        value,
+      );
     this.broadcast();
   }
 

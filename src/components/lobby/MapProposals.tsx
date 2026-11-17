@@ -1,7 +1,8 @@
 import { Check, Eye, X } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { playerVars } from '../../../shared/colors';
-import { isLargeGame } from '../../../shared/engine';
+import { TUNING } from '../../../shared/default-settings';
+import { isLargeGame, proposalsBy } from '../../../shared/engine';
 import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView, MapProposal } from '../../../shared/types';
 import MapThumbnail from '../maps/MapThumbnail';
@@ -15,8 +16,9 @@ function proposalDesign(proposal: MapProposal, boards: BoardDesign[] | undefined
 }
 
 /**
- * Maps players have put forward, each a small preview with a square per backer in their seat
- * color. Tapping one backs it (or stops backing it); everyone can View it, and the host also gets
+ * Maps players have put forward, most backed first, each a small preview with a square per backer
+ * in their seat color, in an even grid that stays tidy with many. Tapping one backs it (or stops
+ * backing it), up to TUNING.mapProposalsPerPlayer each; everyone can View it, and the host also gets
  * Use and Decline.
  */
 export default function MapProposals({
@@ -42,11 +44,23 @@ export default function MapProposals({
     send({ type: 'choose-map', mapId: p.mapId, ...(p.layoutFor === null ? {} : { layoutFor: p.layoutFor }) });
   const back = (p: MapProposal) =>
     send({ type: 'propose-map', mapId: p.mapId, ...(p.layoutFor === null ? {} : { layoutFor: p.layoutFor }) });
+  const seated = view.role === 'player';
+  const mineCount = proposalsBy(view.mapProposals, view.selfId);
+  const most = TUNING.mapProposalsPerPlayer;
+  // Most backed first; ties keep the order they were proposed in.
+  const sorted = [...view.mapProposals].sort((a, b) => b.by.length - a.by.length);
   return (
     <section className="map-proposals" aria-label="Proposed maps">
-      <h4>Proposed</h4>
+      <h4>
+        Proposed
+        {seated && (
+          <small>
+            Yours: {mineCount} of {most}
+          </small>
+        )}
+      </h4>
       <div className="map-proposal-list">
-        {view.mapProposals.map(p => {
+        {sorted.map(p => {
           const mine = p.by.includes(view.selfId);
           const names = p.by.map(id => seat(id)?.name ?? '').join(', ');
           const design = proposalDesign(p, boards, players);
@@ -71,7 +85,7 @@ export default function MapProposals({
                 aria-pressed={mine}
                 aria-label={`${p.name}, proposed by ${names}. ${mine ? 'Stop backing' : 'Back'} this map`}
                 data-tip={mine ? 'Stop backing' : 'Back this map'}
-                disabled={busy || view.role !== 'player'}
+                disabled={busy || !seated || (!mine && mineCount >= most)}
                 onClick={() => back(p)}
               >
                 <MapThumbnail tiles={design ? designFor(design, p.layoutFor ?? players).tiles : []} />

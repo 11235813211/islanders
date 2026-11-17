@@ -106,6 +106,7 @@ export function parseMessage(raw: string | ArrayBuffer): ClientMessage {
     return { type: 'auth', token: value.token };
   }
   if (value.type === 'consent' && typeof value.value === 'boolean') return { type: 'consent', value: value.value };
+  if (value.type === 'decline' && typeof value.value === 'boolean') return { type: 'decline', value: value.value };
   if (value.type === 'view-as' && isIdentifier(value.playerId)) return { type: 'view-as', playerId: value.playerId };
   if (value.type === 'peek-board' && Number.isSafeInteger(value.board) && (value.board as number) >= 1)
     return { type: 'peek-board', board: value.board as number };

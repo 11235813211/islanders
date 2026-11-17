@@ -10,11 +10,14 @@ export type BoardPeek = Extract<ServerMessage, { type: 'board-peek' }>;
 const LEFT_ROOM = 4000;
 export type Connection = 'connecting' | 'online' | 'reconnecting' | 'offline';
 
-const SAVE_GAMES_KEY = 'islanders-save-games';
-/** A guest's saved choice about recording games (signed-in people keep theirs on the account). */
-function guestSavesGames(): boolean {
+/** Where a guest's choices about saved games live (signed-in people keep theirs on the account). */
+const CHOICE_KEYS = { consent: 'islanders-save-games', decline: 'islanders-decline-games' } as const;
+/** A recording choice: `consent` saves games as host, `decline` opts out as anyone else. */
+export type RecordingChoice = keyof typeof CHOICE_KEYS;
+/** A guest's saved choice in this browser. */
+function guestChoice(kind: RecordingChoice): boolean {
   try {
-    return localStorage.getItem(SAVE_GAMES_KEY) === '1';
+    return localStorage.getItem(CHOICE_KEYS[kind]) === '1';
   } catch {
     return false;
   }
@@ -88,7 +91,12 @@ export async function enterRoom(
 export function useRoom(session: Session | null, signedIn = false) {
   const [view, setView] = useState<GameView | null>(null);
   const [online, setOnline] = useState<string[]>([]);
-  const [recording, setRecording] = useState<RecordingStatus>({ mine: false, on: false });
+  const [recording, setRecording] = useState<RecordingStatus>({
+    mine: false,
+    declined: false,
+    hostSaves: false,
+    on: false,
+  });
   const [connection, setConnection] = useState<Connection>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -164,9 +172,13 @@ export function useRoom(session: Session | null, signedIn = false) {
         setView(message.state);
         setOnline(message.online);
         if (message.recording) setRecording(message.recording);
-        // A guest's choice lives in this browser; tell the room once per connection.
-        if (!authenticated && !signedIn && message.recording && !message.recording.mine && guestSavesGames())
-          ws.send(JSON.stringify({ type: 'consent', value: true }));
+        // A guest's choices live in this browser; tell the room once per connection.
+        if (!authenticated && !signedIn && message.recording) {
+          if (!message.recording.mine && guestChoice('consent'))
+            ws.send(JSON.stringify({ type: 'consent', value: true }));
+          if (!message.recording.declined && guestChoice('decline'))
+            ws.send(JSON.stringify({ type: 'decline', value: true }));
+        }
         if (message.acknowledgedId === inFlight.current?.id) {
           inFlight.current = null;
           setPending(false);
@@ -239,15 +251,15 @@ export function useRoom(session: Session | null, signedIn = false) {
     [connection],
   );
 
-  /** Choose whether this game may be saved for bot training. */
-  const setSaveGames = useCallback((value: boolean) => {
+  /** Save this game for bot training (host), or keep it out (anyone else). Remembered for next time. */
+  const setRecordingChoice = useCallback((kind: RecordingChoice, value: boolean) => {
     if (socket.current?.readyState !== WebSocket.OPEN) return;
     try {
-      localStorage.setItem(SAVE_GAMES_KEY, value ? '1' : '0');
+      localStorage.setItem(CHOICE_KEYS[kind], value ? '1' : '0');
     } catch {
       /* Storage may be disabled; the room still has the choice. */
     }
-    socket.current.send(JSON.stringify({ type: 'consent', value }));
+    socket.current.send(JSON.stringify({ type: kind, value }));
   }, []);
 
   const viewAs = useCallback(
@@ -274,7 +286,7 @@ export function useRoom(session: Session | null, signedIn = false) {
     pending,
     left,
     send,
-    setSaveGames,
+    setRecordingChoice,
     viewAs,
     clearError: () => setError(null),
   };

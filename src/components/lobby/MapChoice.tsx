@@ -1,18 +1,20 @@
 import { AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useState } from 'react';
-import { isLargeGame } from '../../../shared/engine';
+import { TUNING } from '../../../shared/default-settings';
+import { isLargeGame, proposalsBy } from '../../../shared/engine';
 import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView } from '../../../shared/types';
 import { useBoardLibrary } from '../../hooks/useBoardLibrary';
 import MapBrowser from '../maps/MapBrowser';
 import MapThumbnail from '../maps/MapThumbnail';
 import { LARGE_ISLAND, playerRange, roomMapPlayers, roomMapWarning, STANDARD_ISLAND } from '../maps/mapInfo';
+import type { Proposing } from '../maps/ProposeButton';
 import MapProposals from './MapProposals';
 
 /**
  * The lobby's map: the standard island or a chosen map, previewed as designed (the actual layout
- * is drawn when the game starts). Everyone can browse maps; the host chooses, and the others
- * propose maps for the host to pick (MapProposals).
+ * is drawn when the game starts). Everyone can browse maps; the host chooses, and everyone seated
+ * (the host too) can propose up to three maps for the table to look at (MapProposals).
  */
 export default function MapChoice({
   view,
@@ -37,8 +39,18 @@ export default function MapChoice({
   // The thumbnail shows the layout that will be played.
   const design = map ? found && designFor(found, map.layout?.min ?? players) : base;
   const warning = map && roomMapWarning(map, players);
-  // The host picks; other seated people propose (spectators only look).
+  // The host picks; everyone seated proposes (spectators only look).
   const canPick = host || view.role === 'player';
+  const layoutOf = (layoutFor?: number) => (layoutFor === undefined ? {} : { layoutFor });
+  const propose: Proposing | undefined =
+    view.role === 'player'
+      ? {
+          toggle: (chosen, layoutFor) => send({ type: 'propose-map', mapId: chosen.id, ...layoutOf(layoutFor) }),
+          backs: (mapId, layoutFor) =>
+            view.mapProposals.some(p => p.mapId === mapId && p.layoutFor === layoutFor && p.by.includes(view.selfId)),
+          left: TUNING.mapProposalsPerPlayer - proposalsBy(view.mapProposals, view.selfId),
+        }
+      : undefined;
   return (
     <div className="map-choice">
       <div className="map-choice-switch" role="radiogroup" aria-label="Map">
@@ -90,14 +102,16 @@ export default function MapChoice({
           players={players}
           currentId={map?.id ?? base.id}
           currentLayout={map?.layout ?? null}
-          canChoose={canPick}
-          proposing={!host}
           initial={browsing.initial}
-          choose={(chosen, layoutFor) => {
-            const type = host ? 'choose-map' : 'propose-map';
-            send({ type, mapId: chosen.id, ...(layoutFor === undefined ? {} : { layoutFor }) });
-            setBrowsing(null);
-          }}
+          propose={propose}
+          choose={
+            host
+              ? (chosen, layoutFor) => {
+                  send({ type: 'choose-map', mapId: chosen.id, ...layoutOf(layoutFor) });
+                  setBrowsing(null);
+                }
+              : undefined
+          }
           close={() => setBrowsing(null)}
         />
       )}

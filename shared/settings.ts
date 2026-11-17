@@ -1,5 +1,7 @@
-import { DEFAULT_SETTINGS } from './default-settings';
+import { DEFAULT_SETTINGS, POINT_REWARDS } from './default-settings';
 import { GUEST_NAMES } from './guest-names';
+import { SPECIAL_LIMITS } from './maps/special';
+import type { PieceReward } from './maps/types';
 import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
 
 export { DEFAULT_SETTINGS };
@@ -51,6 +53,30 @@ export const DISCOVERY_RULES: Record<
 };
 export const VICTORY_POINT_RANGE = { min: 3, max: 50 } as const;
 
+/** One extra-pieces reward within limits (rooms and the board editor share them). */
+export function validReward(value: unknown): value is PieceReward {
+  if (!value || typeof value !== 'object') return false;
+  const r = value as Record<string, unknown>;
+  const most = SPECIAL_LIMITS.rewardPieces;
+  const int = (n: unknown, max: number, min = 0) => Number.isInteger(n) && Number(n) >= min && Number(n) <= max;
+  return (
+    Object.keys(r).length === 4 &&
+    int(r.points, VICTORY_POINT_RANGE.max, 1) &&
+    int(r.settlements, most) &&
+    int(r.cities, most) &&
+    int(r.roads, most * 3)
+  );
+}
+
+/** The extra pieces a room starts with for `victoryPoints` to win (see POINT_REWARDS). */
+export function pointRewards(victoryPoints: number): PieceReward[] {
+  const { first, every, ahead, pieces } = POINT_REWARDS;
+  const out: PieceReward[] = [];
+  for (let points = first; points + ahead <= victoryPoints && out.length < SPECIAL_LIMITS.rewards; points += every)
+    out.push({ points, ...pieces });
+  return out;
+}
+
 /** A room closes once no human player has been connected for this long. */
 export const EMPTY_ROOM_MS = 5 * 60 * 1000;
 /** A game against bots waits this long instead, so it can be finished later. */
@@ -83,6 +109,10 @@ export function validSettings(
     (s.friendlyRobber === undefined || typeof s.friendlyRobber === 'boolean') &&
     (s.discardLimit === undefined || integerIn(s.discardLimit, 3, 20)) &&
     (s.victoryPoints === undefined || integerIn(s.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max)) &&
+    (s.pieceRewards === undefined ||
+      (Array.isArray(s.pieceRewards) &&
+        s.pieceRewards.length <= SPECIAL_LIMITS.rewards &&
+        s.pieceRewards.every(validReward))) &&
     (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never)) &&
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
     (s.decisionSeconds === undefined || DECISION_SECONDS.includes(s.decisionSeconds as never)) &&

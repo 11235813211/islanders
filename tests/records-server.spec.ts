@@ -7,9 +7,9 @@ interface Listed {
   steps: number;
 }
 
-test('a game is saved only when every person agreed, and the saved game replays', { tag: '@slow' }, async ({
-  request,
-}) => {
+test('a game is saved when the host chose to and nobody opted out, and the saved game replays', {
+  tag: '@slow',
+}, async ({ request }) => {
   test.setTimeout(120_000);
   const exporter = await registerAccount(request);
   const listed = async () =>
@@ -28,17 +28,21 @@ test('a game is saved only when every person agreed, and the saved game replays'
       const message = [...connection.messages].reverse().find(item => item.type === 'state');
       return message?.type === 'state' ? message.recording : undefined;
     };
-    expect(status(host)).toEqual({ mine: false, on: false });
+    const off = { mine: false, declined: false, hostSaves: false, on: false };
+    expect(status(host)).toEqual(off);
+    // A guest's save choice does nothing; only the host's counts.
+    guest.socket.send(JSON.stringify({ type: 'consent', value: true }));
+    await expect.poll(() => status(guest)).toEqual({ ...off, mine: true });
+    expect(status(host)).toEqual(off);
 
     host.socket.send(JSON.stringify({ type: 'consent', value: true }));
-    await expect.poll(() => status(host)).toEqual({ mine: true, on: false });
-    guest.socket.send(JSON.stringify({ type: 'consent', value: true }));
-    await expect.poll(() => status(host)).toEqual({ mine: true, on: true });
-    // Taking it back turns the note off again.
-    guest.socket.send(JSON.stringify({ type: 'consent', value: false }));
-    await expect.poll(() => status(host)).toEqual({ mine: true, on: false });
-    guest.socket.send(JSON.stringify({ type: 'consent', value: true }));
-    await expect.poll(() => status(host)).toEqual({ mine: true, on: true });
+    await expect.poll(() => status(host)).toEqual({ ...off, mine: true, hostSaves: true, on: true });
+    // A guest opting out turns it off; taking that back turns it on again.
+    guest.socket.send(JSON.stringify({ type: 'decline', value: true }));
+    await expect.poll(() => status(guest)).toEqual({ mine: true, declined: true, hostSaves: true, on: false });
+    await expect.poll(() => status(host)).toEqual({ ...off, mine: true, hostSaves: true });
+    guest.socket.send(JSON.stringify({ type: 'decline', value: false }));
+    await expect.poll(() => status(host)).toEqual({ ...off, mine: true, hostSaves: true, on: true });
 
     // The shortest game: 3 points are reached right after setup.
     await host.action({
@@ -75,7 +79,7 @@ test('a game is saved only when every person agreed, and the saved game replays'
   }
 });
 
-test('a game is not saved when someone did not agree', { tag: '@slow' }, async ({ request }) => {
+test('a game is not saved when a guest opted out', { tag: '@slow' }, async ({ request }) => {
   test.setTimeout(120_000);
   const exporter = await registerAccount(request);
   const count = async () =>
@@ -89,6 +93,7 @@ test('a game is not saved when someone did not agree', { tag: '@slow' }, async (
     await host.authenticate(hostSession);
     await guest.authenticate(guestSession);
     host.socket.send(JSON.stringify({ type: 'consent', value: true }));
+    guest.socket.send(JSON.stringify({ type: 'decline', value: true }));
     await host.action({
       type: 'configure',
       settings: { ...host.state.settings, victoryPoints: 3, autoRollSeconds: 0 },

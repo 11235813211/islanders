@@ -17,6 +17,7 @@ export {
 export { affordsSplit, chartHexes, splitCost } from './legal';
 export { addPlayer, addSpectator, createGame, peekBoard } from './lobby';
 export { normalizeGame, SCHEMA_VERSION } from './migrations';
+export { proposalsBy } from './proposals';
 export { awayHostSuccessor, botSeatId, passHost } from './seats';
 export { idlePause, idleResume, logPresence } from './social';
 export {

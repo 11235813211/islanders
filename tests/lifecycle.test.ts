@@ -120,7 +120,7 @@ describe('room membership', () => {
     expect(() => act(g, 'p0', { type: 'remove-player', playerId: 'p1' })).toThrow(/host/);
   });
 
-  it('lets players propose and back maps, one each, for the host to pick or turn down', () => {
+  it('lets players, the host too, propose and back up to 3 maps each, for the host to pick or turn down', () => {
     let g = makeLobby(3);
     g = act(g, 'p1', { type: 'propose-map', mapId: 'base' });
     g = act(g, 'p2', { type: 'propose-map', mapId: 'base' });
@@ -131,6 +131,16 @@ describe('room membership', () => {
     expect(() => act(g, 'p1', { type: 'decline-map', mapId: 'base' })).toThrow(/host/);
     expect(act(g, 'p0', { type: 'decline-map', mapId: 'base' }).mapProposals).toEqual([]);
     expect(act(g, 'p0', { type: 'remove-player', playerId: 'p2' }).mapProposals).toEqual([]);
+    // Several at once: the base game for each layout counts as a different proposal here.
+    g = act(g, 'p0', { type: 'propose-map', mapId: 'base' });
+    g = act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 3 });
+    g = act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 4 });
+    expect(g.mapProposals.filter(p => p.by.includes('p0'))).toHaveLength(3);
+    expect(() => act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 5 })).toThrow(/up to 3/);
+    // Taking one back frees a place.
+    g = act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 4 });
+    g = act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 5 });
+    expect(g.mapProposals.find(p => p.layoutFor === 5)!.by).toEqual(['p0']);
   });
 
   it('starts a fresh game with the same seats after the game ends', () => {

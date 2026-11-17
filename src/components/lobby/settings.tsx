@@ -17,7 +17,7 @@ import {
   Timer,
   Trophy,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import {
   AUTO_ROLL_SECONDS,
   DECISION_SECONDS,
@@ -26,6 +26,7 @@ import {
   VICTORY_POINT_RANGE,
 } from '../../../shared/settings';
 import type { DiscoveryRule, GameSettings, GameView } from '../../../shared/types';
+import RoomRewards from './RoomRewards';
 
 /**
  * Lobby settings are data. To add a setting: add the field to GameSettings,
@@ -62,6 +63,14 @@ export interface Category {
   title: string;
   tone: 'sea' | 'sand' | 'brick' | 'forest' | 'ore';
   settings: SettingDef[];
+  /** A control bigger than one row, shown after the rows (it hides itself when it does not apply). */
+  extra?: ComponentType<ExtraProps>;
+}
+export interface ExtraProps {
+  view: GameView;
+  host: boolean;
+  busy: boolean;
+  change: (next: Partial<GameSettings>) => void;
 }
 
 export const CATEGORIES: Category[] = [
@@ -197,6 +206,7 @@ export const CATEGORIES: Category[] = [
     id: 'rules',
     title: 'Rules',
     tone: 'brick',
+    extra: RoomRewards,
     settings: [
       {
         key: 'victoryPoints',

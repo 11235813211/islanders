@@ -24,8 +24,8 @@ test('a guest without a name gets one from the list, picks a color, and sets the
   const points = page.getByRole('group', { name: 'Points to win' });
   await points.getByRole('button', { name: 'More points to win' }).click();
   await expect(points.locator('output')).toHaveText('11');
-  // Saving games is off until chosen; with the only person agreeing, the lobby says the game will be saved.
-  const save = page.getByLabel('Save my games to improve the bots');
+  // Saving games is off until the host chooses it; with nobody to opt out, the lobby says the game will be saved.
+  const save = page.getByLabel('Save my game to improve bots');
   await expect(save).not.toBeChecked();
   await expect(page.getByText('This game will be saved for bot training.')).toBeHidden();
   await save.click();
@@ -136,5 +136,86 @@ test('the host views, uses, or declines each proposed map, with room before the 
   await proposals.getByRole('button', { name: 'Decline Base game' }).click();
   await expect(proposals.getByRole('button', { name: 'View Base game' })).toHaveCount(0);
   await expect(proposals.getByRole('button', { name: `Use ${map.name}` })).toBeVisible();
+  expect(room.errors).toEqual([]);
+});
+
+test('raising points to win adds extra pieces the host can edit, fitting every width', async ({ page }) => {
+  await mountGame(page, makeLobby(2));
+  const points = page.getByRole('group', { name: 'Points to win' });
+  const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
+  await expect(rules.getByText('Extra pieces')).toBeHidden();
+  for (let n = 11; n <= 17; n++) {
+    await points.getByRole('button', { name: 'More points to win' }).click();
+    await expect(points.locator('output')).toHaveText(String(n));
+  }
+  // 17 points: pieces at 10 and 13.
+  const rewards = rules.locator('.room-reward');
+  await expect(rewards).toHaveCount(2);
+  await expect(rewards.nth(1).getByRole('group', { name: 'points', exact: true }).locator('output')).toHaveText('13');
+  await expect(rewards.nth(0).getByRole('group', { name: 'roads at 10 points' }).locator('output')).toHaveText('3');
+  await rewards.nth(0).getByRole('button', { name: 'More cities at 10 points' }).click();
+  await expect(rewards.nth(0).getByRole('group', { name: 'cities at 10 points' }).locator('output')).toHaveText('2');
+  await rules.getByRole('button', { name: 'Add extra pieces' }).click();
+  await expect(rewards).toHaveCount(3);
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(rules);
+  }
+  await rules.screenshot({ path: 'test-results/lobby-rewards-phone.png' });
+  await rewards
+    .nth(2)
+    .getByRole('button', { name: /^Remove the extra pieces/ })
+    .click();
+  await expect(rewards).toHaveCount(2);
+});
+
+test('the host proposes maps too; ten proposals sit in an even grid at every width', async ({ page }) => {
+  const lobby = makeLobby(6);
+  const seats = lobby.players.map(p => p.id);
+  // Ten maps, each from one or two of the six seats, no seat past three.
+  const maps = [{ id: 'base', name: 'Base game' }, ...BUILTIN_BOARDS.slice(1)];
+  lobby.mapProposals = maps.map((map, i) => ({
+    mapId: map.id,
+    name: map.name,
+    layoutFor: null,
+    by: i < 3 ? [seats[1 + (i % 5)]!, seats[2 + (i % 4)]!] : [seats[1 + (i % 5)]!],
+  }));
+  const room = await mountGame(page, lobby);
+  const proposals = page.locator('.map-proposals');
+  await expect(proposals.locator('.map-proposal')).toHaveCount(10);
+  await expect(proposals.getByText('Yours: 0 of 3')).toBeVisible();
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(proposals);
+    // Rows line up: every card in a row starts at the same top.
+    const tops = await proposals
+      .locator('.map-proposal')
+      .evaluateAll(els => els.map(e => e.getBoundingClientRect().top));
+    expect(new Set(tops.map(Math.round)).size).toBeLessThanOrEqual(Math.ceil(10 / 2));
+    if (width === 1280 || width === 390)
+      await proposals.screenshot({ path: `test-results/lobby-proposals-${width}.png` });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // The host proposes from the maps browser, which offers both Propose and Use.
+  const unproposed = BUILTIN_BOARDS[0]!;
+  await page.locator('.mode-card').getByRole('button', { name: 'Maps' }).click();
+  const picker = page.getByRole('dialog', { name: 'Maps' });
+  await expect(picker.getByRole('button', { name: `Use ${unproposed.name}` })).toBeVisible();
+  await picker.getByRole('button', { name: `Propose ${unproposed.name}` }).click();
+  await expect(picker.getByRole('button', { name: `Propose ${unproposed.name}` })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await picker.getByRole('button', { name: 'Close maps' }).click();
+  await expect(proposals.locator('.map-proposal')).toHaveCount(11);
+  await expect(proposals.getByText('Yours: 1 of 3')).toBeVisible();
+  // Two more by backing proposals; then the rest are closed to the host until one is taken back.
+  const pick = (name: string) => proposals.getByRole('button', { name: new RegExp(`^${name}, proposed by`) });
+  await pick(BUILTIN_BOARDS[1]!.name).click();
+  await pick(BUILTIN_BOARDS[2]!.name).click();
+  await expect(proposals.getByText('Yours: 3 of 3')).toBeVisible();
+  await expect(pick(BUILTIN_BOARDS[3]!.name)).toBeDisabled();
+  await pick(BUILTIN_BOARDS[2]!.name).click();
+  await expect(pick(BUILTIN_BOARDS[3]!.name)).toBeEnabled();
   expect(room.errors).toEqual([]);
 });

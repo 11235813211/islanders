@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { PLAYER_COLORS } from '../shared/colors';
 import { applyAction, getView, peekBoard } from '../shared/engine';
+import { BUILTIN_BOARDS } from '../shared/maps/builtin';
 import type { ClientMessage, GameState, PlayerColor, ServerMessage } from '../shared/types';
 import { seeded } from './fixtures';
 /**
@@ -36,7 +37,13 @@ export async function mountGame(page: Page, initial: GameState) {
           return;
         }
         if (message.type === 'view-as') selfId = message.playerId;
-        if (message.type === 'action') game = applyAction(game, selfId, message.action, seeded(), Date.now());
+        if (message.type === 'action') {
+          // As the server does, a map choice or proposal comes with its design (built-in maps here).
+          const { action } = message;
+          const mapId = action.type === 'choose-map' || action.type === 'propose-map' ? action.mapId : null;
+          const design = BUILTIN_BOARDS.find(b => b.id === mapId);
+          game = applyAction(game, selfId, action, seeded(), Date.now(), { design });
+        }
         send({
           type: 'state',
           state: getView(game, selfId),

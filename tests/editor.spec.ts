@@ -472,3 +472,30 @@ test('the (i) help teaches the editor by topic, and every tab fits', async ({ pa
     await help.getByRole('button', { name: 'Close dialog' }).click();
   }
 });
+
+test('a new base board left unchanged is not added to the library; changed, it saves', async ({ page }) => {
+  const headers = await signIn(page);
+  const named = async (name: string) =>
+    ((await (await page.request.get(`${server}/api/boards`)).json()) as BoardLibrary).boards.filter(
+      b => b.name === name,
+    );
+  for (const board of [...(await named('New base board')), ...(await named('Kept base board'))])
+    await page.request.delete(`${server}/api/boards/${board.id}`, { headers });
+  await page.goto('/#editor');
+  const library = page.getByRole('dialog', { name: 'Boards' });
+  await library.getByRole('button', { name: 'New base board' }).first().click();
+  await expect(page.getByLabel('Board name')).toHaveValue('New base board');
+  await expect(page.getByRole('button', { name: 'Not saved', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'All boards' }).click();
+  await expect(library.getByRole('button', { name: 'Edit New base board' })).toHaveCount(0);
+  expect(await named('New base board')).toHaveLength(0);
+
+  await library.getByRole('button', { name: 'New base board' }).first().click();
+  await expect(page.getByRole('button', { name: 'Not saved', exact: true })).toBeVisible();
+  await page.getByLabel('Board name').fill('Kept base board');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
+  const kept = await named('Kept base board');
+  expect(kept).toHaveLength(1);
+  await page.request.delete(`${server}/api/boards/${kept[0]!.id}`, { headers });
+});

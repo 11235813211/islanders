@@ -12,9 +12,10 @@ import {
   setRouteGoal,
   setSetupPieces,
 } from '../shared/maps/special-edit';
+import { pointRewards, validSettings } from '../shared/settings';
 import type { GameAction, GameState } from '../shared/types';
 import { playBotGame } from './bot-harness';
-import { grant, inSeatOrder, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+import { grant, inSeatOrder, makeLobby, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
 
 /** Map special rules: setup pieces and order, piece rewards, and routes. */
 
@@ -143,6 +144,47 @@ describe('piece rewards', () => {
     const design = island({ victoryPoints: 30, pieceRewards: rewards });
     expect(parseDesign(design, ['seafaring']).pieceRewards).toEqual(rewards);
     expect(parseDesign(design, ['seafaring']).victoryPoints).toBe(30);
+  });
+});
+
+describe('room extra pieces', () => {
+  const configure = (game: GameState, settings: Partial<GameState['settings']>) =>
+    applyAction(game, 'p0', { type: 'configure', settings: { ...game.settings, ...settings } }, seeded(), TEST_NOW);
+
+  it('fills in 1 city, 1 settlement, and 3 roads every 3 points from 10, each at least 4 below the goal', () => {
+    const pieces = { settlements: 1, cities: 1, roads: 3 };
+    expect(pointRewards(13)).toEqual([]);
+    expect(pointRewards(14)).toEqual([{ points: 10, ...pieces }]);
+    expect(pointRewards(17).map(r => r.points)).toEqual([10, 13]);
+    expect(pointRewards(22).map(r => r.points)).toEqual([10, 13, 16]);
+  });
+
+  it('come with raised points to win, stay as the host edits them, and go when the map changes', () => {
+    let game = makeLobby(2);
+    expect(game.settings.pieceRewards).toEqual([]);
+    game = configure(game, { victoryPoints: 17 });
+    expect(game.settings.pieceRewards.map(r => r.points)).toEqual([10, 13]);
+    const edited = [{ points: 12, settlements: 2, cities: 0, roads: 4 }];
+    game = configure(game, { pieceRewards: edited });
+    expect(game.settings.pieceRewards).toEqual(edited);
+    game = configure(game, { discardLimit: 9 });
+    expect(game.settings.pieceRewards).toEqual(edited);
+    game = applyAction(game, 'p0', { type: 'choose-map', mapId: 'base' }, seeded(), TEST_NOW);
+    expect(game.settings.pieceRewards).toEqual(edited);
+    expect(
+      validSettings({ ...game.settings, pieceRewards: [{ points: 0, settlements: 1, cities: 1, roads: 1 }] }),
+    ).toBe(false);
+  });
+
+  it('go on the board at the start, unless the map has its own', () => {
+    const room = [{ points: 3, settlements: 1, cities: 1, roads: 3 }];
+    const plain = seaLobby(island(), 2);
+    plain.settings.pieceRewards = room;
+    expect(applyAction(plain, 'p0', { type: 'start' }, seeded(), TEST_NOW).board.rules?.rewards).toEqual(room);
+    const own = [{ points: 5, settlements: 2, cities: 0, roads: 0 }];
+    const mapped = seaLobby(island({ pieceRewards: own }), 2);
+    mapped.settings.pieceRewards = room;
+    expect(applyAction(mapped, 'p0', { type: 'start' }, seeded(), TEST_NOW).board.rules?.rewards).toEqual(own);
   });
 });
 

@@ -5,10 +5,18 @@ import CategoryHeader from './CategoryHeader';
 import MapDetail, { ExpansionTags } from './MapDetail';
 import MapThumbnail from './MapThumbnail';
 import { moveBoard, playersLabel, playersMismatch } from './mapInfo';
+import ProposeButton, { type Choose, type Proposing } from './ProposeButton';
 import { SpecialTags } from './SpecialRules';
 import './maps.css';
 
 const COLORS = ['#1f7fa6', '#c4572b', '#3b8442', '#8a5bb8', '#b07c12', '#4f7684', '#c23a6b', '#2f9e8f'];
+
+/** The browser's heading for who is looking and what they can do. */
+function browserTitle(editing: boolean, choosing: boolean, proposing: boolean): string {
+  if (editing) return 'Board editor';
+  if (choosing) return 'Choose a map';
+  return proposing ? 'Propose a map' : 'Maps';
+}
 
 /** Editor-only actions: the browser becomes the board library's manager. */
 export interface LibraryActions {
@@ -30,9 +38,8 @@ export default function MapBrowser({
   players,
   currentId = null,
   currentLayout = null,
-  canChoose = false,
-  proposing = false,
-  choose = () => {},
+  choose,
+  propose,
   close,
   closeLabel = 'Close maps',
   home,
@@ -46,11 +53,10 @@ export default function MapBrowser({
   currentId?: string | null;
   /** The layout of the current map the host picked, or null when the table's size picks it. */
   currentLayout?: { min: number; max: number } | null;
-  canChoose?: boolean;
-  /** Choosing proposes the map to the host instead of using it (everyone but the host). */
-  proposing?: boolean;
-  /** `layoutFor`: the host picked the layout made for this many players (maps with several layouts). */
-  choose?: (design: BoardDesign, layoutFor?: number) => void;
+  /** The host uses a map. `layoutFor`: the layout made for this many players (maps with several layouts). */
+  choose?: Choose;
+  /** Seated people put maps forward (or take them back). */
+  propose?: Proposing;
   close: () => void;
   closeLabel?: string;
   /** Shows a Home button that leaves this screen entirely (the editor's browser). */
@@ -89,7 +95,7 @@ export default function MapBrowser({
       <header className="map-picker-header">
         <h2>
           <MapIcon size={22} />
-          {editing ? 'Board editor' : proposing ? 'Propose a map' : canChoose ? 'Choose a map' : 'Maps'}
+          {browserTitle(!!editing, !!choose, !!propose)}
         </h2>
         <div className="map-filter" role="radiogroup" aria-label="Players">
           <Users size={17} />
@@ -130,11 +136,10 @@ export default function MapBrowser({
           design={open}
           players={players}
           layoutFor={open === initial?.design ? (initial.layoutFor ?? undefined) : undefined}
-          canChoose={canChoose}
-          proposing={proposing}
           current={open.id === currentId}
           currentLayout={currentLayout}
-          choose={layoutFor => choose(open, layoutFor)}
+          choose={choose && (layoutFor => choose(open, layoutFor))}
+          propose={propose}
           back={() => setOpen(null)}
         />
       ) : (
@@ -244,16 +249,17 @@ export default function MapBrowser({
                                 <Eye size={16} />
                                 View
                               </button>
-                              {canChoose && (
+                              {propose && <ProposeButton design={board} propose={propose} />}
+                              {choose && (
                                 <button
                                   type="button"
                                   className="button primary"
-                                  aria-label={`${proposing ? 'Propose' : 'Use'} ${board.name}`}
+                                  aria-label={`Use ${board.name}`}
                                   disabled={board.id === currentId}
                                   onClick={() => choose(board)}
                                 >
                                   <Check size={16} />
-                                  {proposing ? 'Propose' : 'Use'}
+                                  Use
                                 </button>
                               )}
                             </>

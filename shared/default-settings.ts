@@ -5,8 +5,11 @@ import type { GameSettings } from './types';
  * in the lobby. A wrong value fails `npm run typecheck` or `tests/settings.test.ts`.
  */
 export const DEFAULT_SETTINGS: GameSettings = {
-  // Points to win: 3 to 20.
+  // Points to win: 3 to 50.
   victoryPoints: 10,
+  // Extra pieces at some points, on maps without their own. Changing points to win refills this
+  // from POINT_REWARDS below; the host can then edit it.
+  pieceRewards: [],
   // Seconds per turn: 15 to 900.
   turnSeconds: 90,
   // Seconds before the dice roll themselves: 0 (off), 5, 8, 10, 15, or 30.
@@ -46,6 +49,18 @@ export const DEFAULT_SETTINGS: GameSettings = {
 };
 
 /**
+ * Extra pieces a room gets when the host sets points to win, on a map without its own: `pieces`
+ * at `first` points, then again every `every` points, for each step at least `ahead` points below
+ * the goal (10 from 14 points, 13 from 17, 16 from 20, ...).
+ */
+export const POINT_REWARDS = {
+  first: 10,
+  every: 3,
+  ahead: 4,
+  pieces: { settlements: 1, cities: 1, roads: 3 },
+} as const;
+
+/**
  * Back-end tuning: the same for every room, never shown in the lobby. Edit the values here.
  */
 export const TUNING = {
@@ -54,6 +69,8 @@ export const TUNING = {
   actionBonusSeconds: 20,
   // Trade offers one person may have open at once.
   maxOpenOffers: 3,
+  // Maps one person may propose (or back) in the lobby at once.
+  mapProposalsPerPlayer: 3,
   // Seconds the host may be disconnected before hosting passes to someone connected.
   hostAwaySeconds: 20,
   // Seconds between a client's pings. Background tabs may slow this down.

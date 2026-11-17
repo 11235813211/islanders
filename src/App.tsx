@@ -281,7 +281,7 @@ function App() {
         busy={busy}
         send={send}
         recording={room.recording}
-        setSaveGames={room.setSaveGames}
+        setRecordingChoice={room.setRecordingChoice}
         invite={() => setDialog('share')}
       />
     );

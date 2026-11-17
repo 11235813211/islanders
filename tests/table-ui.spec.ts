@@ -449,6 +449,8 @@ test('an off-turn offer to five players shows every answer, the counter, and the
 
 test('the hand turns red once a 7 would make you discard', async ({ page }) => {
   const g = richGame();
+  // Browser tests use the live defaults; pin the limit so 8 cards is over it.
+  g.settings.discardLimit = 7;
   g.players[0]!.resources = { wood: 2, brick: 2, sheep: 2, wheat: 1, ore: 0, lodestone: 0 };
   const game = await mountGame(page, g);
   const hand = page.locator('.table-hand');

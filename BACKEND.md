@@ -60,7 +60,7 @@ To change which choices the lobby offers, edit these in `shared/settings.ts`:
 
 ## Game records
 
-Games are recorded only when players agree. The settings are in `server/recording.ts`:
+Games are recorded only when the host chooses to save them and no other player opts out (`shouldRecord` in `shared/replay.ts`); each person's two choices are remembered on their account or in their browser. The settings are in `server/recording.ts`:
 
 | What                | Constant           | Now  |
 | ------------------- | ------------------ | ---- |

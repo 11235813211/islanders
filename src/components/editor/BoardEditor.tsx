@@ -51,6 +51,8 @@ export default function BoardEditor({
   const history = useHistory<BoardDesign | null>(null);
   const design = history.value;
   const saved = useRef('');
+  /** False for a new blank or base board until its first save: one left unchanged is never added. */
+  const [stored, setStored] = useState(true);
   const [selection, select] = useState<EditorSelection>(null);
   const [tool, setTool] = useState<Tool>('select');
   const [brush, setBrush] = useState<DesignKind>('gold');
@@ -84,6 +86,7 @@ export default function BoardEditor({
   const load = (next: BoardDesign, savedAlready: boolean) => {
     history.reset(structuredClone(next));
     saved.current = savedAlready ? JSON.stringify(next) : '';
+    setStored(true);
     lastFill.current = null;
     setVersionState(null);
     select(null);
@@ -143,6 +146,7 @@ export default function BoardEditor({
     if (board === design) saved.current = JSON.stringify(board);
     history.set(d => (d && d.id === result.id ? { ...d, updatedAt: result.updatedAt } : d));
     saved.current = JSON.stringify({ ...board, updatedAt: result.updatedAt });
+    if (board.id === design?.id) setStored(true);
     return true;
   }
   const leaveUnsaved = () => !dirty || window.confirm('Discard unsaved changes to this board?');
@@ -160,11 +164,17 @@ export default function BoardEditor({
   async function create(kind: 'blank' | 'base', categoryId: string, from?: BoardDesign) {
     if (!library || !leaveUnsaved()) return;
     const name = from ? `${from.name} copy` : kind === 'blank' ? 'New board' : 'New base board';
-    const board = from
-      ? { ...structuredClone(from), id: freshId(library, name), name }
-      : newDesign(kind, freshId(library, name), categoryId, name);
-    load(board, false);
-    if (account) await save(board);
+    if (from) {
+      const copy = { ...structuredClone(from), id: freshId(library, name), name };
+      load(copy, false);
+      if (account) await save(copy);
+      return;
+    }
+    // A new blank or base board counts as saved, so leaving it unchanged discards it without a question.
+    // Its id gets a random tail: unsaved, it is not in the library to keep another editor's new board from taking the same id.
+    const id = freshId(library, `${name} ${Math.random().toString(36).slice(2, 6)}`);
+    load(newDesign(kind, id, categoryId, name), true);
+    setStored(false);
   }
   async function remove(id: string) {
     const board = library?.boards.find(b => b.id === id);
@@ -190,7 +200,8 @@ export default function BoardEditor({
       const mod = event.ctrlKey || event.metaKey;
       if (mod && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        void save();
+        // An unchanged new board is not added to the library.
+        if (dirty || stored) void save();
         return;
       }
       if (typing(event.target) || browsing) return;
@@ -320,7 +331,7 @@ export default function BoardEditor({
               title={account ? 'Save, then open a solo test room on this board' : 'Sign in to play test'}
               aria-label="Play test"
               onClick={async () => {
-                if (!dirty || (await save())) playtest(design.id);
+                if ((!dirty && stored) || (await save())) playtest(design.id);
               }}
             >
               <FlaskConical size={17} />
@@ -330,12 +341,12 @@ export default function BoardEditor({
               type="button"
               className="button primary"
               disabled={busy || !account || !dirty || readOnly}
-              title={account ? 'Save (Ctrl/⌘ S)' : 'Sign in to save boards'}
-              aria-label={dirty ? 'Save' : 'Saved'}
+              title={saveTitle(!!account, dirty || stored)}
+              aria-label={saveLabel(dirty, stored)}
               onClick={() => void save()}
             >
               <Save size={17} />
-              <span className="editor-label">{dirty ? 'Save' : 'Saved'}</span>
+              <span className="editor-label">{saveLabel(dirty, stored)}</span>
             </button>
           </div>
         </div>
@@ -418,6 +429,18 @@ export default function BoardEditor({
       )}
     </main>
   );
+}
+
+/** The save button's word: a new board left unchanged is not saved at all. */
+function saveLabel(dirty: boolean, stored: boolean): string {
+  if (dirty) return 'Save';
+  return stored ? 'Saved' : 'Not saved';
+}
+
+/** The save button's tooltip. */
+function saveTitle(signedIn: boolean, changed: boolean): string {
+  if (!signedIn) return 'Sign in to save boards';
+  return changed ? 'Save (Ctrl/⌘ S)' : 'Change the board to save it. Unchanged new boards are not kept.';
 }
 
 function Toast({ message, dismiss }: { message: string; dismiss: () => void }) {

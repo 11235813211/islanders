@@ -56,24 +56,27 @@ function recordGame(seed: number, withChat = false) {
 }
 
 describe('recording consent', () => {
-  it('records only when every human consented; bots need none', () => {
+  it('records when the host saves and no other person opted out; bots need no choice', () => {
     const lobby = makeLobby(3);
     lobby.players[2]!.bot = 'beginner';
-    expect(shouldRecord(lobby, { p0: true, p1: true })).toBe(true);
-    expect(shouldRecord(lobby, { p0: true })).toBe(false);
-    expect(shouldRecord(lobby, { p0: true, p1: false })).toBe(false);
+    expect(shouldRecord(lobby, { p0: true })).toBe(true);
+    expect(shouldRecord(lobby, { p0: true }, { p1: false })).toBe(true);
+    expect(shouldRecord(lobby, { p0: true }, { p1: true })).toBe(false);
+    // Only the host's choice to save counts; the host's own opt-out does not.
+    expect(shouldRecord(lobby, { p1: true })).toBe(false);
+    expect(shouldRecord(lobby, { p0: true }, { p0: true })).toBe(true);
     expect(shouldRecord(lobby, {})).toBe(false);
   });
 
   it('does not record solo test rooms or all-bot tables', () => {
     const lobby = makeLobby(2);
     lobby.testMode = true;
-    expect(shouldRecord(lobby, { p0: true, p1: true })).toBe(false);
+    expect(shouldRecord(lobby, { p0: true })).toBe(false);
     const bots = makeLobby(2);
     bots.players.forEach(p => {
       p.bot = 'beginner';
     });
-    expect(shouldRecord(bots, {})).toBe(false);
+    expect(shouldRecord(bots, { p0: true })).toBe(false);
   });
 });
 
