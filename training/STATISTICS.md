@@ -1,6 +1,8 @@
 # Statistical requirements for bot improvements
 
-This protocol governs future experiments in [PLAN.md](PLAN.md). Existing results are
+This protocol governs the shipping lane in [PLAN.md](PLAN.md#how-we-work): changes to shipped
+behavior and claims of a measured gain, including claims about people. Exploration runs don't
+need registration or fixed samples; they still use paired comparisons and report `±`. Existing results are
 assessed separately in [EVIDENCE.md](EVIDENCE.md); they were not necessarily collected under
 these requirements. A code correction, a plausible mechanism, and a statistically supported
 increase in wins are three different claims.

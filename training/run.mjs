@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const out = join(root, '..', '.training-build');
+// TRAINING_BUILD=<dir> keeps a second command from rebuilding under one that is still running.
+const out = join(root, '..', process.env.TRAINING_BUILD ?? '.training-build');
 mkdirSync(out, { recursive: true });
 await build({
   entryPoints: { cli: join(root, 'cli.ts'), worker: join(root, 'worker.ts') },

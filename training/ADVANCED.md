@@ -1,27 +1,30 @@
 # How the Advanced bot decides
 
-Reviewed 2026-11-16 against commit `4bcded4eb2e620943043cce785a4e9575d71770c`.
+Reviewed 2026-11-16 against commit `4bcded4eb2e620943043cce785a4e9575d71770c`; build phase and
+races updated 2026-11-17 for checkpoint `r1` (see [Plan-based build phase](#plan-based-build-phase-active-since-r1)).
 This describes the repository version; it does not establish which version is deployed.
 The [evidence review](EVIDENCE.md) separates observed behavior from demonstrated strength,
 and the [improvement plan](PLAN.md) sets the conditions for further work.
 
-Advanced uses a trained network to rank starting positions. During ordinary play it uses
-fixed priorities and hand-written estimates of income, resource needs, and opponent danger.
+Advanced uses a trained network to rank starting positions. During ordinary play it weighs
+concrete build goals by estimated return per round of waiting (plans.ts), with hand-written
+estimates of income, resource needs, rivals' likely targets, and opponent danger.
 It rebuilds those estimates for each decision. It has no persistent strategic plan and does
 not search future turns during normal play. A small, bounded endgame check is an exception.
 
 ## What is active
 
-| Part                    | Current behavior                                                                           | Source                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Parameters              | `KNOBS` defaults, overridden by `weights.json`; its source label is `s2`                   | [params.ts](../shared/bots/advanced/params.ts), [weights.json](../shared/bots/advanced/weights.json) |
-| Setup                   | Draft lookahead, 34 input features, a 16-unit hidden layer, and a separate lodestone bonus | [setup.ts](../shared/bots/advanced/setup.ts), [net.ts](../shared/bots/advanced/net.ts)               |
-| Build phase             | Fixed priority planner; effective `planner = 0`                                            | [turn.ts](../shared/bots/advanced/turn.ts)                                                           |
-| Value network           | Inactive: the shipped weights contain no `valueNet`                                        | [index.ts](../shared/bots/advanced/index.ts)                                                         |
-| Alternative plan scorer | Inactive; enabling `planner` selects payoff divided by estimated wait                      | [plans.ts](../shared/bots/advanced/plans.ts), [plan-turn.ts](../shared/bots/advanced/plan-turn.ts)   |
-| Cartographers           | Shared rules around the Advanced brain can replace its selected action                     | [cartographers.ts](../shared/bots/cartographers.ts)                                                  |
+| Part            | Current behavior                                                                           | Source                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Parameters      | `KNOBS` defaults, overridden by `weights.json`; its source label is `r1`                   | [params.ts](../shared/bots/advanced/params.ts), [weights.json](../shared/bots/advanced/weights.json) |
+| Setup           | Draft lookahead, 34 input features, a 16-unit hidden layer, and a separate lodestone bonus | [setup.ts](../shared/bots/advanced/setup.ts), [net.ts](../shared/bots/advanced/net.ts)               |
+| Build phase     | Plan-based planner, `planner = 1` (since `r1`); the fixed order below is `planner = 0`     | [plans.ts](../shared/bots/advanced/plans.ts), [plan-turn.ts](../shared/bots/advanced/plan-turn.ts)   |
+| Races for spots | Rival model, `raceModel = 1`: predicted rival targets and arrival times                    | [rivals.ts](../shared/bots/advanced/rivals.ts)                                                       |
+| Strategies      | Training only: `strategy` knob presets for the strategy probe; 0 (shipped) changes nothing | [strategy.ts](../shared/bots/advanced/strategy.ts)                                                   |
+| Value network   | Inactive: the shipped weights contain no `valueNet`                                        | [index.ts](../shared/bots/advanced/index.ts)                                                         |
+| Cartographers   | Shared rules around the Advanced brain can replace its selected action                     | [cartographers.ts](../shared/bots/cartographers.ts)                                                  |
 
-`s2` identifies weights, not a complete version of the bot. Later code changes and newly
+`r1` identifies weights (it is `s2` plus five knobs), not a complete version of the bot. Later code changes and newly
 added default knobs affect behavior without changing that label. A saved checkpoint also
 uses current code unless the evaluator explicitly loads an older reference.
 
@@ -123,7 +126,34 @@ and a penalty if rivals are as close or closer. Own paths use the road/ship path
 rival distance uses geometric distance from their buildings and route ends. No explicit
 estimate asks when a rival can pay for a settlement or what a blocking road would deny them.
 
-## Normal build priorities
+## Plan-based build phase (active since r1)
+
+[plans.ts](../shared/bots/advanced/plans.ts) lists concrete goals each decision: a city on each
+own settlement, a settlement on each reached corner, a route plus settlement to each reachable
+open corner, a development card, a Longest Road push, and (Cartographers) a survey ship. Each
+goal's payoff is in points: its points now plus its extra production over the rounds the game
+probably has left (`roundsPerPoint` per point the leader still needs), cards valued at
+`pointPerCard`. Goals are ranked by payoff / (1 + rounds to afford), and
+[plan-turn.ts](../shared/bots/advanced/plan-turn.ts) takes the best goal's next step, trades
+toward it, or spends on another goal only when that doesn't delay the best.
+
+Added for `r1` (2026-11-17, [ANALYSIS.md](ANALYSIS.md)):
+- **Races:** a settlement or route goal is multiplied by the chance we get there first, from
+  [rivals.ts](../shared/bots/advanced/rivals.ts): each player's likely next targets (scored the
+  way we score ours, preferring corners they already reach) and rounds to arrive (cards needed
+  at their income, turn order). It predicts bots' next settlements 85–88% top 1.
+- **What a settlement makes possible:** `cityOption` (0.4) of a later city there, and
+  `frontierOption` (0.4) of the best open spot two or three pieces beyond it that our routes
+  don't already approach.
+- **Fog exploring off** (`exploreValue` 0): its payoff counted a new spot at every fog corner
+  and overbuilt ships on Middle Fog. Needs a redesign before it returns.
+- **Survey ship goal:** payoff 1 + 0.3 × `surveyValue`; the plan sails out, and the
+  Cartographers step builds the ship.
+
+Commitment comes only from progress: a half-built route is cheaper to finish, so it ranks
+higher. There is no stored plan between decisions.
+
+## Fixed build priorities (planner 0)
 
 Before ordinary building, `winningMove` looks for a purchase sequence that wins this turn.
 If it finds none, [turn.ts](../shared/bots/advanced/turn.ts) uses the following order, returning

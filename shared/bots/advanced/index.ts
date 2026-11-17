@@ -9,7 +9,9 @@ import { discard, Economy, goldChoice } from './economy';
 import { winningMove } from './endgame';
 import { type AdvancedParams, TRAINED } from './params';
 import { robberHex, stealTarget } from './robber';
+import { selectStrategy } from './selector';
 import { setupRoad, setupSettlement } from './setup';
+import { type Strategy, withStrategy } from './strategy';
 import { respond, review } from './trade';
 import { bestCity, bestSettlement, buildStep, knightNow, towardTarget } from './turn';
 
@@ -24,11 +26,42 @@ const SPECIAL_BUILDS = new Set<GameAction['type']>([
 ]);
 
 /**
- * The Advanced bot. Setup uses a draft lookahead scored by a network trained on self-play
+ * The Advanced bot. With a strategy selector (selector.ts), each decision is played by the brain
+ * of the strategy the selector picks for that view; otherwise by the brain below.
+ */
+export function makeAdvanced(params: AdvancedParams): Brain {
+  const selector = params.selector;
+  const base = makeBrain(params);
+  if (!selector) return base;
+  const leaned = new Map<Strategy, Brain>();
+  const pick = (view: GameView): Brain => {
+    const s = selectStrategy(view, params.knobs, selector);
+    if (!s) return base;
+    let brain = leaned.get(s);
+    if (!brain) {
+      brain = makeBrain({ ...params, knobs: withStrategy(params.knobs, s), selector: null });
+      leaned.set(s, brain);
+    }
+    return brain;
+  };
+  return {
+    turn: (view, options) => pick(view).turn(view, options),
+    discard: view => pick(view).discard(view),
+    respond: (view, offer) => pick(view).respond(view, offer),
+    review: (view, offer) => pick(view).review(view, offer),
+    gold: view => pick(view).gold!(view),
+    specialBuild: view => pick(view).specialBuild!(view),
+    lodestoneReserve: view => pick(view).lodestoneReserve!(view),
+    tiles: base.tiles,
+  };
+}
+
+/**
+ * One Advanced brain for fixed parameters. Setup uses a draft lookahead scored by a network trained on self-play
  * (setup.ts); the rest is a planner whose numbers (params.ts KNOBS) are tuned by self-play
  * against the Intermediate bot and earlier Advanced versions. Training lives in training/.
  */
-export function makeAdvanced(params: AdvancedParams): Brain {
+function makeBrain(params: AdvancedParams): Brain {
   const { knobs } = params;
   const tiles: TileTuning = {
     rivalShare: knobs.chartRivalShare,

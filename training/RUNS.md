@@ -10,6 +10,77 @@ _Nothing running._
 
 ## Finished
 
+### Tuning the plan-based planner's knobs (from r1): no gain
+
+- **Result (2026-11-17 06:08–06:50):** 12 generations × 2,400 games (field r1, r1, trader, hoarder). Moves:
+  pointPerCard 0.22→0.27, roundsPerPoint 2.2→2.6, cityOption 0.4→0.17, longestRoadReach 3.0→3.5,
+  partnerGain up. `select` vs r1 (600 fresh seeds 7300000, field r1): t3 +0.9 ±0.8, t3-g8 +0.2 ±0.8,
+  t3-g4 −0.6 ±0.8 pp. Not shipped: like every earlier tune, inside the noise.
+
+### Stopped-rollout probe (cheaper teacher check): fails
+
+- **Result (2026-11-17 05:41–06:07):** rollouts stopped after 6 rounds and scored by w1: −1.1 ±3.3 pp vs r1
+  (same 60 seeds as v3's +6.7). 2.5× cheaper (101 vs 251 s per game) but the gain is gone; it picks
+  cards 36% and current only 24%. w1 can't judge positions six rounds out well enough.
+
+### Strategy probe v3 (dice leak fixed)
+
+- **Result (2026-11-17 04:32–05:40):** +6.7 ±3.2 pp vs r1 (40.0% vs 33.3%, 60 seeds 7100000 × 3 seats, 3 players,
+  24 rollouts, every 3rd own turn). Choices: current 31%, cards 30%, cities 22%, expand 11%, explore 4%,
+  chart 1%; at setup current 66%. 251 s per game. Choices in `strategy-probe-3.json`.
+- Selector `sel2` fit on its 1,747 choices: again no network beat the average (label sd 8–10 pp,
+  mean advantages −3.4 to +1.8 pp).
+
+### Strategy probe v2 (dice leak: result invalid)
+
+- **Result (2026-11-17 03:11–04:31):** +13.3 ±2.9 pp vs r1 (46.7% vs 33.3%, 60 seeds × 3 seats, 3 players).
+  **Not valid:** rooms default to balanced dice, whose upcoming order is in `state.diceDeck`, and
+  `determinize` (search.ts) didn't reshuffle it, so rollouts knew the next rolls until the deck's
+  reshuffle (up to 24 rolls). Same flaw in the pilot (+8.5) and in the 2026-11-12 build-move probe.
+  Fixed 2026-11-17 04:30 (tests/search.test.ts covers it). Choices saved in strategy-probe-2.json.
+- Selector fit on its 1,744 choices (`sel1`): no network beat predicting the average; the label
+  spread (sd 10–11 pp) is no larger than paired rollout noise. Too noisy to learn from.
+
+### Goal-lean strategies, fixed for the whole game, vs r1
+
+- **Result (2026-11-17 02:55–03:05, 300 seeds 6000000):** expand −3.2 ±1.2, cities +0.9 ±1.3, cards
+  +1.5 ±1.3, explore −1.4 ±1.2, chart −2.3 ±0.7 pp. They follow through: cities 2.6 cities vs 2.1, expand
+  3.4 settlements vs 3.1, cards 6.4 development cards vs 4.0. Much less harmful than the presets.
+
+### Strategy probe pilot (PLAN Phase 1)
+
+- **Result (2026-11-17, 00:55–02:51, against s2):** the strategy seat won 33.5% ±3.3% (fair 25%); the
+  same seats with s2: 25.0%. Paired +8.5 ±3.0 pp (50 seeds, 200 games, 4 players, all maps). 1,608
+  choices: current 43%, cities 18%, cards 16%, expand 13%, explore 8%, chart 2%; at setup current 69%.
+  411 s per game (about 7 CPU-min). Choices in `training/data/strategy-probe-1.json`.
+
+### Plan-based planner with races and goal options → shipped as `r1`
+
+- **Why:** test the plan-based planner (`planner` 1) with the rival model's odds and what a
+  settlement makes possible next; ship it if it passes the shipping lane.
+- **Results (2026-11-17, 01:15–02:15), all vs `s2` in the same seats, shipped field:**
+  - Selection (400 seeds 6100000): planner alone −0.2 ±1.1; + races +0.7 ±1.2; + `cityOption` 0.4
+    +2.0 ±1.2; + `frontierOption` 0.4 +3.4 ±1.2; both +3.5 ±1.1; frontier 0.8 +2.5, both at 0.4/0.8 +3.0.
+  - Fresh seeds: +3.8 ±0.9 (600 seeds 6300000, fog exploring on); +2.4 ±0.9 (600 seeds 6500000,
+    fog exploring off). Every table size positive on the first set.
+  - Protected: base island 4p +2.5 ±1.5 (200 seeds); The Channel +1.5 ±1.4 (150); Middle Fog −1.1 ±1.6
+    with fog exploring (ships 3.1 vs 1.2, dead routes 2.9 vs 2.0), +3.9 ±1.6 with it off; Cartographers
+    maps (after adding a survey goal) +2.6 ±1.4 (300 seeds), survey ships 0.22 vs 0.16.
+  - Advanced vs Intermediate (`eval --games 2000`): 56.6% vs 29.7% fair (×1.91), was 49.7% (×1.65).
+  - `npm test` passes (bot CPU per move included).
+
+### Race model in the old planner
+
+- **Result (2026-11-17, 01:00–01:07):** `raceModel` 1 vs 0, `planner` 0: +1.1 ±0.9 pp (400 seeds 6100000).
+
+### Fixed-strategy pass (PLAN Phase 1)
+
+- **Result (2026-11-17):** each strategy as one seat vs shipped bots, 300 seeds, 1,114 games, paired vs
+  shipped in the same seats: expand −6.3 ±1.3, cities −1.8 ±1.3, cards −6.7 ±1.2, explore −0.1 ±1.3,
+  chart −1.0 ±0.8 pp. No strategy wins everywhere (expected). expand builds 6.9 roads vs 5.0 but only
+  3.3 settlements vs 2.9 (dead routes 3.0 vs 2.0): roads to spots it then loses. cities ends with no more
+  cities (2.4 vs 2.3) because it settles less. Write-up in ANALYSIS.md.
+
 ### Roadrace route fix vs the old bot
 
 - **Why:** bots almost never finished Roadrace (`new-base-board-11`, finish area required to win).

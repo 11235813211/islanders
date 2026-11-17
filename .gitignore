@@ -14,5 +14,5 @@ coverage/
 .tools/
 
 # Training data and build output (training/README.md)
-.training-build/
+.training-build*/
 training/data/

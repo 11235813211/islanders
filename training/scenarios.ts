@@ -112,6 +112,8 @@ export interface ScenarioFilter {
   baseShare?: number;
   /** Share of games on "AI Training" boards (default 0.25); other designed maps get the rest. */
   trainerShare?: number;
+  /** Room settings fixed for every game (e.g. the live defaults), over the drawn ones. */
+  settings?: Partial<GameSettings>;
 }
 
 /** The scenario for one game seed. */
@@ -147,6 +149,6 @@ export function drawScenario(seed: number, filter: ScenarioFilter = {}): Scenari
     name: `${table.id}/${players}`,
     design: table.design,
     players,
-    settings: drawSettings(random, table.design),
+    settings: { ...drawSettings(random, table.design), ...filter.settings },
   };
 }

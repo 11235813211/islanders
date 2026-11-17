@@ -4,6 +4,7 @@ import { linkAction } from '../analysis';
 import { classicSlot, distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import { predict } from './net';
 import { type AdvancedParams, type Knobs, makeParams } from './params';
+import { setupLean } from './strategy';
 
 /**
  * Starting placements. A starting position is scored by board-agnostic features (dice odds per
@@ -318,7 +319,14 @@ function prior(ctx: Context, f: number[]): number {
 function evaluate(ctx: Context, owners: Int8Array, seat: number): number {
   const f = features(ctx, owners, seat);
   const score = ctx.params.setupNet ? predict(ctx.params.setupNet, f) * 100 : prior(ctx, f);
-  return score + lodestoneScore(ctx, owners, seat);
+  const at = (name: (typeof SETUP_FEATURES)[number]) => f[SETUP_FEATURES.indexOf(name)]!;
+  const lean = setupLean(ctx.knobs, {
+    woodBrick: at('woodBrick'),
+    wheatOre: at('wheatOre'),
+    sheep: at('sheep'),
+    reach: at('reachRace'),
+  });
+  return score + lean + lodestoneScore(ctx, owners, seat);
 }
 
 /**

@@ -13,6 +13,7 @@ import { decisionRows, isDecision, type RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { type SearchOptions, type SearchStats, searchBrain } from './search';
 import { type GameResult, playGame } from './sim';
+import { type StrategyChoice, type StrategyOptions, strategyBrain } from './strategy-search';
 
 /**
  * What a worker thread can be asked to do. Jobs are plain data (they cross threads): seats name
@@ -73,6 +74,8 @@ export interface GameJob {
   challenger?: SeatSpec;
   /** Hero seats search their build decisions with rollouts of the table's bots (search.ts). */
   search?: SearchOptions;
+  /** Hero seats choose whole-game strategies by rollouts (strategy-search.ts). */
+  strategy?: StrategyOptions;
 }
 
 export interface JobResult extends GameResult {
@@ -88,6 +91,8 @@ export interface JobResult extends GameResult {
   recorded?: { seat: number; features: number[] }[];
   disagreements?: Disagreement[];
   search?: SearchStats;
+  /** The strategy seats' choices, in order. */
+  strategyChoices?: StrategyChoice[];
 }
 
 const brains = new Map<string, Brain>();
@@ -141,20 +146,35 @@ export function runJob(job: GameJob): JobResult {
   const disagreements: Disagreement[] = [];
   const search: SearchStats = { decisions: 0, overrides: 0, gain: 0 };
   let live: GameState | null = null;
-  const playing = job.search
+  const strategyChoices: StrategyChoice[] = [];
+  const playing = job.strategy
     ? brains.map((b, i) =>
-        heroes.includes(i)
-          ? searchBrain(
-              b,
+        heroes.includes(i) && 'advanced' in job.hero
+          ? strategyBrain(
+              job.hero.advanced ?? {},
               () => live!,
               () => brains,
+              i,
               job.seed,
-              job.search!,
-              search,
+              job.strategy!,
+              strategyChoices,
             )
           : b,
       )
-    : brains;
+    : job.search
+      ? brains.map((b, i) =>
+          heroes.includes(i)
+            ? searchBrain(
+                b,
+                () => live!,
+                () => brains,
+                job.seed,
+                job.search!,
+                search,
+              )
+            : b,
+        )
+      : brains;
   const result = playGame(scenario, playing, job.seed, {
     beforeMove(state, seat) {
       live = state;
@@ -198,6 +218,7 @@ export function runJob(job: GameJob): JobResult {
     recorded: job.record ? recorded : undefined,
     disagreements: job.record === 'disagree' ? disagreements : undefined,
     search: job.search ? search : undefined,
+    strategyChoices: job.strategy ? strategyChoices : undefined,
     exploration: {
       decisions: exploration.decisions - before.decisions,
       explored: exploration.explored - before.explored,

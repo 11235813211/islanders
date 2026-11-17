@@ -9,7 +9,7 @@ import { playGame, seeded } from '../training/sim';
 function midGame(): GameState {
   let found: GameState | null = null;
   const brains = Array.from({ length: 4 }, () => BOTS.intermediate.brain);
-  playGame(drawScenario(3, { maps: ['base'], players: [4] }), brains, 3, {
+  playGame(drawScenario(3, { maps: ['base'], players: [4], settings: { diceMode: 'balanced' } }), brains, 3, {
     beforeMove(state, seat) {
       if (!found && seat === 0 && state.phase === 'build' && state.turn > 24 && !state.tradeOffers[0]) {
         const hands = state.players.filter(p => p.id !== 'p0').filter(p => RESOURCES.some(r => p.resources[r] > 0));
@@ -32,6 +32,7 @@ function withOtherSecrets(state: GameState): GameState {
   b!.resources[rb]--;
   a!.resources[rb]++;
   g.developmentDeck.reverse();
+  g.diceDeck.reverse();
   return g;
 }
 
@@ -39,6 +40,7 @@ const secrets = (g: GameState) => ({
   hands: g.players.map(p => p.resources),
   cards: g.players.map(p => p.development.map(c => c.kind)),
   deck: g.developmentDeck.map(c => c.kind),
+  dice: g.diceDeck,
   bank: g.bank,
 });
 
@@ -46,6 +48,8 @@ describe('search samples (training/search.ts)', () => {
   const state = midGame();
 
   it('depend only on what the seat can see', () => {
+    // Balanced dice: the deck's order is hidden and must be redrawn too.
+    expect(new Set(state.diceDeck.map(d => d.join())).size).toBeGreaterThan(1);
     expect(secrets(withOtherSecrets(state))).not.toEqual(secrets(state));
     const one = determinize(state, 'p0', seeded(11));
     const two = determinize(withOtherSecrets(state), 'p0', seeded(11));

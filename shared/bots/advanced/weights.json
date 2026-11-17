@@ -1,5 +1,5 @@
 {
-  "source": "s2",
+  "source": "r1",
   "knobs": {
     "setupCandidates": 8,
     "quickVariety": 1.0399,
@@ -32,7 +32,12 @@
     "generousOffers": 0.84484,
     "offersPerTurn": 2.7331,
     "counters": 1,
-    "greedyOffers": 0.0031691
+    "greedyOffers": 0.0031691,
+    "planner": 1,
+    "raceModel": 1,
+    "cityOption": 0.4,
+    "frontierOption": 0.4,
+    "exploreValue": 0
   },
   "setupNet": {
     "inputs": [
@@ -196,5 +201,6 @@
         "b": [-0.14739]
       }
     ]
-  }
+  },
+  "valueNet": null
 }

@@ -5,6 +5,11 @@ existing record does not establish that a new economic planner, trade model, rac
 or larger network will materially increase wins.** It establishes specific code gaps,
 several failed approaches, and historical improvements against particular bot fields.
 
+Note (2026-11-17): [ANALYSIS.md](ANALYSIS.md) explains why these experiments could only find
+one-step improvements on the current bot, so small results here don't rule out large gains;
+[PLAN.md](PLAN.md) now encourages exploring those directions. The status table at the end is
+superseded by the plan.
+
 [ADVANCED.md](ADVANCED.md) describes current decisions. [PLAN.md](PLAN.md) permits larger
 work only after a candidate passes the [statistical protocol](STATISTICS.md).
 The chronological [README results log](README.md#results-log) remains the historical record.
@@ -55,6 +60,9 @@ The seat-order labeling bug affected positions collected after 2026-11-12 and be
 counts before the 2026-11-14 averaging fix also require caution.
 
 ## The search experiment remains closed
+
+_Note (2026-11-17): this probe's rollouts knew the order of the balanced dice deck (`determinize`
+didn't reshuffle it; fixed, see [ANALYSIS.md](ANALYSIS.md)), so its gains are biased upward._
 
 The original 2026-11-12 probe declared its gates before running: at least 45% wins versus
 three shipped bots to justify using search as a teacher; under 30% meant stop and rethink.
@@ -112,7 +120,7 @@ can overstate how generally the pattern occurs.
 
 ## Status of the proposed directions
 
-| Direction                                    | Strongest available basis                                                                                                                 | Decision now                                                                                               |
+| Direction                                    | Strongest available basis                                                                                                                 | Decision (2026-11-16)                                                                                      |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Accurate income and lodestone target scoring | C1/C2 fixed 2026-11-16 and measured: +0.5 ±1.0 pp on live Cartographers boards, +1.4 ±0.7 pp at 5–6 players, exactly 0 off Cartographers. | Kept as a correctness fix. No demonstrated win gain; no confirmation run is justified at this effect size. |
 | Sustained economic plans                     | Human income trajectories; current fixed priorities; adverse evidence for the old plan scorer.                                            | Research hypothesis. No broad planner rewrite justified.                                                   |

@@ -1,4 +1,5 @@
 import type { Net } from './net';
+import type { Selector } from './selector';
 import trained from './weights.json' with { type: 'json' };
 
 /**
@@ -24,11 +25,24 @@ export const KNOBS = {
   /** 0: the planner decides whether to build and the value network what; 1: the network decides both. */
   valueRole: [0, 0, 1],
 
+  // Strategy (strategy.ts): which whole-game plan to lean toward; 0 is the shipped bot. Not tuned.
+  strategy: [0, 0, 5],
+  /** Selector: least predicted advantage over the shipped play before leaning to a strategy (selector.ts). */
+  selectorMargin: [0.02, 0, 0.2],
+  /** Setup: weight of the strategy's preferred starting resources and reach (strategy.ts). */
+  setupLean: [5, 0, 15],
+
   // Plans (plans.ts)
   /** 0: the fixed-order planner; 1: plans weighed by payoff per turn. */
   planner: [0, 0, 1],
   /** Points one resource card is worth (a settlement is four cards and a point, plus production). */
   pointPerCard: [0.22, 0.1, 0.4],
+  /** Share of a later city's return counted in a settlement's (what the settlement makes possible). */
+  cityOption: [0, 0, 1],
+  /** Share of the best spot a settlement opens beyond it (two or three pieces on) counted in its return. */
+  frontierOption: [0, 0, 1],
+  /** Scale on exploring fog's estimated return (planner 1). */
+  exploreValue: [1, 0, 2],
   /** Rounds the game lasts per point the leader still needs. */
   roundsPerPoint: [2.2, 1, 4],
 
@@ -40,6 +54,9 @@ export const KNOBS = {
   /** Victory points from an island bonus, in spot-value units per point. */
   bonusValue: [6, 2, 12],
   goldSpot: [1.4, 0.8, 2.5],
+
+  /** 0: races judged by who is closer (racePenalty); 1: by predicted rival targets and arrival (rivals.ts). */
+  raceModel: [0, 0, 1],
 
   // Goals and spending
   cityValue: [2.2, 1, 4],
@@ -111,6 +128,8 @@ export interface AdvancedParams {
   setupNet: Net | null;
   /** Scores positions during play (value.ts). Without it, building follows the planner's order. */
   valueNet: Net | null;
+  /** Picks a strategy from the position (selector.ts). Without it, the bot plays its `strategy` knob. */
+  selector: Selector | null;
 }
 
 /** What a checkpoint or weights.json holds. */
@@ -118,6 +137,7 @@ export interface StoredParams {
   knobs?: Partial<Record<string, number>>;
   setupNet?: Net | null;
   valueNet?: Net | null;
+  selector?: Selector | null;
 }
 
 /** Defaults with any overrides applied (unknown knob names are ignored). */
@@ -125,7 +145,12 @@ export function makeParams(overrides: StoredParams = {}) {
   const knobs = Object.fromEntries(Object.entries(KNOBS).map(([k, [d]]) => [k, d])) as Knobs;
   for (const [k, v] of Object.entries(overrides.knobs ?? {}))
     if (k in knobs && typeof v === 'number') knobs[k as Knob] = v;
-  return { knobs, setupNet: overrides.setupNet ?? null, valueNet: overrides.valueNet ?? null } satisfies AdvancedParams;
+  return {
+    knobs,
+    setupNet: overrides.setupNet ?? null,
+    valueNet: overrides.valueNet ?? null,
+    selector: overrides.selector ?? null,
+  } satisfies AdvancedParams;
 }
 
 /** The shipped parameters: defaults plus whatever training saved in weights.json. */

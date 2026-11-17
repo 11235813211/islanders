@@ -2,7 +2,9 @@
 
 Start with [how Advanced decides](ADVANCED.md), including its confirmed gaps and active
 versus inactive components. [EVIDENCE.md](EVIDENCE.md) reviews what past results establish;
-[PLAN.md](PLAN.md) sets the evidence gates for further work, using [STATISTICS.md](STATISTICS.md).
+[PLAN.md](PLAN.md) is what we're doing next; [ANALYSIS.md](ANALYSIS.md) holds the analysis behind
+it. Write up any analysis of training, bot behavior, or saved games in ANALYSIS.md (format at its
+top), log each batch of games in [RUNS.md](RUNS.md), and each result below.
 
 Everything here runs on your machine (Node 24, `nvm use`); nothing ships to the Worker except
 `shared/bots/advanced/weights.json`. Commands:
@@ -16,14 +18,16 @@ worker threads, one per core minus one (`THREADS=n` to change). About 20 games/s
 
 The bot is `shared/bots/advanced/`:
 
-| Part              | File                       | Trained how                                                           |
-| ----------------- | -------------------------- | --------------------------------------------------------------------- |
-| Starting spots    | `setup.ts`                 | Draft lookahead (classical) scored by the setup network (`setup-fit`) |
-| Build phase       | `turn.ts`, `economy.ts`    | Active fixed-order planner with knobs (`tune`)                        |
-| Value experiment  | `choose.ts`, `value.ts`    | Inactive; candidate results scored by a network (`value-fit`)         |
-| Plan experiment   | `plans.ts`, `plan-turn.ts` | Inactive; plans ranked by payoff and estimated wait                   |
-| Robber and pirate | `robber.ts`                | Knobs (`tune`)                                                        |
-| Trades            | `trade.ts`, `economy.ts`   | Knobs (`tune`); hand value from goals                                 |
+| Part              | File                         | Trained how                                                            |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------------- |
+| Starting spots    | `setup.ts`                   | Draft lookahead (classical) scored by the setup network (`setup-fit`)  |
+| Build phase       | `plans.ts`, `plan-turn.ts`   | Active (since r1): goals ranked by return per round of waiting; knobs  |
+| Races for spots   | `rivals.ts`                  | Hand-written rival model, checked with `race-check`                    |
+| Strategies        | `strategy.ts`, `selector.ts` | Goal leans; selector networks from the strategy probe (`selector-fit`) |
+| Old build phase   | `turn.ts`, `economy.ts`      | Fixed-order planner (`planner` 0), no longer shipped                   |
+| Value experiment  | `choose.ts`, `value.ts`      | Inactive; candidate results scored by a network (`value-fit`)          |
+| Robber and pirate | `robber.ts`                  | Knobs (`tune`)                                                         |
+| Trades            | `trade.ts`, `economy.ts`     | Knobs (`tune`); hand value from goals                                  |
 
 Knobs are the numbers in `params.ts` `KNOBS` (default, min, max). A **checkpoint**
 (`training/checkpoints/<name>.json`) is a set of knobs plus the setup and value networks, with its
@@ -31,9 +35,8 @@ parent and notes on how it was made and scored.
 
 Network inputs summarize dice odds per resource, variety, harbors, and which good spots each
 player can reach first. They omit tile coordinates; this does not rule out overfitting to the
-training map distribution. The reasons to keep the [alternative planner](PLAN.md#alternative-planner)
-and [value network](PLAN.md#value-network) inactive, and the evidence required to revisit them,
-are documented in the plan.
+training map distribution. Why the alternative planner and value network are inactive, and how the plan reuses them:
+[PLAN.md](PLAN.md#earlier-experiments-and-their-code) and [ANALYSIS.md](ANALYSIS.md).
 
 ## Commands
 
@@ -54,7 +57,22 @@ not 95% intervals. Use the final paired difference from `compare` for inference;
   build decisions with rollouts of the shipped bot on hidden facts resampled from its view;
   every seed once per seat. Slow: ~4.5 CPU-minutes
   per game at the defaults.
+- `strategy-probe --seeds 50 [--players 3 --rollouts 24 --every 3 --margin 1 --rounds 0 --scorer w1
+  --out file.json]` the strategy probe (PLAN Phase 1, `strategy-search.ts`): one seat picks a
+  strategy (`shared/bots/advanced/strategy.ts`) at setup and every 3rd own turn by rollouts in which
+  it keeps that strategy; prints its wins vs the same games played plain, and what it chose by map
+  and stage. `--out` saves every choice with each strategy's score and the position's features
+  (selector training data). `--rounds 6 --scorer w1` stops rollouts after 6 rounds and scores them
+  with that checkpoint's value network (faster; check it agrees with full rollouts before trusting it).
+  Slow: several CPU-minutes per game.
+- `race-check [--games 100 --players 4]` how often the rival model (`rivals.ts`) predicts the next
+  settlement (top 1 / top 3, vs the nearest open corner) in bot games; `--positions a.json,...`
+  (from `records-positions`) checks a person's settlements in saved games instead.
+- `selector-fit --from r1 --data probe.json --name sel1 [--hidden 0]` trains the strategy selector
+  (`selector.ts`, PLAN Phase 2) from `strategy-probe --out` files into a checkpoint.
 - `profile --games 10` single-thread timing; `scenarios` prints the map/size mix.
+- `TRAINING_BUILD=.training-build-2 node training/run.mjs ...` builds into another folder, so a second
+  command doesn't rebuild under one that is still running.
 - `replay --seed N --seat S` replays one game with the hero in seat S (as `eval --rotate` played it);
   a failing training game's error names its seed and map.
 - `--cartographers` (any command with a scenario filter): only maps that play Cartographers.
@@ -116,7 +134,8 @@ Train:
 Seats by name: `ref:advanced` (or another level) as a git ref plays it, with `--ref origin/main`
 (compares against the pushed bot even when the code differs); checkpoints, `shipped`, `default`, `beginner`, `intermediate`, styles
 (`style:trader|hoarder|cards|builder|lodeblind`, the shipped bot pushed one way; `lodeblind` is the
-Advanced bot before it valued lodestone), and hybrids for
+Advanced bot before it valued lodestone), `strategy:expand|cities|cards|explore|chart` (the shipped bot
+playing one strategy all game), and hybrids for
 diagnosis (`intermediate+t1:setup`; parts: setup, robber, build, trade, gold, discard).
 
 Scenarios (`scenarios.ts`, `scenarios --games 20000` prints the mix): the standard island at 2–6
@@ -293,3 +312,12 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
   3700000, 100 seeds, 251 games): 68.5% vs 3.2%, +67% ±3.6%. All-Advanced tables still leave 10%
   unfinished, all under `routeLinks: settlement` with every ship spent; Intermediate has no
   route-first targeting yet (mixed tables 32% unfinished). Base and The Channel: identical games.
+- Strategy presets and the rival model (2026-11-17; PLAN Phase 1, [ANALYSIS.md](ANALYSIS.md)). Fixed
+  whole-game strategies as one seat vs shipped: expand −6.3, cities −1.8, cards −6.7, explore −0.1,
+  chart −1.0 pp (±0.8–1.3, 300 seeds): "always prefer X" is the wrong unit. Rival model
+  (`rivals.ts`) predicts bots' next settlement 85–88% top 1, 94–96% top 3 (nearest corner: 78–83%).
+  Using it for races: +1.1 ±0.9 pp in the old planner.
+- **Shipped: r1** (2026-11-17): the plan-based planner (`planner` 1) with rival-model races,
+  `cityOption` 0.4, `frontierOption` 0.4, fog exploring off, and a survey-ship goal. vs s2: +3.8 ±0.9 and
+  +2.4 ±0.9 pp on two fresh 600-seed sets; base/4 +2.5 ±1.5; The Channel +1.5 ±1.4; Middle Fog +3.9 ±1.6;
+  Cartographers +2.6 ±1.4. vs Intermediate ×1.91 (was ×1.65). Details in [RUNS.md](RUNS.md).

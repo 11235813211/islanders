@@ -17,15 +17,17 @@ import { winningGold } from './endgame';
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
 import { makePlans, type Plan, type PlanKind, planScore } from './plans';
+import { type Races, races } from './rivals';
 import { type SurveyRoute, surveyRoute } from './survey';
 
-const GOAL: Record<PlanKind, Goal> = {
+const GOAL: Record<PlanKind, Goal | 'survey'> = {
   city: 'city',
   settlement: 'settlement',
   route: 'settlement',
   explore: 'road',
   development: 'development',
   road: 'road',
+  survey: 'survey',
 };
 
 /**
@@ -186,30 +188,40 @@ export class Economy {
 
   /** Value of settling a corner for this bot: its cards (rarer ones count more) and any island bonus. */
   spotWorth(vertexId: string): number {
+    return this.worthFor(vertexId, this.view.selfId, this.production);
+  }
+
+  /**
+   * Value of a corner for any player with this production (rivals.ts judges rivals' targets the
+   * same way we judge ours). Lodestone counts only for us: their survey plans aren't visible.
+   */
+  worthFor(vertexId: string, playerId: string, production: ResourceBag): number {
     const c = this.geo.indexOf.get(vertexId)!;
     const k = this.knobs;
+    const mine = playerId === this.view.selfId;
     let value = this.geo.gold[c]! * k.goldSpot + this.geo.jungle[c]! * 0.5;
     if (this.view.settings.volcanoGold) value += this.geo.volcano[c]! * k.goldSpot * 0.75;
     for (let r = 0; r < 5; r++) {
-      const have = this.production[RESOURCES[r]!];
+      const have = production[RESOURCES[r]!];
       value += this.geo.pips[c * 5 + r]! * (1.6 - Math.min(1, have / 10));
     }
     // Lodestone pays for survey ships, worth less once the bot already earns plenty.
-    if (this.survey)
-      value += this.geo.lodestone[c]! * k.lodestoneSpot * (1.6 - Math.min(1, this.production.lodestone / 10));
+    if (mine && this.survey)
+      value += this.geo.lodestone[c]! * k.lodestoneSpot * (1.6 - Math.min(1, production.lodestone / 10));
     const harbor = this.geo.harbor[c];
     if (harbor === 'any') value += 1.2;
-    else if (harbor && this.production[harbor] >= 5) value += 2.5;
-    return value + (this.islandBonus(c) + routeGoalAt(this.view, vertexId)) * k.bonusValue;
+    else if (harbor && production[harbor] >= 5) value += 2.5;
+    const route = mine ? routeGoalAt(this.view, vertexId) : 0;
+    return value + (this.islandBonus(c, playerId) + route) * k.bonusValue;
   }
 
-  /** Bonus points this bot would get for settling corner `c`. */
-  islandBonus(c: number): number {
+  /** Bonus points a player (this bot by default) would get for settling corner `c`. */
+  islandBonus(c: number, playerId = this.view.selfId): number {
     const bonus = this.geo.bonus[c]!;
     if (!bonus) return 0;
     const island = this.geo.island[c];
     const settled = Object.entries(this.view.buildings).some(
-      ([id, b]) => b.playerId === this.view.selfId && this.geo.island[this.geo.indexOf.get(id)!] === island,
+      ([id, b]) => b.playerId === playerId && this.geo.island[this.geo.indexOf.get(id)!] === island,
     );
     return settled ? 0 : bonus;
   }
@@ -251,9 +263,7 @@ export class Economy {
       const c = this.geo.indexOf.get(vertexId)!;
       if (!this.geo.land[c] || !isOpen(this.geo, occupied, c) || !maySettle(this.view, vertexId)) continue;
       if (finishOnly && !routeGoalAt(this.view, vertexId)) continue;
-      const them = this.opponentDistance(c);
-      const race =
-        them > path.distance ? 1 : them === path.distance ? 1 - this.knobs.racePenalty / 2 : 1 - this.knobs.racePenalty;
+      const race = this.raceFactor(c, path.distance);
       const value = (this.spotWorth(vertexId) * race) / (1 + this.knobs.distanceCost * path.distance ** 1.5);
       const target = { vertexId, value, ...path };
       if (!best || value > best.value) [best, second] = [target, best];
@@ -262,6 +272,22 @@ export class Economy {
     if (best) this.runnerUp = second;
     return best;
   }
+
+  /**
+   * How much a race for corner `c` (ours `distance` pieces away) cuts its value: the chance we get
+   * there first (rivals.ts, `raceModel` 1), or the older rule of thumb by who is closer.
+   */
+  raceFactor(c: number, distance: number): number {
+    if (this.knobs.raceModel >= 0.5) {
+      this.racesCache ??= races(this);
+      return this.racesCache.oursAt(c);
+    }
+    const them = this.opponentDistance(c);
+    const penalty = this.knobs.racePenalty;
+    return them > distance ? 1 : them === distance ? 1 - penalty / 2 : 1 - penalty;
+  }
+
+  private racesCache: Races | null = null;
 
   private goalOptions(): GoalOption[] {
     const { view, knobs, self } = this;

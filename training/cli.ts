@@ -12,7 +12,9 @@ import { runGauntlet } from './gauntlet';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { askAuth, fetchRecords, SITE, saveLibrary } from './live';
 import { collect, fitNetwork } from './networks';
+import { reportPlacements } from './placements';
 import { runJobs } from './pool';
+import { raceCheck, raceCheckPeople } from './races';
 import {
   type DecisionResult,
   decisionsAt,
@@ -24,7 +26,9 @@ import {
 import { loadRecords, replayGame } from './replays';
 import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
+import { fitSelector } from './selector-fit';
 import { playGame } from './sim';
+import { reportStrategyChoices } from './strategy-search';
 import { eventCollector, studyDumps, writeDump } from './study';
 import { TUNABLE, tune } from './tune';
 
@@ -46,7 +50,9 @@ export function filterFromFlags(): ScenarioFilter | undefined {
   const maps = list(flags.maps);
   const players = list(flags.players)?.map(Number);
   const cartographers = flags.cartographers === 'true';
-  return maps || players || cartographers ? { maps, players, cartographers } : undefined;
+  // --settings '{"friendlyRobber":true,"discardLimit":10}' fixes room settings for every game.
+  const settings = flags.settings ? JSON.parse(flags.settings) : undefined;
+  return maps || players || cartographers || settings ? { maps, players, cartographers, settings } : undefined;
 }
 
 /** Apply --knobs '{"name":value}' on top of an Advanced seat. */
@@ -350,6 +356,15 @@ Object.assign(COMMANDS, {
       },
     });
   },
+  /** Starting picks of one bot in every seat: placements --hero shipped --games 200 [--maps ...]. */
+  placements() {
+    reportPlacements(
+      Number(flags.games ?? 100),
+      Number(flags.seed ?? 1),
+      withKnobs(seatFor(flags.hero ?? 'shipped')),
+      filterFromFlags(),
+    );
+  },
   /** How games spread over maps and table sizes: --games 10000 [--seed 1]. */
   scenarios() {
     const counts = new Map<string, number>();
@@ -466,6 +481,78 @@ Object.assign(COMMANDS, {
       `${decisions} decisions searched, ${pct(overrides / decisions)} changed the bot's move, ` +
         `confirmed gain ${pct(gain / Math.max(1, overrides))} per change; ${((Date.now() - started) / 60000).toFixed(1)} min`,
     );
+  },
+  /**
+   * The strategy probe (PLAN.md Phase 1): one seat choosing whole-game strategies by rollouts
+   * against --base: [--seeds 50 --players 4 --rollouts 24 --every 3 --margin 1 --rounds 0 --scorer w1 --seed 7000000 --out file].
+   * Prints its wins against the same games with --base in that seat, and what it chose when.
+   */
+  async 'strategy-probe'() {
+    const base = seatFor(flags.base ?? 'shipped');
+    const match = {
+      games: Number(flags.seeds ?? 50),
+      firstSeed: Number(flags.seed ?? 7_000_000),
+      filter: filterFromFlags() ?? { players: [4] },
+      rotate: true,
+    };
+    const strategy = {
+      rollouts: Number(flags.rollouts ?? 24),
+      every: Number(flags.every ?? 3),
+      margin: Number(flags.margin ?? 1),
+      // --rounds 6 --scorer w1: stop rollouts after 6 rounds and score them with w1's value network.
+      rounds: Number(flags.rounds ?? 0),
+      scorer: flags.scorer ? (loadCheckpoint(flags.scorer).valueNet ?? null) : null,
+    };
+    const started = Date.now();
+    const minutes = () => ((Date.now() - started) / 60000).toFixed(1);
+    const jobs = matchJobs(base, [base], match).map(job => ({ ...job, strategy }));
+    const results = await runJobs(jobs, done =>
+      process.stderr.write(`  ${done}/${jobs.length} games, ${minutes()} min\r`),
+    );
+    const plain = await runJobs(matchJobs(base, [base], match));
+    report(`strategy seat (${JSON.stringify(strategy)}) vs ${flags.base ?? 'shipped'}`, summarize(results), true);
+    report(`${flags.base ?? 'shipped'} in the same seats`, summarize(plain));
+    const p = pairedDifference(results, plain);
+    const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+    console.log(`strategy − plain: ${pct(p.winDiff)} ±${pct(p.winErr)} (${p.seeds} seeds); ${minutes()} min`);
+    reportStrategyChoices(results);
+    if (flags.out)
+      writeFileSync(
+        flags.out,
+        JSON.stringify(
+          results.map(r => ({
+            seed: r.seed,
+            scenario: r.scenario,
+            players: r.players,
+            winner: r.winner,
+            heroSeats: r.heroSeats,
+            choices: r.strategyChoices,
+          })),
+        ),
+      );
+  },
+  /** How well the rival model predicts next settlements: race-check [--games 100 --seed 8000000 --players 4]. */
+  'race-check'() {
+    // --positions a.json,b.json (records-positions): a person's settlements in saved games instead.
+    const positions = list(flags.positions)?.flatMap(f => JSON.parse(readFileSync(f, 'utf8')) as Position[]);
+    const r = positions
+      ? raceCheckPeople(positions)
+      : raceCheck(Number(flags.games ?? 100), Number(flags.seed ?? 8_000_000), filterFromFlags());
+    const pct = (x: number) => `${((x / Math.max(1, r.settlements)) * 100).toFixed(1)}%`;
+    console.log(
+      `${r.settlements} settlements: model top 1 ${pct(r.top1)}, top 3 ${pct(r.top3)}; nearest corner ${pct(r.nearest)}; no prediction ${pct(r.unpredicted)}`,
+    );
+  },
+  /** Train the strategy selector from strategy-probe output: --from r1 --data a.json,b.json --name sel1 [--hidden 0 --epochs 200]. */
+  'selector-fit'() {
+    const hidden = Number(flags.hidden ?? 0);
+    fitSelector({
+      from: flags.from ?? 'shipped',
+      name: flags.name ?? 'selector',
+      data: list(flags.data) ?? [],
+      hidden: hidden ? [hidden] : [],
+      epochs: Number(flags.epochs ?? 200),
+    });
   },
   /** List checkpoints with their last note. */
   checkpoints() {

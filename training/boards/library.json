@@ -1,6 +1,6 @@
 {
   "fetchedFrom": "https://play.islandersgame.workers.dev/api/boards",
-  "fetchedAt": "2026-11-15",
+  "fetchedAt": "2026-11-17",
   "categories": [
     {
       "id": "category-4",
@@ -32,8 +32,8 @@
     {
       "id": "four-isles",
       "name": "Four Isles",
-      "description": "Four islands of six. Start on any; each other island you settle is worth 2 points.",
       "categoryId": "seafaring",
+      "description": "Four islands of six. Start on any; each other island you settle is worth 2 points.",
       "players": {
         "min": 3,
         "max": 4
@@ -265,14 +265,13 @@
         {
           "q": -1,
           "r": 0,
-          "kind": "gold",
-          "bonus": 2,
-          "noSetup": true
+          "kind": "sea"
         },
         {
           "q": 0,
           "r": 0,
-          "kind": "sea"
+          "kind": "gold",
+          "bonus": 2
         },
         {
           "q": 1,
@@ -497,11 +496,6 @@
           "kind": "sea"
         }
       ],
-      "robber": null,
-      "pirate": {
-        "q": 0,
-        "r": 0
-      },
       "harbors": [
         {
           "q": 5,
@@ -524,12 +518,6 @@
         {
           "q": 1,
           "r": 3,
-          "side": 0,
-          "kind": "random"
-        },
-        {
-          "q": -1,
-          "r": 0,
           "side": 0,
           "kind": "random"
         },
@@ -564,6 +552,11 @@
           "kind": "random"
         }
       ],
+      "robber": null,
+      "pirate": {
+        "q": 4,
+        "r": 0
+      },
       "pool": {
         "wood": 4,
         "sheep": 4,
@@ -573,7 +566,7 @@
         "desert": 1
       },
       "harborExclude": [],
-      "updatedAt": 0
+      "updatedAt": 1794712793282
     },
     {
       "id": "new-board-2",
@@ -14670,490 +14663,6 @@
       "updatedAt": 1794615055248
     },
     {
-      "id": "new-base-board-11",
-      "name": "Roadrace",
-      "categoryId": "seafaring",
-      "description": "",
-      "players": {
-        "min": 2,
-        "max": 3
-      },
-      "victoryPoints": 13,
-      "tiles": [
-        {
-          "q": 0,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 1,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 2,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": -1,
-          "r": -2,
-          "kind": "sea"
-        },
-        {
-          "q": 0,
-          "r": -2,
-          "kind": "land"
-        },
-        {
-          "q": 1,
-          "r": -2,
-          "kind": "land"
-        },
-        {
-          "q": -2,
-          "r": -1,
-          "kind": "sea"
-        },
-        {
-          "q": -1,
-          "r": -1,
-          "kind": "land"
-        },
-        {
-          "q": 0,
-          "r": -1,
-          "kind": "land"
-        },
-        {
-          "q": 1,
-          "r": -1,
-          "kind": "land"
-        },
-        {
-          "q": -3,
-          "r": 0,
-          "kind": "sea"
-        },
-        {
-          "q": -2,
-          "r": 0,
-          "kind": "land"
-        },
-        {
-          "q": -1,
-          "r": 0,
-          "kind": "land"
-        },
-        {
-          "q": 0,
-          "r": 0,
-          "kind": "land"
-        },
-        {
-          "q": -3,
-          "r": 1,
-          "kind": "sea"
-        },
-        {
-          "q": -2,
-          "r": 1,
-          "kind": "land"
-        },
-        {
-          "q": -1,
-          "r": 1,
-          "kind": "land"
-        },
-        {
-          "q": 0,
-          "r": 1,
-          "kind": "land"
-        },
-        {
-          "q": -3,
-          "r": 2,
-          "kind": "sea"
-        },
-        {
-          "q": -2,
-          "r": 2,
-          "kind": "land"
-        },
-        {
-          "q": -1,
-          "r": 2,
-          "kind": "land"
-        },
-        {
-          "q": -3,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": -2,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": -1,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 0,
-          "r": 2,
-          "kind": "sea"
-        },
-        {
-          "q": 1,
-          "r": 1,
-          "kind": "sea"
-        },
-        {
-          "q": 1,
-          "r": 0,
-          "kind": "sea"
-        },
-        {
-          "q": 2,
-          "r": -1,
-          "kind": "sea"
-        },
-        {
-          "q": 2,
-          "r": -2,
-          "kind": "sea"
-        },
-        {
-          "q": 3,
-          "r": -2,
-          "kind": "sea"
-        },
-        {
-          "q": 3,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 2,
-          "r": 0,
-          "kind": "sea"
-        },
-        {
-          "q": 1,
-          "r": 2,
-          "kind": "sea"
-        },
-        {
-          "q": 0,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 1,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 4,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 3,
-          "r": -1,
-          "kind": "sea"
-        },
-        {
-          "q": 2,
-          "r": 1,
-          "kind": "sea"
-        },
-        {
-          "q": 3,
-          "r": 2,
-          "kind": "sea"
-        },
-        {
-          "q": 4,
-          "r": 1,
-          "kind": "sea"
-        },
-        {
-          "q": 4,
-          "r": 0,
-          "kind": "sea"
-        },
-        {
-          "q": 5,
-          "r": -1,
-          "kind": "sea"
-        },
-        {
-          "q": 5,
-          "r": -2,
-          "kind": "sea"
-        },
-        {
-          "q": 5,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 2,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 3,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 4,
-          "r": 2,
-          "kind": "sea"
-        },
-        {
-          "q": 5,
-          "r": 1,
-          "kind": "sea"
-        },
-        {
-          "q": 5,
-          "r": 0,
-          "kind": "sea"
-        },
-        {
-          "q": 6,
-          "r": -1,
-          "kind": "sea"
-        },
-        {
-          "q": 6,
-          "r": -2,
-          "kind": "sea"
-        },
-        {
-          "q": 7,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 6,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 4,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 5,
-          "r": 2,
-          "kind": "land"
-        },
-        {
-          "q": 6,
-          "r": 1,
-          "kind": "land",
-          "number": 3
-        },
-        {
-          "q": 6,
-          "r": 0,
-          "kind": "land"
-        },
-        {
-          "q": 7,
-          "r": -1,
-          "kind": "land"
-        },
-        {
-          "q": 7,
-          "r": -2,
-          "kind": "land"
-        },
-        {
-          "q": 8,
-          "r": -2,
-          "kind": "land"
-        },
-        {
-          "q": 8,
-          "r": -1,
-          "kind": "land"
-        },
-        {
-          "q": 7,
-          "r": 0,
-          "kind": "land"
-        },
-        {
-          "q": 7,
-          "r": 1,
-          "kind": "land"
-        },
-        {
-          "q": 6,
-          "r": 2,
-          "kind": "land"
-        },
-        {
-          "q": 8,
-          "r": 0,
-          "kind": "land",
-          "number": 2
-        },
-        {
-          "q": 5,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 6,
-          "r": 3,
-          "kind": "sea"
-        },
-        {
-          "q": 7,
-          "r": 2,
-          "kind": "sea"
-        },
-        {
-          "q": 8,
-          "r": 1,
-          "kind": "sea"
-        },
-        {
-          "q": 9,
-          "r": 0,
-          "kind": "sea"
-        },
-        {
-          "q": 9,
-          "r": -1,
-          "kind": "sea"
-        },
-        {
-          "q": 9,
-          "r": -2,
-          "kind": "sea"
-        },
-        {
-          "q": 9,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 8,
-          "r": -3,
-          "kind": "sea"
-        },
-        {
-          "q": 3,
-          "r": 0,
-          "kind": "land"
-        },
-        {
-          "q": 3,
-          "r": 1,
-          "kind": "land"
-        },
-        {
-          "q": 2,
-          "r": 2,
-          "kind": "land"
-        },
-        {
-          "q": 4,
-          "r": -2,
-          "kind": "land"
-        },
-        {
-          "q": 4,
-          "r": -1,
-          "kind": "land"
-        }
-      ],
-      "harbors": [
-        {
-          "q": 0,
-          "r": -2,
-          "side": 3,
-          "kind": "random"
-        },
-        {
-          "q": -2,
-          "r": 1,
-          "side": 1,
-          "kind": "random"
-        },
-        {
-          "q": -2,
-          "r": 0,
-          "side": 3,
-          "kind": "random"
-        },
-        {
-          "q": 1,
-          "r": -2,
-          "side": 4,
-          "kind": "random"
-        },
-        {
-          "q": -1,
-          "r": 2,
-          "side": 1,
-          "kind": "random"
-        }
-      ],
-      "robber": null,
-      "pirate": null,
-      "routes": [
-        {
-          "start": ["6,2", "7,1", "7,0", "8,0", "8,-1", "8,-2"],
-          "next": ["5,2", "6,2", "6,1", "7,1", "7,0", "8,0", "8,-1", "7,-1", "6,0", "8,-2", "7,-2"],
-          "finish": ["0,-2", "0,-1", "-1,-1", "-2,0", "-2,1", "-1,0", "-1,1", "-2,2"]
-        },
-        {
-          "start": ["0,-2", "-1,-1", "-2,0", "-2,1", "-2,2", "-1,1", "-1,0", "0,-1"],
-          "next": [
-            "-1,2",
-            "-1,1",
-            "-2,2",
-            "-2,1",
-            "0,1",
-            "0,0",
-            "-1,0",
-            "-2,0",
-            "-1,-1",
-            "0,-1",
-            "1,-1",
-            "1,-2",
-            "0,-2"
-          ],
-          "finish": ["6,2", "7,1", "8,0", "7,0", "8,-1", "8,-2"]
-        }
-      ],
-      "pool": {
-        "wood": 4,
-        "sheep": 4,
-        "wheat": 4,
-        "brick": 3,
-        "ore": 3,
-        "desert": 1
-      },
-      "harborExclude": [],
-      "routeGoal": {
-        "required": true,
-        "points": 2
-      },
-      "updatedAt": 1794624482759
-    },
-    {
       "id": "new-base-board-12",
       "name": "Magnetic North",
       "categoryId": "cartographers",
@@ -15387,7 +14896,389 @@
         "desert": 1
       },
       "harborExclude": [],
-      "updatedAt": 1794687709537
+      "linkRules": [
+        {
+          "kind": "in",
+          "links": ["A"],
+          "terrains": ["desert"]
+        },
+        {
+          "kind": "in",
+          "links": ["B"],
+          "terrains": ["lodestone"]
+        }
+      ],
+      "versions": [
+        {
+          "players": {
+            "min": 5,
+            "max": 6
+          },
+          "victoryPoints": 13,
+          "tiles": [
+            {
+              "q": 0,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": -1,
+              "kind": "lodestone"
+            },
+            {
+              "q": 1,
+              "r": -1,
+              "kind": "land",
+              "pips": [2, 3, 4, 5],
+              "notLink": "A"
+            },
+            {
+              "q": 1,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 1,
+              "r": -3,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 1,
+              "r": -2,
+              "kind": "lodestone"
+            },
+            {
+              "q": -1,
+              "r": -2,
+              "kind": "lodestone"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": -1,
+              "kind": "lodestone"
+            },
+            {
+              "q": -3,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": -3,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": -3,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": -4,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": -4,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -3,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -3,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 4,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 3,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 2,
+              "r": -2,
+              "kind": "lodestone"
+            },
+            {
+              "q": 2,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": -3,
+              "kind": "sea"
+            }
+          ],
+          "harbors": [
+            {
+              "q": -1,
+              "r": -1,
+              "side": 2,
+              "kind": "random",
+              "notLink": "B"
+            },
+            {
+              "q": -2,
+              "r": 3,
+              "side": 1,
+              "kind": "random"
+            },
+            {
+              "q": 2,
+              "r": 1,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "side": 3,
+              "kind": "random",
+              "notLink": "B"
+            },
+            {
+              "q": -3,
+              "r": 2,
+              "side": 0,
+              "kind": "random"
+            },
+            {
+              "q": 1,
+              "r": 2,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 2,
+              "r": -2,
+              "side": 4,
+              "kind": "random",
+              "notLink": "B"
+            },
+            {
+              "q": 3,
+              "r": -2,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": -1,
+              "r": 3,
+              "side": 0,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "side": 2,
+              "kind": "random"
+            }
+          ],
+          "robber": null,
+          "pirate": null
+        }
+      ],
+      "updatedAt": 1794872814275
     },
     {
       "id": "new-base-board-13",
@@ -15398,7 +15289,7 @@
         "min": 2,
         "max": 4
       },
-      "victoryPoints": 13,
+      "victoryPoints": 10,
       "tiles": [
         {
           "q": 0,
@@ -15673,7 +15564,7 @@
       },
       "harborExclude": [],
       "noTwoTwelve": true,
-      "updatedAt": 1794689452682
+      "updatedAt": 1794884318576
     },
     {
       "id": "new-base-board-14",
@@ -15684,7 +15575,7 @@
         "min": 3,
         "max": 4
       },
-      "victoryPoints": 13,
+      "victoryPoints": 10,
       "tiles": [
         {
           "q": 0,
@@ -16143,13 +16034,2437 @@
         "wheat": 4,
         "brick": 3,
         "ore": 3,
-        "desert": 1
+        "desert": 2
       },
       "exactMix": {
         "": ["desert"]
       },
       "harborExclude": [],
-      "updatedAt": 1794691595159
+      "versions": [
+        {
+          "players": {
+            "min": 5,
+            "max": 6
+          },
+          "victoryPoints": 10,
+          "tiles": [
+            {
+              "q": 0,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": -3,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 2,
+              "r": -3,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 3,
+              "r": -3,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": -1,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 2,
+              "r": -2,
+              "kind": "lodestone",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 3,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": -2,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": -1,
+              "kind": "lodestone",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 2,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 3,
+              "r": -1,
+              "kind": "lodestone"
+            },
+            {
+              "q": -3,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -1,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": 0,
+              "kind": "lodestone",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 2,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 3,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": -3,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -1,
+              "r": 1,
+              "kind": "lodestone",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": 1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": 1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 2,
+              "r": 1,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": -3,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -1,
+              "r": 2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": 2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": 2,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": -3,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": -3,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 4,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 4,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 1,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": 3,
+              "kind": "sea"
+            }
+          ],
+          "harbors": [
+            {
+              "q": 0,
+              "r": 2,
+              "side": 0,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "side": 2,
+              "kind": "random"
+            },
+            {
+              "q": -1,
+              "r": -1,
+              "side": 2,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": 2,
+              "side": 0,
+              "kind": "random"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "side": 3,
+              "kind": "random"
+            },
+            {
+              "q": 2,
+              "r": -3,
+              "side": 3,
+              "kind": "random"
+            },
+            {
+              "q": 3,
+              "r": -3,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": 4,
+              "r": -2,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": 3,
+              "r": 0,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 2,
+              "r": 1,
+              "side": 0,
+              "kind": "random"
+            }
+          ],
+          "robber": null,
+          "pirate": null
+        },
+        {
+          "players": {
+            "min": 2,
+            "max": 2
+          },
+          "victoryPoints": 10,
+          "tiles": [
+            {
+              "q": 0,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": -2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -2,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": -1,
+              "kind": "lodestone",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 1,
+              "r": -1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -3,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -1,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": 0,
+              "kind": "land",
+              "pips": [4, 5],
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -3,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -1,
+              "r": 1,
+              "kind": "lodestone",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": 0,
+              "r": 1,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -3,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -1,
+              "r": 2,
+              "kind": "land",
+              "notLink": "A",
+              "numberLevels": {
+                "wood": -1,
+                "sheep": -1,
+                "wheat": -1,
+                "brick": -1,
+                "ore": -1,
+                "gold": -1,
+                "jungle": -1,
+                "volcano": -1
+              }
+            },
+            {
+              "q": -3,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": 0,
+              "kind": "land",
+              "notLink": "A"
+            },
+            {
+              "q": 0,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": -2,
+              "kind": "sea"
+            }
+          ],
+          "harbors": [
+            {
+              "q": 0,
+              "r": -2,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "side": 2,
+              "kind": "random"
+            },
+            {
+              "q": -1,
+              "r": -1,
+              "side": 2,
+              "kind": "random"
+            },
+            {
+              "q": 1,
+              "r": -2,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 1,
+              "r": 0,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": 0,
+              "r": 1,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "side": 2,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": 2,
+              "side": 1,
+              "kind": "random"
+            },
+            {
+              "q": -1,
+              "r": 2,
+              "side": 0,
+              "kind": "random"
+            }
+          ],
+          "robber": null,
+          "pirate": null
+        }
+      ],
+      "updatedAt": 1794884806312
+    },
+    {
+      "id": "new-base-board-16",
+      "name": "Jumbotan",
+      "categoryId": "category-4",
+      "description": "",
+      "players": {
+        "min": 2,
+        "max": 4
+      },
+      "victoryPoints": 18,
+      "tiles": [
+        {
+          "q": 0,
+          "r": -3,
+          "kind": "land"
+        },
+        {
+          "q": 1,
+          "r": -3,
+          "kind": "land"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "kind": "land"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "kind": "land"
+        },
+        {
+          "q": -1,
+          "r": -2,
+          "kind": "land"
+        },
+        {
+          "q": 0,
+          "r": -2,
+          "kind": "land"
+        },
+        {
+          "q": 1,
+          "r": -2,
+          "kind": "land"
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "kind": "land"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "kind": "land"
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "kind": "land"
+        },
+        {
+          "q": -1,
+          "r": -1,
+          "kind": "land"
+        },
+        {
+          "q": 0,
+          "r": -1,
+          "kind": "land"
+        },
+        {
+          "q": 1,
+          "r": -1,
+          "kind": "land"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "kind": "land"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "kind": "land"
+        },
+        {
+          "q": -3,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": -2,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": -1,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": 0,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": 1,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": 2,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": 3,
+          "r": 0,
+          "kind": "land"
+        },
+        {
+          "q": -3,
+          "r": 1,
+          "kind": "land"
+        },
+        {
+          "q": -2,
+          "r": 1,
+          "kind": "land"
+        },
+        {
+          "q": -1,
+          "r": 1,
+          "kind": "land"
+        },
+        {
+          "q": 0,
+          "r": 1,
+          "kind": "land"
+        },
+        {
+          "q": 1,
+          "r": 1,
+          "kind": "land"
+        },
+        {
+          "q": 2,
+          "r": 1,
+          "kind": "land"
+        },
+        {
+          "q": -3,
+          "r": 2,
+          "kind": "land"
+        },
+        {
+          "q": -2,
+          "r": 2,
+          "kind": "land"
+        },
+        {
+          "q": -1,
+          "r": 2,
+          "kind": "land"
+        },
+        {
+          "q": 0,
+          "r": 2,
+          "kind": "land"
+        },
+        {
+          "q": 1,
+          "r": 2,
+          "kind": "land"
+        },
+        {
+          "q": -3,
+          "r": 3,
+          "kind": "land"
+        },
+        {
+          "q": -2,
+          "r": 3,
+          "kind": "land"
+        },
+        {
+          "q": -1,
+          "r": 3,
+          "kind": "land"
+        },
+        {
+          "q": 0,
+          "r": 3,
+          "kind": "land"
+        },
+        {
+          "q": -4,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 3,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 2,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 1,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 0,
+          "kind": "sea"
+        },
+        {
+          "q": -3,
+          "r": -1,
+          "kind": "sea"
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "kind": "sea"
+        },
+        {
+          "q": -1,
+          "r": -3,
+          "kind": "sea"
+        },
+        {
+          "q": 0,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 1,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 2,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 3,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -3,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -2,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -1,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": 0,
+          "kind": "sea"
+        },
+        {
+          "q": 3,
+          "r": 1,
+          "kind": "sea"
+        },
+        {
+          "q": 2,
+          "r": 2,
+          "kind": "sea"
+        },
+        {
+          "q": 1,
+          "r": 3,
+          "kind": "sea"
+        },
+        {
+          "q": 0,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -1,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -2,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -3,
+          "r": 4,
+          "kind": "sea"
+        }
+      ],
+      "harbors": [
+        {
+          "q": 0,
+          "r": -3,
+          "side": 2,
+          "kind": "random"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "side": 5,
+          "kind": "random"
+        },
+        {
+          "q": -3,
+          "r": 0,
+          "side": 3,
+          "kind": "random"
+        },
+        {
+          "q": 1,
+          "r": 2,
+          "side": 5,
+          "kind": "random"
+        },
+        {
+          "q": -1,
+          "r": 3,
+          "side": 0,
+          "kind": "random"
+        },
+        {
+          "q": -3,
+          "r": 3,
+          "side": 1,
+          "kind": "random"
+        },
+        {
+          "q": 1,
+          "r": -3,
+          "side": 3,
+          "kind": "random"
+        },
+        {
+          "q": -3,
+          "r": 1,
+          "side": 1,
+          "kind": "random"
+        },
+        {
+          "q": 3,
+          "r": 0,
+          "side": 5,
+          "kind": "random"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "side": 3,
+          "kind": "random"
+        }
+      ],
+      "robber": null,
+      "pirate": null,
+      "pool": {
+        "wood": 4,
+        "sheep": 4,
+        "wheat": 4,
+        "brick": 3,
+        "ore": 3,
+        "desert": 1.5
+      },
+      "harborExclude": [],
+      "pieceRewards": [
+        {
+          "points": 10,
+          "settlements": 2,
+          "cities": 1,
+          "roads": 3
+        },
+        {
+          "points": 13,
+          "settlements": 1,
+          "cities": 1,
+          "roads": 2
+        }
+      ],
+      "versions": [
+        {
+          "players": {
+            "min": 5,
+            "max": 6
+          },
+          "victoryPoints": 18,
+          "tiles": [
+            {
+              "q": 0,
+              "r": -3,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": -3,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": -3,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": -3,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": -4,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": -4,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": -4,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": -4,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": -4,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": -3,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": -4,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": -4,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": -4,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": -4,
+              "kind": "land"
+            },
+            {
+              "q": 4,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": -3,
+              "kind": "land"
+            },
+            {
+              "q": 4,
+              "r": -2,
+              "kind": "land"
+            },
+            {
+              "q": 4,
+              "r": -1,
+              "kind": "land"
+            },
+            {
+              "q": 4,
+              "r": 0,
+              "kind": "land"
+            },
+            {
+              "q": 3,
+              "r": 1,
+              "kind": "land"
+            },
+            {
+              "q": 2,
+              "r": 2,
+              "kind": "land"
+            },
+            {
+              "q": 1,
+              "r": 3,
+              "kind": "land"
+            },
+            {
+              "q": 0,
+              "r": 4,
+              "kind": "land"
+            },
+            {
+              "q": -1,
+              "r": 4,
+              "kind": "land"
+            },
+            {
+              "q": -2,
+              "r": 4,
+              "kind": "land"
+            },
+            {
+              "q": -3,
+              "r": 4,
+              "kind": "land"
+            },
+            {
+              "q": 4,
+              "r": -5,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": -5,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": -5,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": -5,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": -5,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": -4,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": -3,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": -4,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": -5,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": -5,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": -5,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": -5,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": -5,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": -4,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": -3,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": -2,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": -1,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": 0,
+              "r": 5,
+              "kind": "sea"
+            },
+            {
+              "q": 1,
+              "r": 4,
+              "kind": "sea"
+            },
+            {
+              "q": 2,
+              "r": 3,
+              "kind": "sea"
+            },
+            {
+              "q": 3,
+              "r": 2,
+              "kind": "sea"
+            },
+            {
+              "q": 4,
+              "r": 1,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": 0,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -1,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -2,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -3,
+              "kind": "sea"
+            },
+            {
+              "q": 5,
+              "r": -4,
+              "kind": "sea"
+            }
+          ],
+          "harbors": [
+            {
+              "q": -3,
+              "r": 3,
+              "side": 1,
+              "kind": "random"
+            },
+            {
+              "q": -4,
+              "r": 2,
+              "side": 2,
+              "kind": "random"
+            },
+            {
+              "q": -4,
+              "r": 0,
+              "side": 3,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": -2,
+              "side": 3,
+              "kind": "random"
+            },
+            {
+              "q": 0,
+              "r": -4,
+              "side": 3,
+              "kind": "random"
+            },
+            {
+              "q": 2,
+              "r": -4,
+              "side": 3,
+              "kind": "random"
+            },
+            {
+              "q": 3,
+              "r": -3,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": 4,
+              "r": -2,
+              "side": 4,
+              "kind": "random"
+            },
+            {
+              "q": 4,
+              "r": -1,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 3,
+              "r": 1,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 1,
+              "r": 3,
+              "side": 5,
+              "kind": "random"
+            },
+            {
+              "q": 0,
+              "r": 4,
+              "side": 1,
+              "kind": "random"
+            },
+            {
+              "q": -2,
+              "r": 4,
+              "side": 1,
+              "kind": "random"
+            }
+          ],
+          "robber": null,
+          "pirate": null
+        }
+      ],
+      "updatedAt": 1794884449142
+    },
+    {
+      "id": "new-board-11",
+      "name": "Compass Rose",
+      "categoryId": "cartographers",
+      "description": "",
+      "players": {
+        "min": 3,
+        "max": 4
+      },
+      "victoryPoints": 13,
+      "tiles": [
+        {
+          "q": 0,
+          "r": 0,
+          "kind": "desert",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": -1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -1,
+          "r": 0,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": 1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 1,
+          "r": 0,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 1,
+          "r": -1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -1,
+          "r": 1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -2,
+          "r": 1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -2,
+          "r": 0,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -1,
+          "r": -1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": -2,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 1,
+          "r": -2,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 1,
+          "r": 1,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": 2,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -1,
+          "r": 2,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -2,
+          "r": 2,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 2,
+          "r": 0,
+          "kind": "land",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 1,
+          "r": -3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": -3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -1,
+          "r": -2,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -3,
+          "r": 0,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -3,
+          "r": 1,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -3,
+          "r": 2,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -3,
+          "r": 3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -2,
+          "r": 3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": -1,
+          "r": 3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": 3,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 1,
+          "r": 2,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 2,
+          "r": 1,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 3,
+          "r": 0,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "kind": "lodestone",
+          "numberLevels": {
+            "lodestone": 1
+          }
+        },
+        {
+          "q": 0,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": -1,
+          "r": -3,
+          "kind": "sea"
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "kind": "sea"
+        },
+        {
+          "q": -3,
+          "r": -1,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 0,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 1,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 2,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 3,
+          "kind": "sea"
+        },
+        {
+          "q": -4,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -3,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -2,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": -1,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": 0,
+          "r": 4,
+          "kind": "sea"
+        },
+        {
+          "q": 1,
+          "r": 3,
+          "kind": "sea"
+        },
+        {
+          "q": 2,
+          "r": 2,
+          "kind": "sea"
+        },
+        {
+          "q": 3,
+          "r": 1,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": 0,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -1,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -2,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -3,
+          "kind": "sea"
+        },
+        {
+          "q": 4,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 3,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 2,
+          "r": -4,
+          "kind": "sea"
+        },
+        {
+          "q": 1,
+          "r": -4,
+          "kind": "sea"
+        }
+      ],
+      "harbors": [
+        {
+          "q": -3,
+          "r": 0,
+          "side": 3,
+          "kind": "random"
+        },
+        {
+          "q": -1,
+          "r": -2,
+          "side": 3,
+          "kind": "random"
+        },
+        {
+          "q": 1,
+          "r": -3,
+          "side": 3,
+          "kind": "random"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "side": 3,
+          "kind": "random"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "side": 4,
+          "kind": "random"
+        },
+        {
+          "q": 3,
+          "r": 0,
+          "side": 4,
+          "kind": "random"
+        },
+        {
+          "q": 2,
+          "r": 1,
+          "side": 5,
+          "kind": "random"
+        },
+        {
+          "q": 0,
+          "r": 3,
+          "side": 5,
+          "kind": "random"
+        },
+        {
+          "q": -1,
+          "r": 3,
+          "side": 1,
+          "kind": "random"
+        },
+        {
+          "q": -3,
+          "r": 3,
+          "side": 1,
+          "kind": "random"
+        },
+        {
+          "q": -3,
+          "r": 2,
+          "side": 2,
+          "kind": "random"
+        }
+      ],
+      "robber": null,
+      "pirate": null,
+      "noStart": [
+        "0,-3,2",
+        "-1,-2,3",
+        "-1,-2,2",
+        "-1,-1,3",
+        "0,-2,3",
+        "0,-2,4",
+        "1,-3,3",
+        "0,-3,4",
+        "0,-3,3",
+        "1,-2,4",
+        "2,-3,3",
+        "1,-3,4",
+        "2,-2,4",
+        "3,-3,3",
+        "2,-3,4",
+        "3,-3,4",
+        "3,-3,5",
+        "3,-3,0",
+        "2,-2,5",
+        "2,-1,5",
+        "3,-1,4",
+        "3,-2,5",
+        "3,-1,5",
+        "2,0,5",
+        "3,0,4",
+        "3,0,5",
+        "3,0,0",
+        "2,1,5",
+        "2,0,0",
+        "1,1,0",
+        "1,2,5",
+        "2,1,0",
+        "0,3,5",
+        "0,2,0",
+        "1,2,0",
+        "0,3,0",
+        "0,3,1",
+        "-1,3,0",
+        "0,2,1",
+        "-1,2,1",
+        "-2,3,0",
+        "-1,3,1",
+        "-2,3,1",
+        "-3,3,0",
+        "-2,2,1",
+        "-3,3,1",
+        "-3,3,2",
+        "-3,2,1",
+        "-2,2,2",
+        "-2,1,2",
+        "-3,1,1",
+        "-3,2,2",
+        "-3,1,2",
+        "-2,0,2",
+        "-3,0,1",
+        "-3,0,2",
+        "-3,0,3",
+        "-2,-1,2",
+        "-2,0,3",
+        "-2,-1,3"
+      ],
+      "pool": {
+        "wood": 4,
+        "sheep": 4,
+        "wheat": 4,
+        "brick": 3,
+        "ore": 3
+      },
+      "harborExclude": ["lodestone"],
+      "updatedAt": 1794885232293
     },
     {
       "id": "new-base-board",

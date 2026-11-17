@@ -70,6 +70,11 @@ function nextStep(econ: Economy, plan: Plan): { action: GameAction; cost: Resour
       const action = linkAction(view, path.firstEdge, path.firstKind);
       return action ? { action, cost: action.type === 'build-ship' ? BUILD_COSTS.ship : COSTS.road } : null;
     }
+    case 'survey': {
+      // The survey ship itself is built by the Cartographers step (cartographers.ts); this sails out to sea.
+      const action = linkAction(view, econ.survey?.firstEdge, 'ship');
+      return action ? { action, cost: BUILD_COSTS.ship } : null;
+    }
     case 'development':
       return view.legal.development ? { action: { type: 'buy-development' }, cost: COSTS.development } : null;
     case 'road': {

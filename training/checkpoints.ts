@@ -2,7 +2,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Net } from '../shared/bots/advanced/net';
-import type { StoredParams } from '../shared/bots/advanced/params';
+import { makeParams, type StoredParams } from '../shared/bots/advanced/params';
+import type { Selector } from '../shared/bots/advanced/selector';
+import { STRATEGIES, type Strategy, withStrategy } from '../shared/bots/advanced/strategy';
 import type { BotLevel } from '../shared/types';
 import type { Part, SeatSpec } from './jobs';
 
@@ -21,6 +23,8 @@ export interface Checkpoint {
   knobs: Record<string, number>;
   setupNet: Net | null;
   valueNet?: Net | null;
+  /** Strategy selector (selector.ts), one network per strategy. */
+  selector?: Selector | null;
   /** Free-form record of how it was made and how it scored. */
   notes: string[];
 }
@@ -71,6 +75,7 @@ export function loadCheckpoint(name: string): Checkpoint {
       knobs: w.knobs ?? {},
       setupNet: w.setupNet ?? null,
       valueNet: w.valueNet ?? null,
+      selector: w.selector ?? null,
       notes: [],
     };
   }
@@ -112,12 +117,18 @@ export function seatFor(name: string): SeatSpec {
     const base = loadCheckpoint('shipped');
     return { advanced: { ...paramsOf(base), knobs: { ...base.knobs, ...style } } };
   }
+  if (name.startsWith('strategy:')) {
+    const strategy = name.slice(9) as Strategy;
+    if (!STRATEGIES.includes(strategy)) throw new Error(`No strategy "${strategy}" (${STRATEGIES.join(', ')}).`);
+    const base = paramsOf(loadCheckpoint('shipped'));
+    return { advanced: { ...base, knobs: withStrategy(makeParams(base).knobs, strategy) } };
+  }
   return { advanced: paramsOf(loadCheckpoint(name)) };
 }
 
 /** A checkpoint's parameters as an Advanced seat takes them. */
 export function paramsOf(c: Checkpoint): StoredParams {
-  return { knobs: c.knobs, setupNet: c.setupNet, valueNet: c.valueNet ?? null };
+  return { knobs: c.knobs, setupNet: c.setupNet, valueNet: c.valueNet ?? null, selector: c.selector ?? null };
 }
 
 /** Write a checkpoint's parameters to the file the game ships with (rounded to keep it small). */
@@ -137,6 +148,9 @@ export function promote(checkpoint: Checkpoint): void {
     knobs,
     setupNet: small(checkpoint.setupNet),
     valueNet: small(checkpoint.valueNet),
+    selector: checkpoint.selector
+      ? Object.fromEntries(Object.entries(checkpoint.selector).map(([k, net]) => [k, small(net)]))
+      : null,
   };
   writeFileSync(SHIPPED, `${JSON.stringify(stored)}\n`);
   recordPromotion(checkpoint.name);

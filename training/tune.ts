@@ -33,7 +33,9 @@ const unit = (k: Knob, v: number) => (v - KNOBS[k][1]) / (KNOBS[k][2] - KNOBS[k]
 const value = (k: Knob, u: number) => KNOBS[k][1] + Math.min(1, Math.max(0, u)) * (KNOBS[k][2] - KNOBS[k][1]);
 
 /** Knobs worth tuning by default (setupExplore is for data collection; setupCandidates is CPU). */
-export const TUNABLE = (Object.keys(KNOBS) as Knob[]).filter(k => k !== 'setupExplore' && k !== 'setupCandidates');
+export const TUNABLE = (Object.keys(KNOBS) as Knob[]).filter(
+  k => k !== 'setupExplore' && k !== 'setupCandidates' && k !== 'strategy' && k !== 'raceModel',
+);
 
 export async function tune(options: TuneOptions): Promise<Checkpoint> {
   const parent = loadCheckpoint(options.from);

@@ -130,11 +130,12 @@ function playouts(
 /**
  * A copy of the state with everything `id` can't see redrawn: other players' cards (each hand's
  * size kept, drawn from what the public count says it likely holds), their unplayed development
- * cards with the deck, fog tiles among the fogged hexes, and volcano dice orders.
+ * cards with the deck, fog tiles among the fogged hexes, volcano dice orders, and the order of the
+ * balanced dice deck (until 2026-11-17 it was kept, so rollouts knew the next rolls).
  *
  * Only public facts shape the sample: hand sizes, the public count, the bank where the room shows
  * it (otherwise the bank is redrawn too), and the multisets of unseen development cards, fog
- * tiles, and volcano faces (public from the rules and what has been played or revealed). Hidden
+ * tiles, volcano faces, and dice cards (public from the rules and what has been played or revealed). Hidden
  * orders are sorted away before shuffling, so the same seed gives the same sample whatever the
  * hidden facts are (tests/search.test.ts).
  */
@@ -180,9 +181,20 @@ export function determinize(state: GameState, id: string, random: () => number):
   const volcanoDecks = Object.fromEntries(
     Object.entries(state.volcanoDecks).map(([hex, faces]) => [hex, shuffle([...faces].sort(), random)]),
   );
+  // Balanced dice: which cards are left is public (count the rolls since the reshuffle), their order isn't.
+  const diceDeck = shuffle([...state.diceDeck].sort(byJson), random);
   const seen = { ...state.handGuess.seen };
   for (const [pid, hand] of hands) seen[pid] = { ...hand };
-  return { ...state, players, bank, developmentDeck, fog, volcanoDecks, handGuess: { ...state.handGuess, seen } };
+  return {
+    ...state,
+    players,
+    bank,
+    developmentDeck,
+    fog,
+    volcanoDecks,
+    diceDeck,
+    handGuess: { ...state.handGuess, seen },
+  };
 }
 
 const byJson = (a: unknown, b: unknown) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
