@@ -105,9 +105,45 @@
 .map-proposal > .map-proposal-view {
   width: 100%;
 }
+/* View in the roll button's yellow; Use green; Decline red. */
+.map-proposal .map-proposal-view {
+  border-color: #d69419;
+  background: #ffbf42;
+  color: #23404d;
+}
 .map-proposal-host .map-proposal-use {
-  border-color: #0e9c87;
-  color: #0b7a69;
+  border-color: #0b7a69;
+  background: #17a589;
+  color: #fff;
+}
+.map-proposal-host .map-proposal-decline {
+  border-color: #a83232;
+  background: #d64545;
+  color: #fff;
+}
+/* A proposal this person just withdrew: grayed, with Undo over it for a few seconds. */
+.map-proposal.withdrawn .map-proposal-pick {
+  position: relative;
+}
+.map-proposal.withdrawn .map-thumbnail {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+.map-proposal-undo {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 54px;
+  transform: translateX(-50%);
+  color: #163c50;
+  font-size: 14px;
+  font-weight: 800;
+}
+.map-proposal.withdrawn .map-proposal-name {
+  color: #7b8d94;
 }
 .map-proposal-pick:disabled {
   cursor: default;

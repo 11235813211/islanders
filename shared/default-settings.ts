@@ -57,7 +57,9 @@ export const POINT_REWARDS = {
   first: 10,
   every: 3,
   ahead: 4,
-  pieces: { settlements: 1, cities: 1, roads: 3 },
+  pieces: { settlements: 1, cities: 1, roads: 3, ships: 0 },
+  /** With Seafarers on, the same count of roads is split between roads and ships. */
+  seaPieces: { settlements: 1, cities: 1, roads: 2, ships: 2 },
 } as const;
 
 /**

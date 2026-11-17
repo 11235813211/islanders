@@ -293,6 +293,7 @@ export default function BoardEditor({
               history.set(d => (d ? removeVersion(d, i) : d));
               setVersion(null);
             }}
+            setThumbnail={players => edit(d => ({ ...d, thumbnail: players }))}
           />
           <div className="editor-actions">
             <EditorHelp />

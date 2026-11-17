@@ -26,6 +26,18 @@
   margin: 0 0 0 32px;
   font-size: 14px;
 }
+.room-reward-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.room-reward-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 800;
+}
 .room-reward {
   display: grid;
   gap: 8px;
@@ -49,7 +61,7 @@
 }
 .room-reward-pieces {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   gap: 6px;
 }
 .room-reward-piece {
@@ -59,6 +71,9 @@
   min-width: 0;
 }
 .room-reward-piece > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   max-width: 100%;
   overflow: hidden;
   color: #526d78;
@@ -74,4 +89,23 @@
   justify-self: start;
   min-height: 36px;
   padding: 6px 12px;
+}
+/* When the pieces come: the roll button's yellow, for a bit of color. */
+.room-reward-points .count-stepper {
+  border-color: #d69419;
+  background: #ffbf42;
+  box-shadow: 0 2px 0 #d69419;
+}
+.room-reward-points .count-stepper output {
+  border-color: #d69419;
+  color: #23404d;
+}
+.room-reward-points .count-stepper button {
+  color: #23404d;
+}
+.room-reward-points .count-stepper button:hover:not(:disabled) {
+  background: #ffcf65;
+}
+.room-reward-points .count-stepper button:disabled {
+  color: #c99a3e;
 }

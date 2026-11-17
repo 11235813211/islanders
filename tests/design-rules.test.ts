@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getView, normalizeGame } from '../shared/engine';
-import { buildBoard, designFor, parseDesign, tileKey, upgradeDesign } from '../shared/maps';
+import { buildBoard, designFor, parseDesign, thumbnailLayout, tileKey, upgradeDesign } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
 import { noStartPoints, toggleNoStart } from '../shared/maps/edit';
 import { setNotLinks } from '../shared/maps/fill';
 import { fogMixOf, setFogMix } from '../shared/maps/fog';
 import { fogIslandsOf, randomTerrains, setIslandLevels } from '../shared/maps/numbers';
-import type { BoardDesign } from '../shared/maps/types';
+import type { BoardDesign, BoardVersion } from '../shared/maps/types';
 import type { GameState } from '../shared/types';
 import { fogOutlooks } from '../src/components/maps/FogSummary';
+import { playersLabel } from '../src/components/maps/mapInfo';
 import { inSeatOrder, makeLobby, seeded, TEST_NOW, testDesign, withFogMix } from './fixtures';
 
 /** Link rules, "Not A", no-start corners, versions for other player counts, and number richness. */
@@ -381,5 +382,40 @@ describe('number levels on fog', () => {
       fogMixOf(west!.map(t => mixed.tiles.find(m => m.q === t.q && m.r === t.r)!)),
     );
     expect(fogOutlooks(all)).toMatchObject([{ islands: 2, size: 7, certainty: 'exactly' }]);
+  });
+});
+
+describe('card pictures', () => {
+  const versioned = (thumbnail?: number) =>
+    parseDesign(
+      {
+        ...testDesign(['~ w6 s5 ~']),
+        players: { min: 2, max: 2 },
+        versions: [{ ...testDesign(['~ w6 s5 h4 ~']), players: { min: 3, max: 4 } }],
+        ...(thumbnail === undefined ? {} : { thumbnail }),
+      },
+      ['seafaring'],
+    );
+
+  it('shows the 3 player layout unless the editor picked another', () => {
+    expect(thumbnailLayout(versioned()).players.min).toBe(3);
+    expect(thumbnailLayout(versioned(2)).players.min).toBe(2);
+  });
+
+  it('drops a pick whose layout no longer exists', () => {
+    expect(versioned(5).thumbnail).toBeUndefined();
+  });
+});
+
+describe('player ranges on cards', () => {
+  const ranges = (...list: [number, number][]) => ({
+    players: { min: list[0]![0], max: list[0]![1] },
+    versions: list.slice(1).map(([min, max]) => ({ players: { min, max } }) as BoardVersion),
+  });
+
+  it('joins ranges that meet and keeps gaps apart', () => {
+    expect(playersLabel(ranges([2, 4], [5, 6]))).toBe('2–6');
+    expect(playersLabel(ranges([3, 4], [5, 6], [2, 2]))).toBe('2–6');
+    expect(playersLabel(ranges([2, 2], [5, 6]))).toBe('2, 5–6');
   });
 });

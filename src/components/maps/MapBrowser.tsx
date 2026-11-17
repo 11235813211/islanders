@@ -1,10 +1,10 @@
 import { AlertTriangle, ArrowLeft, Check, Copy, Eye, Map as MapIcon, Plus, Trash2, Users, X } from 'lucide-react';
 import { type CSSProperties, type DragEvent, useEffect, useState } from 'react';
-import { type BoardDesign, type BoardLibrary, designFor } from '../../../shared/maps';
+import { type BoardDesign, type BoardLibrary, designFor, thumbnailLayout } from '../../../shared/maps';
 import CategoryHeader from './CategoryHeader';
 import MapDetail, { ExpansionTags } from './MapDetail';
 import MapThumbnail from './MapThumbnail';
-import { moveBoard, playersLabel, playersMismatch } from './mapInfo';
+import { BASE_GAME, BASE_MAP_ID, baseCategoryId, moveBoard, playersLabel, playersMismatch } from './mapInfo';
 import ProposeButton, { type Choose, type Proposing } from './ProposeButton';
 import { SpecialTags } from './SpecialRules';
 import './maps.css';
@@ -89,6 +89,12 @@ export default function MapBrowser({
     if (id && library) layout(moveBoard(library, id, categoryId, beforeId));
   };
   const view = (board: BoardDesign) => (editing ? editing.open(board.id) : setOpen(board));
+  // Outside the editor the base game leads its category; it can't be edited, so the editor never shows it.
+  const baseHome = !editing && library ? baseCategoryId(library) : undefined;
+  const boardsIn = (categoryId: string) => [
+    ...(categoryId === baseHome ? [BASE_GAME] : []),
+    ...(library?.boards.filter(b => b.categoryId === categoryId) ?? []),
+  ];
 
   return (
     <div className="map-picker" role="dialog" aria-modal="true" aria-label={editing ? 'Boards' : 'Maps'}>
@@ -147,7 +153,7 @@ export default function MapBrowser({
           {!library && !error && <p className="muted">Loading maps…</p>}
           {error && <p className="inline-alert">{error}</p>}
           {library?.categories.map((category, index) => {
-            const boards = library.boards.filter(b => b.categoryId === category.id);
+            const boards = boardsIn(category.id);
             if (!boards.length && !editing) return null;
             return (
               <section
@@ -192,7 +198,7 @@ export default function MapBrowser({
                     return (
                       <article
                         key={board.id}
-                        className={`map-card${board.id === currentId ? ' current' : ''}${misfit ? ' misfit' : ''}${dragging === board.id ? ' dragging' : ''}`}
+                        className={cardClass(board, currentId, misfit, dragging)}
                         draggable={!!editing}
                         onDragStart={event => {
                           event.dataTransfer.setData('text/x-board', board.id);
@@ -208,7 +214,9 @@ export default function MapBrowser({
                           aria-label={`${editing ? 'Edit' : 'View'} ${board.name}`}
                           onClick={() => view(board)}
                         >
-                          <MapThumbnail tiles={(count === null ? board : designFor(board, count)).tiles} />
+                          <MapThumbnail
+                            tiles={(count === null ? thumbnailLayout(board) : designFor(board, count)).tiles}
+                          />
                           <span className="map-card-name">{board.name}</span>
                           <ExpansionTags design={board} />
                           <SpecialTags design={board} />
@@ -245,9 +253,14 @@ export default function MapBrowser({
                             </>
                           ) : (
                             <>
-                              <button type="button" className="text-button" onClick={() => setOpen(board)}>
+                              <button
+                                type="button"
+                                className="text-button map-card-view"
+                                aria-label="View"
+                                onClick={() => setOpen(board)}
+                              >
                                 <Eye size={16} />
-                                View
+                                <span>View</span>
                               </button>
                               {propose && <ProposeButton design={board} propose={propose} />}
                               {choose && (
@@ -299,6 +312,16 @@ export default function MapBrowser({
       )}
     </div>
   );
+}
+
+/** A card's classes: the room's map, made for another count, being dragged, or the base game. */
+function cardClass(board: BoardDesign, currentId: string | null, misfit: boolean, dragging: string | null): string {
+  const parts = ['map-card'];
+  if (board.id === currentId) parts.push('current');
+  if (misfit) parts.push('misfit');
+  if (dragging === board.id) parts.push('dragging');
+  if (board.id === BASE_MAP_ID) parts.push('base-game');
+  return parts.join(' ');
 }
 
 /** A new category id that isn't taken. */

@@ -17,6 +17,20 @@ export const SPECIAL_LIMITS = {
   routePoints: 5,
 } as const;
 
+/** Each player's usual pieces (a map's `supply` changes some). */
+export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
+
+/** How few and how many of each piece a map may give each player (the usual counts are in PIECE_LIMITS). */
+export const SUPPLY_LIMITS = {
+  settlements: { min: 2, max: 10 },
+  cities: { min: 0, max: 8 },
+  roads: { min: 2, max: 30 },
+  ships: { min: 0, max: 30 },
+  relays: { min: 0, max: 8 },
+  surveys: { min: 0, max: 8 },
+} as const;
+export type SupplyKind = keyof typeof SUPPLY_LIMITS;
+
 /** What each setup round places on this board. */
 export const setupPieces = (rules: BoardRules | undefined): SetupPiece[] => rules?.setup ?? DEFAULT_SETUP;
 
@@ -47,6 +61,7 @@ export function rulesOf(design: BoardDesign): BoardRules | undefined {
   const rules: BoardRules = {};
   if (design.setupPieces && design.setupPieces.join() !== DEFAULT_SETUP.join()) rules.setup = design.setupPieces;
   if (design.pieceRewards?.length) rules.rewards = design.pieceRewards;
+  if (design.supply && Object.keys(design.supply).length) rules.supply = design.supply;
   const routes = (design.routes ?? []).filter(r => r.start.length && r.next.length && r.finish.length);
   if (routes.length) {
     rules.routes = routes;
@@ -57,23 +72,28 @@ export function rulesOf(design: BoardDesign): BoardRules | undefined {
 
 /** Pieces a player's rewards add, for the most points they have had. */
 export function rewardTotals(rewards: PieceReward[] | undefined, peak: number) {
-  const total = { settlements: 0, cities: 0, roads: 0 };
+  const total = { settlements: 0, cities: 0, roads: 0, ships: 0 };
   for (const r of rewards ?? []) {
     if (r.points > peak) continue;
     total.settlements += r.settlements;
     total.cities += r.cities;
     total.roads += r.roads;
+    total.ships += rewardShips(r);
   }
   return total;
 }
 
-/** "+1 city, +2 roads": what one reward adds. */
-export function rewardText(reward: Pick<PieceReward, 'settlements' | 'cities' | 'roads'>): string {
+/** Ships one reward adds: its own count, or (older rewards) as many as its roads. */
+export const rewardShips = (reward: PieceReward): number => reward.ships ?? reward.roads;
+
+/** "+1 city, +2 roads": what one reward adds. `sea` also names its ships. */
+export function rewardText(reward: PieceReward, sea = false): string {
   const part = (n: number, one: string, many: string) => (n ? [`+${n} ${n === 1 ? one : many}`] : []);
   return [
     ...part(reward.settlements, 'settlement', 'settlements'),
     ...part(reward.cities, 'city', 'cities'),
     ...part(reward.roads, 'road', 'roads'),
+    ...(sea ? part(rewardShips(reward), 'ship', 'ships') : []),
   ].join(', ');
 }
 
@@ -143,7 +163,7 @@ export function routeFinished(
 
 /** One special rule in words, for the map picker and the in-game help. */
 export interface SpecialRule {
-  kind: 'setup' | 'rewards' | 'routes';
+  kind: 'setup' | 'supply' | 'rewards' | 'routes';
   title: string;
   lines: string[];
 }
@@ -169,12 +189,24 @@ export function specialRules(rules: BoardRules | undefined, sea = false): Specia
     }
     out.push({ kind: 'setup', title: `Start with ${pieces.length} pieces`, lines });
   }
+  if (rules?.supply) {
+    const names: Record<SupplyKind, string> = {
+      settlements: 'settlements',
+      cities: 'cities',
+      roads: 'roads',
+      ships: 'ships',
+      relays: 'relays',
+      surveys: 'survey ships',
+    };
+    const kinds = (Object.keys(names) as SupplyKind[]).filter(k => rules.supply![k] !== undefined);
+    const lines = [`Each player has ${kinds.map(k => `${rules.supply![k]} ${names[k]}`).join(', ')}.`];
+    out.push({ kind: 'supply', title: 'Different pieces', lines });
+  }
   if (rules?.rewards?.length) {
     const lines = [...rules.rewards]
       .sort((a, b) => a.points - b.points)
-      .map(r => `At ${r.points} points: ${rewardText(r)}.`);
+      .map(r => `At ${r.points} points: ${rewardText(r, sea)}.`);
     lines.push('Counts points everyone can see. Kept once earned.');
-    if (sea && rules.rewards.some(r => r.roads)) lines.push('Extra roads count as ships too.');
     out.push({ kind: 'rewards', title: 'Extra pieces', lines });
   }
   if (rules?.routes?.length) {

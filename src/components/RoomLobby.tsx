@@ -1,17 +1,4 @@
-import {
-  ArrowRight,
-  Bot,
-  Check,
-  Copy,
-  Eye,
-  FlaskConical,
-  LogOut,
-  Plus,
-  Swords,
-  UserPlus,
-  Users,
-  Wifi,
-} from 'lucide-react';
+import { ArrowRight, Bot, Eye, FlaskConical, LogOut, Plus, Swords, UserPlus, Users, Wifi } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BOTS } from '../../shared/bots';
 import { MAX_PLAYERS } from '../../shared/engine';
@@ -31,6 +18,7 @@ import ColorPicker, { ColorSwapNotice } from './lobby/ColorPicker';
 import LobbySeat from './lobby/LobbySeat';
 import LobbySpectators from './lobby/LobbySpectators';
 import MapChoice from './lobby/MapChoice';
+import RoomCode, { roomCodeOf } from './lobby/RoomCode';
 import SaveGames from './lobby/SaveGames';
 import { CATEGORIES, SettingControl, type SettingDef, THEMES, type Theme } from './lobby/settings';
 
@@ -49,6 +37,8 @@ export interface RoomLobbyProps {
   recording: RecordingStatus;
   setRecordingChoice: (kind: RecordingChoice, value: boolean) => void;
   invite: () => void;
+  /** Admins only: give the room its own code (once, as host). */
+  setCode?: (code: string) => void;
 }
 
 export default function RoomLobby({
@@ -61,6 +51,7 @@ export default function RoomLobby({
   recording,
   setRecordingChoice,
   invite,
+  setCode,
 }: RoomLobbyProps) {
   const host = playerId === view.hostId;
   const self = view.players.find(p => p.id === view.selfId);
@@ -101,7 +92,7 @@ export default function RoomLobby({
   /** The button sits beside the code, so it copies just the code. Links come from Invite friends. */
   async function copyCode() {
     try {
-      await navigator.clipboard.writeText(view.roomId);
+      await navigator.clipboard.writeText(roomCodeOf(view));
       setCopied(true);
     } catch {
       invite();
@@ -113,7 +104,7 @@ export default function RoomLobby({
       <div className="page-heading">
         <div>
           <span className="section-kicker">{view.testMode ? 'SOLO TEST ROOM' : 'GAME ROOM'}</span>
-          <h1>{view.roomId}</h1>
+          <h1>{roomCodeOf(view)}</h1>
         </div>
         <div className="heading-actions">
           <ConnectionPill status={connection} />
@@ -195,13 +186,13 @@ export default function RoomLobby({
         {self && !view.testMode && (
           <SaveGames host={host} recording={recording} disabled={connection !== 'online'} choose={setRecordingChoice} />
         )}
-        <div className="room-code-box">
-          <span>Room code</span>
-          <strong>{view.roomId}</strong>
-          <button className="icon-button" onClick={() => void copyCode()} aria-label="Copy room code">
-            {copied ? <Check /> : <Copy />}
-          </button>
-        </div>
+        <RoomCode
+          view={view}
+          busy={busy}
+          copy={() => void copyCode()}
+          copied={copied}
+          setCode={host ? setCode : undefined}
+        />
         <div className="lobby-exits">
           {self && !view.testMode && view.players.some(p => !p.bot && p.id !== self.id) && (
             <button className="text-button" disabled={busy} onClick={() => send({ type: 'switch-role' })}>

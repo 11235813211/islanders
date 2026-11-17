@@ -43,7 +43,7 @@ test('the map picker tags a board with special rules and explains each, with its
   try {
     await page.goto('/');
     await page.getByRole('button', { name: 'Create room' }).click();
-    await page.getByRole('radio', { name: 'Choose map' }).click();
+    await page.getByRole('button', { name: 'Choose map' }).click();
     const picker = page.getByRole('dialog', { name: 'Maps' });
     const card = picker.locator('.map-card', { hasText: 'Rules test' });
     await expect(card.locator('.special-tag')).toHaveText(['Setup', 'Extra pieces', 'Route']);
@@ -55,7 +55,7 @@ test('the map picker tags a board with special rules and explains each, with its
       'Route to finish',
     ]);
     await expect(rules).toContainText('Round 1: settlement, round 2: settlement, round 3: city.');
-    await expect(rules).toContainText('At 8 points: +1 settlement, +2 cities, +3 roads.');
+    await expect(rules).toContainText('At 8 points: +1 settlement, +2 cities, +3 roads, +3 ships.');
     await expect(rules).toContainText('To win, you also need a settlement or city in your Finish area.');
     await expect(picker.locator('.map-preview .route-zone-label')).toHaveText(['Second', 'Start', 'Finish']);
     for (const [width, height] of WIDTHS) {

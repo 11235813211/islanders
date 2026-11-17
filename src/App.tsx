@@ -7,6 +7,7 @@ import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
 import InviteDialog, { type InviteKind } from './components/InviteDialog';
+import { roomCodeOf } from './components/lobby/RoomCode';
 import RoomLobby from './components/RoomLobby';
 import { useAccount } from './hooks/useAccount';
 import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
@@ -162,7 +163,7 @@ function App() {
       url.host = lan.host;
       url.protocol = lan.protocol;
     }
-    url.hash = `room=${view?.roomId ?? ''}${kind === 'spectator' ? '&spectate=1' : ''}`;
+    url.hash = `room=${view ? roomCodeOf(view) : ''}${kind === 'spectator' ? '&spectate=1' : ''}`;
     return url.href;
   }
   /** Home from the header. Leaving a game against bots first asks whether to save it or end it. */
@@ -283,6 +284,7 @@ function App() {
         recording={room.recording}
         setRecordingChoice={room.setRecordingChoice}
         invite={() => setDialog('share')}
+        setCode={canPlaytest ? room.setInviteCode : undefined}
       />
     );
   else

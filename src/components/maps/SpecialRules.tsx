@@ -1,4 +1,4 @@
-import { Flag, ListOrdered, type LucideIcon, PackagePlus } from 'lucide-react';
+import { Boxes, Flag, ListOrdered, type LucideIcon, PackagePlus } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import {
   type BoardDesign,
@@ -15,6 +15,7 @@ import './special-rules.css';
 /** Each kind of special rule's icon, short tag, and color, so cards and the detail view match. */
 export const SPECIAL_KINDS: Record<SpecialRule['kind'], { icon: LucideIcon; tag: string; color: string }> = {
   setup: { icon: ListOrdered, tag: 'Setup', color: '#7a45ff' },
+  supply: { icon: Boxes, tag: 'Pieces', color: '#8a5a1f' },
   rewards: { icon: PackagePlus, tag: 'Extra pieces', color: '#0f7f8f' },
   routes: { icon: Flag, tag: 'Route', color: '#1b8f37' },
 };

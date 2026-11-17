@@ -1,16 +1,31 @@
 import { PackagePlus, Plus, Trash2 } from 'lucide-react';
 import { POINT_REWARDS } from '../../../shared/default-settings';
-import { type PieceReward, rewardText, SPECIAL_LIMITS } from '../../../shared/maps';
+import { type PieceReward, rewardShips, SPECIAL_LIMITS } from '../../../shared/maps';
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
-import type { GameSettings, GameView } from '../../../shared/types';
+import type { GameSettings, GameView, PlayerColor } from '../../../shared/types';
 import CountStepper from '../editor/CountStepper';
+import PieceIcon from '../PieceIcon';
 import './room-rewards.css';
 
 const PIECES = [
-  { key: 'settlements', label: 'Settlements', max: SPECIAL_LIMITS.rewardPieces },
-  { key: 'cities', label: 'Cities', max: SPECIAL_LIMITS.rewardPieces },
-  { key: 'roads', label: 'Roads', max: SPECIAL_LIMITS.rewardPieces * 3 },
+  {
+    key: 'settlements',
+    many: 'Settlements',
+    label: 'Settlement',
+    icon: 'settlement',
+    max: SPECIAL_LIMITS.rewardPieces,
+  },
+  { key: 'cities', many: 'Cities', label: 'City', icon: 'city', max: SPECIAL_LIMITS.rewardPieces },
+  { key: 'roads', many: 'Roads', label: 'Road', icon: 'road', max: SPECIAL_LIMITS.rewardPieces * 3 },
+  { key: 'ships', many: 'Ships', label: 'Ship', icon: 'ship', max: SPECIAL_LIMITS.rewardPieces * 3 },
 ] as const;
+type Piece = (typeof PIECES)[number];
+
+/** The pieces this room's rewards can add: ships only with Seafarers. */
+const piecesFor = (sea: boolean): readonly Piece[] => PIECES.filter(p => sea || p.key !== 'ships');
+/** How many of `piece` a reward adds (older rewards give as many ships as roads). */
+const countOf = (reward: PieceReward, piece: Piece) =>
+  piece.key === 'ships' ? rewardShips(reward) : reward[piece.key];
 
 /** Shown when the map has no extra pieces of its own and the room has some, or plays long enough for them. */
 export function showsRoomRewards(view: GameView): boolean {
@@ -41,7 +56,14 @@ export default function RoomRewards({
   const replace = (i: number, next: PieceReward | null) =>
     set(next ? rewards.map((r, j) => (j === i ? next : r)) : rewards.filter((_, j) => j !== i));
   const last = Math.max(0, ...rewards.map(r => r.points));
-  const added = { points: last ? last + POINT_REWARDS.every : POINT_REWARDS.first, ...POINT_REWARDS.pieces };
+  const sea = view.seafaring;
+  const pieces = piecesFor(sea);
+  // Icons in the viewer's own seat color (red for spectators).
+  const color = view.players.find(p => p.id === view.selfId)?.color;
+  const added = {
+    points: last ? last + POINT_REWARDS.every : POINT_REWARDS.first,
+    ...(sea ? POINT_REWARDS.seaPieces : POINT_REWARDS.pieces),
+  };
   return (
     <div className="room-rewards">
       <span className="setting-label">
@@ -57,16 +79,14 @@ export default function RoomRewards({
             <RewardEditor
               key={i}
               reward={r}
+              pieces={pieces}
+              color={color}
               disabled={busy}
               set={next => replace(i, next)}
               remove={() => replace(i, null)}
             />
           ))
-        : rewards.map((r, i) => (
-            <p key={i} className="room-reward-line">
-              At {r.points} points: {rewardText(r) || 'nothing'}
-            </p>
-          ))}
+        : rewards.map((r, i) => <RewardLine key={i} reward={r} pieces={pieces} color={color} />)}
       {host && rewards.length < SPECIAL_LIMITS.rewards && (
         <button
           type="button"
@@ -82,14 +102,34 @@ export default function RoomRewards({
   );
 }
 
+/** One reward as others read it: the points, then each piece's icon and count. */
+function RewardLine({ reward, pieces, color }: { reward: PieceReward; pieces: readonly Piece[]; color?: PlayerColor }) {
+  const given = pieces.filter(p => countOf(reward, p) > 0);
+  return (
+    <p className="room-reward-line">
+      <span>At {reward.points} points:</span>
+      {given.map(p => (
+        <span key={p.key} className="room-reward-count" title={p.label}>
+          <PieceIcon kind={p.icon} color={color} size={22} />+{countOf(reward, p)}
+        </span>
+      ))}
+      {!given.length && <span>nothing</span>}
+    </p>
+  );
+}
+
 /** One reward for the host: the points it comes at, and how many of each piece. */
 function RewardEditor({
   reward,
+  pieces,
+  color,
   disabled,
   set,
   remove,
 }: {
   reward: PieceReward;
+  pieces: readonly Piece[];
+  color?: PlayerColor;
   disabled: boolean;
   set: (reward: PieceReward) => void;
   remove: () => void;
@@ -98,13 +138,15 @@ function RewardEditor({
     <fieldset className="room-reward" disabled={disabled}>
       <div className="room-reward-head">
         <span>At</span>
-        <CountStepper
-          label="points"
-          value={reward.points}
-          min={1}
-          max={VICTORY_POINT_RANGE.max}
-          set={points => set({ ...reward, points })}
-        />
+        <span className="room-reward-points">
+          <CountStepper
+            label="points"
+            value={reward.points}
+            min={1}
+            max={VICTORY_POINT_RANGE.max}
+            set={points => set({ ...reward, points })}
+          />
+        </span>
         <span>points</span>
         <button
           type="button"
@@ -116,15 +158,18 @@ function RewardEditor({
         </button>
       </div>
       <div className="room-reward-pieces">
-        {PIECES.map(p => (
+        {pieces.map(p => (
           <div key={p.key} className="room-reward-piece">
-            <span>{p.label}</span>
+            <span>
+              {p.label}
+              <PieceIcon kind={p.icon} color={color} size={20} />
+            </span>
             <CountStepper
-              label={`${p.label.toLowerCase()} at ${reward.points} points`}
-              value={reward[p.key]}
+              label={`${p.many.toLowerCase()} at ${reward.points} points`}
+              value={countOf(reward, p)}
               min={0}
               max={p.max}
-              set={n => set({ ...reward, [p.key]: n })}
+              set={n => set({ ...reward, ships: rewardShips(reward), [p.key]: n })}
             />
           </div>
         ))}

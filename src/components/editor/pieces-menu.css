@@ -1,0 +1,20 @@
+/* The editor's starting pieces dropdown (PiecesMenu.tsx): icon, name, and a stepper per row. */
+.pieces-list {
+  width: 280px;
+}
+.pieces-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  font-size: 13.5px;
+}
+.pieces-row > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pieces-list .text-button {
+  justify-self: start;
+}

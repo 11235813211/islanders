@@ -202,6 +202,10 @@ const MIGRATIONS: Migration[] = [
     delete s.tradeOffer;
     s.mapProposals ??= [];
   },
+  // 23 → 24: an admin host may give the room its own code.
+  s => {
+    s.inviteCode ??= null;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

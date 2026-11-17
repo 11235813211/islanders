@@ -968,3 +968,11 @@
   place-items: center;
   padding: 5px;
 }
+.version-tabs button[role="tab"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.version-tabs .version-add[aria-pressed="true"] {
+  background: #ffbf42;
+}

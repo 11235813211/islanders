@@ -32,7 +32,7 @@ import type {
 } from '../shared/types';
 import type { AccountIdentity } from './accounts';
 import { rekeyPlayer, renameInLobby } from './claim';
-import { accountStub, canPlaytest, checkLimit, type Env, failure, json, libraryStub, logError } from './env';
+import { accountStub, canPlaytest, checkLimit, type Env, failure, json, libraryStub, logError, roomStub } from './env';
 import {
   AUTH_TIMEOUT_MS,
   hashToken,
@@ -45,6 +45,7 @@ import {
   secureRandom,
 } from './protocol';
 import { appendStep, beginRecording, discardRecording, finishRecording, type Recording } from './recording';
+import { checkCodeChange, claimCode, releaseCode } from './room-code';
 
 interface AccountBinding {
   username: string;
@@ -155,12 +156,15 @@ function seatNamed(room: RoomRecord, typed: string): { id: string; name: string 
 /** One serialized, durable source of truth per invite code. No client owns game state. */
 export class GameRoom extends DurableObject<Env> {
   private record: RoomRecord | undefined;
+  /** Set when this object is another room's own code (see room-code.ts): the room it stands for. */
+  private alias: string | undefined;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       this.record = await ctx.storage.get<RoomRecord>('room');
+      this.alias = await ctx.storage.get<string>('alias');
       if (this.record) this.record.game = normalizeGame(this.record.game, Date.now(), secureRandom);
     });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
@@ -393,6 +397,8 @@ export class GameRoom extends DurableObject<Env> {
   /** Close the room for everyone and delete its storage. */
   private async destroy(reason: string): Promise<void> {
     for (const socket of this.sockets()) socket.close(ROOM_GONE, reason);
+    const game = this.record?.game;
+    if (game?.inviteCode) await releaseCode(this.env, game.inviteCode, game.roomId).catch(() => undefined);
     await this.ctx.storage.deleteAll();
     this.record = undefined;
   }
@@ -470,9 +476,11 @@ export class GameRoom extends DurableObject<Env> {
     return this.serial(async () => {
       try {
         const path = new URL(request.url).pathname;
+        const aliased = await this.aliasRequest(path, request);
+        if (aliased) return aliased;
         const create = /^\/create\/([^/]+)$/.exec(path);
         if (create && ROOM_PATTERN.test(create[1]!) && request.method === 'POST') {
-          if (this.record) throw new ProtocolError('Room already exists.', 409);
+          if (this.record || this.alias) throw new ProtocolError('Room already exists.', 409);
           const body = (await readBody(request)) as {
             name: string | null;
             identity?: AccountIdentity | null;
@@ -586,6 +594,29 @@ export class GameRoom extends DurableObject<Env> {
     });
   }
 
+  /**
+   * Requests about another room's own code: taking it (`/alias`), freeing it (`/unalias`), and joins
+   * or sockets under it, passed to the room it stands for. Null for an ordinary room's request.
+   */
+  private async aliasRequest(path: string, request: Request): Promise<Response | null> {
+    if (path === '/alias' || path === '/unalias') {
+      const { target } = (await request.json()) as { target: string };
+      if (path === '/unalias') {
+        if (this.alias === target) {
+          await this.ctx.storage.deleteAll();
+          this.alias = undefined;
+        }
+        return json({ ok: true });
+      }
+      if (this.record || this.alias) throw new ProtocolError('That code is taken.', 409);
+      await this.ctx.storage.put('alias', target);
+      this.alias = target;
+      return json({ ok: true }, 201);
+    }
+    if (this.alias && (path === '/join' || path === '/socket')) return roomStub(this.env, this.alias).fetch(request);
+    return null;
+  }
+
   // ---- WebSocket ----
 
   async webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): Promise<void> {
@@ -631,6 +662,15 @@ export class GameRoom extends DurableObject<Env> {
         }
         if (message.type === 'consent' || message.type === 'decline') {
           await this.setRecordingChoice(room, saved, attachment.playerId, message.type, message.value);
+          return;
+        }
+        if (message.type === 'set-code') {
+          checkCodeChange(this.env, room.game, attachment.playerId, saved.account, message.code);
+          if (!(await claimCode(this.env, message.code, room.game.roomId)))
+            throw new ProtocolError('That code is taken. Try another.');
+          const game = { ...room.game, inviteCode: message.code, version: room.game.version + 1 };
+          await this.commit({ ...room, game });
+          this.broadcast();
           return;
         }
         if (message.type === 'peek-board') {

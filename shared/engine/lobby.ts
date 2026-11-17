@@ -21,6 +21,7 @@ import {
   needPhase,
   ownBoard,
   requireRule,
+  seaRules,
 } from './core';
 import { SCHEMA_VERSION } from './migrations';
 
@@ -132,6 +133,7 @@ export function createGame(
   return {
     schemaVersion: SCHEMA_VERSION,
     roomId,
+    inviteCode: null,
     version: 0,
     board,
     players: [],
@@ -325,9 +327,6 @@ export const lobbyHandlers: Pick<
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'change room settings');
     next.settings = { ...next.settings, ...action.settings };
-    // New points to win bring their own extra pieces (the host can edit them after).
-    if (state.settings.victoryPoints !== next.settings.victoryPoints)
-      next.settings.pieceRewards = pointRewards(next.settings.victoryPoints);
     // Turning Seafarers on or off redraws the preview (the standard island gains or loses its sea).
     if (state.settings.seafarers !== next.settings.seafarers)
       Object.assign(
@@ -345,6 +344,14 @@ export const lobbyHandlers: Pick<
       ownBoard(next);
       assignNumbers(next.board, next.settings.numberLayout, random);
     }
+    // New points to win bring their own extra pieces (the host can edit them after); turning
+    // Seafarers on or off swaps untouched ones between roads only and roads and ships.
+    const sea = seaRules(next);
+    const untouched =
+      JSON.stringify(state.settings.pieceRewards) ===
+      JSON.stringify(pointRewards(state.settings.victoryPoints, seaRules(state)));
+    if (state.settings.victoryPoints !== next.settings.victoryPoints || (untouched && sea !== seaRules(state)))
+      next.settings.pieceRewards = pointRewards(next.settings.victoryPoints, sea);
     addLog(next, `${player.name} updated the room settings.`);
   },
 
@@ -553,6 +560,7 @@ export const lobbyHandlers: Pick<
       players,
       spectators: next.spectators,
       hostId: next.hostId,
+      inviteCode: next.inviteCode,
       settings: next.settings,
       chat: next.chat,
       stats: Object.fromEntries(players.map(p => [p.id, emptyStats()])),

@@ -60,22 +60,27 @@ export function validReward(value: unknown): value is PieceReward {
   const most = SPECIAL_LIMITS.rewardPieces;
   const int = (n: unknown, max: number, min = 0) => Number.isInteger(n) && Number(n) >= min && Number(n) <= max;
   return (
-    Object.keys(r).length === 4 &&
+    Object.keys(r).length === (r.ships === undefined ? 4 : 5) &&
     int(r.points, VICTORY_POINT_RANGE.max, 1) &&
     int(r.settlements, most) &&
     int(r.cities, most) &&
-    int(r.roads, most * 3)
+    int(r.roads, most * 3) &&
+    (r.ships === undefined || int(r.ships, most * 3))
   );
 }
 
-/** The extra pieces a room starts with for `victoryPoints` to win (see POINT_REWARDS). */
-export function pointRewards(victoryPoints: number): PieceReward[] {
-  const { first, every, ahead, pieces } = POINT_REWARDS;
+/** The extra pieces a room starts with for `victoryPoints` to win (see POINT_REWARDS); `sea` adds ships. */
+export function pointRewards(victoryPoints: number, sea: boolean): PieceReward[] {
+  const { first, every, ahead } = POINT_REWARDS;
+  const pieces = sea ? POINT_REWARDS.seaPieces : POINT_REWARDS.pieces;
   const out: PieceReward[] = [];
   for (let points = first; points + ahead <= victoryPoints && out.length < SPECIAL_LIMITS.rewards; points += every)
     out.push({ points, ...pieces });
   return out;
 }
+
+/** A code an admin host may give their room: 4–12 letters and digits, starting with a letter. */
+export const CUSTOM_ROOM_CODE = /^[A-Z][A-Z0-9]{3,11}$/;
 
 /** A room closes once no human player has been connected for this long. */
 export const EMPTY_ROOM_MS = 5 * 60 * 1000;

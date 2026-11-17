@@ -80,13 +80,18 @@ export type LinkRule = { kind: 'in'; links: string[]; terrains: FillKind[] } | {
 /** What a player places in one setup round. */
 export type SetupPiece = 'settlement' | 'city';
 
-/** Pieces added to a player's supply the first time their public points reach `points`. Roads also add ships. */
+/** Pieces added to a player's supply the first time their public points reach `points`. */
 export interface PieceReward {
   points: number;
   settlements: number;
   cities: number;
   roads: number;
+  /** Ships added. Absent (older rewards): as many as `roads`. */
+  ships?: number;
 }
+
+/** How many of each piece a player has in all; absent kinds keep the usual count (PIECE_LIMITS). */
+export type PieceSupply = Partial<Record<'settlements' | 'cities' | 'roads' | 'ships' | 'relays' | 'surveys', number>>;
 
 /**
  * One route, as tile keys (`q,r`). A player's starting settlements must include one touching
@@ -111,6 +116,7 @@ export interface BoardRules {
   rewards?: PieceReward[];
   routes?: RouteZones[];
   routeGoal?: RouteGoal;
+  supply?: PieceSupply;
 }
 
 /** One corner of a tile, as the editor stores it: tile `q,r` and corner 0–5 (see Hex.vertexIds). */
@@ -179,6 +185,10 @@ export interface BoardDesign {
   routeGoal?: RouteGoal;
   /** Other layouts of this board for other player counts (the first whose range fits is played). */
   versions?: BoardVersion[];
+  /** The fewest players of the layout the map browser shows as this board's picture (absent: see thumbnailLayout). */
+  thumbnail?: number;
+  /** Each player's pieces, where they differ from the usual 5 settlements, 4 cities, 15 roads, 15 ships. */
+  supply?: PieceSupply;
   updatedAt: number;
 }
 
@@ -201,6 +211,15 @@ export function playerRanges(design: Pick<BoardDesign, 'players' | 'versions'>):
 export function layoutsOf(design: BoardDesign): BoardDesign[] {
   const versions = (design.versions ?? []).map(version => ({ ...design, ...version }));
   return [design, ...versions].sort((a, b) => a.players.min - b.players.min);
+}
+
+/** The layout the map browser pictures a board by: the one the editor picked, else the one for 3 players (or nearest). */
+export function thumbnailLayout(design: BoardDesign): BoardDesign {
+  const layouts = layoutsOf(design);
+  const picked = layouts.find(l => l.players.min === design.thumbnail);
+  if (picked) return picked;
+  const distance = (l: BoardDesign) => (3 < l.players.min ? l.players.min - 3 : Math.max(0, 3 - l.players.max));
+  return layouts.reduce((best, l) => (distance(l) < distance(best) ? l : best));
 }
 
 /** Expansions a board can say it needs, in the order the picker lists them. */

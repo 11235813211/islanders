@@ -177,3 +177,44 @@ test('typing a signed-in person’s name never takes their seat', async ({ reque
     host.dispose();
   }
 });
+
+test('an admin host gives the room its own code once; joining with it reaches the same room', async ({ request }) => {
+  // Local dev counts everyone as an admin (DEV_MODE), so a guest host may set it here.
+  const code = `T${crypto.randomUUID().replace(/-/g, '').slice(0, 9).toUpperCase()}`;
+  const hostSession = await join(request, 'Host');
+  const guestSession = await join(request, 'Guest', hostSession.roomId);
+  const otherSession = await join(request, 'Other');
+  const host = new PlayerConnection(hostSession.roomId);
+  const guest = new PlayerConnection(hostSession.roomId);
+  const other = new PlayerConnection(otherSession.roomId);
+  const setCode = (player: PlayerConnection, value: string) => {
+    const after = player.messages.length;
+    player.socket.send(JSON.stringify({ type: 'set-code', code: value }));
+    return after;
+  };
+  const errorAfter = async (player: PlayerConnection, after: number) => {
+    const message = await player.waitMessage(m => m.type === 'error', after);
+    return message.type === 'error' ? message.message : '';
+  };
+  try {
+    await host.authenticate(hostSession);
+    await guest.authenticate(guestSession);
+    await other.authenticate(otherSession);
+    expect(await errorAfter(guest, setCode(guest, code))).toContain('Only an admin host');
+
+    setCode(host, code);
+    await expect.poll(() => host.state.inviteCode).toBe(code);
+    await expect.poll(() => guest.state.inviteCode).toBe(code);
+    // The room keeps its first code as its address; the new one leads there.
+    const joined = await join(request, 'Friend', code);
+    expect(joined.roomId).toBe(hostSession.roomId);
+    await expect.poll(() => host.state.players.map(p => p.name)).toContain('Friend');
+
+    expect(await errorAfter(host, setCode(host, `${code.slice(0, -1)}Z`))).toContain('already has its own code');
+    expect(await errorAfter(other, setCode(other, code))).toContain('taken');
+  } finally {
+    host.dispose();
+    guest.dispose();
+    other.dispose();
+  }
+});

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { type BoardDesign, boardExpansions, EXPANSIONS, layoutsOf } from '../../../shared/maps';
 import DesignView from './DesignView';
 import FogSummary from './FogSummary';
-import { playerRange, playersLabel, playersMismatch } from './mapInfo';
+import { BASE_MAP_ID, playerRange, playersLabel, playersMismatch } from './mapInfo';
 import ProposeButton, { type Proposing } from './ProposeButton';
 import SpecialRulesList from './SpecialRules';
 
@@ -90,9 +90,11 @@ export default function MapDetail({
   );
   const shown = layouts[index] ?? design;
   const several = layouts.length > 1;
+  // The base game's island follows the table's size; there is no layout to pick.
+  const pick = several && design.id !== BASE_MAP_ID;
   const range = playerRange(shown.players);
   const mismatch = playersMismatch(design, players);
-  const inUse = current && (!several || currentLayout?.min === shown.players.min);
+  const inUse = current && (!pick || currentLayout?.min === shown.players.min);
   const land = shown.tiles.filter(t => t.kind !== 'sea' && t.kind !== 'iceberg').length;
   return (
     <div className="map-detail">
@@ -129,7 +131,7 @@ export default function MapDetail({
             Made for {playersLabel(design)} players. This room has {players}.
           </p>
         )}
-        {several && !mismatch && !fits(shown, players) && (
+        {pick && !mismatch && !fits(shown, players) && (
           <p className="map-warning" role="note">
             <AlertTriangle size={17} />
             This layout is made for {range} players. This room has {players}.
@@ -142,8 +144,8 @@ export default function MapDetail({
           <ProposeButton
             design={design}
             propose={propose}
-            layoutFor={several ? shown.players.min : undefined}
-            label={several ? `Propose this ${range} player map` : 'Propose this map'}
+            layoutFor={pick ? shown.players.min : undefined}
+            label={pick ? `Propose this ${range} player map` : 'Propose this map'}
             full
           />
         )}
@@ -152,10 +154,10 @@ export default function MapDetail({
             type="button"
             className="button primary full"
             disabled={inUse}
-            onClick={() => choose(several ? shown.players.min : undefined)}
+            onClick={() => choose(pick ? shown.players.min : undefined)}
           >
             <Check size={18} />
-            {inUse ? 'This room’s map' : several ? `Use this ${range} player map` : 'Use this map'}
+            {inUse ? 'This room’s map' : pick ? `Use this ${range} player map` : 'Use this map'}
           </button>
         )}
       </aside>

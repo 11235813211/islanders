@@ -324,31 +324,6 @@
 }
 
 /* The lobby's map choice. */
-.map-choice-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-bottom: 10px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fff;
-}
-.map-choice-switch button {
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--muted);
-  font-weight: 800;
-  cursor: pointer;
-}
-.map-choice-switch button[aria-checked="true"] {
-  background: var(--cyan);
-  color: #fff;
-}
-.map-choice-switch button:disabled {
-  cursor: default;
-}
 .mode-card .map-thumbnail {
   width: 92px;
   flex: 0 0 auto;
@@ -420,18 +395,38 @@
   margin-right: auto;
   font-size: 13px;
 }
-/* Phone-width cards (two per row): drop the button icons so View and Propose share one row. */
+/* Phone-width cards (two per row): View shrinks to its eye so View, Propose, and Use share one row. */
 @container (max-width: 200px) {
-  .map-card-actions .text-button svg,
-  .map-card-actions .button svg {
+  .map-card-actions {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .map-card-actions .button svg,
+  .map-card-actions .map-card-view span {
     display: none;
   }
   .map-card-actions .text-button {
-    padding: 6px 4px;
+    padding: 6px 2px;
   }
   .map-card-actions .button {
-    padding: 5px 10px;
+    min-width: 0;
+    padding: 5px 8px;
+    font-size: 12px;
+    white-space: nowrap;
   }
+}
+/* The base game stands apart in the roll button's yellow. */
+.map-card.base-game {
+  border-color: #d69419;
+  border-top-color: #d69419;
+  background: #ffbf42;
+  color: #23404d;
+}
+.map-card.base-game .map-card-meta {
+  color: #4d5a3a;
+}
+.map-card.base-game .button.primary {
+  background: #fff3d6;
 }
 /* Made for another player count: still there, just quieter. */
 .map-card.misfit {
@@ -544,4 +539,16 @@
 }
 .fog-summary li strong {
   white-space: nowrap;
+}
+
+/* A map this person proposed: green and bold, so it reads as on and can be pressed to take back. */
+.button.secondary.proposed {
+  border-color: #0b7a69;
+  background: #17a589;
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 2px 0 #0b7a69;
+}
+.button.secondary.proposed:hover:not(:disabled) {
+  background: #1bb998;
 }

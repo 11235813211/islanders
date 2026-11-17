@@ -70,3 +70,8 @@
   line-height: 1.45;
   margin-bottom: 4px;
 }
+/* Piece icons beside piece names (PieceWords.tsx). */
+.help-sections .piece-icon {
+  margin: 0 1px 0 2px;
+  vertical-align: -4px;
+}

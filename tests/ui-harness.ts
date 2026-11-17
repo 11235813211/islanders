@@ -37,6 +37,7 @@ export async function mountGame(page: Page, initial: GameState) {
           return;
         }
         if (message.type === 'view-as') selfId = message.playerId;
+        if (message.type === 'set-code') game = { ...game, inviteCode: message.code };
         if (message.type === 'action') {
           // As the server does, a map choice or proposal comes with its design (built-in maps here).
           const { action } = message;

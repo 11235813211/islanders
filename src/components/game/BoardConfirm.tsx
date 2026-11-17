@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from 'react';
 import type { GameView } from '../../../shared/types';
-import { BuildingPiece, CARTOGRAPHERS, ROAD_INSET, Road, SEA } from '../../art';
 import type { PlaceKind } from '../Board';
+import { PieceArt } from '../PieceIcon';
 
 /** Enter or Space on a focused SVG button does what a click does. */
 export function keyboardActivate(event: KeyboardEvent<SVGGElement>, action: () => void) {
@@ -71,26 +71,6 @@ export function HexConfirm({
   );
 }
 
-/** The board's own art for a piece, small, for the confirm card. */
-function PiecePreview({ kind, view, color }: { kind: PlaceKind; view: GameView; color: string }) {
-  if (kind === 'road') return <Road from={{ x: -26, y: 10 }} to={{ x: 4, y: -14 }} color={color} />;
-  if (kind === 'relay')
-    return <CARTOGRAPHERS.Relay from={{ x: -28, y: 10 }} to={{ x: 6, y: -12 }} color={color} inset={ROAD_INSET / 2} />;
-  if (kind === 'ship' || kind === 'survey') {
-    const Piece = kind === 'ship' ? SEA.Ship : CARTOGRAPHERS.SurveyShip;
-    return (
-      <g transform="translate(-10 0) scale(.8)">
-        <Piece from={{ x: -18, y: 8 }} to={{ x: 18, y: 8 }} color={color} />
-      </g>
-    );
-  }
-  return (
-    <g transform="translate(-11 -1) scale(.75)">
-      <BuildingPiece color={color} city={kind === 'city'} style={view.settings.pieceStyle} />
-    </g>
-  );
-}
-
 /** The card above a picked spot: one confirm button per piece that fits there. */
 export function ConfirmCard({
   at,
@@ -130,7 +110,7 @@ export function ConfirmCard({
           >
             <rect x="-31" y="-20" width="62" height="36" fill="transparent" />
             {/* Outlined in a dark tone of the seat color, so even white shows on the cream card. */}
-            <PiecePreview kind={kind} view={view} color={color} />
+            <PieceArt kind={kind} color={color} style={view.settings.pieceStyle} />
             <circle cx="17" cy="-2" r="10" fill="#198144" />
             <path d="m12 -2 3.5 3.5 6.5-7.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
           </g>

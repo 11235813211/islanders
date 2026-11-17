@@ -71,6 +71,7 @@ export function getView(state: GameState, selfId: string): GameView {
   // frozen so a view still can't change the game.
   const view = copyData({
     roomId: state.roomId,
+    inviteCode: state.inviteCode,
     version: state.version,
     board: null as unknown as GameView['board'],
     hostId: state.hostId,

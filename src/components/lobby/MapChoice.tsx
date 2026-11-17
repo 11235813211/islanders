@@ -7,9 +7,22 @@ import type { GameAction, GameView } from '../../../shared/types';
 import { useBoardLibrary } from '../../hooks/useBoardLibrary';
 import MapBrowser from '../maps/MapBrowser';
 import MapThumbnail from '../maps/MapThumbnail';
-import { LARGE_ISLAND, playerRange, roomMapPlayers, roomMapWarning, STANDARD_ISLAND } from '../maps/mapInfo';
+import {
+  BASE_MAP_ID,
+  LARGE_ISLAND,
+  playerRange,
+  roomMapPlayers,
+  roomMapWarning,
+  STANDARD_ISLAND,
+} from '../maps/mapInfo';
 import type { Proposing } from '../maps/ProposeButton';
 import MapProposals from './MapProposals';
+
+/** The Maps button's words: the host chooses, seated people propose, spectators look. */
+function mapsLabel(host: boolean, seated: boolean): string {
+  if (host) return 'Choose map';
+  return seated ? 'Propose map' : 'Maps';
+}
 
 /**
  * The lobby's map: the standard island or a chosen map, previewed as designed (the actual layout
@@ -39,8 +52,6 @@ export default function MapChoice({
   // The thumbnail shows the layout that will be played.
   const design = map ? found && designFor(found, map.layout?.min ?? players) : base;
   const warning = map && roomMapWarning(map, players);
-  // The host picks; everyone seated proposes (spectators only look).
-  const canPick = host || view.role === 'player';
   const layoutOf = (layoutFor?: number) => (layoutFor === undefined ? {} : { layoutFor });
   const propose: Proposing | undefined =
     view.role === 'player'
@@ -53,23 +64,6 @@ export default function MapChoice({
       : undefined;
   return (
     <div className="map-choice">
-      <div className="map-choice-switch" role="radiogroup" aria-label="Map">
-        {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control of buttons. */}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!map}
-          disabled={!canPick || busy || (!host && !map)}
-          data-tip={host ? undefined : 'Propose the base game'}
-          onClick={() => map && send({ type: host ? 'choose-map' : 'propose-map', mapId: 'base' })}
-        >
-          Base game
-        </button>
-        {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control of buttons. */}
-        <button type="button" role="radio" aria-checked={!!map} disabled={busy} onClick={() => setBrowsing({})}>
-          {host ? 'Choose map' : canPick ? 'Propose map' : 'View maps'}
-        </button>
-      </div>
       <div className="mode-card tone-sea">
         {design && <MapThumbnail tiles={design.tiles} label={`${design.name} preview`} />}
         <div>
@@ -78,7 +72,7 @@ export default function MapChoice({
         </div>
         <button type="button" className="button secondary" disabled={busy} onClick={() => setBrowsing({})}>
           <MapIcon size={17} />
-          Maps
+          {mapsLabel(host, view.role === 'player')}
         </button>
       </div>
       <MapProposals
@@ -100,7 +94,7 @@ export default function MapChoice({
           library={library}
           error={error}
           players={players}
-          currentId={map?.id ?? base.id}
+          currentId={map?.id ?? BASE_MAP_ID}
           currentLayout={map?.layout ?? null}
           initial={browsing.initial}
           propose={propose}

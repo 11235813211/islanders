@@ -250,6 +250,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         proposal: _proposal,
         board: _board,
         roomId: _room,
+        inviteCode: _code,
         hostId: _host,
         version: _version,
         chat: _chat,

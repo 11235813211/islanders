@@ -1,5 +1,8 @@
 import { copyData } from '../copy';
-import { rewardTotals } from '../maps/special';
+import { PIECE_LIMITS, rewardTotals } from '../maps/special';
+
+export { PIECE_LIMITS };
+
 import { type BoardDesign, boardExpansions } from '../maps/types';
 import { boardIndex } from '../seafaring';
 import { DISCOVERY_RULES } from '../settings';
@@ -109,17 +112,17 @@ export const BUILD_COSTS: Record<
   /** Cartographers: the lodestone for a split; one card of the resource being added is paid too. */
   split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
 };
-export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
 
-/** A player's supply: the usual pieces plus any the map's rewards gave them (extra roads also add ships). */
+/** A player's supply: the map's (or the usual) pieces plus any its rewards gave them. */
 export function pieceLimits(state: Pick<GameState, 'board' | 'peakPoints'>, playerId: string) {
   const extra = rewardTotals(state.board.rules?.rewards, state.peakPoints?.[playerId] ?? 0);
+  const base = { ...PIECE_LIMITS, ...state.board.rules?.supply };
   return {
-    ...PIECE_LIMITS,
-    roads: PIECE_LIMITS.roads + extra.roads,
-    ships: PIECE_LIMITS.ships + extra.roads,
-    settlements: PIECE_LIMITS.settlements + extra.settlements,
-    cities: PIECE_LIMITS.cities + extra.cities,
+    ...base,
+    roads: base.roads + extra.roads,
+    ships: base.ships + extra.ships,
+    settlements: base.settlements + extra.settlements,
+    cities: base.cities + extra.cities,
   };
 }
 

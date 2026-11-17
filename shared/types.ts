@@ -333,6 +333,7 @@ export interface UndoRecord {
     | 'proposal'
     | 'board'
     | 'roomId'
+    | 'inviteCode'
     | 'hostId'
     | 'version'
     | 'chat'
@@ -364,6 +365,8 @@ export interface GameState {
   /** See shared/engine/migrations.ts. Bump when the stored shape changes. */
   schemaVersion: number;
   roomId: string;
+  /** The code an admin host chose for the room, set once; joining with it reaches this room. */
+  inviteCode: string | null;
   version: number;
   board: Board;
   players: Player[];
@@ -542,6 +545,7 @@ export interface HandGuess {
 }
 export interface GameView {
   roomId: string;
+  inviteCode: string | null;
   version: number;
   board: Board;
   players: PublicPlayer[];
@@ -743,6 +747,8 @@ export type ClientMessage =
   | { type: 'consent'; value: boolean }
   /** Anyone else: keep this game out of bot training. */
   | { type: 'decline'; value: boolean }
+  /** Admin host, once, in the lobby: give the room its own code (see CUSTOM_ROOM_CODE). */
+  | { type: 'set-code'; code: string }
   | { type: 'action'; id: string; version: number; action: GameAction };
 export type ServerMessage =
   | { type: 'state'; state: GameView; online: string[]; recording?: RecordingStatus; acknowledgedId?: string }

@@ -60,6 +60,8 @@ test('the help button opens touch-worded help that fits a phone', async ({ page 
     await page.screenshot({ path: `test-results/phone-help-${tab.toLowerCase()}.png` });
   }
   await expect(help).toContainText('harbor’s edge');
+  // Piece names come with a red piece icon, whatever the reader's seat color.
+  await expect(help.locator('.piece-icon').first()).toBeVisible();
   await help.getByRole('button', { name: 'Close dialog' }).tap();
   await expect(help).toBeHidden();
   expect(game.errors).toEqual([]);
@@ -78,9 +80,9 @@ test('the home screen and lobby fit a phone', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Game settings' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  // The map card's Maps button stays inside the card.
+  // The map card's Choose map button stays inside the card.
   const card = (await page.locator('.mode-card').boundingBox())!;
-  const maps = (await page.locator('.mode-card').getByRole('button', { name: 'Maps' }).boundingBox())!;
+  const maps = (await page.locator('.mode-card').getByRole('button', { name: 'Choose map' }).boundingBox())!;
   expect(maps.x + maps.width).toBeLessThanOrEqual(card.x + card.width);
   await page.locator('.mode-card').screenshot({ path: 'test-results/phone-map-card.png' });
   await page.screenshot({ path: 'test-results/iphone-lobby.png', fullPage: true });
@@ -89,16 +91,24 @@ test('the home screen and lobby fit a phone', async ({ page }) => {
 test('the map picker and a map’s large view fit a phone', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Create room', exact: true }).tap();
-  await page.getByRole('radio', { name: 'Choose map' }).tap();
+  await page.getByRole('button', { name: 'Choose map' }).tap();
   const picker = page.getByRole('dialog', { name: 'Maps' });
   await expect(picker.getByRole('heading', { name: 'Seafaring' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  // Each card's View and Use buttons stay inside the card, even with a guest's longer "Propose".
+  // The host's View, Propose, and Use share one row inside each card, even reading "Proposed".
   await picker.locator('.map-card-actions .button').evaluateAll(buttons => {
-    for (const button of buttons) button.lastChild!.textContent = 'Propose';
+    for (const button of buttons) if (button.textContent === 'Propose') button.lastChild!.textContent = 'Proposed';
   });
-  for (const card of await picker.locator('.map-card').all()) await expectNoSpill(card);
+  for (const card of await picker.locator('.map-card').all()) {
+    await expectNoSpill(card);
+    const tops = await card
+      .locator('.map-card-actions > *')
+      .evaluateAll(els =>
+        els.map(e => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2)),
+      );
+    expect(new Set(tops).size).toBe(1);
+  }
   await page.screenshot({ path: 'test-results/phone-map-picker.png' });
   await picker.getByRole('button', { name: 'View Small Isles' }).tap();
   await expect(picker.getByRole('img', { name: 'Small Isles map' })).toBeVisible();

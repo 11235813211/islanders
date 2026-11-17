@@ -110,6 +110,23 @@ test('a guest views each proposed map from a View button beneath it', async ({ p
     await expectNoSpill(proposals);
   }
   await proposals.screenshot({ path: 'test-results/lobby-proposals-guest.png' });
+  // Guests get one yellow View button.
+  await expect(proposals.getByRole('button', { name: `View ${map.name}` })).toHaveCSS(
+    'background-color',
+    'rgb(255, 191, 66)',
+  );
+  // Withdrawing a map only this person backed leaves it grayed, with Undo, for three seconds.
+  const own = proposals.getByRole('button', { name: new RegExp(`^${map.name}, proposed by`) });
+  const undo = proposals.getByRole('button', { name: `Undo: propose ${map.name} again` });
+  await own.click();
+  await expect(undo).toBeVisible();
+  await proposals.screenshot({ path: 'test-results/lobby-proposals-undo.png' });
+  await undo.click();
+  await expect(own).toHaveAttribute('aria-pressed', 'true');
+  await own.click();
+  await expect(undo).toBeVisible();
+  await expect(undo).toBeHidden({ timeout: 4500 });
+  await expect(proposals.locator('.map-proposal')).toHaveCount(1);
   expect(room.errors).toEqual([]);
 });
 
@@ -133,6 +150,14 @@ test('the host views, uses, or declines each proposed map, with room before the 
     await expectNoSpill(proposals);
   }
   await proposals.screenshot({ path: 'test-results/lobby-proposals-host.png' });
+  await expect(proposals.getByRole('button', { name: `Use ${map.name}` })).toHaveCSS(
+    'background-color',
+    'rgb(23, 165, 137)',
+  );
+  await expect(proposals.getByRole('button', { name: `Decline ${map.name}` })).toHaveCSS(
+    'background-color',
+    'rgb(214, 69, 69)',
+  );
   await proposals.getByRole('button', { name: 'Decline Base game' }).click();
   await expect(proposals.getByRole('button', { name: 'View Base game' })).toHaveCount(0);
   await expect(proposals.getByRole('button', { name: `Use ${map.name}` })).toBeVisible();
@@ -198,14 +223,15 @@ test('the host proposes maps too; ten proposals sit in an even grid at every wid
   await page.setViewportSize({ width: 1280, height: 900 });
   // The host proposes from the maps browser, which offers both Propose and Use.
   const unproposed = BUILTIN_BOARDS[0]!;
-  await page.locator('.mode-card').getByRole('button', { name: 'Maps' }).click();
+  await page.locator('.mode-card').getByRole('button', { name: 'Choose map' }).click();
   const picker = page.getByRole('dialog', { name: 'Maps' });
   await expect(picker.getByRole('button', { name: `Use ${unproposed.name}` })).toBeVisible();
   await picker.getByRole('button', { name: `Propose ${unproposed.name}` }).click();
-  await expect(picker.getByRole('button', { name: `Propose ${unproposed.name}` })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // Proposed: green and bold, and pressing it again takes it back.
+  const proposed = picker.getByRole('button', { name: `Unpropose ${unproposed.name}` });
+  await expect(proposed).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.move(0, 0);
+  await expect(proposed).toHaveCSS('background-color', 'rgb(23, 165, 137)');
   await picker.getByRole('button', { name: 'Close maps' }).click();
   await expect(proposals.locator('.map-proposal')).toHaveCount(11);
   await expect(proposals.getByText('Yours: 1 of 3')).toBeVisible();
@@ -218,4 +244,46 @@ test('the host proposes maps too; ten proposals sit in an even grid at every wid
   await pick(BUILTIN_BOARDS[2]!.name).click();
   await expect(pick(BUILTIN_BOARDS[3]!.name)).toBeEnabled();
   expect(room.errors).toEqual([]);
+});
+
+test('an admin host sets the room code once, in a box that fits every width', async ({ page }) => {
+  const room = await mountGame(page, makeLobby(2));
+  const box = page.locator('.room-code-box');
+  page.on('dialog', dialog => dialog.accept());
+  await box.getByRole('button', { name: 'Set your own room code' }).click();
+  const field = box.getByRole('textbox', { name: 'New room code' });
+  await field.fill('island night!');
+  await expect(field).toHaveValue('ISLANDNIGHT');
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(box);
+  }
+  await box.screenshot({ path: 'test-results/lobby-room-code-edit.png' });
+  await box.getByRole('button', { name: 'Set' }).click();
+  await expect(page.locator('.page-heading h1')).toHaveText('ISLANDNIGHT');
+  await expect(box).toContainText('ISLANDNIGHT');
+  // Set once: no way to change it again.
+  await expect(box.getByRole('button', { name: 'Set your own room code' })).toHaveCount(0);
+  expect(room.errors).toEqual([]);
+});
+
+test('on a Seafarers map extra pieces give roads and ships, shown with the seat color pieces', async ({ page }) => {
+  const sea = BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!;
+  const lobby = seaLobby(sea, 2);
+  lobby.settings.victoryPoints = 13;
+  await mountGame(page, lobby);
+  const points = page.getByRole('group', { name: 'Points to win' });
+  await points.getByRole('button', { name: 'More points to win' }).click();
+  const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
+  const reward = rules.locator('.room-reward').first();
+  await expect(reward.getByRole('group', { name: 'roads at 10 points' }).locator('output')).toHaveText('2');
+  await expect(reward.getByRole('group', { name: 'ships at 10 points' }).locator('output')).toHaveText('2');
+  await expect(reward.locator('.piece-icon')).toHaveCount(4);
+  // When the pieces come is in the roll button's yellow.
+  await expect(reward.locator('.room-reward-points .count-stepper')).toHaveCSS('background-color', 'rgb(255, 191, 66)');
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(rules);
+  }
+  await rules.screenshot({ path: 'test-results/lobby-rewards-sea.png' });
 });

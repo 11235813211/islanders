@@ -9,9 +9,9 @@ test('the host picks a map from the picker; it shows in the lobby with its point
   await page.goto('/');
   await page.getByRole('button', { name: 'Create room' }).click();
   await expect(page.getByRole('heading', { name: 'Game settings' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Base game' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('.mode-card h3')).toHaveText('Standard island');
 
-  await page.getByRole('radio', { name: 'Choose map' }).click();
+  await page.getByRole('button', { name: 'Choose map' }).click();
   const picker = page.getByRole('dialog', { name: 'Maps' });
   await expect(picker.getByRole('heading', { name: 'Seafaring' })).toBeVisible();
   // One person in the room: the filter starts at two players. Small Isles fits; others are grayed, not hidden.
@@ -34,7 +34,6 @@ test('the host picks a map from the picker; it shows in the lobby with its point
 
   await expect(picker).toBeHidden();
   await expect(page.locator('.mode-card h3')).toHaveText('Outer Isles');
-  await expect(page.getByRole('radio', { name: 'Choose map' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByRole('group', { name: 'Points to win' }).locator('output')).toHaveText('13');
   await expect(page.getByRole('note')).toContainText('made for 3–4 players');
   await expect(page.getByLabel('Number layout', { exact: true })).toBeHidden();
@@ -53,12 +52,17 @@ test('the host picks a map from the picker; it shows in the lobby with its point
 test('back to the base game resets the points target', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Create room' }).click();
-  await page.getByRole('radio', { name: 'Choose map' }).click();
+  await page.getByRole('button', { name: 'Choose map' }).click();
   const picker = page.getByRole('dialog', { name: 'Maps' });
   // Use straight from the card, without opening it.
   await picker.getByRole('button', { name: 'Use Small Isles' }).click();
   await expect(page.getByRole('group', { name: 'Points to win' }).locator('output')).toHaveText('12');
-  await page.getByRole('radio', { name: 'Base game' }).click();
+  // The base game is a card of its own, first in its category, in the roll button's yellow.
+  await page.getByRole('button', { name: 'Choose map' }).click();
+  const card = picker.locator('.map-card.base-game');
+  await expect(card).toContainText('2–6 players');
+  await expect(card).toHaveCSS('background-color', 'rgb(255, 191, 66)');
+  await picker.getByRole('button', { name: 'Use Base game' }).click();
   await expect(page.locator('.mode-card h3')).toHaveText('Standard island');
   await expect(page.getByRole('group', { name: 'Points to win' }).locator('output')).toHaveText('10');
 });
@@ -66,7 +70,7 @@ test('back to the base game resets the points target', async ({ page }) => {
 test('on a sea map a real game lets a player place a ship in setup', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Create room' }).click();
-  await page.getByRole('radio', { name: 'Choose map' }).click();
+  await page.getByRole('button', { name: 'Choose map' }).click();
   await page.getByRole('dialog', { name: 'Maps' }).getByRole('button', { name: 'Use Small Isles' }).click();
   await page.getByRole('button', { name: 'Add bot' }).click();
   await startGame(page);
@@ -101,7 +105,7 @@ test('a map with layouts for other player counts shows one at a time, with arrow
   try {
     await page.goto('/');
     await page.getByRole('button', { name: 'Create room' }).click();
-    await page.getByRole('radio', { name: 'Choose map' }).click();
+    await page.getByRole('button', { name: 'Choose map' }).click();
     const picker = page.getByRole('dialog', { name: 'Maps' });
     // Player counts read fewest first, even though the 2 player layout was added second.
     await expect(picker.locator('.map-card', { hasText: 'Layout test' })).toContainText('2, 5–6 players');
@@ -123,7 +127,7 @@ test('a map with layouts for other player counts shows one at a time, with arrow
     await page.getByRole('button', { name: 'Add bot' }).click();
     await expect(page.getByRole('note')).toContainText('Layout test: the 5–6 player map is chosen. This room has 2.');
     // Back in the picker, that layout is the room's; the 2 player one can be chosen instead.
-    await page.getByRole('button', { name: 'Maps', exact: true }).click();
+    await page.getByRole('button', { name: 'Choose map' }).click();
     await picker.getByRole('button', { name: 'View Layout test' }).click();
     await expect(picker.locator('.map-layout-players')).toHaveText('2 players');
     await picker.getByRole('button', { name: 'Use this 2 player map' }).click();

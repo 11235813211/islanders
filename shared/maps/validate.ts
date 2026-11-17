@@ -1,7 +1,7 @@
 import { VICTORY_POINT_RANGE, validReward } from '../settings';
 import { RESOURCES, type Resource, SEA_TERRAINS, type Terrain } from '../types';
 import { NUMBER_LEVELS } from './balance';
-import { SPECIAL_LIMITS } from './special';
+import { DEFAULT_SETUP, PIECE_LIMITS, SPECIAL_LIMITS, SUPPLY_LIMITS, type SupplyKind } from './special';
 import {
   type BoardCategory,
   type BoardDesign,
@@ -17,7 +17,7 @@ import {
   type LinkRule,
   NUMBER_KINDS,
   type NumberLevels,
-  type PieceReward,
+  type PieceSupply,
   type Pool,
   type RouteGoal,
   type RouteZones,
@@ -210,6 +210,10 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     ...(linkRules.length ? { linkRules } : {}),
     ...parseSpecial(value),
     ...(versions.length ? { versions } : {}),
+    // A picked picture whose layout's players changed since falls back to the default.
+    ...([layout, ...versions].some(l => l.players.min === value.thumbnail)
+      ? { thumbnail: value.thumbnail as number }
+      : {}),
     updatedAt: 0,
   };
 }
@@ -243,6 +247,24 @@ function parseLayout(value: Record<string, unknown>): BoardVersion {
     ...((noStart as string[]).length ? { noStart: [...new Set(noStart as string[])] } : {}),
     ...(value.routes === undefined ? {} : { routes: parseRoutes(value.routes) }),
   };
+}
+
+/** Each player's pieces: counts in SUPPLY_LIMITS, with enough settlements and cities for setup. */
+function parseSupply(value: unknown, setup: SetupPiece[]): PieceSupply {
+  if (!record(value)) return fail('Invalid pieces.');
+  const out: PieceSupply = {};
+  for (const [kind, n] of Object.entries(value)) {
+    const range = SUPPLY_LIMITS[kind as SupplyKind];
+    if (!range || !int(n, range.min, range.max)) fail('Invalid pieces.');
+    out[kind as SupplyKind] = n as number;
+  }
+  const needs = (piece: SetupPiece) => setup.filter(p => p === piece).length;
+  if (
+    (out.settlements ?? PIECE_LIMITS.settlements) < needs('settlement') ||
+    (out.cities ?? PIECE_LIMITS.cities) < needs('city')
+  )
+    fail('Players need enough settlements and cities for setup.');
+  return out;
 }
 
 const TILE_KEY = /^-?\d{1,2},-?\d{1,2}$/;
@@ -285,14 +307,19 @@ function parseSpecial(value: Record<string, unknown>): Partial<BoardDesign> {
     const rewards = value.pieceRewards;
     if (!Array.isArray(rewards) || rewards.length > SPECIAL_LIMITS.rewards) fail('Invalid piece rewards.');
     out.pieceRewards = (rewards as unknown[]).map(r => {
-      if (
-        !record(r) ||
-        !validReward({ points: r.points, settlements: r.settlements, cities: r.cities, roads: r.roads })
-      )
-        return fail('Invalid piece reward.');
-      return { points: r.points, settlements: r.settlements, cities: r.cities, roads: r.roads } as PieceReward;
+      if (!record(r)) return fail('Invalid piece reward.');
+      const reward = {
+        points: r.points,
+        settlements: r.settlements,
+        cities: r.cities,
+        roads: r.roads,
+        ...(r.ships === undefined ? {} : { ships: r.ships }),
+      };
+      if (!validReward(reward)) return fail('Invalid piece reward.');
+      return reward;
     });
   }
+  if (value.supply !== undefined) out.supply = parseSupply(value.supply, out.setupPieces ?? DEFAULT_SETUP);
   if (value.routeGoal !== undefined) {
     const goal = value.routeGoal;
     if (!record(goal) || typeof goal.required !== 'boolean' || !int(goal.points, 0, SPECIAL_LIMITS.routePoints))

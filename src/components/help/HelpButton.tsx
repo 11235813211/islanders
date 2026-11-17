@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useMedia } from '../../hooks/useMedia';
 import { GameDialog } from '../TradePanel';
 import { HELP_TABS, type HelpSection, type HelpTab } from './helpContent';
+import PieceWords from './PieceWords';
 import './help.css';
 
 /** Touch screens get "tap" wording; a mouse gets "click". */
@@ -52,7 +53,9 @@ export default function HelpButton({ sections }: { sections: (touch: boolean) =>
                 <h3>{section.title}</h3>
                 <ul>
                   {section.lines.map(line => (
-                    <li key={line}>{line}</li>
+                    <li key={line}>
+                      <PieceWords text={line} />
+                    </li>
                   ))}
                 </ul>
               </section>

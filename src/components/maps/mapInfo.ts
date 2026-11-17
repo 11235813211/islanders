@@ -9,15 +9,24 @@ export { playerRange };
 export const playersMismatch = (design: Pick<BoardDesign, 'players' | 'versions'>, count: number) =>
   !playerRanges(design).some(r => count >= r.min && count <= r.max);
 
-/** "3–4, 5–6": every player count a map has a layout for. */
-export const playersLabel = (design: Pick<BoardDesign, 'players' | 'versions'>) =>
-  playerRanges(design).map(playerRange).join(', ');
+/** Ranges joined where they meet: 2–4 and 5–6 read as 2–6; a gap keeps them apart ("2, 5–6"). */
+function rangesLabel(ranges: { min: number; max: number }[]): string {
+  const merged: { min: number; max: number }[] = [];
+  for (const r of [...ranges].sort((a, b) => a.min - b.min)) {
+    const last = merged.at(-1);
+    if (last && r.min <= last.max + 1) last.max = Math.max(last.max, r.max);
+    else merged.push({ ...r });
+  }
+  return merged.map(playerRange).join(', ');
+}
+
+/** "2–6": every player count a map has a layout for. */
+export const playersLabel = (design: Pick<BoardDesign, 'players' | 'versions'>) => rangesLabel(playerRanges(design));
 
 const fits = (range: { min: number; max: number }, count: number) => count >= range.min && count <= range.max;
 
 /** The room's chosen map's player counts: the layout the host picked, or every layout. */
-export const roomMapPlayers = (map: MapInfo) =>
-  map.layout ? playerRange(map.layout) : map.layouts.map(playerRange).join(', ');
+export const roomMapPlayers = (map: MapInfo) => (map.layout ? playerRange(map.layout) : rangesLabel(map.layouts));
 
 /** The lobby's warning when the chosen map (or the layout the host picked) doesn't fit the room, else null. */
 export function roomMapWarning(map: MapInfo, players: number): string | null {
@@ -52,6 +61,29 @@ function baseIsland(large: boolean): BoardDesign {
 export const STANDARD_ISLAND = baseIsland(false);
 /** The 5–6 player island. */
 export const LARGE_ISLAND = baseIsland(true);
+
+/** The base game as a map card: the standard island, with the large one for 5–6 players. Never edited. */
+export const BASE_GAME: BoardDesign = {
+  ...STANDARD_ISLAND,
+  name: 'Base game',
+  description: 'The usual island, drawn at random each game.',
+  versions: [
+    {
+      players: LARGE_ISLAND.players,
+      victoryPoints: LARGE_ISLAND.victoryPoints,
+      tiles: LARGE_ISLAND.tiles,
+      harbors: [],
+      robber: null,
+      pirate: null,
+    },
+  ],
+};
+/** The base game's map id in choose-map and propose-map. */
+export const BASE_MAP_ID = 'base';
+
+/** The category the base game card leads: the one named "Base", else the first. */
+export const baseCategoryId = (library: BoardLibrary) =>
+  (library.categories.find(c => /^base$/i.test(c.name.trim())) ?? library.categories[0])?.id;
 
 /** Move the board `id` to just before `beforeId` (or the end of `categoryId`), in that category. */
 export function moveBoard(library: BoardLibrary, id: string, categoryId: string, beforeId?: string): BoardLibrary {

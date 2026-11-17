@@ -1,0 +1,31 @@
+/* The lobby's room code (RoomCode.tsx): the code, copy, and an admin host's one-time edit. */
+.room-code-actions {
+  display: flex;
+  gap: 4px;
+}
+.room-code-edit {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.room-code-edit input {
+  /* Wide enough for the longest code (12 characters). */
+  flex: 1 1 170px;
+  min-width: 170px;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.room-code-edit .button {
+  height: 36px;
+  box-sizing: border-box;
+}
+.room-code-edit small {
+  flex-basis: 100%;
+  color: #526d78;
+  font-size: 12px;
+}

@@ -270,6 +270,10 @@ export function useRoom(session: Session | null, signedIn = false) {
     },
     [connection],
   );
+  /** Admin host: give the room its own code (the server checks who may). */
+  const setInviteCode = useCallback((code: string) => {
+    if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify({ type: 'set-code', code }));
+  }, []);
   /** Pick-board phase: fetch one of the drawn boards to look at (the answer lands in boardPeek). */
   const peekBoard = useCallback((board: number) => {
     if (socket.current?.readyState === WebSocket.OPEN)
@@ -287,6 +291,7 @@ export function useRoom(session: Session | null, signedIn = false) {
     left,
     send,
     setRecordingChoice,
+    setInviteCode,
     viewAs,
     clearError: () => setError(null),
   };

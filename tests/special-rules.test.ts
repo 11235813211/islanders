@@ -145,6 +145,37 @@ describe('piece rewards', () => {
     expect(parseDesign(design, ['seafaring']).pieceRewards).toEqual(rewards);
     expect(parseDesign(design, ['seafaring']).victoryPoints).toBe(30);
   });
+
+  it('counts ships on their own when a reward names them', () => {
+    const reward = { points: 2, settlements: 0, cities: 0, roads: 2, ships: 2 };
+    expect(parseDesign(island({ pieceRewards: [reward] }), ['seafaring']).pieceRewards).toEqual([reward]);
+    const game = finishSetup(started(island({ pieceRewards: [reward] })));
+    const self = getView(game, 'p0').players.find(p => p.id === 'p0')!;
+    expect(self.roadsLeft).toBe(15 - 2 + 2);
+    expect(self.shipsLeft).toBe(15 + 2);
+  });
+});
+
+describe('starting pieces', () => {
+  it("gives every player the board's own counts, and keeps the rest usual", () => {
+    const design = island({ supply: { settlements: 7, roads: 10 } });
+    expect(parseDesign(design, ['seafaring']).supply).toEqual({ settlements: 7, roads: 10 });
+    const game = finishSetup(started(design));
+    const self = getView(game, 'p0').players.find(p => p.id === 'p0')!;
+    expect(self.settlementsLeft).toBe(7 - 2);
+    expect(self.roadsLeft).toBe(10 - 2);
+    expect(self.citiesLeft).toBe(4);
+    expect(specialRules(game.board.rules).map(r => r.kind)).toContain('supply');
+  });
+
+  it('refuses counts out of range or too few for setup', () => {
+    expect(() => parseDesign(island({ supply: { roads: 99 } }), ['seafaring'])).toThrow();
+    expect(() =>
+      parseDesign(island({ supply: { settlements: 2 }, setupPieces: ['settlement', 'settlement', 'settlement'] }), [
+        'seafaring',
+      ]),
+    ).toThrow();
+  });
 });
 
 describe('room extra pieces', () => {
@@ -152,11 +183,15 @@ describe('room extra pieces', () => {
     applyAction(game, 'p0', { type: 'configure', settings: { ...game.settings, ...settings } }, seeded(), TEST_NOW);
 
   it('fills in 1 city, 1 settlement, and 3 roads every 3 points from 10, each at least 4 below the goal', () => {
-    const pieces = { settlements: 1, cities: 1, roads: 3 };
-    expect(pointRewards(13)).toEqual([]);
-    expect(pointRewards(14)).toEqual([{ points: 10, ...pieces }]);
-    expect(pointRewards(17).map(r => r.points)).toEqual([10, 13]);
-    expect(pointRewards(22).map(r => r.points)).toEqual([10, 13, 16]);
+    const pieces = { settlements: 1, cities: 1, roads: 3, ships: 0 };
+    expect(pointRewards(13, false)).toEqual([]);
+    expect(pointRewards(14, false)).toEqual([{ points: 10, ...pieces }]);
+    expect(pointRewards(17, false).map(r => r.points)).toEqual([10, 13]);
+    expect(pointRewards(22, false).map(r => r.points)).toEqual([10, 13, 16]);
+  });
+
+  it('gives 2 roads and 2 ships instead of 3 roads with Seafarers', () => {
+    expect(pointRewards(14, true)).toEqual([{ points: 10, settlements: 1, cities: 1, roads: 2, ships: 2 }]);
   });
 
   it('come with raised points to win, stay as the host edits them, and go when the map changes', () => {

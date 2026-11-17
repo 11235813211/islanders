@@ -1,7 +1,7 @@
 import { chosenRoute, openRoutes, rewardText, routeFinished, setupLeft } from '../maps/special';
 import { victoryPoints } from '../rules';
 import type { GameState } from '../types';
-import { addLog } from './core';
+import { addLog, seaRules } from './core';
 
 /**
  * Map goals beyond points: routes (where starting settlements must go, and the finish area each
@@ -49,6 +49,6 @@ export function updatePeaks(next: GameState): void {
     next.peakPoints[player.id] = now;
     for (const r of rewards)
       if (r.points > before && r.points <= now)
-        addLog(next, `${player.name} reached ${r.points} points: ${rewardText(r)}.`);
+        addLog(next, `${player.name} reached ${r.points} points: ${rewardText(r, seaRules(next))}.`);
   }
 }

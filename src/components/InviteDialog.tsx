@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { MAX_PLAYERS } from '../../shared/engine';
 import type { GameView } from '../../shared/types';
 import { Modal } from './AccountDialogs';
+import { roomCodeOf } from './lobby/RoomCode';
 
 export type InviteKind = 'player' | 'spectator';
 
@@ -77,7 +78,7 @@ export default function InviteDialog({
 }) {
   const full = seatNote(view);
   return (
-    <Modal title={`Invite to ${view.roomId}`} close={close}>
+    <Modal title={`Invite to ${roomCodeOf(view)}`} close={close}>
       <div className="invite-rows">
         {!full && (
           <InviteRow

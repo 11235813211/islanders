@@ -10,6 +10,7 @@ import {
 import { VICTORY_POINT_RANGE } from '../../../shared/settings';
 
 import { useDismiss } from '../../hooks/useDismiss';
+import PiecesMenu from './PiecesMenu';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
@@ -65,7 +66,7 @@ export function BoardName({ design, edit }: { design: BoardDesign; edit: Edit })
   );
 }
 
-/** The board's category, players, points to win, and needed expansions, in one row above the tools. */
+/** The board's category, players, points to win, needed expansions, and pieces, in one row above the tools. */
 export default function BoardFields({
   design,
   categories,
@@ -126,6 +127,7 @@ export default function BoardFields({
         />
       </label>
       <ExpansionsMenu design={design} set={set} />
+      <PiecesMenu design={design} edit={edit} />
     </div>
   );
 }

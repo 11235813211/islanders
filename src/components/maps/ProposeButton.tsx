@@ -1,4 +1,4 @@
-import { Check, Vote } from 'lucide-react';
+import { Check, Undo2, Vote } from 'lucide-react';
 import type { BoardDesign } from '../../../shared/maps';
 
 /** The host uses a map; `layoutFor` picks the layout made for this many players (maps with several). */
@@ -15,8 +15,8 @@ export interface Proposing {
 }
 
 /**
- * Propose a map, or take it back. Pressed while this person backs it; disabled once they are
- * at the limit. `full` is the large view's wide button with the layout named.
+ * Propose a map, or take it back. Green and bold while this person backs it (pressing again takes
+ * it back); disabled once they are at the limit. `full` is the large view's wide button.
  */
 export default function ProposeButton({
   design,
@@ -33,19 +33,39 @@ export default function ProposeButton({
   full?: boolean;
 }) {
   const mine = propose.backs(design.id, layoutFor ?? null);
-  const word = mine ? 'Proposed' : (label ?? 'Propose');
   return (
     <button
       type="button"
-      className={`button ${full ? 'secondary full' : 'secondary'}`}
+      className={`button secondary${full ? ' full' : ''}${mine ? ' proposed' : ''}`}
       aria-pressed={mine}
-      aria-label={full ? undefined : `Propose ${design.name}`}
+      aria-label={full ? undefined : `${mine ? 'Unpropose' : 'Propose'} ${design.name}`}
       title={!mine && !propose.left ? 'You have proposed the most maps you can. Take one back first.' : undefined}
       disabled={!mine && !propose.left}
       onClick={() => propose.toggle(design, layoutFor)}
     >
-      {mine ? <Check size={16} /> : <Vote size={16} />}
-      {word}
+      {buttonFace(mine, full, label)}
     </button>
+  );
+}
+
+/** Icon and words: the large view offers to take a proposal back; a card shows it as done. */
+function buttonFace(mine: boolean, full: boolean, label: string | undefined) {
+  if (!mine)
+    return (
+      <>
+        <Vote size={16} />
+        {label ?? 'Propose'}
+      </>
+    );
+  return full ? (
+    <>
+      <Undo2 size={16} />
+      Unpropose
+    </>
+  ) : (
+    <>
+      <Check size={16} />
+      Proposed
+    </>
   );
 }

@@ -1,8 +1,12 @@
 import { isIdentifier, parseAction } from '../shared/actions';
 import { GameError } from '../shared/engine';
+import { CUSTOM_ROOM_CODE } from '../shared/settings';
 import type { ClientMessage, GameAction } from '../shared/types';
 
-export const ROOM_PATTERN = /^(?:[A-Z]{3,12}\d{2}|[A-HJ-NP-Z2-9]{8})$/;
+/** A room's code: a generated one (LUMBER42 or eight characters), or one an admin host chose. */
+export const ROOM_PATTERN = new RegExp(
+  `^(?:[A-Z]{3,12}\\d{2}|[A-HJ-NP-Z2-9]{8}|${CUSTOM_ROOM_CODE.source.slice(1, -1)})$`,
+);
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
 export const MAX_BODY_BYTES = 2048;
 /** Saved boards are larger than other requests: a few hundred tiles. */
@@ -107,6 +111,8 @@ export function parseMessage(raw: string | ArrayBuffer): ClientMessage {
   }
   if (value.type === 'consent' && typeof value.value === 'boolean') return { type: 'consent', value: value.value };
   if (value.type === 'decline' && typeof value.value === 'boolean') return { type: 'decline', value: value.value };
+  if (value.type === 'set-code' && typeof value.code === 'string' && CUSTOM_ROOM_CODE.test(value.code))
+    return { type: 'set-code', code: value.code };
   if (value.type === 'view-as' && isIdentifier(value.playerId)) return { type: 'view-as', playerId: value.playerId };
   if (value.type === 'peek-board' && Number.isSafeInteger(value.board) && (value.board as number) >= 1)
     return { type: 'peek-board', board: value.board as number };

@@ -254,7 +254,7 @@ test('fog takes number levels and its own mix like an island: select it, set the
   // The map's details say what each fog island holds.
   await page.goto('/');
   await page.getByRole('button', { name: 'Create room' }).click();
-  await page.getByRole('radio', { name: 'Choose map' }).click();
+  await page.getByRole('button', { name: 'Choose map' }).click();
   const picker = page.getByRole('dialog', { name: 'Maps' });
   await picker.getByRole('button', { name: 'View Fog numbers board' }).click();
   const summary = picker.getByRole('region', { name: 'Under the fog' });
@@ -450,6 +450,27 @@ test('the top bar keeps the name and save on one row (phones: two), and nothing 
     else expect(save.y).toBeGreaterThan(name.y + name.height - 1);
     await page.screenshot({ path: `test-results/editor-bar-${width}.png`, clip: { x: 0, y: 0, width, height: 260 } });
   }
+});
+
+test("the Pieces menu sets each player's pieces, with ships only on a Seafarers board", async ({ page }) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();
+  const menu = page.locator('.pieces-menu');
+  await menu.getByRole('button', { name: /^Starting pieces/ }).click();
+  const list = menu.getByRole('group', { name: 'Starting pieces' });
+  await expect(list.getByRole('group', { name: 'ships', exact: true })).toBeVisible();
+  await expect(list.getByRole('group', { name: 'relays' })).toHaveCount(0);
+  await list.getByRole('button', { name: 'More settlements' }).click();
+  await expect(list.getByRole('group', { name: 'settlements' }).locator('output')).toHaveText('6');
+  await expect(menu.getByRole('button', { name: 'Starting pieces: 1 changed' })).toBeVisible();
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(list);
+  }
+  await list.screenshot({ path: 'test-results/editor-pieces.png' });
+  await list.getByRole('button', { name: 'Usual pieces' }).click();
+  await expect(menu.getByRole('button', { name: 'Starting pieces: Usual' })).toBeVisible();
 });
 
 test('the (i) help teaches the editor by topic, and every tab fits', async ({ page }) => {
