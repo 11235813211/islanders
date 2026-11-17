@@ -455,7 +455,7 @@ test('the top bar keeps the name and save on one row (phones: two), and nothing 
 test("the Pieces menu sets each player's pieces, with ships only on a Seafarers board", async ({ page }) => {
   await signIn(page);
   await page.goto('/#editor');
-  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Four Isles' }).click();
   const menu = page.locator('.pieces-menu');
   await menu.getByRole('button', { name: /^Starting pieces/ }).click();
   const list = menu.getByRole('group', { name: 'Starting pieces' });
