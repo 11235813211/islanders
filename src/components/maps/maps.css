@@ -153,8 +153,10 @@
 }
 .map-card-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 2px 10px;
+  white-space: nowrap;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
@@ -388,6 +390,8 @@
 /* Browser cards: an open button over the thumbnail, actions underneath. */
 .map-card {
   cursor: default;
+  container-type: inline-size;
+  min-width: 0;
 }
 .map-card-open {
   display: flex;
@@ -402,6 +406,7 @@
 }
 .map-card-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
@@ -414,6 +419,19 @@
 .map-card-actions .text-button {
   margin-right: auto;
   font-size: 13px;
+}
+/* Phone-width cards (two per row): drop the button icons so View and Propose share one row. */
+@container (max-width: 200px) {
+  .map-card-actions .text-button svg,
+  .map-card-actions .button svg {
+    display: none;
+  }
+  .map-card-actions .text-button {
+    padding: 6px 4px;
+  }
+  .map-card-actions .button {
+    padding: 5px 10px;
+  }
 }
 /* Made for another player count: still there, just quieter. */
 .map-card.misfit {

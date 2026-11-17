@@ -94,6 +94,11 @@ test('the map picker and a map’s large view fit a phone', async ({ page }) => 
   await expect(picker.getByRole('heading', { name: 'Seafaring' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+  // Each card's View and Use buttons stay inside the card, even with a guest's longer "Propose".
+  await picker.locator('.map-card-actions .button').evaluateAll(buttons => {
+    for (const button of buttons) button.lastChild!.textContent = 'Propose';
+  });
+  for (const card of await picker.locator('.map-card').all()) await expectNoSpill(card);
   await page.screenshot({ path: 'test-results/phone-map-picker.png' });
   await picker.getByRole('button', { name: 'View Small Isles' }).tap();
   await expect(picker.getByRole('img', { name: 'Small Isles map' })).toBeVisible();
