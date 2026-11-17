@@ -1,104 +1,197 @@
-# Plan: a strong Advanced bot
+# Plan for evidence based Advanced bot improvements
 
-Goal: a bot that beats skilled people. A human who isn't a strong player crushed two Advanced bots
-on Middle Fog (2026-11-11), so we are far from it. Read `training/README.md` (commands, results
-log) and `AGENTS.md` first.
+Updated 2026-11-16. The objective is higher win probability against strong opponents,
+eventually including skilled people, while preserving cheap Worker decisions and using
+only `GameView` information.
 
-## What we learned (2026-11-10 to 11)
+**No proposed new strategy currently has enough evidence to justify a major implementation
+or training run.** The next justified work is measurement of verified decision-model gaps.
+An isolated experimental candidate may be needed to measure its effect; that is not a
+commitment to shipping it or expanding it into a new planner.
 
-- Every gain except one bug fix was noise (±1–2%). Knob tuning, setup round 2, value network v1,
-  the seat value network with TD(λ), a fog knob, and a plan-based planner: none beat the
-  shipped bot by more than its error. Results log in the README has the numbers.
-- All yardsticks were our own bots, which share the planner's blind spots, so nothing measured
-  how much stronger a bot _can_ be. Beating Intermediate is only a regression check.
-- Learned values used greedily (one step, no search) exploit their own errors: twice the
-  network hoarded. Full TD(λ) self-play without search is not the path in a game with hidden
-  cards, huge trade options, and long plans.
-- Symptoms like dead-end roads point at the hand-written planner; patching them one at a time
-  moves win rates by ±1%. Treat them as clues, not goals.
+This revision changes documentation only. All code, test, and instrumentation work below
+is proposed future work. The current bot and inactive experiments remain unchanged.
 
-## Rules from here
+Read [how decisions work](ADVANCED.md), the [evidence review](EVIDENCE.md), and the
+[statistical protocol](STATISTICS.md) before starting an experiment. The historical
+search gate and its failed result are retained in the evidence review. Win-rate differences
+use percentage points (pp); the historical `±` values below are reported standard errors,
+not 95% confidence intervals.
 
-- **Measure before compute.** Each step names, in advance, the result that would justify the
-  next one, and the result that stops it. No large run without a cheap pilot passing first.
-- **Look for big effects.** We want gains of many times, not percent. Report effect ± error
-  plainly; don't call ±1% an improvement.
-- Yardsticks, strongest first: games against people (consented records, `/api/records`,
-  `training/replays.ts`); a slow search bot (step 1); the gauntlet (regression only).
-- Play-time CPU stays within the Worker budget (`tests/bots.test.ts`) unless the plan changes.
-- Bots read only `GameView`.
+## Current decisions
 
-## Steps
+| Work                                                             | Decision                                                                 | Evidence required to change the decision                                                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Audit income and lodestone target scoring                        | Done 2026-11-16 (C1/C2 fixed; kept as correctness, not a measured gain). | Pilot +0.5 ±1.0 pp: a +2 pp confirmation would need a true effect near +5 pp. See [RUNS.md](RUNS.md).                                    |
+| Activate the alternative planner                                 | Leave inactive.                                                          | A materially changed candidate must pass confirmation, replication, and protected-population gates, including Middle Fog.                |
+| Activate the value network                                       | Leave inactive.                                                          | New targets/features or a demonstrably stronger teacher, followed by wins in held-out full games; training loss alone cannot qualify it. |
+| Rewrite play around economic plans                               | Park.                                                                    | A narrow plan with follow-through must first demonstrate a material whole-game win advantage.                                            |
+| Add broad trade or race intelligence                             | Park implementation; permit opportunity diagnosis.                       | Reproducible opportunities, a frozen isolated candidate, and confirmed gains in a relevant opponent population.                          |
+| More generic tuning, larger networks, or more of the same search | Park expensive runs.                                                     | New evidence that addresses the specific previous failure, then a bounded pilot.                                                         |
 
-1. **Headroom probe.** A slow, training-only search bot: at each of its decisions, sample hidden
-   hands and the deck from the public card count, play each candidate move out many times with
-   the shipped bot (common dice across candidates; `training/rollouts.ts`, `disagree.ts` have the
-   pieces), take the best. Test: 200 four-player games, one search bot vs three shipped, seats
-   rotated. Decide in advance: **≥ 45% wins** (fair 25%) means large headroom and search is the
-   teacher, go to step 3; **under 30%** means rollouts with this playout policy can't find much,
-   stop and rethink (better playout policy, or another approach).
-   _Pre-registered 2026-11-12, before any full run_ (`search` command, `training/search.ts`).
-   Scope: the search seat searches its **build decisions only** (candidates: the shipped bot's own
-   move, every city and settlement, the planner's road toward its target and its Longest Road
-   road, a development card, stopping). Setup, robber, discards, and trade answers play as
-   shipped, so a low result bounds this search, not the game. Hidden facts are resampled from
-   public information only (`tests/search.test.ts`). It screens every candidate on 8 rollouts,
-   then plays the best against the bot's own move on fresh paired rollouts and switches only if
-   the gain is `margin` standard errors above zero (the screen's own estimate is biased upward).
-   Runs, each 50 seeds × 4 seats = 200 four-player games (seeds 1,000,000+), all 4-player
-   scenarios: **A** screen 8, confirm 32, margin 1.5 (the test); **B** margin 0 (switches
-   more readily); **C** screen 16, confirm 64 (does more compute pay?). The shipped bot in the
-   same seats wins exactly 25%, so the error is sampling only: ±3.1% (95%: ±6%) at 25%.
-   Readings: ≥ 45% go to step 3; < 30% stop; 30–45% means real but modest headroom only if the
-   95% interval excludes 25%, and then C vs A decides whether to spend more search or widen its
-   scope (robber, setup, more road targets) before step 3.
-   _Result 2026-11-12_ (search wins vs the exact 25% of the shipped bot in the same seats; error
-   is the paired standard error across the 50 seeds):
-   A 28.5% (+3.5% ±2.5%), B 33.5% (+8.5% ±3.2%), C 30.5% (+5.5% ±2.3%). The test (A) is under
-   30%, so by the rule above this search stops here; B and C are just in the 30–45% band with
-   95% intervals clear of 25%. All three agree on a small real gain (×1.1–1.35), far from the
-   ≥ 45% that would make search the teacher. Switching more readily (B, 7.5% of decisions changed)
-   beat doubling the rollouts with the strict margin (C, 2.4%); the search's own confirmed gain
-   per change (9–20%) is several times what games show, as expected from picking maxima.
-   Published Catan search (Szita 2010, Rubin 2017, Dobre & Lascarides 2017–18) needed 10k–50k
-   rollouts per decision to reach 40–53% against heuristic bots; this probe used ~100.
-2. **People as the yardstick.** Consented recording is live in code (not deployed). A handful of
-   the owner's games against each bot version: from ~5% to ~40% wins shows in 10–15 games.
-3. **Only if step 1 passes: expert iteration.** Search offline to produce decisions and values;
-   train the network to imitate them (seat network and trainer exist: `value.ts`, `mlp.ts`
-   `trainSeatNet`); play the network fast; search again with it as the playout policy; repeat.
-   Each round gated by search-bot win rate and games against people, thresholds set first.
-4. **CPU at play time** (owner's call): the free Workers plan allows ~10 ms CPU per move, so the
-   shipped bot can't search. The paid plan allows far more; even 1–2 s of search per move may
-   be the biggest lever. Step 1 shows how much it's worth.
+## Why the inactive experiments stay inactive
 
-## Tools that exist
+### Alternative planner
 
-`gauntlet` (one hero vs every opponent, paired with --baseline), `disagree` (where a challenger's
-build decisions differ, rolled out to the end), `routes` (where a seat's roads went), end-of-game
-diagnostics in eval (dead routes, fog revealed), `moves-collect` and seat-net TD(λ) fitting
-(parked), consented game records and replay (`training/replays.ts`, `replays --file`).
+`planner = 1` selects `makePlans` and `planStep`. It ranks city, settlement/route,
+exploration, development, and road-award plans by estimated payoff divided by waiting time.
+It recomputes each decision; it is not a persistent plan with learned follow-through.
+Its plan set also omits survey/chart/split/relay investments. See
+[plans.ts](../shared/bots/advanced/plans.ts) and [plan-turn.ts](../shared/bots/advanced/plan-turn.ts).
 
-## Status
+The reported comparisons were +0.7 ±1.3 pp and −0.2 ±1.4 pp against the shipped bot, plus
+−10.0 ±1.6 pp on Middle Fog at three players. There is no demonstrated overall benefit,
+and there is a substantial reported regression. A description of sensible goals is not
+counterevidence to those results.
 
-- 2026-11-11, branch `advanced-bot-plans`: bug fixes (saving for reachable spots, route links),
-  counter-offers not repeated to a person within two rounds, consented recording, the tools
-  above, plan-based planner off (`planner` knob). Not deployed (recording needs the v4 Durable
-  Object migration on deploy).
-- 2026-11-12: step 1 run (above): small, real headroom from build-decision search; under the
-  45% bar. Next is the owner's call: step 2 (people), or a wider/larger search (robber, setup,
-  more road targets, margin 0, more rollouts) before step 3.
-- 2026-11-16: step 2 with the saved games (README results log): `records-disagree` compares each
-  of the person's moves with the bot's by rollouts. It catches immediate mistakes (special build,
-  fixed; an off-turn gold pick) but undervalues a move that starts a plan, because the bot plays the
-  rest of the person's game. Tile-judgment knobs (rival share, future rivals, lodestone first,
-  split trading) all measured within noise against bots. More knob tuning looks unlikely to give
-  the jump we want. Next: study repeated strategic failures across the human games (where the
-  bots fall behind and why, by phase of the game), not single moves; then test each candidate
-  fix against people.
-- 2026-11-16, whole-game study (README log): the person out-grows the bots in mid-game, through a
-  lodestone source taken at setup and charts on tiles they hold alone; the bots stall. Smaller:
-  spot races the bot doesn't contest or block, and trades that complete the person's build.
-  Candidate fixes: lodestone source in setup, contesting and blocking roads, declining a trade that
-  completes an opponent's build. Bot-vs-bot games barely show these (bots don't exploit them), so
-  each fix needs a regression check vs `ref:advanced` (base, The Channel) and then games vs people.
+**Potential:** the existing goal/path representation may be useful experimental machinery.
+The current policy has not earned activation. A future attempt must identify and change a
+specific failure, such as inaccurate economic inputs or exploration without a profitable
+follow-up, and demonstrate that the changed policy wins. Re-running unchanged code on more
+seeds or retuning until a favorable map appears does not meet this requirement.
+
+### Value network
+
+`choose.ts` scores compact hypothetical positions after a limited set of moves. With
+`valueRole = 0`, the planner decides whether to spend and the network chooses which build;
+with `valueRole = 1`, the network also chooses whether to trade or stop. Neither role is
+active in shipped weights. Candidate actions and summaries omit important Cartographers
+choices; this is not a search over every legal action or a complete turn simulation.
+
+Two full-control attempts produced edges of ×0.35 and ×0.20 against their reported fields
+and hoarded resources. Restricting control produced −0.9 ±1.0 pp and −1.5 ±0.9 pp, with no
+demonstrated positive gain. Improved validation loss did not validate action selection.
+
+**Potential:** learning to rank moves or plans remains an untested direction under better
+inputs and training targets. The recorded failures concern these networks, their data,
+candidate actions, and greedy use. They do not prove that every learned policy is incapable
+of strong play. A renewed trial needs a better teacher or action-level comparisons that
+preserve follow-up, accurate features, and new full-game confirmation. Until then, keep
+`valueNet` absent and do not promote old checkpoints. See [EVIDENCE.md](EVIDENCE.md).
+
+## Gate zero Establish a reliable baseline
+
+Freeze the implementation and its wrappers, defaults, weights, engine, board library,
+opponent field, and scenario mixture. The reviewed baseline is code commit
+`4bcded4eb2e620943043cce785a4e9575d71770c`; a future experiment must register its actual baseline
+again if the project has moved. Do not treat `s2`, `shipped`, or a moving git branch as an
+immutable implementation.
+
+Verify that baseline versus itself gives an exactly zero paired difference on identical
+jobs, that hero rotation covers all seats, and that winner/points/diagnostics use seat IDs.
+Check unfinished games and fallbacks rather than treating successful completion as proof
+that every Advanced decision was legal. Save raw seed-level results and the registration.
+
+Use the existing `compare` command for its paired difference, not the individual `eval`
+error bars. Its current limitations, including the shared outer wrapper for `ref:advanced`,
+are listed in [STATISTICS.md](STATISTICS.md#current-tools-and-limits).
+If an experiment needs analysis the tools cannot yet provide, its gate cannot pass from
+the console summary alone.
+
+**Advance when:** the experiment is reproducible, baseline isolation is verified, and the
+chosen analysis can report the registered effect and uncertainty. Otherwise stop here.
+
+## Gate one Verify and isolate the economic gaps
+
+Start with C1 and C2 from [ADVANCED.md](ADVANCED.md#confirmed-gaps-and-their-evidential-limits).
+They are verified mechanisms and therefore suitable for bounded diagnostic work. The
+historical road-saving fix supports inspecting concrete decision errors, but supplies no
+expected effect size for these particular changes.
+
+Proposed future work:
+1. Establish deterministic expectations for extra chart numbers, split choices, relay
+   production under the robber, and lodestone target scoring. Reuse engine rules and
+   existing fixtures; do not create a second authoritative rules implementation.
+2. Diagnose each separately over a prespecified set of complete games and eligible
+   positions. Count all opportunities, how often estimates differ, and how often the
+   selected action differs. Record map, size, phase, and fallbacks. Include losing games.
+3. Prepare the smallest isolated candidate needed to measure one discrepancy. Hold setup,
+   opponent behavior, and unrelated heuristics fixed wherever possible. If shared estimates
+   affect several decisions, record those paths explicitly rather than attributing the
+   effect to just one of them.
+4. Run a bounded exploratory pilot. Use it to select at most one finalist and estimate
+   variance; it does not establish a strength gain. Set the pilot compute ceiling before
+   running and preserve every tested candidate's result.
+
+**Advance when:** the mismatch is reproducible, the candidate actually changes the intended
+decisions, and a properly powered confirmation fits the registered budget. This permits
+measurement, not broader implementation. If the mechanism is rare, the candidate does not
+change decisions, or the required precision is unaffordable, park it and record why.
+
+## Gate two Require a practical win advantage
+
+For an income correction, use Cartographers games against a frozen Advanced field as the
+primary population. Freeze the map/settings/size mixture. Protect base island at four
+players, non-Cartographers sea games, and 5–6 player games. Keep Middle Fog as an explicit
+protected population for any revival of the alternative planner.
+
+Select one frozen finalist from the pilot. Calculate a fixed sample from pilot variance,
+90% power, the registered practical effect, and the full comparison family. Use fresh
+confirmation seeds, rotate seats, and analyze differences by independent seed. Follow
+[STATISTICS.md](STATISTICS.md) for paired intervals, multiplicity, completion sensitivity,
+and an independent replication.
+
+**Advance to a focused improvement only when all of these pass:**
+- Confirmation lower confidence bound exceeds **+2 pp** wins in the target population.
+- Fresh replication has a lower bound above zero and an estimated gain of at least +2 pp.
+- Protected populations' simultaneous lower bounds exceed **−2 pp**.
+- The upper bound on increased unfinished games is below **+0.5 pp**, and the unfavorable
+  unfinished-game sensitivity analysis does not undo the strength claim.
+- Behavior tests, CPU measurements, and required project checks pass without relaxing rules,
+  information limits, or human trade limits.
+
+These margins are explicit project priorities, not estimates from historical data. If the
+interval crosses a threshold, the result is inconclusive and does not authorize larger
+investment. If its upper bound lies below the desired benefit, stop that direction at this
+scope. A correctness-only change may have a separate rationale, but cannot be reported as
+a demonstrated winning improvement.
+
+## Gate three Investigate strategic explanations only after the inputs are understood
+
+The human income trajectories motivate investigation. They do not establish that the
+candidate strategy is good. Reproduce the whole-game study with versioned records and a
+saved analysis, reconcile its 11-game and 12-game samples, include wins and losses, and
+define the opportunity denominator before counting examples.
+
+| Hypothesis                                | Diagnostic required before a policy trial                                                                                            | What a valid trial must preserve                                                                                                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Economic investments need follow-through  | Identify affordable investments the bot passes up, their ownership/share, resource costs, later actions needed, and rival responses. | The candidate follows the plan through several decisions or to a declared abort/completion condition. Do not hand control back to the unchanged bot after the first move. |
+| Trades enable stronger rival builds       | Count eligible offers and estimated partner builds before and after them, along with our own benefit.                                | Test the full trade interaction against relevant trading opponents; refusing all trades is a different intervention.                                                      |
+| The bot loses affordable settlement races | Count legal routes, resource affordability, move order, and actual blocking opportunities for both players.                          | Compare complete contest/expand alternatives. Equal geometric distance alone is not a lost race.                                                                          |
+
+Only a narrow, falsifiable candidate proceeds to the same pilot/confirmation process.
+Do not build a suite of new opponent personalities or a general plan architecture before
+the specific exploit and proposed response have demonstrated value. Existing styles share
+the Advanced implementation and cannot alone validate play against people who exploit
+different weaknesses.
+
+## Gate four Require strong headroom before major training
+
+The original search test failed its preregistered ≥45% teacher gate. It remains closed;
+increasing its budget is not an automatic next step. A different search or plan executor
+must be registered as a new experiment with a specific reason to overcome the earlier
+candidate-set and continuation-policy limits.
+
+For major investment, require a confirmed lower bound above **+10 pp** wins against three
+frozen Advanced opponents, at four players in a declared map mixture, followed by independent
+replication and protected-map checks. This is a new prospective investment threshold, not
+a reinterpretation of the old 45% gate. It must demonstrate the new policy's whole-game
+advantage before large-scale training data are collected.
+
+Only then test whether a compact learned policy retains that advantage within the runtime
+budget. Evaluate the deployed student independently; the teacher's win rate and the
+student's imitation loss are not evidence that the student wins. Keep expensive search
+offline. Human testing is a separate gate for claims about strong people, with randomized
+version assignment, balanced seats, and player/session-aware uncertainty.
+
+## First deliverables for future work
+
+1. A frozen experiment registration and baseline/control report.
+2. Reproducible diagnostic cases and opportunity counts for C1/C2.
+3. At most one selected isolated candidate, with a fixed confirmation design and budget.
+4. A result record marked pass, fail, or inconclusive, including adverse results and a fresh
+   replication if warranted.
+
+Until those results exist, the recommendation is to leave the current alternative planner
+and value network inactive, and to treat sustained planning, richer trades, and blocking
+as hypotheses rather than promised improvements.

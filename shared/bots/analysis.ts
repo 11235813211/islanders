@@ -1,6 +1,6 @@
 import { emptyBag } from '../engine/core';
 import { routeCorners } from '../maps/special';
-import { linksAnywhere } from '../rules';
+import { hexNumbers, linksAnywhere } from '../rules';
 import {
   boardIndex,
   isLandVertex,
@@ -28,6 +28,22 @@ export type Goal = keyof typeof COSTS;
 /** Number of dice combinations (out of 36) that roll this number. */
 export const pips = (n: number | null) => (n ? 6 - Math.abs(7 - n) : 0);
 
+/** Dice combinations (out of 36) a tile pays on: its own number plus any charted ones (Cartographers). */
+export const hexPips = (hex: Pick<Hex, 'number' | 'extra'>) => hexNumbers(hex).reduce((sum, n) => sum + pips(n), 0);
+
+/**
+ * Add `amount` of a tile's payout to `bag`. A split tile pays one of its two resources per card, so
+ * each counts half; gold and volcanoes pay whatever is needed, so they count a little of everything.
+ */
+export function addTileYield(bag: ResourceBag, hex: Hex, amount: number): void {
+  const resource = terrainResource(hex.terrain);
+  if (resource && hex.split) {
+    bag[resource] += amount / 2;
+    bag[hex.split] += amount / 2;
+  } else if (resource) bag[resource] += amount;
+  else if (hex.terrain === 'gold' || hex.terrain === 'volcano') for (const r of RESOURCES) bag[r] += amount / 4;
+}
+
 export class Board {
   readonly hex: Map<string, Hex>;
   readonly vertex: Map<string, GameView['board']['vertices'][number]>;
@@ -47,13 +63,8 @@ export class Board {
   /** Expected cards per 36 rolls from one settlement on this corner. The robber's hex counts for little. */
   yieldAt(vertexId: string): ResourceBag {
     const bag = emptyBag();
-    for (const hex of this.hexesAt(vertexId)) {
-      const share = pips(hex.number) * (hex.id === this.view.robber ? 0.3 : 1);
-      const resource = terrainResource(hex.terrain);
-      // Gold and volcanoes pay whatever is needed: count them as a little of everything.
-      if (resource) bag[resource] += share;
-      else if (hex.terrain === 'gold' || hex.terrain === 'volcano') for (const r of RESOURCES) bag[r] += share / 4;
-    }
+    for (const hex of this.hexesAt(vertexId))
+      addTileYield(bag, hex, hexPips(hex) * (hex.id === this.view.robber ? 0.3 : 1));
     return bag;
   }
 
@@ -123,6 +134,30 @@ export function routeGoalAt(view: GameView, vertexId: string): number {
   if (!goal || !self || self.route === null || self.routeDone) return 0;
   if (!routeCorners(view.board)[self.route]?.finish.has(vertexId)) return 0;
   return goal.points + (goal.required ? 3 : 0);
+}
+
+/**
+ * On maps that require building in the route's finish area to win: this is the bot's last
+ * settlement piece and the route isn't done, so that piece must go in the finish area. Spent
+ * anywhere else (with every city placed too), the bot could never win and a bot table never ends.
+ */
+export function routePieceReserved(view: GameView): boolean {
+  const self = view.players.find(p => p.id === view.selfId);
+  return !!view.board.rules?.routeGoal?.required && !!self && !self.routeDone && self.settlementsLeft <= 1;
+}
+
+/** Whether the bot may put a settlement on this corner now (see routePieceReserved). */
+export function maySettle(view: GameView, vertexId: string): boolean {
+  return !routePieceReserved(view) || routeGoalAt(view, vertexId) > 0;
+}
+
+/** The view with settlement spots the bot must not use (routePieceReserved) left out of its legal moves. */
+export function keepRoutePiece(view: GameView): GameView {
+  if (!routePieceReserved(view)) return view;
+  const settlements = view.legal.settlements.filter(id => maySettle(view, id));
+  return settlements.length === view.legal.settlements.length
+    ? view
+    : { ...view, legal: { ...view.legal, settlements } };
 }
 
 type Link = 'road' | 'ship';

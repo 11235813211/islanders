@@ -1,6 +1,8 @@
 # Training the Advanced bot
 
-Work in progress and what comes next: `training/PLAN.md`.
+Start with [how Advanced decides](ADVANCED.md), including its confirmed gaps and active
+versus inactive components. [EVIDENCE.md](EVIDENCE.md) reviews what past results establish;
+[PLAN.md](PLAN.md) sets the evidence gates for further work, using [STATISTICS.md](STATISTICS.md).
 
 Everything here runs on your machine (Node 24, `nvm use`); nothing ships to the Worker except
 `shared/bots/advanced/weights.json`. Commands:
@@ -14,25 +16,31 @@ worker threads, one per core minus one (`THREADS=n` to change). About 20 games/s
 
 The bot is `shared/bots/advanced/`:
 
-| Part              | File                     | Trained how                                                            |
-| ----------------- | ------------------------ | ---------------------------------------------------------------------- |
-| Starting spots    | `setup.ts`               | Draft lookahead (classical) scored by the setup network (`setup-fit`)  |
-| Build phase       | `choose.ts`, `value.ts`  | Each candidate move's result scored by the value network (`value-fit`) |
-| Build (no net)    | `turn.ts`, `economy.ts`  | Fixed-order planner with knobs (`tune`), the fallback                  |
-| Robber and pirate | `robber.ts`              | Knobs (`tune`)                                                         |
-| Trades            | `trade.ts`, `economy.ts` | Knobs (`tune`); hand value from goals                                  |
+| Part              | File                       | Trained how                                                           |
+| ----------------- | -------------------------- | --------------------------------------------------------------------- |
+| Starting spots    | `setup.ts`                 | Draft lookahead (classical) scored by the setup network (`setup-fit`) |
+| Build phase       | `turn.ts`, `economy.ts`    | Active fixed-order planner with knobs (`tune`)                        |
+| Value experiment  | `choose.ts`, `value.ts`    | Inactive; candidate results scored by a network (`value-fit`)         |
+| Plan experiment   | `plans.ts`, `plan-turn.ts` | Inactive; plans ranked by payoff and estimated wait                   |
+| Robber and pirate | `robber.ts`                | Knobs (`tune`)                                                        |
+| Trades            | `trade.ts`, `economy.ts`   | Knobs (`tune`); hand value from goals                                 |
 
 Knobs are the numbers in `params.ts` `KNOBS` (default, min, max). A **checkpoint**
 (`training/checkpoints/<name>.json`) is a set of knobs plus the setup and value networks, with its
 parent and notes on how it was made and scored.
 
-Network inputs are board-agnostic (dice odds per resource, variety, harbors, how good a spot each
-player can reach first), never tile positions, so the network can't memorize particular maps.
+Network inputs summarize dice odds per resource, variety, harbors, and which good spots each
+player can reach first. They omit tile coordinates; this does not rule out overfitting to the
+training map distribution. The reasons to keep the [alternative planner](PLAN.md#alternative-planner)
+and [value network](PLAN.md#value-network) inactive, and the evidence required to revisit them,
+are documented in the plan.
 
 ## Commands
 
-Measure (always on shared seeds; `--rotate` plays each seed once per seat, so a bot against
-itself scores exactly ×1.00):
+Measure (on shared initial seeds; `--rotate` plays each seed once per seat, so a bot against
+itself scores ×1.00 when every game finishes). Printed `±` values are standard errors,
+not 95% intervals. Use the final paired difference from `compare` for inference; single-arm
+`eval` errors and the gauntlet's weighted error have limits described in [STATISTICS.md](STATISTICS.md).
 - `eval --hero t1 --field intermediate --games 600 --rotate [--by-map] [--maps a,b] [--players 4] [--knobs '{"k":1}']`
   Win share vs fair share ("edge"), per-seat action counts hero vs field (how it plays
   differently), per-map table, and the seeds of games that never finished.
@@ -42,15 +50,18 @@ itself scores exactly ×1.00):
   saved candidates on fresh seeds.
 - `replay --seed 300868 --hero t1` one game inline, with the final state (for stuck games).
 - `search --seeds 50 [--screen 8 --confirm 32 --margin 1.5 --players 4]` the headroom probe
-  (PLAN step 1, `search.ts`): one seat searches its build decisions with rollouts of the shipped
-  bot on hidden facts resampled from its view; every seed once per seat. Slow: ~4.5 CPU-minutes
+  (historical probe, assessed in [EVIDENCE.md](EVIDENCE.md), `search.ts`): one seat searches its
+  build decisions with rollouts of the shipped bot on hidden facts resampled from its view;
+  every seed once per seat. Slow: ~4.5 CPU-minutes
   per game at the defaults.
 - `profile --games 10` single-thread timing; `scenarios` prints the map/size mix.
 - `replay --seed N --seat S` replays one game with the hero in seat S (as `eval --rotate` played it);
   a failing training game's error names its seed and map.
 - `--cartographers` (any command with a scenario filter): only maps that play Cartographers.
-- `boards` refreshes `boards/library.json` from the live site; with `ISLANDERS_AUTH=user:token`
-  it includes the admin-only "AI Training" boards, without it those are kept from the old snapshot.
+- `npm run boards` (= `boards`) refreshes `boards/library.json` from the live site; with
+  `ISLANDERS_AUTH=user:token` it includes the admin-only "AI Training" boards, without it those are
+  kept from the old snapshot. Training and evaluation play **only** the boards in that snapshot
+  (built-ins in code only when there is no snapshot); refresh before registering an experiment.
 
 Saved games (people opt in with "Save my games to improve the bots"; recorded only if every human
 at the table agreed; format in `shared/replay.ts`, storage in `server/recording.ts`, newest 500 kept):
@@ -69,7 +80,9 @@ at the table agreed; format in `shared/replay.ts`, storage in `server/recording.
   d924f4f (5), 6cd02ca (6–7), e9fc693 (8), 7755fe5 (9), a47da1c (10). Bot trade timing changed
   after a47da1c (2026-11-16), so newer engines don't replay any of them.
   In code, `replayGame(record, onMove)` in `training/replays.ts` gives the state before and after every step.
-- Delete unfinished games from `records.json` before studying (`winnerSeat` null); they add noise.
+- For a completed-game study, filter records with `winnerSeat` null and report the exclusion
+  count; preserve the source records. Candidate win-rate comparisons must retain unfinished
+  games in their denominators and report completion sensitivity.
 - Person vs bot, move by move (`record-disagree.ts`), in two halves:
   1. `records-positions --file records.json --only 3,4 --out pos.json` saves each of the person's
      moves with the position before it. Run it on the engine the games were played on: a git
@@ -108,7 +121,7 @@ diagnosis (`intermediate+t1:setup`; parts: setup, robber, build, trade, gold, di
 
 Scenarios (`scenarios.ts`, `scenarios --games 20000` prints the mix): the standard island at 2–6
 players (30% of games), the live library's "AI Training" boards (25%, Trainers 1–6 as of
-2026-11-10), and every other designed map (the rest), each at every size it supports.
+2026-11-10), and every other live library map (the rest), each at every size it supports.
 `boards/library.json` is a snapshot of `/api/boards`; refresh it by saving that URL there. With
 room settings varied: friendly robber, volcano rules, discoveries, road/ship links, discard limit,
 Seafarers on the standard island, number layout, 2 fewer points to win.
@@ -125,6 +138,8 @@ Seafarers on the standard island, number layout, 2 fewer points to win.
 ## Results log
 
 Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, all scenarios.
+Entries preserve the conclusions recorded at the time. For the current assessment, including
+uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](EVIDENCE.md).
 - Intermediate (old Advanced) control vs itself: ×0.93 on seeds 100000+ (seat rotation is not
   perfectly even across table sizes, so compare against this, not 1.00).
 - First hand-written Advanced: ×0.87. Parts swapped into Intermediate: build ×0.76 (too passive:
@@ -258,3 +273,23 @@ Newest last. Edge = hero win share / fair share, 1 hero vs Intermediate field, a
   road went elsewhere when the one road from its own road end would have reached v52 and cut red
   off), and 4 were built on a turn the person traded with a bot (TIGER28 turn 14: white accepted
   2 ore for wheat and ore for brick, which completed red's settlement).
+- Training maps (2026-11-16): `allMaps()` mixed every built-in in code with the live library, so
+  training and every eval played 7 built-ins deleted from the site (Outer Isles, Archipelago, The
+  Strait, Wide Sea, Small Isles, Compass Sea, and a 5–6 player "magnetic-north"; the owner's Magnetic
+  North is `new-base-board-12`, 2–4 players). Now only the snapshot (`npm run boards`). Earlier results
+  in this log, Cartographers ones especially, include those maps.
+- Income fix C1/C2 (2026-11-16, [ADVANCED.md](ADVANCED.md)): Advanced's income, spot, city, and robber
+  estimates count charted numbers, split tiles (half each), and relay stations as the engine pays
+  them; lodestone counts in the first expansion ranking. Vs `ref:advanced` (HEAD 4bcded4) with a
+  `ref:advanced` field, live boards: Cartographers +0.5% ±1.0% (300 seeds 3300000, 1067 games each;
+  charts 3.19 vs 3.03, survey ships 0.20 vs 0.17); 5–6 player Cartographers +1.4% ±0.7% (300 seeds
+  3500000, 1649 games; survey ships 0.29 vs 0.22); base 4p exactly 0 (identical games). Correct, safe,
+  no demonstrated gain. Single-thread time unchanged (283 vs 267 ms/game). Runs: [RUNS.md](RUNS.md).
+- Roadrace (2026-11-16, `new-base-board-11`, the only live map whose route finish is required to
+  win): 88% of bot games never ended. Bots spent their last settlement (or every ship) away from the
+  finish area, after which no seat could win. Now every level keeps its last settlement for the
+  finish (`keepRoutePiece` in `analysis.ts`, applied in `actWith`), and Advanced makes the finish its
+  first target and stops chasing Longest Road until it's built there. Vs `ref:advanced` (seeds
+  3700000, 100 seeds, 251 games): 68.5% vs 3.2%, +67% ±3.6%. All-Advanced tables still leave 10%
+  unfinished, all under `routeLinks: settlement` with every ship spent; Intermediate has no
+  route-first targeting yet (mixed tables 32% unfinished). Base and The Channel: identical games.

@@ -1,7 +1,7 @@
 import { hasAnswered } from '../rules';
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, RESOURCES } from '../types';
 import { advanced } from './advanced';
-import { goldChoice, specialBuild } from './analysis';
+import { goldChoice, keepRoutePiece, specialBuild } from './analysis';
 import { beginner } from './beginner';
 import { cartographersTurn, keepsLodestone } from './cartographers';
 import { splitGoldChoice } from './charting';
@@ -27,7 +27,8 @@ export function chooseBotAction(view: GameView, options: BotOptions = {}): GameA
 }
 
 /** The same, for any brain (training plays candidate brains this way). */
-export function actWith(brain: Brain, view: GameView, options: TurnOptions = {}): GameAction {
+export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}): GameAction {
+  const view = keepRoutePiece(given);
   if (view.phase === 'discard') {
     // Where discoveries count toward the limit, a bot gives them up only once its cards run out.
     const owed = view.pendingDiscards[view.selfId] ?? 0;

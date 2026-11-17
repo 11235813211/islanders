@@ -1,6 +1,6 @@
 import { boardIndex } from '../../seafaring';
 import { type GameView, RESOURCES } from '../../types';
-import { pips } from '../analysis';
+import { hexPips } from '../analysis';
 import type { Economy } from './economy';
 import { couldWinNext } from './endgame';
 
@@ -56,7 +56,7 @@ export function hexScore(econ: Economy, hexId: string): number {
       }
     }
   } else {
-    const p = pips(hex.number);
+    const p = hexPips(hex);
     for (const id of hex.vertexIds) {
       const b = view.buildings[id];
       if (!b) continue;
@@ -100,6 +100,6 @@ export function blockedOwnPips(view: GameView): number {
   if (!hex) return 0;
   return hex.vertexIds.reduce((n, id) => {
     const b = view.buildings[id];
-    return b?.playerId === view.selfId ? n + pips(hex.number) * (b.kind === 'city' ? 2 : 1) : n;
+    return b?.playerId === view.selfId ? n + hexPips(hex) * (b.kind === 'city' ? 2 : 1) : n;
   }, 0);
 }

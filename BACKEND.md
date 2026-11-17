@@ -77,6 +77,8 @@ Games are recorded only when players agree. The settings are in `server/recordin
 
 - The Advanced bot's numbers are in `shared/bots/advanced/params.ts` and `weights.json`. Read `training/README.md` before changing them.
 - Check bot strength: `node training/run.mjs eval --games 2000`. It takes about 2 minutes.
+- Bot game batches running now or recently, with why each runs and when it should finish: [training/RUNS.md](training/RUNS.md).
+- Training plays only the live site's boards. Refresh the copy it uses with `npm run boards`.
 
 ## Deploying and hosting
 

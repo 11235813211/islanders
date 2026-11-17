@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { BOTS } from '../shared/bots';
+import { Economy } from '../shared/bots/advanced/economy';
+import { TRAINED } from '../shared/bots/advanced/params';
+import { pips } from '../shared/bots/analysis';
 import { chartMove, splitMove } from '../shared/bots/charting';
 import { getView } from '../shared/engine';
 import { chartHexes } from '../shared/engine/legal';
+import { produce } from '../shared/engine/production';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { boardIndex } from '../shared/seafaring';
-import { RESOURCES, type Resource, type ResourceBag } from '../shared/types';
+import { type GameState, RESOURCES, type Resource, type ResourceBag } from '../shared/types';
 import { playBotGame } from './bot-harness';
 import { act, cartographersGame } from './fixtures';
 
@@ -81,5 +85,53 @@ describe('Cartographers tiles for the Advanced bot', () => {
     g.buildings[edge.a === far ? edge.b : edge.a] = { playerId: 'p1', kind: 'settlement' };
     expect(chartMove(getView(g, 'p0'))).toEqual({ type: 'chart-hex', hexId: hex.id });
     expect(chartMove(getView(g, 'p0'), advancedTiles)).toBeNull();
+  });
+});
+
+/** What the engine pays p0 per 36 rolls, by resource (choices and discoveries left out). */
+function enginePayout(g: GameState): ResourceBag {
+  const out = Object.fromEntries(RESOURCES.map(r => [r, 0])) as ResourceBag;
+  for (let total = 2; total <= 12; total++) {
+    if (total === 7) continue;
+    const paid = produce(structuredClone(g), total).p0;
+    for (const r of RESOURCES) out[r] += (paid?.[r] ?? 0) * pips(total);
+  }
+  return out;
+}
+
+describe('Advanced income on Cartographers maps', () => {
+  /** p0: a city on a tile charted to 6 and 5 (split into `split`), and a relay station on one of its sides. */
+  function chartedCity(split?: Resource) {
+    const { g, hex, index } = emptyBoard({});
+    g.board = structuredClone(g.board);
+    const tile = g.board.hexes.find(h => h.id === hex.id)!;
+    tile.number = 6;
+    tile.extra = [5];
+    if (split) tile.split = split;
+    g.buildings[tile.vertexIds[0]!] = { playerId: 'p0', kind: 'city' };
+    const relay = tile.vertexIds
+      .flatMap(v => index.vertex.get(v)!.edgeIds)
+      .find(e => index.edgeHexes.get(e)!.length === 2)!;
+    g.roads[relay] = 'p0';
+    g.relays = [relay];
+    return { g, tile };
+  }
+  const income = (g: GameState) => new Economy(getView(g, 'p0'), TRAINED.knobs).production;
+
+  it('counts charted numbers and relay stations as the engine pays them', () => {
+    const { g, tile } = chartedCity();
+    expect(income(g)).toEqual(enginePayout(g));
+    // Under the robber only the relay station still collects.
+    g.robber = tile.id;
+    expect(income(g)).toEqual(enginePayout(g));
+    expect(income(g).wheat).toBeGreaterThan(0);
+  });
+
+  it('counts a split tile as half of each resource', () => {
+    const before = income(chartedCity().g);
+    const after = income(chartedCity('ore').g);
+    const moved = before.wheat - after.wheat;
+    expect(moved).toBeGreaterThan(0);
+    expect(after.ore - before.ore).toBeCloseTo(moved);
   });
 });

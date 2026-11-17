@@ -24,7 +24,8 @@
     "art:new": "node scripts/new-art-version.mjs",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "icons": "node scripts/icons.ts"
+    "icons": "node scripts/icons.ts",
+    "boards": "node training/run.mjs boards"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",

@@ -30,7 +30,7 @@ let cachedMaps: BoardDesign[] | null = null;
 /** Ids of boards in the library's "AI Training" category (edge cases made for training). */
 const trainers = new Set<string>();
 
-/** Every designed map: built-ins, then library boards with ids not already built in. */
+/** Every designed map: the live library snapshot (built-ins only when there is no snapshot). */
 export function allMaps(): BoardDesign[] {
   if (cachedMaps) return cachedMaps;
   const path = LIBRARY.find(p => {
@@ -47,8 +47,9 @@ export function allMaps(): BoardDesign[] {
   const library = stored.boards.map(upgradeDesign);
   const training = new Set(stored.categories.filter(isAdminOnlyCategory).map(c => c.id));
   for (const b of library) if (training.has(b.categoryId)) trainers.add(b.id);
-  const ids = new Set(BUILTIN_BOARDS.map(b => b.id));
-  cachedMaps = [...BUILTIN_BOARDS, ...library.filter(b => !ids.has(b.id))];
+  // The snapshot is what the live site plays: built-ins deleted there (e.g. the 5–6 player
+  // "magnetic-north") must not be trained or measured on. Built-ins only stand in when there is none.
+  cachedMaps = path ? library : [...BUILTIN_BOARDS];
   return cachedMaps;
 }
 

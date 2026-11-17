@@ -8,7 +8,7 @@ import {
   vertexIsland,
 } from '../../seafaring';
 import { type Board, CLASSIC_RESOURCES, type GameView, type Resource } from '../../types';
-import { pips } from '../analysis';
+import { hexPips, pips } from '../analysis';
 
 /**
  * A resource's slot among the five the trained network knows, or -1 for lodestone (Cartographers),
@@ -113,13 +113,16 @@ function build(board: Board, seafaring: boolean): Geometry {
       const hex = index.hex.get(hexId)!;
       if (hex.noSetup) geo.noSetup[c] = 1;
       if (hex.terrain === 'volcano') geo.nearVolcano[c] = 1;
-      const p = pips(hex.number);
+      // Charted numbers count (Cartographers): the board object changes when a tile is charted.
+      const p = hexPips(hex);
       if (hex.terrain === 'sea' || hex.terrain === 'iceberg') geo.coast[c] = 1;
       if (!p) continue;
-      const slot = classicSlot(terrainResource(hex.terrain) ?? '');
-      if (slot >= 0) geo.pips[c * 5 + slot]! += p;
-      else if (hex.terrain === 'lodestone') geo.lodestone[c]! += p;
-      else if (hex.terrain === 'gold') geo.gold[c]! += p;
+      const resource = terrainResource(hex.terrain);
+      if (resource) {
+        // A split tile pays either of its two resources: half each.
+        const halves = hex.split ? [resource, hex.split] : [resource];
+        for (const r of halves) addPips(geo, c, r, p / halves.length);
+      } else if (hex.terrain === 'gold') geo.gold[c]! += p;
       else if (hex.terrain === 'volcano') geo.volcano[c]! += p;
       else if (hex.terrain === 'jungle') geo.jungle[c]! += p;
       else continue;
@@ -175,6 +178,13 @@ function build(board: Board, seafaring: boolean): Geometry {
     }
   }
   return geo;
+}
+
+/** Pips of one resource at corner `c`: the five classic ones by slot, lodestone apart. */
+function addPips(geo: Geometry, c: number, resource: Resource, p: number): void {
+  const slot = classicSlot(resource);
+  if (slot >= 0) geo.pips[c * 5 + slot]! += p;
+  else geo.lodestone[c]! += p;
 }
 
 /** Total pips at a corner (resources, gold, volcano, jungle). */

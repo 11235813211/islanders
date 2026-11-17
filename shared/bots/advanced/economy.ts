@@ -1,7 +1,18 @@
 import { emptyBag } from '../../engine/core';
-import { boardIndex } from '../../seafaring';
-import { type GameAction, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../types';
-import { Board, bagValue, COSTS, estimateHand, type Goal, pips, roadPaths, routeGoalAt } from '../analysis';
+import { boardIndex, terrainResource } from '../../seafaring';
+import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../../types';
+import {
+  addTileYield,
+  Board,
+  bagValue,
+  COSTS,
+  estimateHand,
+  type Goal,
+  hexPips,
+  maySettle,
+  roadPaths,
+  routeGoalAt,
+} from '../analysis';
 import { winningGold } from './endgame';
 import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
@@ -73,8 +84,9 @@ export class Economy {
     this.production = production;
     this.choicePips = choice;
     this.frontiers = view.players.map(p => this.frontier(p.id));
-    this.target = this.expansionTarget();
+    // The survey route first: spotWorth values lodestone only when there is one.
     this.survey = surveyRoute(this);
+    this.target = this.expansionTarget();
     if (knobs.planner < 0.5) {
       this.goals = this.goalOptions();
       return;
@@ -123,22 +135,28 @@ export class Economy {
     return this.view.likelyHands?.[playerId] ?? estimateHand(this.board, playerId);
   }
 
-  /** Pips by resource for a player, and pips from gold and paying volcanoes (a free choice). */
+  /**
+   * Pips by resource for a player, and pips from gold and paying volcanoes (a free choice). Charted
+   * numbers count; a split tile's pips go half to each of its resources; relay stations earn one
+   * card per tile beside them, robber or not (as `produce` in engine/production.ts pays them).
+   */
   productionOf(playerId: string): { production: ResourceBag; choice: number } {
     const production = emptyBag();
     let choice = 0;
     const index = boardIndex(this.view.board);
+    const add = (hex: Hex, times: number) => {
+      const p = hexPips(hex) * times;
+      if (!p) return;
+      if (terrainResource(hex.terrain)) addTileYield(production, hex, p);
+      else if (hex.terrain === 'gold' || (hex.terrain === 'volcano' && this.view.settings.volcanoGold)) choice += p;
+    };
     for (const [vertexId, b] of Object.entries(this.view.buildings)) {
       if (b.playerId !== playerId) continue;
-      const times = b.kind === 'city' ? 2 : 1;
-      for (const hexId of index.vertex.get(vertexId)!.hexIds) {
-        const hex = index.hex.get(hexId)!;
-        const p = pips(hex.number) * times * (hex.id === this.view.robber ? 0 : 1);
-        if (!p) continue;
-        if (RESOURCES.includes(hex.terrain as Resource)) production[hex.terrain as Resource] += p;
-        else if (hex.terrain === 'gold' || (hex.terrain === 'volcano' && this.view.settings.volcanoGold)) choice += p;
-      }
+      for (const hexId of index.vertex.get(vertexId)!.hexIds)
+        if (hexId !== this.view.robber) add(index.hex.get(hexId)!, b.kind === 'city' ? 2 : 1);
     }
+    for (const edgeId of this.view.relays ?? [])
+      if (this.view.roads[edgeId] === playerId) for (const hex of index.edgeHexes.get(edgeId)!) add(hex, 1);
     return { production, choice };
   }
 
@@ -203,16 +221,26 @@ export class Economy {
     for (const id of Object.keys(this.view.buildings)) occupied[this.geo.indexOf.get(id)!] = 1;
     for (const [vertexId, path] of paths) {
       const c = this.geo.indexOf.get(vertexId)!;
-      if (path.distance === 0 && this.geo.land[c] && isOpen(this.geo, occupied, c)) {
+      if (path.distance === 0 && this.geo.land[c] && isOpen(this.geo, occupied, c) && maySettle(this.view, vertexId)) {
         this.spots++;
         this.spotIds.push(vertexId);
       }
     }
     // Nearby spots first; when every one is gone (late on a small map), anywhere still reachable.
+    // A required route finish comes first: without it the bot can't win (see routeUnfinished).
+    if (this.routeUnfinished) {
+      const finish = this.bestTarget(paths, Infinity, true);
+      if (finish) return finish;
+    }
     return this.bestTarget(paths, this.view.seafaring ? 7 : 5) ?? this.bestTarget(paths, Infinity);
   }
 
-  private bestTarget(paths: ReturnType<typeof roadPaths>, reach: number): Target | null {
+  /** The map requires building in our route's finish area to win, and we haven't yet. */
+  get routeUnfinished(): boolean {
+    return !!this.view.board.rules?.routeGoal?.required && !this.self.routeDone;
+  }
+
+  private bestTarget(paths: ReturnType<typeof roadPaths>, reach: number, finishOnly = false): Target | null {
     const occupied = new Uint8Array(this.geo.n);
     for (const id of Object.keys(this.view.buildings)) occupied[this.geo.indexOf.get(id)!] = 1;
     let best: Target | null = null;
@@ -221,7 +249,8 @@ export class Economy {
       // A route's finish area is worth heading for however far it is.
       if (path.distance === 0 || (path.distance > reach && !routeGoalAt(this.view, vertexId))) continue;
       const c = this.geo.indexOf.get(vertexId)!;
-      if (!this.geo.land[c] || !isOpen(this.geo, occupied, c)) continue;
+      if (!this.geo.land[c] || !isOpen(this.geo, occupied, c) || !maySettle(this.view, vertexId)) continue;
+      if (finishOnly && !routeGoalAt(this.view, vertexId)) continue;
       const them = this.opponentDistance(c);
       const race =
         them > path.distance ? 1 : them === path.distance ? 1 - this.knobs.racePenalty / 2 : 1 - this.knobs.racePenalty;

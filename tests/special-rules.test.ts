@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { keepRoutePiece } from '../shared/bots/analysis';
 import { applyAction, getActivePlayerId, getView, normalizeGame } from '../shared/engine';
 import { resourceCount } from '../shared/engine/core';
 import { type BoardDesign, parseDesign, roundForward, setupSequence, specialRules, tileKey } from '../shared/maps';
@@ -207,6 +208,24 @@ describe('routes', () => {
     game = applyAction(game, 'p0', { type: 'build-city', vertexId: own[1]![0] }, seeded(), TEST_NOW);
     expect(game.phase).toBe('finished');
     expect(game.winnerId).toBe('p0');
+  });
+
+  it('bots keep their last settlement for a required finish area', () => {
+    const game = finishSetup(started(routeDesign({ required: true, points: 0 })));
+    const finish = game.board.rules!.routes![0]!.finish[0]!;
+    const finishHex = game.board.hexes.find(h => keyOf(h) === finish)!;
+    const inFinish = finishHex.vertexIds[0]!;
+    const elsewhere = game.board.vertices.find(v => !finishHex.vertexIds.includes(v.id))!.id;
+    const view = structuredClone(getView(game, 'p0'));
+    view.legal.settlements = [elsewhere, inFinish];
+    const me = view.players.find(p => p.id === 'p0')!;
+    me.settlementsLeft = 2;
+    expect(keepRoutePiece(view).legal.settlements).toEqual([elsewhere, inFinish]);
+    // Spent outside the finish area, the last piece would leave the bot unable ever to win.
+    me.settlementsLeft = 1;
+    expect(keepRoutePiece(view).legal.settlements).toEqual([inFinish]);
+    me.routeDone = true;
+    expect(keepRoutePiece(view).legal.settlements).toEqual([elsewhere, inFinish]);
   });
 
   it('an optional route scores its points once the finish area is reached', () => {

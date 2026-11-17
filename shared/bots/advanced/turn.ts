@@ -157,7 +157,8 @@ export function buildStep(econ: Economy, options: TurnOptions): GameAction {
   if (play) return play;
   if (view.legal.cities.length) return { type: 'build-city', vertexId: bestCity(econ) };
   if (view.legal.settlements.length) return { type: 'build-settlement', vertexId: bestSettlement(econ) };
-  const award = longestRoadMove(econ);
+  // Pieces for a required route finish go there, not to Longest Road.
+  const award = econ.routeUnfinished && econ.target ? null : longestRoadMove(econ);
   if (award) return award.action;
   const goal = econ.bestGoal();
   // Saving for a survey ship: sail out to open sea first.
