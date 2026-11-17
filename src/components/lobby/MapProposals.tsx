@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-react';
+import { Check, Eye, X } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { isLargeGame } from '../../../shared/engine';
@@ -8,16 +8,16 @@ import MapThumbnail from '../maps/MapThumbnail';
 import { LARGE_ISLAND, STANDARD_ISLAND } from '../maps/mapInfo';
 import './map-proposals.css';
 
-/** The tiles a proposal will play: the standard island, or the map's layout for its table size. */
-function proposalTiles(proposal: MapProposal, boards: BoardDesign[] | undefined, players: number) {
-  if (proposal.mapId === 'base') return (isLargeGame(players) ? LARGE_ISLAND : STANDARD_ISLAND).tiles;
-  const found = boards?.find(b => b.id === proposal.mapId);
-  return found ? designFor(found, proposal.layoutFor ?? players).tiles : [];
+/** The map a proposal names: the base island for the table's size, or a library map (once loaded). */
+function proposalDesign(proposal: MapProposal, boards: BoardDesign[] | undefined, players: number) {
+  if (proposal.mapId === 'base') return isLargeGame(players) ? LARGE_ISLAND : STANDARD_ISLAND;
+  return boards?.find(b => b.id === proposal.mapId);
 }
 
 /**
  * Maps players have put forward, each a small preview with a square per backer in their seat
- * color. Tapping one backs it (or stops backing it); the host also gets Use and Decline.
+ * color. Tapping one backs it (or stops backing it); everyone can View it, and the host also gets
+ * Use and Decline.
  */
 export default function MapProposals({
   view,
@@ -25,12 +25,15 @@ export default function MapProposals({
   busy,
   boards,
   send,
+  open,
 }: {
   view: GameView;
   host: boolean;
   busy: boolean;
   boards: BoardDesign[] | undefined;
   send: (action: GameAction) => void;
+  /** Show this map large, at the proposed layout. */
+  open: (design: BoardDesign, layoutFor: number | null) => void;
 }) {
   if (!view.mapProposals.length) return null;
   const players = view.players.length;
@@ -46,6 +49,20 @@ export default function MapProposals({
         {view.mapProposals.map(p => {
           const mine = p.by.includes(view.selfId);
           const names = p.by.map(id => seat(id)?.name ?? '').join(', ');
+          const design = proposalDesign(p, boards, players);
+          const viewButton = (
+            <button
+              type="button"
+              className="map-proposal-view"
+              aria-label={`View ${p.name}`}
+              data-tip={host ? 'View' : undefined}
+              disabled={!design}
+              onClick={() => design && open(design, p.layoutFor)}
+            >
+              <Eye size={15} />
+              {!host && 'View'}
+            </button>
+          );
           return (
             <article className="map-proposal" key={`${p.mapId}:${p.layoutFor}`}>
               <button
@@ -57,7 +74,7 @@ export default function MapProposals({
                 disabled={busy || view.role !== 'player'}
                 onClick={() => back(p)}
               >
-                <MapThumbnail tiles={proposalTiles(p, boards, players)} />
+                <MapThumbnail tiles={design ? designFor(design, p.layoutFor ?? players).tiles : []} />
                 <span className="map-proposal-backers" aria-hidden="true">
                   {p.by.map(id => (
                     <i key={id} style={playerVars(seat(id)?.color) as CSSProperties} />
@@ -65,10 +82,12 @@ export default function MapProposals({
                 </span>
                 <span className="map-proposal-name">{p.name}</span>
               </button>
-              {host && (
+              {host ? (
                 <span className="map-proposal-host">
+                  {viewButton}
                   <button
                     type="button"
+                    className="map-proposal-use"
                     aria-label={`Use ${p.name}`}
                     data-tip="Use"
                     disabled={busy}
@@ -86,6 +105,8 @@ export default function MapProposals({
                     <X size={15} />
                   </button>
                 </span>
+              ) : (
+                viewButton
               )}
             </article>
           );

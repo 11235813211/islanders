@@ -287,7 +287,7 @@
   margin-left: auto;
 }
 
-/* An expansion's settings inside Variations: purple for Cartographers, red for volcanoes and jungles. */
+/* An expansion's settings inside Variations: blue for Seafarers, red for volcanoes and jungles, purple for Cartographers. */
 .setting-theme {
   min-width: 0;
   margin: 6px -6px 10px;
@@ -295,6 +295,10 @@
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
   background: var(--tone-soft);
+}
+.setting-theme.theme-seafarers {
+  --tone: #1d5f86;
+  --tone-soft: #e6f1f8;
 }
 .setting-theme.theme-cartographers {
   --tone: #7b4fb0;

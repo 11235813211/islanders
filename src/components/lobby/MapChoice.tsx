@@ -1,7 +1,7 @@
 import { AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useState } from 'react';
 import { isLargeGame } from '../../../shared/engine';
-import { designFor } from '../../../shared/maps';
+import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView } from '../../../shared/types';
 import { useBoardLibrary } from '../../hooks/useBoardLibrary';
 import MapBrowser from '../maps/MapBrowser';
@@ -25,7 +25,10 @@ export default function MapChoice({
   busy: boolean;
   send: (action: GameAction) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
+  // Open maps browser, maybe straight to one map (a proposal's View).
+  const [browsing, setBrowsing] = useState<{ initial?: { design: BoardDesign; layoutFor: number | null } } | null>(
+    null,
+  );
   const { library, error } = useBoardLibrary();
   const map = view.map;
   const players = view.players.length;
@@ -51,7 +54,7 @@ export default function MapChoice({
           Base game
         </button>
         {/* biome-ignore lint/a11y/useSemanticElements: a two-way segmented control of buttons. */}
-        <button type="button" role="radio" aria-checked={!!map} disabled={busy} onClick={() => setBrowsing(true)}>
+        <button type="button" role="radio" aria-checked={!!map} disabled={busy} onClick={() => setBrowsing({})}>
           {host ? 'Choose map' : canPick ? 'Propose map' : 'View maps'}
         </button>
       </div>
@@ -61,12 +64,19 @@ export default function MapChoice({
           <h3>{map?.name ?? base.name}</h3>
           <p>{map ? roomMapPlayers(map) : playerRange(base.players)} players · a new layout every game</p>
         </div>
-        <button type="button" className="button secondary" disabled={busy} onClick={() => setBrowsing(true)}>
+        <button type="button" className="button secondary" disabled={busy} onClick={() => setBrowsing({})}>
           <MapIcon size={17} />
           Maps
         </button>
       </div>
-      <MapProposals view={view} host={host} busy={busy} boards={library?.boards} send={send} />
+      <MapProposals
+        view={view}
+        host={host}
+        busy={busy}
+        boards={library?.boards}
+        send={send}
+        open={(design, layoutFor) => setBrowsing({ initial: { design, layoutFor } })}
+      />
       {warning && (
         <p className="map-warning" role="note">
           <AlertTriangle size={17} />
@@ -78,16 +88,17 @@ export default function MapChoice({
           library={library}
           error={error}
           players={players}
-          currentId={map?.id ?? null}
+          currentId={map?.id ?? base.id}
           currentLayout={map?.layout ?? null}
           canChoose={canPick}
           proposing={!host}
+          initial={browsing.initial}
           choose={(chosen, layoutFor) => {
             const type = host ? 'choose-map' : 'propose-map';
             send({ type, mapId: chosen.id, ...(layoutFor === undefined ? {} : { layoutFor }) });
-            setBrowsing(false);
+            setBrowsing(null);
           }}
-          close={() => setBrowsing(false)}
+          close={() => setBrowsing(null)}
         />
       )}
     </div>

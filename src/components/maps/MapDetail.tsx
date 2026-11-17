@@ -59,6 +59,7 @@ function LayoutSwitch({ index, count, go }: { index: number; count: number; go: 
 export default function MapDetail({
   design,
   players,
+  layoutFor = players,
   canChoose,
   proposing = false,
   current,
@@ -68,6 +69,8 @@ export default function MapDetail({
 }: {
   design: BoardDesign;
   players: number;
+  /** Show the layout for this many players first (default: the room's). */
+  layoutFor?: number;
   canChoose: boolean;
   /** Choosing proposes the map to the host instead. */
   proposing?: boolean;
@@ -83,7 +86,7 @@ export default function MapDetail({
   const [index, setIndex] = useState(() =>
     Math.max(
       0,
-      layouts.findIndex(layout => fits(layout, players)),
+      layouts.findIndex(layout => fits(layout, layoutFor)),
     ),
   );
   const shown = layouts[index] ?? design;

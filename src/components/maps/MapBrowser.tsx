@@ -37,6 +37,7 @@ export default function MapBrowser({
   closeLabel = 'Close maps',
   home,
   editing,
+  initial,
 }: {
   library: BoardLibrary | null;
   error?: string | null;
@@ -55,9 +56,11 @@ export default function MapBrowser({
   /** Shows a Home button that leaves this screen entirely (the editor's browser). */
   home?: () => void;
   editing?: LibraryActions;
+  /** Open straight to this map (a lobby proposal), showing the layout for `layoutFor` players. */
+  initial?: { design: BoardDesign; layoutFor: number | null };
 }) {
   const [count, setCount] = useState<number | null>(editing ? null : Math.min(6, Math.max(2, players)));
-  const [open, setOpen] = useState<BoardDesign | null>(null);
+  const [open, setOpen] = useState<BoardDesign | null>(initial?.design ?? null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
   useEffect(() => {
@@ -126,6 +129,7 @@ export default function MapBrowser({
         <MapDetail
           design={open}
           players={players}
+          layoutFor={open === initial?.design ? (initial.layoutFor ?? undefined) : undefined}
           canChoose={canChoose}
           proposing={proposing}
           current={open.id === currentId}

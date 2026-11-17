@@ -50,9 +50,13 @@ export interface SettingDef {
   /** A question to confirm before this change, or null to apply it straight away. */
   confirm?: (view: GameView, value: GameSettings[keyof GameSettings]) => string | null;
 }
-export type Theme = 'tropics' | 'cartographers';
+export type Theme = 'seafarers' | 'tropics' | 'cartographers';
 /** Titles of the themed boxes, in the order they appear. */
-export const THEMES: Record<Theme, string> = { tropics: 'Volcanoes and jungles', cartographers: 'Cartographers' };
+export const THEMES: Record<Theme, string> = {
+  seafarers: 'Seafarers',
+  tropics: 'Volcanoes and jungles',
+  cartographers: 'Cartographers',
+};
 export interface Category {
   id: string;
   title: string;
@@ -68,9 +72,12 @@ export const CATEGORIES: Category[] = [
     settings: [
       {
         key: 'seafarers',
-        label: 'Seafarers',
-        hint: 'Ships and the pirate. On the standard island, this adds a ring of sea around it.',
+        theme: 'seafarers',
+        label: 'Ships and pirate',
+        hint: 'Off: no ships or pirate, so other islands can’t be reached.',
         icon: <Sailboat size={20} />,
+        // Only maps made for Seafarers offer it (or a room that has it on, so it can be turned off).
+        when: view => view.features.sea || view.settings.seafarers,
         control: { kind: 'toggle' },
         confirm: (view, on) =>
           !on && view.features.sea
@@ -79,6 +86,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'routeLinks',
+        theme: 'seafarers',
         label: 'Roads meet ships',
         hint: 'Anywhere along your route, or only at your settlement or city (the published rule).',
         icon: <Route size={20} />,

@@ -236,6 +236,7 @@ export default function RoomLobby({
         <MapChoice view={view} host={host} busy={busy} send={send} />
         {CATEGORIES.map(category => {
           const shown = category.settings.filter(def => def.when?.(view) ?? true);
+          if (!shown.length) return null;
           return (
             <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
               <legend>{category.title}</legend>
