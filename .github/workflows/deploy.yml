@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # After Verify: only a successful run for a push to main (not a pull request).
     if: >-
       github.event_name == 'workflow_dispatch' ||

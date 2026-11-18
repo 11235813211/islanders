@@ -16,7 +16,7 @@ concurrency:
 jobs:
   # Lint, unit tests, and build: fast, and independent of the browser tests below.
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
 
   # Browser tests, split across two runners that run at the same time.
   browsers:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     strategy:
       fail-fast: false
@@ -45,7 +45,7 @@ jobs:
 
   # Tests that play whole games in real time: one runner of their own so they don't hold up the others.
   browsers-slow:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
