@@ -1,6 +1,7 @@
 import { NUMBER_LEVELS } from './balance';
 import { closedTiles, isLand, islandOf } from './edit';
 import { fogIslandOf, fogIslandsOf, fogKinds, fogMixOf, upgradeFog } from './fog';
+import { landMixOf, upgradeIslandMixes } from './land-mix';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -91,8 +92,7 @@ export function randomTerrains(design: BoardDesign, island: DesignTile[]): FillK
   const open = island.filter(t => t.number === undefined);
   const kinds = new Set<string>(open.map(t => t.kind));
   if (kinds.has('land')) {
-    const anchor = island.find(t => design.islandPools?.[tileKey(t.q, t.r)]);
-    const pool = anchor ? design.islandPools![tileKey(anchor.q, anchor.r)]! : design.pool;
+    const pool = landMixOf(island)?.pool ?? design.pool;
     const mix = Object.values(pool ?? {}).some(w => (w ?? 0) > 0) ? pool : BASE_POOL;
     for (const [k, w] of Object.entries(mix)) if ((w ?? 0) > 0) kinds.add(k);
   }
@@ -121,13 +121,13 @@ type OldTile = DesignTile & { rich?: number; numberGroup?: string };
 const oldLevel = (level: number) => Math.sign(level) * Math.round((Math.abs(level) * NUMBER_LEVELS) / 4);
 
 /**
- * Boards saved before each fog island had its own mix (see upgradeFog), or before each island had
- * its own number levels: richer closed islands (`richIslands`, then each tile's `rich`), board-wide
+ * Boards saved before each fog island had its own mix (see upgradeFog), before island land mixes
+ * sat on their tiles (see upgradeIslandMixes), or before each island had its own number levels: richer closed islands (`richIslands`, then each tile's `rich`), board-wide
  * terrain bias (`numberBias`), and shared profiles (`numbers`, `numberGroups`) all become levels on
  * the tiles they applied to.
  */
 export function upgradeDesign(saved: BoardDesign): BoardDesign {
-  const design = upgradeFog(saved);
+  const design = upgradeIslandMixes(upgradeFog(saved));
   const { richIslands, numberBias, numbers, numberGroups, ...rest } = design as OldDesign;
   const layouts = [design, ...(design.versions ?? [])];
   const oldTiles = layouts.some(l => l.tiles.some(t => 'rich' in t || 'numberGroup' in t));

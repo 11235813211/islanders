@@ -1,0 +1,64 @@
+/* The lobby's art style row and its preview dialog. */
+.setting-control-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.setting-group .setting-row .art-style-view {
+  box-sizing: border-box;
+  min-height: 38px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+.art-style-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.art-style {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d8e4e6;
+  border-radius: 8px;
+}
+.art-style header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.art-style strong {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.art-style-pieces {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  justify-items: center;
+}
+.art-style-pieces .piece-icon {
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+@media (max-width: 420px) {
+  .setting-row:has(.setting-control-group) {
+    flex-wrap: wrap;
+  }
+  .setting-control-group {
+    width: 100%;
+  }
+  .setting-control-group select {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+}

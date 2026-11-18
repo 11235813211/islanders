@@ -33,9 +33,8 @@ function mapFeatures(state: GameState): GameView['features'] {
     fogLand: fogLandShare(design),
     sea: boardExpansions(design).includes('seafarers'),
     volcano:
-      design.tiles.some(t => t.kind === 'volcano') ||
+      design.tiles.some(t => t.kind === 'volcano' || draws(t.landMix?.pool)) ||
       draws(design.pool) ||
-      Object.values(design.islandPools ?? {}).some(draws) ||
       fogMayErupt(design),
   };
 }

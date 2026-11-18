@@ -125,6 +125,23 @@ test('an editor draws a board with the mouse and modifier keys, fills it, and sa
   await numbers.getByRole('button', { name: 'Gold richer' }).click();
   await expect(numbers.getByRole('group', { name: 'Gold' })).toContainText('Richer');
   await expect(page.locator('.island-leaning')).toHaveText('Richer');
+  // This island's own land mix: the panel says which mix it edits, and offers the copy buttons.
+  const landMix = page.getByRole('region', { name: 'Random land mix' });
+  await expect(landMix.getByText('Whole board.')).toBeVisible();
+  await expect(landMix.getByText('Copy to')).toBeHidden();
+  await landMix.getByLabel(/^Own mix for this island/).check();
+  await expect(landMix.getByText('This island.')).toBeVisible();
+  await landMix.getByLabel('Use Volcano', { exact: true }).click();
+  const copyAll = landMix.getByRole('button', { name: 'All islands' });
+  await copyAll.click();
+  await expect(copyAll).toHaveAttribute('aria-pressed', 'true');
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (await landMix.isVisible()) await expectNoSpill(landMix);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await landMix.screenshot({ path: 'test-results/editor-island-mix.png' });
+  await landMix.getByLabel(/^Own mix for this island/).uncheck();
   // A version of the board for five and six players.
   await page.getByRole('button', { name: 'Add a version for other player counts' }).click();
   await expect(page.getByRole('tab', { name: '5–6' })).toHaveAttribute('aria-selected', 'true');

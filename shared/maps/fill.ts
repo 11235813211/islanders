@@ -8,18 +8,18 @@ import { type BoardDesign, type DesignTile, tileKey } from './types';
 
 /**
  * The editor's fills and their undos, and link groups. Fills make random pieces concrete with a
- * balanced draw and leave linked pieces alone: a link group is either random together or set to
- * one resource together (see setGroupKind).
+ * balanced draw and leave linked and "Not A" pieces alone: a link group is either random together
+ * or set to one resource together (see setGroupKind), and "Not A" depends on what A gets each game.
  */
 
-/** Turn every unlinked random land tile into the terrain a balanced draw gives it. */
+/** Turn every random land tile without a link or "Not" mark into the terrain a balanced draw gives it. */
 export function fillLand(design: BoardDesign, random: () => number = Math.random): BoardDesign {
   const { board } = buildBoard(design, random);
   const drawn = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h.terrain]));
   return tidy({
     ...design,
     tiles: design.tiles.map(t =>
-      t.kind === 'land' && !t.link ? { ...t, kind: drawn.get(tileKey(t.q, t.r)) ?? 'land' } : t,
+      t.kind === 'land' && !t.link && !t.notLink ? { ...t, kind: drawn.get(tileKey(t.q, t.r)) ?? 'land' } : t,
     ),
   });
 }
@@ -53,13 +53,15 @@ export function placeHarbors(design: BoardDesign, random: () => number = Math.ra
   return { ...design, harbors: [...design.harbors, ...extra] };
 }
 
-/** Give every unlinked random harbor a kind from a balanced draw (fixed and excluded kinds respected). */
+/** Give every random harbor without a link or "Not" mark a kind from a balanced draw (fixed and excluded kinds respected). */
 export function fillHarbors(design: BoardDesign, random: () => number = Math.random): BoardDesign {
   const kinds = drawHarborKinds(design, random);
   return {
     ...design,
     harbors: design.harbors.map(h =>
-      h.kind === 'random' && !h.link ? { ...h, kind: kinds.get(`${h.q},${h.r},${h.side}`) ?? 'random' } : h,
+      h.kind === 'random' && !h.link && !h.notLink
+        ? { ...h, kind: kinds.get(`${h.q},${h.r},${h.side}`) ?? 'random' }
+        : h,
     ),
   };
 }

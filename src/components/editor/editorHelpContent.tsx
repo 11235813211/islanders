@@ -160,7 +160,7 @@ export const EDITOR_HELP: EditorHelpTab[] = [
       {
         icon: <MapIcon size={ICON} />,
         title: 'Island mix',
-        text: 'Select a tile and tick Own mix for this island to give one island its own shares.',
+        text: 'Select a tile and tick Own mix for this island. Only that island uses it. Copy to gives it to other islands.',
       },
       {
         icon: <Shuffle size={ICON} />,

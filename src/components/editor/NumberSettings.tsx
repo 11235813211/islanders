@@ -1,4 +1,4 @@
-import { Check, Minus, Plus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { type BoardDesign, type FillKind, NUMBER_KINDS, type NumberLevels } from '../../../shared/maps';
 import { NUMBER_LEVELS } from '../../../shared/maps/balance';
@@ -14,19 +14,13 @@ import {
 } from '../../../shared/maps/numbers';
 import { type DesignTile, tileKey } from '../../../shared/maps/types';
 import { TileIcon } from './BrushPicker';
+import CopyTo, { LAND_AND_FOG_SETS } from './CopyTo';
 import type { EditorSelection } from './EditorCanvas';
 import { levelHint, levelName, levelTone } from './levels';
 import { KIND_LABELS } from './tools';
 import './numbers.css';
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
-
-const SETS = [
-  { which: 'all', label: 'All islands' },
-  { which: 'closed', label: 'Closed islands' },
-  { which: 'open', label: 'Open islands' },
-  { which: 'fog', label: 'Fog' },
-] as const;
 
 /** One labeled − value + control. A null value shows "Mixed" and steps from `from`. */
 function Stepper({
@@ -184,27 +178,12 @@ export default function NumberSettings({
               />
             ))}
           </div>
-          <div className="number-apply">
-            <span className="inspector-label">Copy to</span>
-            <div className="chip-row wrap">
-              {SETS.map(({ which, label }) => {
-                const targets = islandSet(design, which);
-                const done = Object.keys(levels).length > 0 && allHave(design, targets, levels);
-                return (
-                  <button
-                    key={which}
-                    type="button"
-                    aria-pressed={done}
-                    disabled={!targets.size}
-                    onClick={() => edit(d => setIslandLevels(d, islandSet(d, which), levels))}
-                  >
-                    {done && <Check size={14} />}
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <CopyTo
+            design={design}
+            sets={LAND_AND_FOG_SETS}
+            done={targets => Object.keys(levels).length > 0 && allHave(design, targets, levels)}
+            copy={which => edit(d => setIslandLevels(d, islandSet(d, which), levels))}
+          />
         </div>
       )}
       {island && kinds.length > 0 && (

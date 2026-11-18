@@ -1,7 +1,10 @@
 import { AlertTriangle } from 'lucide-react';
-import { type BoardDesign, type FillKind, POOL_PRESETS, type Pool, tileKey } from '../../../shared/maps';
+import { type BoardDesign, type FillKind, type LandMix, POOL_PRESETS, type Pool, tileKey } from '../../../shared/maps';
 import { designWarnings, islandOf } from '../../../shared/maps/edit';
+import { allHaveMix, landMixOf, setIslandMix } from '../../../shared/maps/land-mix';
+import { islandSet } from '../../../shared/maps/numbers';
 import { POOL_KINDS } from '../../../shared/maps/validate';
+import CopyTo, { LAND_SETS } from './CopyTo';
 import type { EditorSelection } from './EditorCanvas';
 import FogSettings from './FogSettings';
 import PoolRow from './PoolRow';
@@ -17,37 +20,39 @@ const PRESETS: { id: keyof typeof POOL_PRESETS; label: string; hint: string }[] 
   { id: 'all', label: 'All', hint: 'Every terrain, including icebergs on the sea' },
 ];
 
-/** The island the selected tile is on, and the key its own mix is stored under (if it has one). */
+/** The island the selected tile is on: its tile keys, size, and its own mix (if it has one). */
 function selectedIsland(design: BoardDesign, selection: EditorSelection) {
   if (selection?.kind !== 'tile') return null;
   const tiles = islandOf(design, selection.q, selection.r);
   if (!tiles.length) return null;
-  const keys = tiles.map(t => tileKey(t.q, t.r));
-  const anchor = keys.find(k => design.islandPools?.[k]) ?? null;
-  return { size: tiles.length, anchor, start: tileKey(selection.q, selection.r) };
+  return { keys: new Set(tiles.map(t => tileKey(t.q, t.r))), size: tiles.length, mix: landMixOf(tiles) };
 }
 
-/** Set (or with null, remove) one island's own mix. */
-function setIslandPool(design: BoardDesign, key: string, pool: Pool | null): BoardDesign {
-  const { [key]: _old, ...rest } = design.islandPools ?? {};
-  const islandPools = pool ? { ...rest, [key]: pool } : rest;
-  const { islandPools: _all, ...base } = design;
-  const next = Object.keys(islandPools).length ? { ...base, islandPools } : base;
-  return pool ? next : setExactKinds(next, key, []);
-}
+/** The terrains the board's mix gives as exact counts. */
+const boardExact = (design: BoardDesign) => design.exactMix?.[''] ?? [];
 
-/** Set which terrains of one mix ('' for the board's) are exact counts. */
-function setExactKinds(design: BoardDesign, key: string, kinds: FillKind[]): BoardDesign {
-  const { [key]: _old, ...rest } = design.exactMix ?? {};
-  const exactMix = kinds.length ? { ...rest, [key]: kinds } : rest;
+/** Set which terrains of the board's mix are exact counts. */
+function setBoardExact(design: BoardDesign, kinds: FillKind[]): BoardDesign {
   const { exactMix: _all, ...base } = design;
-  return Object.keys(exactMix).length ? { ...base, exactMix } : base;
+  return kinds.length ? { ...base, exactMix: { '': kinds } } : base;
 }
 
-/** Mark one terrain of a mix exact or not. */
-function withExact(design: BoardDesign, key: string, kind: FillKind, on: boolean): BoardDesign {
-  const kinds = (design.exactMix?.[key] ?? []).filter(k => k !== kind);
-  return setExactKinds(design, key, on ? [...kinds, kind] : kinds);
+/** `kinds` with one terrain marked exact or not. */
+const markExact = (kinds: FillKind[], kind: FillKind, on: boolean) => [
+  ...kinds.filter(k => k !== kind),
+  ...(on ? [kind] : []),
+];
+
+/** What the mix panel says it is editing, so an edit never lands on the wrong mix unnoticed. */
+function MixScope({ own, others }: { own: boolean; others: boolean }) {
+  return (
+    <p className="inspector-hint">
+      <strong>{own ? 'This island.' : 'Whole board.'}</strong>{' '}
+      {own
+        ? 'Only random land on this island draws from this mix.'
+        : `Random land draws from this mix${others ? ', except islands with their own.' : '.'}`}
+    </p>
+  );
 }
 
 /** Says which terrains are exact counts and that the rest share what's left. */
@@ -79,22 +84,19 @@ export default function BoardSettings({
   const numbered = design.tiles.filter(t => t.number !== undefined).length;
   const warnings = designWarnings(design);
   const island = selectedIsland(design, selection);
-  const ownKey = island?.anchor ?? null;
-  const pool: Pool = ownKey ? design.islandPools![ownKey]! : design.pool;
-  const setPool = (next: Pool) =>
-    edit(d => (ownKey ? setIslandPool(d, ownKey, next) : { ...d, pool: next }), `pool-${ownKey ?? 'board'}`);
-  const mixKey = ownKey ?? '';
-  const exact = new Set(design.exactMix?.[mixKey] ?? []);
+  const own: LandMix | undefined = island?.mix;
+  const pool: Pool = own?.pool ?? design.pool;
+  const exactKinds = own ? (own.exact ?? []) : boardExact(design);
+  const exact = new Set(exactKinds);
+  const group = `pool-${own ? [...island!.keys][0] : 'board'}`;
+  /** Write the mix being shown: the island's own, or the board's. */
+  const writeMix = (d: BoardDesign, next: Pool, kinds: FillKind[]) =>
+    own ? setIslandMix(d, island!.keys, { pool: next, exact: kinds }) : setBoardExact({ ...d, pool: next }, kinds);
+  const setPool = (next: Pool) => edit(d => writeMix(d, next, exactKinds), group);
   /** One terrain's share or exact count, saved with whether it is exact in one edit. */
   const setKind = (kind: FillKind, n: number, isExact = false) =>
-    edit(
-      d => {
-        const next = { ...pool, [kind]: n };
-        const pooled = ownKey ? setIslandPool(d, ownKey, next) : { ...d, pool: next };
-        return withExact(pooled, mixKey, kind, isExact && n > 0);
-      },
-      `pool-${ownKey ?? 'board'}`,
-    );
+    edit(d => writeMix(d, { ...pool, [kind]: n }, markExact(exactKinds, kind, isExact && n > 0)), group);
+  const othersOwn = design.tiles.some(t => t.landMix);
   const hasFog = counts.has('fog');
   return (
     <section className="inspector-section" aria-label="Random land mix">
@@ -103,22 +105,15 @@ export default function BoardSettings({
         <label className="check-row island-mix">
           <input
             type="checkbox"
-            checked={!!ownKey}
+            checked={!!own}
             onChange={e =>
-              edit(d =>
-                e.target.checked
-                  ? setIslandPool(d, island.start, { ...d.pool, iceberg: undefined })
-                  : setIslandPool(d, ownKey!, null),
-              )
+              edit(d => setIslandMix(d, island.keys, e.target.checked ? { pool: d.pool, exact: boardExact(d) } : null))
             }
           />
           Own mix for this island ({island.size} tile{island.size === 1 ? '' : 's'})
         </label>
       )}
-      <p className="inspector-hint">
-        {ownKey ? 'Random land on this island draws from this mix.' : 'Random land draws from this mix'}
-        {!ownKey && design.islandPools ? ', except islands with their own.' : ownKey ? '' : '.'}
-      </p>
+      <MixScope own={!!own} others={othersOwn} />
       <fieldset className="chip-row pool-presets" aria-label="Presets">
         {PRESETS.map(p => (
           <button key={p.id} type="button" data-tip={p.hint} onClick={() => setPool({ ...POOL_PRESETS[p.id] })}>
@@ -138,7 +133,15 @@ export default function BoardSettings({
         ))}
       </div>
       {exact.size > 0 && <ExactNote pool={pool} exact={exact} />}
-      {!ownKey && (
+      {own && (
+        <CopyTo
+          design={design}
+          sets={LAND_SETS}
+          done={targets => allHaveMix(design, targets, own)}
+          copy={which => edit(d => setIslandMix(d, islandSet(d, which), own))}
+        />
+      )}
+      {!own && (
         <div className="pool-grid single">
           <PoolRow
             kind="iceberg"

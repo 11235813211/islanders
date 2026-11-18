@@ -6,10 +6,10 @@ import {
   Flame,
   Hash,
   Hourglass,
-  House,
   Landmark,
   Minus,
   Mountain,
+  Palette,
   Plus,
   Route,
   Sailboat,
@@ -25,7 +25,8 @@ import {
   TRADE_SECONDS,
   VICTORY_POINT_RANGE,
 } from '../../../shared/settings';
-import type { DiscoveryRule, GameSettings, GameView } from '../../../shared/types';
+import { type DiscoveryRule, type GameSettings, type GameView, PIECE_STYLES } from '../../../shared/types';
+import ArtStylesButton, { ART_STYLE_NAMES } from './ArtStyles';
 import RoomRewards from './RoomRewards';
 
 /**
@@ -50,6 +51,11 @@ export interface SettingDef {
   theme?: Theme;
   /** A question to confirm before this change, or null to apply it straight away. */
   confirm?: (view: GameView, value: GameSettings[keyof GameSettings]) => string | null;
+  /** A control beside the setting that everyone can use, host or not. */
+  preview?: ComponentType<SettingPreviewProps>;
+}
+export interface SettingPreviewProps {
+  view: GameView;
 }
 export type Theme = 'seafarers' | 'tropics' | 'cartographers';
 /** Titles of the themed boxes, in the order they appear. */
@@ -189,15 +195,13 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'pieceStyle',
-        label: 'Piece style',
-        hint: 'How settlements and cities look. The rules are the same.',
-        icon: <House size={20} />,
+        label: 'Art style',
+        hint: 'How the pieces look. The rules are the same.',
+        icon: <Palette size={20} />,
+        preview: ArtStylesButton,
         control: {
           kind: 'select',
-          options: [
-            { value: 'classic', label: 'Classic' },
-            { value: 'chalet', label: 'Mountain chalet' },
-          ],
+          options: PIECE_STYLES.map(style => ({ value: style, label: ART_STYLE_NAMES[style] })),
         },
       },
     ],
