@@ -9,15 +9,15 @@ Wins are the measure; other counts only help explain them.
 
 ## Result
 
-| Version                                                  | Win-rate change |
-| -------------------------------------------------------- | --------------- |
-| `roadRoute` 1 (route overlap)                            | −0.06 ±0.63     |
-| `roadOpens` 0.5, first design (added to payoff)          | −1.89 ±0.49     |
-| `roadRoute` 1, `roadOpens` 0.5, first design             | −1.20 ±0.68     |
-| The same plus `roadBlock` 1                              | −1.74 ±0.70     |
-| `roadOpens` 0.5, corrected (share of the race's worth)   | −0.41 ±0.36     |
-| `roadOpens` 1, corrected                                 | −0.55 ±0.37     |
-| `roadRoute` 1, `roadOpens` 0.5, corrected                | −0.29 ±0.64     |
+| Version                                                | Win-rate change |
+| ------------------------------------------------------ | --------------- |
+| `roadRoute` 1 (route overlap)                          | −0.06 ±0.63     |
+| `roadOpens` 0.5, first design (added to payoff)        | −1.89 ±0.49     |
+| `roadRoute` 1, `roadOpens` 0.5, first design           | −1.20 ±0.68     |
+| The same plus `roadBlock` 1                            | −1.74 ±0.70     |
+| `roadOpens` 0.5, corrected (share of the race's worth) | −0.41 ±0.36     |
+| `roadOpens` 1, corrected                               | −0.55 ±0.37     |
+| `roadRoute` 1, `roadOpens` 0.5, corrected              | −0.29 ±0.64     |
 
 No game went unfinished. With every switch off, an action fingerprint over 40 games matched the live bot.
 
