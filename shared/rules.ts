@@ -14,6 +14,38 @@ import {
   type TradeOffer,
 } from './types';
 
+/** Phases where the person moving is on the clock with a choice to make, so more time helps them. */
+const GIVE_TIME_PHASES: readonly GameState['phase'][] = [
+  'setup-settlement',
+  'setup-road',
+  'robber',
+  'steal',
+  'free-roads',
+  'build',
+  'special-build',
+];
+
+/** Whether `giverId` may add time to the clock of the person moving now: once each, never to a bot or themselves. */
+export function canGiveTime(
+  game: Pick<GameState, 'phase' | 'pausedAt' | 'turnDeadline' | 'timeGivenBy'> & {
+    players: readonly { id: string; bot?: unknown }[];
+  },
+  activeId: string | null,
+  giverId: string,
+): boolean {
+  const active = game.players.find(p => p.id === activeId);
+  return (
+    !!active &&
+    !active.bot &&
+    active.id !== giverId &&
+    game.players.some(p => p.id === giverId) &&
+    GIVE_TIME_PHASES.includes(game.phase) &&
+    game.pausedAt === null &&
+    game.turnDeadline !== null &&
+    !game.timeGivenBy.includes(giverId)
+  );
+}
+
 /** The shuffled development deck: 25 cards, or 34 for five and six players. */
 export function developmentDeck(random: () => number, large = false): DevelopmentCard[] {
   const kinds: DevelopmentType[] = [

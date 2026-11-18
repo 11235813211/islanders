@@ -459,6 +459,8 @@ export interface GameState {
   specialQueue: string[];
   /** Who asked to build this turn (each player may ask once). */
   specialAsked: string[];
+  /** Who already gave the player now moving more time (once each, per turn or setup placement). */
+  timeGivenBy: string[];
   resumePhase: 'roll' | 'build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
@@ -596,6 +598,7 @@ export interface GameView {
   eruption: string[] | null;
   specialQueue: string[];
   specialAsked: string[];
+  timeGivenBy: string[];
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
   features: { sea: boolean; volcano: boolean; fogLand: number };
   winnerId: string | null;
@@ -694,6 +697,12 @@ export type GameAction =
   | { type: 'end-turn' }
   /** Five or six players: during someone else's turn, ask to build when it ends. */
   | { type: 'request-special-build' }
+  /** Leave the special build line, so you can be skipped (or ask again later). */
+  | { type: 'cancel-special-build' }
+  /** Add time to the clock of the person now moving (see canGiveTime in rules.ts). */
+  | { type: 'give-time' }
+  /** Change your own name in this room. */
+  | { type: 'set-name'; name: string }
   | { type: 'discard'; resources: TradeBag }
   | { type: 'move-robber'; hexId: string }
   | { type: 'steal'; playerId: string }

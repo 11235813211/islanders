@@ -25,6 +25,7 @@ import { CATEGORIES, SettingControl, type SettingDef, THEMES, type Theme } from 
 /** Empty seats to show: up to four, then one more at a time up to six, so a small table looks complete. */
 const openSeats = (seated: number) => Math.min(MAX_PLAYERS, Math.max(4, seated + 1)) - seated;
 
+import NameDialog from './NameDialog';
 import './RoomLobby.css';
 
 export interface RoomLobbyProps {
@@ -34,6 +35,8 @@ export interface RoomLobbyProps {
   online: string[];
   busy: boolean;
   send: (action: GameAction) => void;
+  /** Change your name in this room (and on your account, if signed in). */
+  saveName: (name: string) => void;
   recording: RecordingStatus;
   setRecordingChoice: (kind: RecordingChoice, value: boolean) => void;
   invite: () => void;
@@ -48,6 +51,7 @@ export default function RoomLobby({
   online,
   busy,
   send,
+  saveName,
   recording,
   setRecordingChoice,
   invite,
@@ -84,6 +88,7 @@ export default function RoomLobby({
   }
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
   const [copied, setCopied] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(false), 2500);
@@ -100,6 +105,7 @@ export default function RoomLobby({
   }
   return (
     <main className="room-setup">
+      {renaming && <NameDialog view={view} busy={busy} save={saveName} close={() => setRenaming(false)} />}
       <ColorSwapNotice view={view} busy={busy} send={send} />
       <div className="page-heading">
         <div>
@@ -152,6 +158,7 @@ export default function RoomLobby({
             online={online.includes(p.id)}
             busy={busy}
             send={send}
+            rename={() => setRenaming(true)}
           />
         ))}
         <ColorPicker view={view} busy={busy} send={send} />
@@ -182,7 +189,7 @@ export default function RoomLobby({
               Invite a player
             </button>
           ))}
-        <LobbySpectators view={view} host={host} busy={busy} send={send} />
+        <LobbySpectators view={view} host={host} busy={busy} send={send} rename={() => setRenaming(true)} />
         {self && !view.testMode && (
           <SaveGames host={host} recording={recording} disabled={connection !== 'online'} choose={setRecordingChoice} />
         )}

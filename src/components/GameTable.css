@@ -199,6 +199,9 @@
 .player-table tbody tr.active {
   background: #fff0be;
 }
+.player-table tbody tr.special-building {
+  background: #cdeec9;
+}
 /* Each seat name sits on a block of its color; --player-ink keeps text readable on white and orange. */
 .player-name {
   display: inline-flex;
@@ -774,6 +777,13 @@
   color: #176a86;
   font-size: 11px;
   margin-bottom: 3px;
+}
+/* When a message was sent: small, after its text. */
+.chat-messages time {
+  margin-left: 6px;
+  color: #61777f;
+  font-size: 10px;
+  white-space: nowrap;
 }
 .chat-empty {
   color: #61777f;
@@ -1940,6 +1950,10 @@
   background:
     radial-gradient(circle at 50% 45%, #f1eaff 0 16%, transparent 17%), linear-gradient(160deg, #a78fd6, #6c4fae);
 }
+.flight-card.flight-discovery {
+  display: grid;
+  place-items: center;
+}
 @keyframes resource-flight {
   0% {
     opacity: 0;
@@ -1961,19 +1975,6 @@
   .resource-flight {
     display: none;
   }
-}
-
-/* Waiting your turn in the special build line. */
-.special-waiting {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px dashed var(--line);
-  border-radius: 10px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 800;
 }
 
 .settings-summary {

@@ -1,4 +1,4 @@
-import { Eye } from 'lucide-react';
+import { Eye, Pencil } from 'lucide-react';
 import { MAX_PLAYERS } from '../../../shared/engine';
 import type { GameAction, GameView } from '../../../shared/types';
 import './lobby-spectators.css';
@@ -9,11 +9,13 @@ export default function LobbySpectators({
   host,
   busy,
   send,
+  rename,
 }: {
   view: GameView;
   host: boolean;
   busy: boolean;
   send: (action: GameAction) => void;
+  rename: () => void;
 }) {
   if (!view.spectators.length || view.testMode) return null;
   const others = view.players.filter(p => p.id !== view.selfId);
@@ -28,6 +30,17 @@ export default function LobbySpectators({
           <span className="lobby-spectator-name">
             {s.name}
             {s.id === view.selfId && <small className="you-tag">you</small>}
+            {s.id === view.selfId && (
+              <button
+                type="button"
+                className="name-edit"
+                aria-label="Change your name"
+                disabled={busy}
+                onClick={rename}
+              >
+                <Pencil size={13} />
+              </button>
+            )}
           </span>
           {host && (
             <select

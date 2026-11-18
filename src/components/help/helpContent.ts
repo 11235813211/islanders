@@ -158,7 +158,7 @@ function specialBuild(): HelpSection {
   return {
     title: 'Special build (5–6 players)',
     lines: [
-      'During someone else’s turn, press Special build to build or buy cards after it ends.',
+      'During someone else’s turn, press Special build to build or buy cards after it ends. Press it again to cancel.',
       'No trading, playing cards, or moving ships then. Press Done building when finished.',
     ],
   };

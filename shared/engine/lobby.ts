@@ -194,6 +194,7 @@ export function createGame(
     specialBuilder: null,
     specialQueue: [],
     specialAsked: [],
+    timeGivenBy: [],
     resumePhase: null,
     longestRoadId: null,
     largestArmyId: null,

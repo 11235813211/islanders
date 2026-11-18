@@ -101,6 +101,17 @@ export function useAccount() {
     );
   }
 
+  /** Change the name this account shows in games. */
+  async function rename(name: string): Promise<void> {
+    if (!account) return;
+    const { displayName } = await apiRequest<{ displayName: string }>(
+      '/api/accounts/name',
+      { method: 'POST', body: JSON.stringify({ name }) },
+      account,
+    );
+    signedIn({ ...account, displayName });
+  }
+
   async function replaceRecoveryCode(password: string): Promise<string> {
     const data = await apiRequest<{ recoveryCode: string }>(
       '/api/accounts/recovery-code',
@@ -143,6 +154,7 @@ export function useAccount() {
     authenticate,
     recover,
     replaceRecoveryCode,
+    rename,
     deleteAccount,
     logout,
   };

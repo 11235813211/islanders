@@ -21,6 +21,7 @@ import {
   ProtocolError,
   parseAuthorization,
   parseCredentials,
+  parseName,
   parseOptionalName,
   parsePassword,
   parseRecovery,
@@ -122,6 +123,12 @@ async function handleAccounts(operation: string, request: Request, env: Env, req
         playtest: canPlaytest(env, identity),
         hasRecoveryCode: current.hasRecoveryCode,
       });
+    }
+    case 'name': {
+      const displayName = parseName(await readBody(request));
+      if (!(await stub.setDisplayName(identity.sessionHash, displayName)))
+        throw new ProtocolError('Sign in again to continue.', 401);
+      return json({ displayName });
     }
     case 'recovery-code': {
       await checkLimit(env.AUTH_LIMITER, `account:${identity.username}`);
@@ -293,7 +300,7 @@ export default {
     const requester = request.headers.get('CF-Connecting-IP') ?? 'local-development';
     let response: Response;
     try {
-      const accountMatch = /^\/api\/accounts\/(register|login|me|logout|recover|recovery-code|delete)$/.exec(
+      const accountMatch = /^\/api\/accounts\/(register|login|me|logout|recover|recovery-code|delete|name)$/.exec(
         url.pathname,
       );
       if (accountMatch) response = await handleAccounts(accountMatch[1]!, request, env, requester);

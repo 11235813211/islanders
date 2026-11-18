@@ -133,6 +133,19 @@ export function validSettings(
   );
 }
 
+/** A player name made tidy, or null if it can't be used: 1–24 characters, no markup or control characters. */
+export function cleanName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const name = value.normalize('NFKC').trim().replace(/\s+/g, ' ');
+  return name.length < 1 || name.length > 24 || /[\p{Cc}\p{Cf}<>]/u.test(name) ? null : name;
+}
+
+/** Whether someone other than `selfId` in this room already goes by `name` (capitals don't count). */
+export function nameTaken(members: readonly { id: string; name: string }[], name: string, selfId: string): boolean {
+  const key = name.toLowerCase();
+  return members.some(member => member.id !== selfId && member.name.toLowerCase() === key);
+}
+
 /** A name from shared/guest-names.ts nobody in the room is using, numbered once the list runs out. */
 export function guestName(taken: readonly string[], random: () => number = Math.random): string {
   const used = new Set(taken.map(name => name.toLowerCase()));

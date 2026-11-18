@@ -1,4 +1,4 @@
-import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2 } from 'lucide-react';
+import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2, X } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { playerVars } from '../../shared/colors';
 import { emptyBag, handSize, isLargeGame } from '../../shared/engine';
@@ -11,15 +11,16 @@ import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
-import BankFlights from './game/BankFlights';
 import BoardPick, { useBoardLook } from './game/BoardPick';
 import BuildBar from './game/BuildBar';
+import CardFlights from './game/CardFlights';
 import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DecisionTimer from './game/DecisionTimer';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
 import DiscoveryPanel from './game/DiscoveryPanel';
 import EndGame from './game/EndGame';
+import GiveTimeButton from './game/GiveTimeButton';
 import LeaveDialog from './game/LeaveDialog';
 import { PausedNotice, ProposalNotice, StealChooser } from './game/Overlays';
 import PlayerPanel from './game/PlayerPanel';
@@ -31,6 +32,7 @@ import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import { useTileTools } from './game/TileTools';
 import { TradeNotice } from './game/TradeNotice';
+import NameDialog from './NameDialog';
 import ResourceHand from './ResourceHand';
 import TradeComposer, { addTradeResource, counterDraft, type TradeDraft } from './TradePanel';
 import './GameTable.css';
@@ -118,6 +120,7 @@ export default function GameTable({
   setLeaving,
   signedIn,
   signIn,
+  saveName,
 }: {
   room: ReturnType<typeof useRoom>;
   invite: () => void;
@@ -128,6 +131,8 @@ export default function GameTable({
   signedIn: boolean;
   /** Open the sign-in dialog; signing in keeps this seat (see afterSignIn in App). */
   signIn: () => void;
+  /** Change your name in this room (and on your account, if signed in). */
+  saveName: (name: string) => void;
 }) {
   const view = room.view!;
   const send = room.send;
@@ -141,6 +146,7 @@ export default function GameTable({
   const [buying, setBuying] = useState(false);
   /** Host: the seat whose hand-to-bot dialog is open. */
   const [seatPick, setSeatPick] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
   /** Hands and counts without the cards still flying to their owners. */
   const { shown, flights } = useLandedView(view);
   /** Before setup, players other than the host may look at another drawn board. */
@@ -424,10 +430,15 @@ export default function GameTable({
     );
   if (!ownTurn && special === 'waiting')
     turnAction = (
-      <span className="turn-action special-waiting" role="status">
-        <Hammer size={17} />
-        In line to build ({view.specialQueue.indexOf(view.selfId) + 1})
-      </span>
+      <button
+        className="button secondary turn-action"
+        disabled={busy || paused}
+        aria-label={`Cancel special build, number ${view.specialQueue.indexOf(view.selfId) + 1} in line`}
+        onClick={() => send({ type: 'cancel-special-build' })}
+      >
+        <X size={18} />
+        <span>In line ({view.specialQueue.indexOf(view.selfId) + 1}) · Cancel</span>
+      </button>
     );
   // Right after ending your turn, the same spot offers to take it back (others vote, as for any undo).
   const canUndoEnd = !spectator && view.undoAvailable?.endsTurn && view.undoAvailable.actorId === view.selfId;
@@ -469,9 +480,9 @@ export default function GameTable({
         home={() => (!spectator && isBotGame(view) ? setLeaving(true) : home())}
         signIn={signedIn || view.testMode ? undefined : signIn}
       />
-      <PlayerPanel view={shown} online={room.online} pickSeat={setSeatPick} />
+      <PlayerPanel view={shown} online={room.online} pickSeat={setSeatPick} rename={() => setRenaming(true)} />
       <ResourceFlights view={view} {...flights} />
-      <BankFlights view={view} />
+      <CardFlights view={view} />
       <BoardViewport
         view={boardLook.view}
         mode={view.phase === 'robber' ? 'robber' : mode}
@@ -531,6 +542,7 @@ export default function GameTable({
           <Clock3 size={15} />
           {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
         </span>
+        <GiveTimeButton view={view} busy={busy} send={send} />
         {landscapePhone && turnAction}
       </div>
       {/* Spectators have no hand: the chat takes its place (see .spectating). */}
@@ -585,6 +597,7 @@ export default function GameTable({
       {seatPick && (
         <SeatDialog view={view} playerId={seatPick} busy={busy} send={send} close={() => setSeatPick(null)} />
       )}
+      {renaming && <NameDialog view={view} busy={busy} save={saveName} close={() => setRenaming(false)} />}
       {leaving && (
         <LeaveDialog
           view={view}

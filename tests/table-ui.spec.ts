@@ -377,12 +377,12 @@ test('spending flies the cards to the bank, and a bought development card flies 
   await ask.getByRole('button', { name: 'Confirm buy' }).click();
   await expect.poll(() => game.state().players[0]!.development.length).toBe(devCards + 1);
   // Sheep, wheat, and ore go to the bank; a card back comes back to the hand.
-  await expect(page.locator('.bank-flights .resource-flight')).toHaveCount(4);
-  await expect(page.locator('.bank-flights .flight-development')).toHaveCount(1);
+  await expect(page.locator('.card-flights .resource-flight')).toHaveCount(4);
+  await expect(page.locator('.card-flights .flight-development')).toHaveCount(1);
   const bank = (await page.locator('.bank-counts').boundingBox())!;
   const hand = (await page.locator('.table-hand').boundingBox())!;
   const paidTarget = await page
-    .locator('.bank-flights .resource-flight')
+    .locator('.card-flights .resource-flight')
     .first()
     .evaluate(e => {
       const style = getComputedStyle(e);
@@ -396,7 +396,7 @@ test('spending flies the cards to the bank, and a bought development card flies 
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/bank-flights.png' });
   // The flights clear away.
-  await expect(page.locator('.bank-flights')).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator('.card-flights')).toHaveCount(0, { timeout: 5000 });
   expect(game.errors).toEqual([]);
 });
 

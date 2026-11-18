@@ -33,6 +33,9 @@ export function DiceTracker({ view }: { view: GameView }) {
   );
 }
 
+/** A chat message's time on this device's clock, e.g. 7:42 PM. */
+const chatTime = (at: number) => new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
 /** Chat, activity log, and dice tabs. Collapses to just its header. */
 export default function TablePanel({
   view,
@@ -106,6 +109,7 @@ export default function TablePanel({
                           </strong>
                         )}
                         <span>{m.text}</span>
+                        <time dateTime={new Date(m.at).toISOString()}>{chatTime(m.at)}</time>
                       </p>
                     );
                   })

@@ -34,16 +34,20 @@ function useFolded(): [boolean, (folded: boolean) => void] {
 /**
  * Scoreboard: one row per seat, its name on a block of the seat's color. On a portrait phone it
  * folds (button at its top left) to one line of seat colors and points, giving the board the room.
- * The host can tap another person's name to hand their seat to a bot (`pickSeat`).
+ * The host can tap another person's name to hand their seat to a bot (`pickSeat`); your own name
+ * opens the name dialog (`rename`). The seat whose turn it is shows yellow; someone special
+ * building meanwhile shows green.
  */
 export default function PlayerPanel({
   view,
   online,
   pickSeat,
+  rename,
 }: {
   view: GameView;
   online: string[];
   pickSeat: (playerId: string) => void;
+  rename: () => void;
 }) {
   const [folded, setFolded] = useFolded();
   return (
@@ -88,7 +92,7 @@ export default function PlayerPanel({
             const offline = !view.testMode && !p.bot && !online.includes(p.id);
             return (
               <tr
-                className={[view.activePlayerId === p.id && 'active', offline && 'offline'].filter(Boolean).join(' ')}
+                className={[turnMark(view, p.id), offline && 'offline'].filter(Boolean).join(' ')}
                 key={p.id}
                 data-player-id={p.id}
                 style={playerVars(p.color) as CSSProperties}
@@ -99,7 +103,7 @@ export default function PlayerPanel({
                     className="player-name"
                     title={`${p.name}${p.bot ? ` · ${p.bot} bot` : ''}${offline ? ' · disconnected' : ''}. ${p.settlementsLeft} settlements, ${p.citiesLeft} cities, ${p.roadsLeft} roads${view.seafaring ? ` and ${p.shipsLeft} ships` : ''} remaining.`}
                   >
-                    <NameText view={view} player={p} offline={offline} pickSeat={pickSeat} />
+                    <NameText view={view} player={p} offline={offline} pickSeat={pickSeat} rename={rename} />
                     {p.id === view.selfId && <small>you</small>}
                   </span>
                 </th>
@@ -145,22 +149,31 @@ export default function PlayerPanel({
   );
 }
 
+/** The highlight for a seat: `active` for the turn's player, `special-building` for who builds after it. */
+function turnMark(view: GameView, playerId: string): string | undefined {
+  const special = view.phase === 'special-build';
+  if (special && view.activePlayerId === playerId) return 'special-building';
+  return (special ? view.turnPlayerId : view.activePlayerId) === playerId ? 'active' : undefined;
+}
+
 /** A seat holds more cards than the discard limit, counting discoveries where they count. */
 const overLimit = (view: GameView, player: GameView['players'][number]) =>
   player.resourceCount + (DISCOVERY_RULES[view.settings.discoveries].inHand ? player.discoveries : 0) >
   view.settings.discardLimit;
 
-/** A seat's name with its marks; for the host, a button that opens the hand-to-bot dialog. */
+/** A seat's name with its marks; a button for your own name, and for the host's hand-to-bot dialog. */
 function NameText({
   view,
   player,
   offline,
   pickSeat,
+  rename,
 }: {
   view: GameView;
   player: GameView['players'][number];
   offline: boolean;
   pickSeat: (playerId: string) => void;
+  rename: () => void;
 }) {
   const marks = (
     <>
@@ -170,6 +183,17 @@ function NameText({
       <RouteMark view={view} player={player} />
     </>
   );
+  if (player.id === view.selfId && view.role === 'player')
+    return (
+      <button
+        type="button"
+        className="player-name-text player-name-button"
+        aria-label="Change your name"
+        onClick={rename}
+      >
+        {marks}
+      </button>
+    );
   if (!canHandSeat(view, player)) return <span className="player-name-text">{marks}</span>;
   return (
     <button
@@ -203,7 +227,7 @@ function FoldedScores({ view }: { view: GameView }) {
       {view.players.map(p => (
         <li
           key={p.id}
-          className={view.activePlayerId === p.id ? 'active' : undefined}
+          className={turnMark(view, p.id)}
           data-player-id={p.id}
           style={playerVars(p.color) as CSSProperties}
           aria-label={`${p.name}: ${p.publicPoints} points`}

@@ -14,7 +14,7 @@ Object.assign(DEFAULT_SETTINGS, {
   pieceRewards: [],
   pieceStyle: 'classic',
   tradeSeconds: 30,
-  decisionSeconds: 20,
+  decisionSeconds: 30,
   showBank: 'auto',
   discoveries: 'kept',
   volcanoGold: true,

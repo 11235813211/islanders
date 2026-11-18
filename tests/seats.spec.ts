@@ -35,8 +35,8 @@ test('the host moves a player to spectators, then seats them back in place of th
   g.phase = 'build';
   const game = await mountGame(page, g);
   const name = g.players[1]!.name;
-  // Only other people's names are buttons, and only for the host.
-  await expect(page.locator('.player-name-button')).toHaveCount(2);
+  // Only the host gets a seat button, and only on other people's names.
+  await expect(page.getByRole('button', { name: /change who plays this seat$/ })).toHaveCount(2);
   await page.getByRole('button', { name: `${name}: change who plays this seat` }).click();
   const choose = page.getByRole('dialog', { name });
   await expectNoSpill(choose);
@@ -47,7 +47,7 @@ test('the host moves a player to spectators, then seats them back in place of th
   await expect.poll(() => game.state().spectators.map(s => s.id)).toEqual(['p1']);
   expect(game.state().players[1]).toMatchObject({ id: 'p1.bot', bot: 'advanced' });
   // With someone watching, the bot's seat can be handed to them.
-  await expect(page.locator('.player-name-button')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: /change who plays this seat$/ })).toHaveCount(2);
   await page.getByRole('button', { name: `${name}: change who plays this seat` }).click();
   await page
     .getByRole('dialog', { name })

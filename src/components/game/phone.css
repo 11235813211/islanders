@@ -220,6 +220,10 @@
     outline: 2px solid #e6a823;
     outline-offset: 1px;
   }
+  .players-strip li.special-building {
+    outline: 2px solid #2f9e4f;
+    outline-offset: 1px;
+  }
 }
 
 /* Landscape phones: an open chat, activity, or dice panel covers the whole right column (under the scoreboard there is too little room). */

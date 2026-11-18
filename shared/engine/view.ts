@@ -152,6 +152,7 @@ export function getView(state: GameState, selfId: string): GameView {
     eruption: state.eruption,
     specialQueue: state.specialQueue,
     specialAsked: state.specialAsked,
+    timeGivenBy: state.timeGivenBy,
     features: mapFeatures(state),
     winnerId: state.winnerId,
     // Only the thief and the victim learn which card was stolen.

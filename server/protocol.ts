@@ -1,6 +1,6 @@
 import { isIdentifier, parseAction } from '../shared/actions';
 import { GameError } from '../shared/engine';
-import { CUSTOM_ROOM_CODE } from '../shared/settings';
+import { CUSTOM_ROOM_CODE, cleanName } from '../shared/settings';
 import type { ClientMessage, GameAction } from '../shared/types';
 
 /** A room's code: a generated one (LUMBER42 or eight characters), or one an admin host chose. */
@@ -41,10 +41,11 @@ export function parseCredentials(body: unknown): { username: string; displayName
 
 /**
  * The name to keep after a sign-in. Accounts made before display names (or registered in all
- * lowercase) take the capitals typed at sign-in; a name that already has capitals is kept.
+ * lowercase) take the capitals typed at sign-in; a name that already has capitals, or that the
+ * player changed to something else, is kept.
  */
 export function signInDisplayName(stored: string | undefined, typed: string): string | undefined {
-  if (stored && stored !== stored.toLowerCase()) return stored;
+  if (stored && (stored !== stored.toLowerCase() || stored !== typed.toLowerCase())) return stored;
   return typed !== typed.toLowerCase() ? typed : stored;
 }
 
@@ -57,10 +58,8 @@ export function parseAuthorization(header: string | null): { username: string; t
 
 export function parseName(body: unknown): string {
   if (!record(body) || typeof body.name !== 'string') throw new ProtocolError('Enter your name.');
-  const name = body.name.normalize('NFKC').trim().replace(/\s+/g, ' ');
-  if (name.length < 1 || name.length > 24 || /[\p{Cc}\p{Cf}<>]/u.test(name)) {
-    throw new ProtocolError('Use a name of 1–24 characters, without markup or control characters.');
-  }
+  const name = cleanName(body.name);
+  if (!name) throw new ProtocolError('Use a name of 1–24 characters, without markup or control characters.');
   return name;
 }
 

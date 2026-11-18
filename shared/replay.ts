@@ -99,7 +99,14 @@ export function anonymizeLobby(lobby: GameState, ids: SeatIds): GameState {
   return state;
 }
 
-/** One step for storage, or null when it came from someone without a seat (spectators). Chat text is dropped. */
+/** An action as stored: chat text and chosen names are dropped (a stand-in name stays unique, so it replays). */
+function anonymousAction(action: GameAction, seat: string | undefined, now: number): GameAction {
+  if (action.type === 'chat') return { ...action, text: '.' };
+  if (action.type === 'set-name') return { ...action, name: `${seat} ${now}` };
+  return action;
+}
+
+/** One step for storage, or null when it came from someone without a seat (spectators). */
 export function toStep(ids: SeatIds, step: RecordedStep): RecordedStep | null {
   const seated = step.kind !== 'time' && step.kind !== 'idle-pause' && step.kind !== 'idle-resume';
   if (seated && !(step.actor && ids[step.actor])) return null;
@@ -108,7 +115,7 @@ export function toStep(ids: SeatIds, step: RecordedStep): RecordedStep | null {
   return {
     kind: step.kind,
     ...(step.actor ? { actor: ids[step.actor] } : {}),
-    ...(action ? { action: action.type === 'chat' ? { ...action, text: '.' } : action } : {}),
+    ...(action ? { action: anonymousAction(action, step.actor && ids[step.actor], step.now) } : {}),
     now: step.now,
     random: step.random,
     ...(online ? { online } : {}),

@@ -17,7 +17,6 @@ import {
   peekBoard,
   pendingBotActor,
   ROLL_SHOW_MS,
-  SCHEMA_VERSION,
   UNDO_GRACE_MS,
 } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
@@ -159,7 +158,7 @@ describe('room membership', () => {
     g = act(g, 'p0', { type: 'set-board-players' });
     expect(g.boardPlayers).toBeNull();
     const { boardPlayers: _gone, ...older } = g;
-    expect(normalizeGame({ ...older, schemaVersion: SCHEMA_VERSION - 1 } as GameState).boardPlayers).toBeNull();
+    expect(normalizeGame({ ...older, schemaVersion: 24 } as GameState).boardPlayers).toBeNull();
     g = act(g, 'p0', { type: 'new-board' });
     expect(() => act(g, 'p0', { type: 'set-board-players', players: 5 })).toThrow();
   });

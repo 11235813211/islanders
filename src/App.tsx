@@ -1,6 +1,6 @@
 import { ArrowLeft, LoaderCircle, LogIn, LogOut, Sailboat, UserRound, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { isBotGame } from '../shared/settings';
+import { isBotGame, nameTaken } from '../shared/settings';
 import type { AccountSession, GameAction, Session } from '../shared/types';
 import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
 import BoardEditor from './components/editor/BoardEditor';
@@ -187,6 +187,19 @@ function App() {
     setError(null);
     room.send(action);
   }
+  /** Use this name in the room in progress, when it is new there and nobody else has it. */
+  function renameInRoom(name: string) {
+    if (!view) return;
+    const members = [...view.players, ...view.spectators];
+    const self = members.find(member => member.id === view.selfId);
+    if (self && self.name !== name && !nameTaken(members, name, self.id)) send({ type: 'set-name', name });
+  }
+  /** A name change from the table or lobby. Signed-in players keep it for later rooms too. */
+  function changeName(name: string) {
+    renameInRoom(name);
+    if (account.account && !view?.testMode)
+      account.rename(name).catch(err => setError(err instanceof Error ? err.message : 'Could not save your name.'));
+  }
 
   const header = (
     <header className="site-header">
@@ -293,6 +306,7 @@ function App() {
         online={room.online}
         busy={busy}
         send={send}
+        saveName={changeName}
         recording={room.recording}
         setRecordingChoice={room.setRecordingChoice}
         invite={() => setDialog('share')}
@@ -309,6 +323,7 @@ function App() {
         setLeaving={setLeavingGame}
         signedIn={Boolean(account.account)}
         signIn={() => setDialog('sign-in')}
+        saveName={changeName}
       />
     );
 
@@ -352,6 +367,7 @@ function App() {
             home();
             setNotice('Your account was deleted.');
           }}
+          onRenamed={renameInRoom}
         />
       )}
       {recoveryCode && <RecoveryCodeDialog code={recoveryCode} close={() => setRecoveryCode(null)} />}

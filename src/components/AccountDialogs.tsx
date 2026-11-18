@@ -2,6 +2,7 @@ import { Check, Copy, Eye, EyeOff, KeyRound, LoaderCircle, Trash2, X } from 'luc
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { AccountSession } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
+import { NameForm } from './NameDialog';
 
 type Account = ReturnType<typeof useAccount>;
 
@@ -233,11 +234,14 @@ export function AccountDialog({
   close,
   onCode,
   onDeleted,
+  onRenamed,
 }: {
   account: Account;
   close: () => void;
   onCode: (code: string) => void;
   onDeleted: () => void;
+  /** The account's game name changed; the room in progress, if any, follows it. */
+  onRenamed: (name: string) => void;
 }) {
   const [action, setAction] = useState<'code' | 'delete' | null>(account.hasRecoveryCode ? null : 'code');
   const [password, setPassword] = useState('');
@@ -267,6 +271,14 @@ export function AccountDialog({
       {!account.hasRecoveryCode && (
         <p className="inline-alert">This account has no recovery code yet. Make one so you can reset your password.</p>
       )}
+      <NameForm
+        label="Name shown in games"
+        initial={account.account?.displayName ?? username}
+        save={async name => {
+          await account.rename(name);
+          onRenamed(name);
+        }}
+      />
       <div className="account-actions">
         <button className={`account-action ${action === 'code' ? 'selected' : ''}`} onClick={() => setAction('code')}>
           <KeyRound size={20} />

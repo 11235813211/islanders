@@ -19,6 +19,8 @@ describe('public protocol boundary', () => {
     expect(signInDisplayName('BentoBox', 'bentobox')).toBe('BentoBox');
     expect(signInDisplayName('BentoBox', 'BENTOBOX')).toBe('BentoBox');
     expect(signInDisplayName(undefined, 'bentobox')).toBeUndefined();
+    // A name the player changed to is kept, capitals or not.
+    expect(signInDisplayName('sandy', 'BentoBox')).toBe('sandy');
   });
 
   it('only accepts exact configured origins, including ports', () => {

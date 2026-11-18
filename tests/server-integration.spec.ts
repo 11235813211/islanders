@@ -241,6 +241,11 @@ test('accounts reclaim seats across devices and logout revokes only the current 
   expect(login.status()).toBe(200);
   const second = (await login.json()) as { token: string };
   const h2 = { Origin: origin, Authorization: `Bearer ${username}:${second.token}` };
+  // A new game name applies to rooms from now on, and signing in again doesn't undo it.
+  const renamed = await request.post(`${server}/api/accounts/name`, { headers: h2, data: { name: 'Sandy Shores' } });
+  expect(await renamed.json()).toEqual({ displayName: 'Sandy Shores' });
+  const again = await request.post(`${server}/api/accounts/login`, { headers: { Origin: origin }, data: credentials });
+  expect(((await again.json()) as { displayName: string }).displayName).toBe('Sandy Shores');
   const created = await postRoom(request, { headers: h1, data: { name: 'ignored', playtest: true } });
   expect(created.status()).toBe(201);
   const session1 = (await created.json()) as Session;

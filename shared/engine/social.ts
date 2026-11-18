@@ -1,4 +1,5 @@
 import { copyData } from '../copy';
+import { cleanName, nameTaken } from '../settings';
 import type { GameAction, GameState, Proposal } from '../types';
 import { addLog, cloneState, requireRule } from './core';
 
@@ -44,9 +45,12 @@ function resolveProposal(state: GameState, now: number): GameState {
   if (proposal.kind === 'undo') {
     const undo = state.undo!;
     const history = [...state.undoHistory];
+    const snapshot = copyData(undo.snapshot);
     const restored: GameState = {
       ...state,
-      ...copyData(undo.snapshot),
+      ...snapshot,
+      // A name changed since that move stays changed.
+      players: snapshot.players.map(p => ({ ...p, name: state.players.find(q => q.id === p.id)?.name ?? p.name })),
       version: state.version,
       chat: state.chat,
       spectators: state.spectators,
@@ -63,7 +67,21 @@ function resolveProposal(state: GameState, now: number): GameState {
   return state;
 }
 
-/** Chat, proposals, and votes. Returns null for any other action. */
+/**
+ * Change a member's name. Names are unique in a room because guests get their seat back by typing
+ * theirs. Not logged: it isn't a game move, and the scoreboard shows it.
+ */
+function setName(next: GameState, playerId: string, typed: string): void {
+  const name = cleanName(typed);
+  requireRule(name, 'Use a name of 1–24 characters, without markup or control characters.');
+  const members = [...next.players, ...next.spectators];
+  const member = members.find(m => m.id === playerId)!;
+  requireRule(name !== member.name, 'That is already your name.');
+  requireRule(!nameTaken(members, name, playerId), 'Someone in this room already has that name.');
+  member.name = name;
+}
+
+/** Chat, name changes, proposals, and votes. Returns null for any other action. */
 export function socialAction(
   state: GameState,
   playerId: string,
@@ -71,7 +89,7 @@ export function socialAction(
   now: number,
   online?: string[],
 ): GameState | null {
-  if (action.type !== 'chat' && action.type !== 'propose' && action.type !== 'vote') return null;
+  if (!['chat', 'set-name', 'propose', 'vote'].includes(action.type)) return null;
   const member = [...state.players, ...state.spectators].find(p => p.id === playerId);
   requireRule(member, 'You are not a member of this room.');
   let next = cloneState(state);
@@ -87,7 +105,9 @@ export function socialAction(
       spectator: !next.players.some(p => p.id === playerId),
     });
     next.chat = next.chat.slice(-80);
-  } else {
+  } else if (action.type === 'set-name') {
+    setName(next, playerId, action.name);
+  } else if (action.type === 'propose' || action.type === 'vote') {
     requireRule(
       next.players.some(p => p.id === playerId),
       'Spectators cannot vote or change the game.',

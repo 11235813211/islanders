@@ -210,6 +210,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.boardPlayers ??= null;
   },
+  // 25 → 26: players may give the person moving more time, once each per turn.
+  s => {
+    s.timeGivenBy ??= [];
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

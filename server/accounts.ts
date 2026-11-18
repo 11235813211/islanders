@@ -218,6 +218,15 @@ export class AccountStore extends DurableObject<Env> {
     });
   }
 
+  /** Change the name this account shows in games. The sign-in username stays the same. */
+  async setDisplayName(sessionHash: string, displayName: string): Promise<boolean> {
+    return this.serial(async () => {
+      if (!this.account || !this.liveSession(sessionHash)) return false;
+      await this.save({ ...this.account, displayName });
+      return true;
+    });
+  }
+
   /** Remember one of this account's choices about saving games. */
   async setRecordingChoice(sessionHash: string, choice: RecordingChoice, value: boolean): Promise<boolean> {
     return this.serial(async () => {

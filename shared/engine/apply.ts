@@ -61,6 +61,8 @@ const OFF_TURN = new Set<GameAction['type']>([
   'discard',
   'choose-gold',
   'request-special-build',
+  'cancel-special-build',
+  'give-time',
   'accept-trade',
   'decline-trade',
   'counter-trade',
@@ -97,13 +99,15 @@ const PASSIVE = new Set<GameAction['type']>([
   'decline-trade',
   'cancel-trade',
   'counter-trade',
-  // Another player asking to build after this turn mustn't take the active player's undo away.
+  // Another player asking to build after this turn, or giving time, mustn't take the active player's undo away.
   'request-special-build',
+  'cancel-special-build',
+  'give-time',
   'leave',
   'transfer-host',
 ]);
 
-/** Moves during the build phase that give the turn more time (TUNING.actionBonusSeconds). */
+/** Moves during the build phase or Road Building that give the turn more time (TUNING.actionBonusSeconds). */
 const TIME_BONUS = new Set<GameAction['type']>([
   'trade',
   'bank-trade',
@@ -171,6 +175,12 @@ export function applyAction(
   return next;
 }
 
+/** This move adds to the turn clock: a build-phase move, a free road, or having a setup road to place. */
+function earnsTime(state: GameState, next: GameState, action: GameAction): boolean {
+  if (next.phase === 'setup-road') return state.phase !== 'setup-road';
+  return (next.phase === 'build' || next.phase === 'free-roads') && TIME_BONUS.has(action.type);
+}
+
 /** Bookkeeping shared by every move: awards, winning, trade validity, clocks, and undo history. */
 function afterAction(state: GameState, next: GameState, playerId: string, action: GameAction, now: number): void {
   if (next.phase === 'robber' && !legalMoves(next, getActivePlayerId(next)!).robberHexes.length) {
@@ -226,10 +236,12 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         : next.settings.turnSeconds;
     next.turnDeadline = now + seconds * 1000;
     next.turnExpired = false;
-  } else if (playing && next.phase === 'build' && next.turnDeadline !== null && TIME_BONUS.has(action.type)) {
-    next.turnDeadline = Math.min(
-      next.turnDeadline + TUNING.actionBonusSeconds * 1000,
-      now + next.settings.turnSeconds * 1000,
+    next.timeGivenBy = [];
+  } else if (playing && next.turnDeadline !== null && earnsTime(state, next, action)) {
+    // Time other players gave can put the clock above a full turn; a bonus never takes it away.
+    next.turnDeadline = Math.max(
+      next.turnDeadline,
+      Math.min(next.turnDeadline + TUNING.actionBonusSeconds * 1000, now + next.settings.turnSeconds * 1000),
     );
   }
   if (!playing) {

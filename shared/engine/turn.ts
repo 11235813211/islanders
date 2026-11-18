@@ -1,4 +1,6 @@
+import { TUNING } from '../default-settings';
 import { setupPieces } from '../maps/special';
+import { canGiveTime } from '../rules';
 import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
 import { type GameState, RESOURCES, type Tradable } from '../types';
 import {
@@ -10,6 +12,7 @@ import {
   canAfford,
   discoveryRule,
   emptyBag,
+  getActivePlayerId,
   type Handlers,
   handSize,
   holding,
@@ -135,6 +138,8 @@ export function finishSetupLink(next: GameState): void {
 export const turnHandlers: Pick<
   Handlers,
   | 'request-special-build'
+  | 'cancel-special-build'
+  | 'give-time'
   | 'place-settlement'
   | 'place-road'
   | 'roll'
@@ -332,6 +337,26 @@ export const turnHandlers: Pick<
     next.specialAsked.push(playerId);
     next.specialQueue.push(playerId);
     addLog(next, `${player.name} wants to build after this turn.`);
+  },
+
+  /** Leave the special build line. Asking again is allowed, in case of a change of mind. */
+  'cancel-special-build'({ next, player, playerId }) {
+    requireRule(next.specialQueue.includes(playerId), 'You are not in line to build.');
+    next.specialQueue = next.specialQueue.filter(id => id !== playerId);
+    next.specialAsked = next.specialAsked.filter(id => id !== playerId);
+    addLog(next, `${player.name} no longer wants to build after this turn.`);
+  },
+
+  /** Any other player may add time for the person moving, without a vote. */
+  'give-time'({ next, player, playerId }) {
+    const activeId = getActivePlayerId(next);
+    requireRule(canGiveTime(next, activeId, playerId), 'You can’t give time right now.');
+    const added = TUNING.giveTimeSeconds * 1000;
+    next.turnDeadline! += added;
+    if (next.robberDeadline !== null) next.robberDeadline += added;
+    next.timeGivenBy.push(playerId);
+    const active = next.players.find(p => p.id === activeId)!;
+    addLog(next, `${player.name} gave ${active.name} ${TUNING.giveTimeSeconds} seconds.`);
   },
 
   /** Ends a turn, or one player's part of the special build phase. */

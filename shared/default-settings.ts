@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // Seconds a trade offer stays open: 15, 30, 45, 60, 90, or 120.
   tradeSeconds: 30,
   // Seconds for short choices (robber, pirate, gold picks): 10, 15, 20, 25, 30, 45, or 60.
-  decisionSeconds: 20,
+  decisionSeconds: 30,
   // Cards you may hold on a 7 without discarding: 3 to 20.
   discardLimit: 10,
   // Robber can't block players with 2 or fewer points: true or false.
@@ -66,9 +66,11 @@ export const POINT_REWARDS = {
  * Back-end tuning: the same for every room, never shown in the lobby. Edit the values here.
  */
 export const TUNING = {
-  // Seconds each trade, build, or card played during the build phase adds to the turn clock
-  // (never above a full turn).
+  // Seconds each trade, build, card played, or road to place adds to the turn clock (never above
+  // a full turn).
   actionBonusSeconds: 20,
+  // Seconds one player's Give time button adds to the clock of the player who is moving.
+  giveTimeSeconds: 20,
   // Trade offers one person may have open at once.
   maxOpenOffers: 3,
   // Maps one person may propose (or back) in the lobby at once.

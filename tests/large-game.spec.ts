@@ -24,6 +24,9 @@ test('six players: the large island, and a special build with no trading', async
   const frame = (await page.locator('[data-frame]').getAttribute('data-frame'))!.split(' ').map(Number);
   expect(frame[2]).toBeGreaterThan(670);
   await expect(page.getByText('Special build: no trading')).toBeVisible();
+  // The builder is green; the player whose turn it is stays yellow.
+  await expect(page.locator('tr[data-player-id="p2"]')).toHaveClass(/special-building/);
+  await expect(page.locator('tr[data-player-id="p0"]')).toHaveClass(/active/);
   await page.screenshot({ path: 'test-results/six-players.png' });
   // Only building: the trade composer stays shut.
   await page.getByRole('button', { name: /^Trade Wool/ }).click();
@@ -49,7 +52,11 @@ test('six players: others ask for a special build during a turn', async ({ page 
   await page.getByLabel('Follow current turn').uncheck();
   await page.getByLabel('Play as', { exact: true }).selectOption('p3');
   await page.getByRole('button', { name: 'Special build' }).click();
-  await expect(page.getByText('In line to build (1)')).toBeVisible();
+  const cancel = page.getByRole('button', { name: 'Cancel special build, number 1 in line' });
+  await expect(cancel).toHaveText('In line (1) · Cancel');
   await expect.poll(() => game.state().specialQueue).toEqual(['p3']);
+  await cancel.click();
+  await expect.poll(() => game.state().specialQueue).toEqual([]);
+  await expect(page.getByRole('button', { name: 'Special build' })).toBeVisible();
   expect(game.errors).toEqual([]);
 });

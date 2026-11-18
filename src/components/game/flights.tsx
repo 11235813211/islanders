@@ -1,9 +1,10 @@
 // Shared pieces for cards flying across the table: where players and the bank are on screen,
-// and the flying card itself (see ResourceFlights for payouts and BankFlights for spending).
+// and the flying card itself (see ResourceFlights for payouts and CardFlights for spending and trades).
 import type { CSSProperties, ReactNode } from 'react';
-import type { GameView, Resource } from '../../../shared/types';
-import { ResourceArt, ResourceIcon } from '../../art';
+import type { GameView, Resource, Tradable } from '../../../shared/types';
+import { ResourceArt, ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
+import { tradableStyle } from './tradables';
 
 export interface Point {
   x: number;
@@ -70,6 +71,16 @@ export function ResourceFace({ resource }: { resource: Resource }) {
         <ResourceArt resource={resource} />
         <span className="cards-card-label">{RESOURCE_LABELS[resource]}</span>
       </span>
+    </span>
+  );
+}
+
+/** What a traded card looks like in flight: a resource's face, or a jungle discovery. */
+export function TradableFace({ item }: { item: Tradable }) {
+  if (item !== 'discovery') return <ResourceFace resource={item} />;
+  return (
+    <span className="flight-card flight-discovery" style={tradableStyle(item)}>
+      <SEA.DiscoveryIcon size={30} />
     </span>
   );
 }

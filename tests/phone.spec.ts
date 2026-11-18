@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { BUILTIN_BOARDS } from '../shared/maps';
-import { grant, richGame, seaSettled } from './fixtures';
+import { grant, richGame, seaSettled, settled } from './fixtures';
 import { expectNoSpill, mountGame } from './ui-harness';
 
 // Runs in the "iphone" project (WebKit, touch, 390×664 viewport). See playwright.config.ts.
@@ -308,4 +308,23 @@ test('Cartographers with fog: the Peek button fits the bar, and peeked tiles sho
   await expect.poll(() => room.state().fogPeeks.p0?.length).toBe(2);
   await expect(page.locator('.peeked-fog')).toHaveCount(2);
   expect(room.errors).toEqual([]);
+});
+
+test('portrait phone: giving time and leaving the special build line fit the turn controls', async ({ page }) => {
+  const g = settled(6);
+  g.phase = 'build';
+  g.turnIndex = 1;
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 60_000;
+  g.specialQueue = ['p0'];
+  g.specialAsked = ['p0'];
+  const game = await mountGame(page, g);
+  await expect(page.getByRole('button', { name: /^Give Player 1/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Cancel special build/ })).toBeVisible();
+  await expectNoSpill(page.locator('.table-turn'));
+  await expectNoSpill(page.locator('.table-actions'));
+  await page.screenshot({ path: 'test-results/phone-give-time.png' });
+  await page.getByRole('button', { name: /^Cancel special build/ }).tap();
+  await expect.poll(() => game.state().specialQueue).toEqual([]);
+  expect(game.errors).toEqual([]);
 });

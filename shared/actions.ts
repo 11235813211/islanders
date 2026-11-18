@@ -1,6 +1,6 @@
 import { isPlayerColor } from './colors';
 import { GameError, MAX_PLAYERS } from './engine/core';
-import { validSettings } from './settings';
+import { cleanName, validSettings } from './settings';
 import {
   BOT_LEVELS,
   type BotLevel,
@@ -26,6 +26,7 @@ type Field =
   | 'count'
   | 'bool'
   | 'text'
+  | 'name'
   | 'color'
   | 'botLevel'
   | 'proposalKind'
@@ -41,6 +42,9 @@ const SPEC = {
   'roll-volcanoes': {},
   'end-turn': {},
   'request-special-build': {},
+  'cancel-special-build': {},
+  'give-time': {},
+  'set-name': { name: 'name' },
   'buy-development': { discoveries: 'bag?' },
   'finish-free-roads': {},
   leave: {},
@@ -174,6 +178,9 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
     case 'text':
       if (typeof value !== 'string' || !value.trim() || value.length > 280 || /[\p{Cc}\p{Cf}]/u.test(value))
         fail('Use 1–280 characters without control characters.');
+      return;
+    case 'name':
+      if (!cleanName(value)) fail('Use a name of 1–24 characters, without markup or control characters.');
       return;
     case 'color':
       if (!isPlayerColor(value)) fail('Choose one of the listed colors.');

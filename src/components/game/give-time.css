@@ -1,0 +1,28 @@
+/* The +20s button in the turn line, beside the clock. */
+.give-time {
+  flex: none;
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid #8fb5ba;
+  border-radius: 5px;
+  background: #fff;
+  color: #174f60;
+  font: inherit;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.give-time:hover:not(:disabled) {
+  background: #e4f2f3;
+}
+.give-time:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@media (max-width: 720px) and (orientation: portrait) {
+  .give-time {
+    height: 18px;
+    padding: 0 4px;
+  }
+}

@@ -1,4 +1,4 @@
-import { Bot, Crown, Eye, UserMinus } from 'lucide-react';
+import { Bot, Crown, Eye, Pencil, UserMinus } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { BOTS } from '../../../shared/bots';
 import { PLAYER_COLORS, playerVars } from '../../../shared/colors';
@@ -12,6 +12,7 @@ export default function LobbySeat({
   online,
   busy,
   send,
+  rename,
 }: {
   view: GameView;
   seat: PublicPlayer;
@@ -19,6 +20,7 @@ export default function LobbySeat({
   online: boolean;
   busy: boolean;
   send: (action: GameAction) => void;
+  rename: () => void;
 }) {
   const isHost = seat.id === view.hostId;
   const self = seat.id === view.selfId;
@@ -38,6 +40,11 @@ export default function LobbySeat({
         <strong>
           {seat.name}
           {self && <small className="you-tag">you</small>}
+          {self && (
+            <button type="button" className="name-edit" aria-label="Change your name" disabled={busy} onClick={rename}>
+              <Pencil size={13} />
+            </button>
+          )}
         </strong>
         <span>
           {status} · {PLAYER_COLORS[seat.color].label}
