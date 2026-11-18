@@ -100,8 +100,8 @@ function palaceHall(): Solid[] {
 /** The Korean style. Settlement and city share one camera, as every design's pieces do. */
 export const KOREAN_DESIGN: PieceDesign = {
   build: city => (city ? palaceHall() : smallHouse()),
-  settlementScale: 1.95,
-  cityScale: 1.66,
+  settlementScale: 1.8525,
+  cityScale: 1.743,
   palette,
   camera: CAMERA,
 };
