@@ -2,7 +2,7 @@ import { actWith, BOTS, type Brain } from '../shared/bots';
 import { addPlayer, applyAction, createGame, GameError, getActivePlayerId, getView } from '../shared/engine';
 import { bankGold, pendingBotActor } from '../shared/engine/time';
 import type { GameAction, GameState } from '../shared/types';
-import { endDiagnostics } from './diagnostics';
+import { countAwards, endDiagnostics } from './diagnostics';
 import type { Scenario } from './scenarios';
 
 /**
@@ -124,8 +124,10 @@ export function playOn(
     const seat = Number(actor.slice(1));
     hooks.beforeMove?.(g, seat);
     const fog = Object.keys(g.fog).length;
+    const before = g;
     g = step(g, actor, brains[seat]!, turnSteps, random);
     if (actions) {
+      countAwards(before, g, actions);
       const kind = lastAction ?? 'fallback';
       actions[seat]![kind] = (actions[seat]![kind] ?? 0) + 1;
       const revealed = fog - Object.keys(g.fog).length;

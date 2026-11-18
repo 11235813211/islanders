@@ -3,6 +3,9 @@ import type { Knob } from '../shared/bots/advanced/params';
 import { makeParams } from '../shared/bots/advanced/params';
 import { getView } from '../shared/engine';
 import { isLandVertex } from '../shared/seafaring';
+import { reportAwards } from './awards';
+import { analyzeBench } from './bench-analysis';
+import { reportBench } from './bench-report';
 import { listCheckpoints, loadCheckpoint, promote, seatFor } from './checkpoints';
 import type { Kind } from './datasets';
 import { endDiagnostics, type RouteLog, traceRoutes } from './diagnostics';
@@ -27,6 +30,7 @@ import {
 import { loadRecords, replayGame } from './replays';
 import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
+import type { BenchJob, BenchPosition, BenchResult, PositionsJob } from './scorer-bench';
 import { fitSelector } from './selector-fit';
 import { playGame } from './sim';
 import { reportStrategyChoices } from './strategy-search';
@@ -155,6 +159,10 @@ Object.assign(COMMANDS, {
     console.log(keys.join('\t'));
     for (const row of rows) console.log(keys.map(k => row[k]).join('\t'));
   },
+  /** Award races in dumped games: records-awards [--dir training/data/dumps --only 24,26]. */
+  'records-awards'() {
+    reportAwards(flags.dir ?? 'training/data/dumps', list(flags.only)?.map(Number));
+  },
   /** Save every record from the live site: records-fetch [--out file] [--site url]; asks for the login (or ISLANDERS_AUTH=user:token). */
   async 'records-fetch'() {
     const auth = await askAuth();
@@ -169,7 +177,8 @@ Object.assign(COMMANDS, {
       try {
         const collect = eventCollector();
         const end = replayGame(record, collect.onStep);
-        if (flags.dump) writeDump(flags.dump, i, { ...record, final: end, events: collect.events });
+        if (flags.dump)
+          writeDump(flags.dump, i, { ...record, final: end, events: collect.events, turns: collect.turns });
         const ok = end.version === record.finalVersion;
         console.log(
           `${i} ${when} ${ok ? 'ok' : 'DIFFERS'}  ${record.steps.length} steps  ${end.players.length} players  turn ${end.turn}`,
@@ -558,6 +567,65 @@ Object.assign(COMMANDS, {
   /** The planner's goal values and pace in one position: goal-report --seed 5 --turn 20 --seat 0 [--players 4]. */
   'goal-report'() {
     goalReport(Number(flags.seed ?? 5), Number(flags.turn ?? 20), Number(flags.seat ?? 0), filterFromFlags());
+  },
+  /**
+   * Choice points from r1 self-play for the scorer benchmark, saved as states:
+   * bench-positions [--games 100 --seed 7100000 --players 3 --every 3 --per-game 4 --out training/data/bench-positions.json].
+   */
+  async 'bench-positions'() {
+    const filter = filterFromFlags() ?? { players: [3] };
+    const jobs: PositionsJob[] = Array.from({ length: Number(flags.games ?? 100) }, (_, i) => ({
+      positionsOf: {
+        seed: Number(flags.seed ?? 7_100_000) + i,
+        filter,
+        every: Number(flags.every ?? 3),
+        perGame: Number(flags['per-game'] ?? 4),
+      },
+    }));
+    const positions = (await runJobs<PositionsJob, BenchPosition[]>(jobs)).flat();
+    const out = flags.out ?? 'training/data/bench-positions.json';
+    writeFileSync(out, JSON.stringify(positions));
+    console.log(`${positions.length} positions saved to ${out}`);
+  },
+  /**
+   * The scorer benchmark (PLAN.md Phase 3): scorer-bench --positions file [--rollouts 48
+   * --cutoffs 2,4,6,10 --scorers w1,w1td --out results.json]; --results file reprints a saved run.
+   */
+  async 'scorer-bench'() {
+    const cutoffs = (list(flags.cutoffs) ?? ['2', '4', '6', '10']).map(Number);
+    const scorers = list(flags.scorers) ?? ['w1'];
+    let results: BenchResult[];
+    if (flags.results) results = JSON.parse(readFileSync(flags.results, 'utf8'));
+    else {
+      const positions = JSON.parse(
+        readFileSync(flags.positions ?? 'training/data/bench-positions.json', 'utf8'),
+      ) as BenchPosition[];
+      const rollouts = Number(flags.rollouts ?? 48);
+      const started = Date.now();
+      results = await runJobs<BenchJob, BenchResult>(
+        positions.map(position => ({ bench: { position, rollouts, cutoffs, scorers } })),
+        done =>
+          process.stderr.write(
+            `  ${done}/${positions.length} positions, ${((Date.now() - started) / 60000).toFixed(1)} min\r`,
+          ),
+      );
+      if (flags.out) writeFileSync(flags.out, JSON.stringify(results));
+      const cpu = results.reduce((n, r) => n + r.ms, 0) / results.length / 1000;
+      console.log(`${((Date.now() - started) / 60000).toFixed(1)} min, ${cpu.toFixed(1)} CPU-s per position`);
+    }
+    reportBench(results, cutoffs, scorers);
+  },
+  /**
+   * What the saved benchmark and probes say without new games (ANALYSIS.md): bench-analysis
+   * [--results training/data/bench-1.json --full strategy-probe-3.json --stopped strategy-probe-4.json].
+   */
+  'bench-analysis'() {
+    const data = (name: string) => `training/data/${name}`;
+    analyzeBench(
+      JSON.parse(readFileSync(flags.results ?? data('bench-1.json'), 'utf8')) as BenchResult[],
+      flags.full ?? data('strategy-probe-3.json'),
+      flags.stopped ?? data('strategy-probe-4.json'),
+    );
   },
   /** List checkpoints with their last note. */
   checkpoints() {

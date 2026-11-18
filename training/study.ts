@@ -18,20 +18,53 @@ export interface GameDump {
   endedAt: number;
   final: GameState;
   events: { turn: number; event: GameEvent }[];
+  /** Each seat at the start of every turn (dumps from before 2026-11-17 afternoon lack it). */
+  turns?: TurnRow[];
+}
+
+/** One turn start: per player in turn order, public points, road length, knights, and the award holders. */
+export interface TurnRow {
+  turn: number;
+  points: number[];
+  road: number[];
+  knights: number[];
+  roadId: string | null;
+  armyId: string | null;
 }
 
 /** Collects logged events step by step during a replay (the log itself keeps only its last 60). */
 export function eventCollector() {
   const events: GameDump['events'] = [];
+  const turns: TurnRow[] = [];
   let seen = -1;
   return {
     events,
+    turns,
     onStep({ after }: ReplayEvent) {
+      if (after.turn !== turns.at(-1)?.turn && !after.phase.startsWith('setup')) turns.push(turnRow(after));
       for (const entry of after.log)
         if (entry.id > seen && entry.event) events.push({ turn: after.turn, event: entry.event });
       seen = after.log.at(-1)?.id ?? seen;
     },
   };
+}
+
+/** The public race for points and awards at one moment (any seat's view shows the same). */
+function turnRow(g: GameState): TurnRow {
+  const seen = getView(g, g.players[0]!.id).players;
+  return {
+    turn: g.turn,
+    points: seen.map(p => (p.id === g.players[0]!.id ? publicPoints(g, p.id, p.points) : p.points)),
+    road: seen.map(p => p.longestRoad),
+    knights: g.players.map(p => p.knights),
+    roadId: g.longestRoadId,
+    armyId: g.largestArmyId,
+  };
+}
+
+/** A seat's points without its hidden victory point cards, as the others see them. */
+function publicPoints(g: GameState, id: string, points: number): number {
+  return points - g.players.find(p => p.id === id)!.development.filter(c => c.kind === 'victory-point').length;
 }
 
 /** Save one dump as `dir/<i>.json`. */

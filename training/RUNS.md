@@ -10,6 +10,36 @@ _Nothing running._
 
 ## Finished
 
+### Scorer benchmark 1 (PLAN Phase 3 step 2)
+
+- **Why:** before training a new value network, measure how well a stopped rollout scored by a
+  network (or by points) picks the same strategy as full rollouts, on positions where the answer
+  is known. It is the target any new scorer must hit.
+- **What:** 400 positions from r1 self-play (100 games, seeds 7100000, 3 players, every 3rd own turn
+  plus setup, 4 per game: `training/data/bench-positions.json`); 48 rollouts per strategy played to
+  the end, snapshotted at 2, 4, 6, 10 rounds and scored by w1, w1td, w1lin and points.
+  `scorer-bench --positions training/data/bench-positions.json --rollouts 48 --scorers w1,w1td,w1lin --out training/data/bench-1.json`.
+- **ETA:** started 13:20, pilot pace ~1.6 CPU-s per rollout set → about 40 min (14:00).
+- **Result (13:20–13:48, 27.6 min, 50 CPU-s per position):** per-choice gain of the pick, judged by full
+  rollouts on the other half: full +0.9 ±0.4, w1@4 +0.9, w1@6 +1.0 ±0.5, w1@10 +1.0, points@4–6 +0.2 pp.
+  Full rollouts agree with themselves 38%; true advantage spread ~3.5 pp vs ~8.5 pp noise at 24
+  rollouts. w1 picks cards 31–34% (full 21%). Pair correlation w1 0.10/0.21/0.33/0.52 at 2/4/6/10
+  rounds. Write-up in ANALYSIS.md.
+
+### Award counts (Longest Road / Largest Army diagnosis)
+
+- **Why:** owner reports people keep both awards from the bot, especially at 2 players and on
+  Jumbotan. Measure how bots hold awards before changing how they're valued (ANALYSIS.md).
+- **Result (2026-11-17 13:30–14:00, r1 hero, `eval --rotate`, THREADS=4, alongside the scorer benchmark):**
+  - All maps, 2 players, 300 seeds 7500000 (road at end hero/field; army at end; win):
+    vs r1 0.45/0.45, 0.42/0.42; vs Intermediate 0.59/0.30, 0.51/0.37, 75.0%; vs style:builder
+    0.41/0.49, 0.43/0.41, 49.2%; vs style:cards 0.65/0.17, 0.45/0.39, 61.3%. Self-play winner held
+    the road in 72% of games, the army in 56%.
+  - Jumbotan (`new-base-board-16`), 150 seeds 7600000, road at end hero/field:
+    vs r1 2p 0.50, 3p 0.33, 4p 0.25 (even); vs strategy:expand 2p 0.49/0.51, 3p 0.33/0.34, 4p 0.22/0.26
+    (r1 wins 55.3%, 42.0%, 31.3%); vs Intermediate 2p 0.70/0.30, 3p 0.66/0.17, 4p 0.63/0.12. Road lengths
+    7.0–8.6. No bot field takes the road from r1 the way the person did (4 of 4 games, kept every time).
+
 ### Goal valuation v2 (goalModel 1) vs r1: no gain
 
 - **Result (2026-11-17 afternoon, 400 seeds 7400000, field r1):** need-based income and measured enabling

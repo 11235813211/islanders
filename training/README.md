@@ -3,8 +3,8 @@
 Start with [how Advanced decides](ADVANCED.md), including its confirmed gaps and active
 versus inactive components. [EVIDENCE.md](EVIDENCE.md) reviews what past results establish;
 [PLAN.md](PLAN.md) is what we're doing next; [ANALYSIS.md](ANALYSIS.md) holds the analysis behind
-it. Write up any analysis of training, bot behavior, or saved games in ANALYSIS.md (format at its
-top), log each batch of games in [RUNS.md](RUNS.md), and each result below.
+it. Write up every analysis of training, bot behavior, or saved games as a file in
+[analysis/](analysis/), indexed in ANALYSIS.md (format at its top), log each batch of games in [RUNS.md](RUNS.md), and each result below.
 
 Everything here runs on your machine (Node 24, `nvm use`); nothing ships to the Worker except
 `shared/bots/advanced/weights.json`. Commands:
@@ -65,6 +65,24 @@ not 95% intervals. Use the final paired difference from `compare` for inference;
   (selector training data). `--rounds 6 --scorer w1` stops rollouts after 6 rounds and scores them
   with that checkpoint's value network (faster; check it agrees with full rollouts before trusting it).
   Slow: several CPU-minutes per game.
+- `bench-positions [--games 100 --seed 7100000 --players 3 --per-game 4]` and `scorer-bench
+  --positions training/data/bench-positions.json [--rollouts 48 --cutoffs 2,4,6,10 --scorers w1,w1td
+  --out res.json]` the scorer benchmark (PLAN Phase 3, `scorer-bench.ts`, `bench-report.ts`): saved
+  r1 self-play choice points; every strategy played to the end per sample and snapshotted at each
+  cutoff, so full rollouts and every stopped scorer (and a fitted points softmax) are judged on the
+  same trajectories. Reports, per method, the gain its pick earns judged by full rollouts on the
+  other half of the samples (full rollouts' own is the ceiling), pick agreement, correlation of
+  advantages, and per-trajectory tracking. `--results res.json` reprints a saved run. A new scorer is
+  a checkpoint with a value network, named in `--scorers`. ~1.5 CPU-s per position per rollout.
+- `bench-analysis [--results training/data/bench-1.json --full ...probe-3.json --stopped ...probe-4.json]`
+  what the saved benchmark and probes say with no new games: signal and noise, equal-CPU scorers,
+  ways to use the same rollouts, probe predictions, and a selector check (`bench-analysis.ts`).
+- `records-awards [--dir training/data/dumps --only 24,26]` Longest Road and Largest Army in dumped
+  saved games: turns each seat held each award, times taken, turns close behind, and every change of
+  holder. Dumps need per-turn rows (made since 2026-11-17 by `replays --dump` or `dump-records.ts`,
+  which replays old records in a worktree at their commit; see its header). Games 22–23 replay on
+  4bcded4, 24–28 on a25a052. `eval` and `compare` also print `award:` counts per seat (taken, lost,
+  held at the end, road length, knights, won holding each).
 - `race-check [--games 100 --players 4]` how often the rival model (`rivals.ts`) predicts the next
   settlement (top 1 / top 3, vs the nearest open corner) in bot games; `--positions a.json,...`
   (from `records-positions`) checks a person's settlements in saved games instead.
@@ -321,3 +339,16 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
   `cityOption` 0.4, `frontierOption` 0.4, fog exploring off, and a survey-ship goal. vs s2: +3.8 ±0.9 and
   +2.4 ±0.9 pp on two fresh 600-seed sets; base/4 +2.5 ±1.5; The Channel +1.5 ±1.4; Middle Fog +3.9 ±1.6;
   Cartographers +2.6 ±1.4. vs Intermediate ×1.91 (was ×1.65). Details in [RUNS.md](RUNS.md).
+- Scorer benchmark (2026-11-17, PLAN Phase 3 step 2, [analysis](analysis/2026-11-17-scorer-benchmark.md)): 400 r1 self-play
+  positions, 48 rollouts per strategy. Full rollouts at the probe's 24 gain +0.9 ±0.4 pp per choice
+  and agree with themselves 38% (true advantage spread ~3.5 pp vs ~8.5 pp noise). w1 stopped at 4–10
+  rounds matches them (+0.9 to +1.0) at 48–78% of the cost, but picks `cards` 31–34% vs 21%. Points
+  alone: +0.2. New scorers are judged by pair correlation at 4–6 rounds (w1: 0.21, 0.33), Brier, and
+  pick shares.
+- Longest Road / Largest Army (2026-11-17, [analysis](analysis/2026-11-17-awards-vs-people.md)): in all four saved 2-player
+  Jumbotan games the person took Longest Road and kept it (s2 never retook it); Largest Army ended
+  with the bot in 3 of 4. Bot fields don't reproduce it (r1 holds the road as often as any bot
+  opponent). Cause in code: road goal only 1–3 roads back, flat 1.4 points, no defense. Not fixed yet.
+- Offline benchmark analysis (2026-11-17, [analysis](analysis/2026-11-17-bench-offline.md)): stopped w1 ties full
+  rollouts at equal CPU (differences within ±0.25 pp per choice); linear selectors don't beat
+  constants; per-choice gains overcount across a game. No new games.

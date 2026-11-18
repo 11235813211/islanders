@@ -1,6 +1,7 @@
 import type { Brain } from '../shared/bots';
 import { Economy } from '../shared/bots/advanced/economy';
 import type { Knobs } from '../shared/bots/advanced/params';
+import { getView } from '../shared/engine';
 import { boardIndex } from '../shared/seafaring';
 import type { GameState } from '../shared/types';
 
@@ -24,7 +25,16 @@ export function endDiagnostics(g: GameState): Record<string, number>[] {
       changed = keep.length < live.length;
       live = keep;
     }
-    const out: Record<string, number> = { 'end: dead routes': edges.length - live.length, 'end: routes': edges.length };
+    const out: Record<string, number> = {
+      'end: dead routes': edges.length - live.length,
+      'end: routes': edges.length,
+      'award: road at end': g.longestRoadId === p.id ? 1 : 0,
+      'award: army at end': g.largestArmyId === p.id ? 1 : 0,
+      'award: road length': getView(g, p.id).players.find(q => q.id === p.id)!.longestRoad,
+      'award: knights': p.knights,
+      'award: won with road': g.winnerId === p.id && g.longestRoadId === p.id ? 1 : 0,
+      'award: won with army': g.winnerId === p.id && g.largestArmyId === p.id ? 1 : 0,
+    };
     if (g.bank.lodestone || g.surveys.length || g.stats[p.id]?.produced.lodestone) {
       // Cartographers: lodestone earned, and survey ships at the end (a point each).
       out['end: lodestone produced'] = g.stats[p.id]?.produced.lodestone ?? 0;
@@ -33,6 +43,25 @@ export function endDiagnostics(g: GameState): Record<string, number>[] {
     }
     return out;
   });
+}
+
+/**
+ * Longest Road and Largest Army changing hands in one step, counted per seat (p{i} is seat i):
+ * how often each seat takes an award and loses one (training/PLAN.md, the awards item).
+ */
+export function countAwards(before: GameState, after: GameState, actions: Record<string, number>[]): void {
+  const award = (from: string | null, to: string | null, name: string) => {
+    if (from === to) return;
+    const add = (id: string | null, what: string) => {
+      if (!id) return;
+      const counts = actions[Number(id.slice(1))]!;
+      counts[what] = (counts[what] ?? 0) + 1;
+    };
+    add(to, `award: ${name} taken`);
+    add(from, `award: ${name} lost`);
+  };
+  award(before.longestRoadId, after.longestRoadId, 'road');
+  award(before.largestArmyId, after.largestArmyId, 'army');
 }
 
 /**

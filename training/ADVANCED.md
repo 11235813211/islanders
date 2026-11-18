@@ -137,7 +137,7 @@ probably has left (`roundsPerPoint` per point the leader still needs), cards val
 [plan-turn.ts](../shared/bots/advanced/plan-turn.ts) takes the best goal's next step, trades
 toward it, or spends on another goal only when that doesn't delay the best.
 
-Added for `r1` (2026-11-17, [ANALYSIS.md](ANALYSIS.md)):
+Added for `r1` (2026-11-17, [analysis](analysis/2026-11-17-plan-based-planner.md)):
 - **Races:** a settlement or route goal is multiplied by the chance we get there first, from
   [rivals.ts](../shared/bots/advanced/rivals.ts): each player's likely next targets (scored the
   way we score ours, preferring corners they already reach) and rounds to arrive (cards needed

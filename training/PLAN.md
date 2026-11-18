@@ -3,7 +3,7 @@
 Updated 2026-11-17. The goal is a bot that beats skilled people, with every move cheap enough
 for the free Workers plan and using only what `GameView` shows.
 
-Why this direction: [ANALYSIS.md](ANALYSIS.md#2026-11-17-why-earlier-experiments-couldnt-find-large-gains).
+Why this direction: [why earlier experiments couldn't find large gains](analysis/2026-11-17-why-no-large-gains.md).
 In short, every earlier experiment measured or learned from the current bot's own follow-up,
 so it could only find one-step improvements. People beat the bot with strategies that pay off
 over many turns. The plan below tests that gap directly and then builds on it.
@@ -24,11 +24,17 @@ over many turns. The plan below tests that gap directly and then builds on it.
 
 ## Next (start here)
 
-1. **Phase 3, value network as a rollout stand-in** (below). Done when stopped rollouts scored by
-   it reproduce full rollouts on the probe's positions; then the probe is cheap enough to teach
-   a live selector.
-2. **Longest Road and Largest Army** (owner: people keep both away from the bot, especially at
-   2 players and on Jumbotan): measure first, then value the awards as races (Smaller items).
+1. **Phase 3, value network as a rollout stand-in** (below). Step 2's benchmark is done: w1 stopped
+   at 4+ rounds already matches full rollouts per choice, which are mostly noise at 24 rollouts.
+   Next: the equal-CPU comparison and the probe rerun with stopped w1@4 at 48 rollouts (step 2
+   below), then refit (step 3) aiming at pair correlation and the cards bias.
+   _2026-11-17 evening: the equal-CPU comparison is answered from saved data (no advantage either
+   way). Proposed changes to this list await the owner: [offline analysis](analysis/2026-11-17-bench-offline.md)._
+2. **Longest Road as a race** (diagnosed 2026-11-17, [analysis](analysis/2026-11-17-awards-vs-people.md)): in all four
+   2-player Jumbotan games the person took the road and kept it; the bot never chases it more
+   than 3 roads back, pays it a flat 1.4 points, and never defends it. Largest Army was fine in
+   those games. Build the design in the analysis behind a knob, plus an award-racing test
+   opponent (bot fields don't race for it, so `compare` against them can't see the weakness).
 
 ## How we work
 
@@ -44,7 +50,7 @@ what a better version would change. Rules for this lane:
 - Pilots can be any size and can be changed and rerun freely; no preregistration.
 - Use paired comparisons (`compare`, `--rotate`) and report effects with `±`, so results are
   readable. Keep unfinished games in the count.
-- Log every batch in [RUNS.md](RUNS.md), every analysis in [ANALYSIS.md](ANALYSIS.md), and every
+- Log every batch in [RUNS.md](RUNS.md), every analysis in [analysis/](analysis/) (indexed in [ANALYSIS.md](ANALYSIS.md)), and every
   result (including failures) in the [README results log](README.md#results-log).
 
 **Shipping: careful.** Changing `weights.json` or default behavior needs:
@@ -182,7 +188,12 @@ Order of work (updated 2026-11-17 evening):
 1. **Done: the cheap teacher with `w1` fails.** Rollouts stopped after 6 rounds and scored by `w1`
    lost the probe's whole gain (−1.1 ±3.3 vs +6.7 with full rollouts, same seeds). `w1` has old
    inputs, was trained on s2's play, and was never judged on this task.
-2. **A benchmark for any scorer, before training.** From `strategy-probe-3.json` positions (or
+2. **Done (2026-11-17): the scorer benchmark** (`scorer-bench`, ANALYSIS.md). Full rollouts at 24
+   are ~85% noise (+0.9 pp per choice); w1 stopped at 4–10 rounds matches them per choice, but is
+   biased toward `cards`. Judge new scorers by pair correlation at 4–6 rounds, Brier, and pick shares.
+   Next before training: compare at equal CPU (stopped w1@4 with 2× rollouts vs full), and rerun
+   the probe with stopped w1@4 at 48 rollouts on v3's seeds.
+   _Original step:_ **A benchmark for any scorer, before training.** From `strategy-probe-3.json` positions (or
    re-collected ones with states saved), measure how often a stopped-rollout scorer picks the
    same strategy as full rollouts, and the correlation of their scores. Cheap to run, and the
    target a new network must hit. (The probe files hold features and scores, not game states;
@@ -205,8 +216,8 @@ Order of work (updated 2026-11-17 evening):
 
 ## Smaller items alongside
 
-- **Longest Road and Largest Army, especially at 2 players and on Jumbotan (owner, 2026-11-17):**
-  people keep both awards away from the bot with little effort. In the planner, Longest Road is a
+- **Longest Road and Largest Army, especially at 2 players and on Jumbotan (owner, 2026-11-17;
+  diagnosed the same day, see Next item 2):** people keep both awards away from the bot with little effort. In the planner, Longest Road is a
   fixed-value goal (1.2–1.4 points, only when 1–3 roads would take it) and the army counts only
   inside a development card's value; neither weighs what the award is worth at this table size
   and point target, nor what it would take to keep it or take it back. A 2-point swing in a

@@ -5,7 +5,7 @@ existing record does not establish that a new economic planner, trade model, rac
 or larger network will materially increase wins.** It establishes specific code gaps,
 several failed approaches, and historical improvements against particular bot fields.
 
-Note (2026-11-17): [ANALYSIS.md](ANALYSIS.md) explains why these experiments could only find
+Note (2026-11-17): [this analysis](analysis/2026-11-17-why-no-large-gains.md) explains why these experiments could only find
 one-step improvements on the current bot, so small results here don't rule out large gains;
 [PLAN.md](PLAN.md) now encourages exploring those directions. The status table at the end is
 superseded by the plan.
@@ -62,7 +62,7 @@ counts before the 2026-11-14 averaging fix also require caution.
 ## The search experiment remains closed
 
 _Note (2026-11-17): this probe's rollouts knew the order of the balanced dice deck (`determinize`
-didn't reshuffle it; fixed, see [ANALYSIS.md](ANALYSIS.md)), so its gains are biased upward._
+didn't reshuffle it; fixed, see [the analysis](analysis/2026-11-17-rollout-dice-leak.md)), so its gains are biased upward._
 
 The original 2026-11-12 probe declared its gates before running: at least 45% wins versus
 three shipped bots to justify using search as a teacher; under 30% meant stop and rethink.
