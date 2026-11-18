@@ -47,7 +47,31 @@ export function planStep(econ: Economy, { builds = 0, allowOffers = true }: Turn
   const route = econ.target && !econ.spots ? linkAction(econ.view, econ.target.firstEdge, econ.target.firstKind) : null;
   if (route) return route;
   if (econ.view.legal.development) return { type: 'buy-development' };
-  return { type: 'end-turn' };
+  return (econ.knobs.overLimitTrade >= 0.5 ? overLimitTrade(econ) : null) ?? { type: 'end-turn' };
+}
+
+/**
+ * With more cards than the discard limit, a 7 before our next turn costs half the hand. A bank
+ * trade shrinks it: measured, stopping over the limit was worse than trading (not so below it).
+ */
+export function overLimitTrade(econ: Economy): GameAction | null {
+  const { view } = econ;
+  const cards = RESOURCES.reduce((n, r) => n + view.hand[r], 0);
+  if (cards <= view.settings.discardLimit) return null;
+  let best: GameAction | null = null;
+  let top = -Infinity;
+  for (const give of RESOURCES) {
+    if (view.hand[give] < view.tradeRates[give]) continue;
+    for (const receive of RESOURCES) {
+      if (receive === give || !econ.bankHas(receive)) continue;
+      const hand = { ...view.hand };
+      hand[give] -= view.tradeRates[give];
+      hand[receive]++;
+      const value = econ.handValue(hand);
+      if (value > top) [best, top] = [{ type: 'trade', give, receive }, value];
+    }
+  }
+  return best;
 }
 
 /** The plans in play, best payoff for the wait first; roads for spare cards come last. */

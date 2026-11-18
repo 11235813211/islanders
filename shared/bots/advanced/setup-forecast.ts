@@ -1,5 +1,6 @@
 import { emptyBag } from '../../engine/core';
-import { CLASSIC_RESOURCES, type GameView, RESOURCES, type Resource } from '../../types';
+import { boardIndex, terrainResource } from '../../seafaring';
+import { CLASSIC_RESOURCES, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../types';
 import { type ForecastStart, forecast } from './forecast';
 import type { Geometry } from './geometry';
 import type { Knobs } from './params';
@@ -11,10 +12,28 @@ import { roadCurves } from './road-race';
  * it reaches the target. This is what dice totals and a nearby-spot score only hint at.
  */
 
+/**
+ * The cards a start brings: the last piece placed collects one of each resource around it. The
+ * corners still to be placed are the candidates; which of them comes last isn't known here, so
+ * they count equally.
+ */
+function startingCards(view: GameView, geo: Geometry, corners: number[]): ResourceBag {
+  const hand = emptyBag();
+  const index = boardIndex(view.board);
+  const unplaced = corners.filter(c => !view.buildings[geo.ids[c]!]);
+  const last = unplaced.length ? unplaced : corners;
+  for (const c of last)
+    for (const hexId of index.vertex.get(geo.ids[c]!)!.hexIds) {
+      const resource = terrainResource(index.hex.get(hexId)!.terrain);
+      if (resource) hand[resource] += 1 / last.length;
+    }
+  return hand;
+}
+
 /** The forecast's starting point for a draft position (`owners`: seat per corner, -1 for none). */
 export function setupStart(view: GameView, geo: Geometry, owners: Int8Array, knobs: Knobs): ForecastStart {
   const perRound = view.players.length / 36;
-  const curves = roadCurves(view, geo, { owners });
+  const curves = roadCurves(view, geo, { owners, depth: 3, limit: 150 });
   const occupied = Uint8Array.from(owners, o => (o >= 0 ? 1 : 0));
   const placedNow = view.players.map(p => Object.values(view.buildings).filter(b => b.playerId === p.id).length);
   const seats = view.players.map((p, seat) => {
@@ -36,7 +55,7 @@ export function setupStart(view: GameView, geo: Geometry, owners: Int8Array, kno
     const added = corners.length - placedNow[seat]!;
     return {
       pace: { income, wild, rates },
-      hand: emptyBag(),
+      hand: startingCards(view, geo, corners),
       points: corners.length,
       settlements: corners,
       frontier: corners,

@@ -6,15 +6,42 @@ Newest first. Finished runs keep their one-line result; the full write-up goes i
 
 ## Running
 
-### End-of-turn audit
-
-- **Why:** replacing "end turn" with a spare road gained per decision, and the bot averages about 1.9 discards a game.
-  Check whether stopping with usable cards is a general leak, and which spend is best.
-- **What:** `turn-end-audit`, 100 shipped games, up to 4 end-of-turn decisions per game, each option against ending the
-  turn with 16 paired rollouts. Rows in `training/data/turn-end-1.json`.
-- **ETA:** started 02:10 CST, about 10 minutes.
+_Nothing running._
 
 ## Finished
+
+### Faster placement forecast
+
+- **Result (2026-11-18 03:00–03:04):** `setupForecast` 0.25, looking three road pieces ahead at setup: **+0.87 ±0.54 pp** (600 seeds 9100000).
+  CPU did not improve: placement at 6 players median 9.4 ms, worst 27.5 (shipped 1.2 and 10.8). Write-up:
+  [analysis](analysis/2026-11-18-forecast-roads-placement.md).
+
+### Shipping checks without the placement forecast
+
+- **Result (2026-11-18 02:45–02:58, `roadRace` 1, `overLimitTrade` 1, road race on build turns only, new seeds):** all maps (600) +0.73 ±0.77 pp
+  (`roadRace` alone +0.71 ±0.55, `overLimitTrade` alone +0.14 ±0.69). Base island 4 players (200) −1.75 ±1.11, The Channel (150) −0.79 ±1.16,
+  Middle Fog (150) 0.00 ±1.50, 5–6 players (150) +0.29 ±1.00, 2-player Jumbotan (150) +1.33 ±1.89. Road held 0.36 vs 0.26; discards 1.37 vs 1.84.
+  CPU at 6 players: median 0.86 ms, worst 10.9 (shipped 0.36, 10.8). Not a clear gain; don't ship as is.
+
+### Shipping checks for the candidate
+
+- **Result (2026-11-18 02:25–02:38, `setupForecast` 0.25, `roadRace` 1, `overLimitTrade` 1 vs the shipped bot, fresh seeds):** all maps
+  (600) **+2.32 ±0.86 pp**; placement alone on those seeds +0.08 ±0.63. Base island 4 players (200) +2.75 ±1.32, The Channel (150)
+  +3.17 ±1.56, Middle Fog (150) −1.37 ±1.61, 5–6 players (150) +1.91 ±1.18. No unfinished games. Road held 0.36 vs 0.27. CPU at 6 players:
+  median 1.48 ms vs 0.36, worst 28.0 vs 10.8 (placement); too slow for the free plan.
+
+### Over-limit trades, realistic placement forecast, forecasting opponents
+
+- **Result (2026-11-18 02:10–02:21):** field `shipped`, reused baseline (600 seeds 8600000, not independent of earlier runs on those
+  seeds): `overLimitTrade` +0.43 ±0.68 pp (discards 1.49 vs 1.92 a game), `setupForecast` 0.25 +0.73 ±0.61, 0.4 +0.27 ±0.70.
+  Every opponent forecasting placements at 0.25 (300 seeds 8800000), against a seat without it: 0.25 **+2.69 ±0.81**, 0.5 +2.82 ±1.17.
+  The forecast's edge holds against opponents who forecast too; weights 0.25 to 0.5 can't be told apart.
+
+### End-of-turn audit
+
+- **Result (2026-11-18, 100 games, 16 paired rollouts, option minus ending the turn):** bank trade +0.1 ±0.7 pp (296), road for length
+  −0.9 ±1.3 (123), any road −2.8 ±2.7 (22): no general leak. Over the discard limit: bank trade +2.5 ±1.3 (102), road +1.6 ±1.4
+  (28). Near the limit: trade −2.4 ±1.4. Rollouts that hit an impossible gold payout are dropped. `training/data/turn-end-1.json`.
 
 ### Confirmation pilot: placement forecast and spare roads
 

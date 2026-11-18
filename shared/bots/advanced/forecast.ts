@@ -1,7 +1,7 @@
 import { emptyBag } from '../../engine/core';
 import { RESOURCES, type Resource, type ResourceBag } from '../../types';
 import { COSTS } from '../analysis';
-import { distanceFrom, type Geometry, isOpen } from './geometry';
+import { type Geometry, isOpen } from './geometry';
 import { type Pace, roundsToAfford } from './goals';
 
 /**
@@ -98,6 +98,8 @@ interface Sim {
   points: number;
   settlements: number[];
   frontier: number[];
+  /** Pieces from our routes to each corner, kept current as we settle (scanned on every choice). */
+  distance: Uint8Array;
   settlementsLeft: number;
   citiesLeft: number;
   piecesLeft: number;
@@ -152,6 +154,18 @@ function totalIncome(seat: Sim): number {
   return RESOURCES.reduce((n, r) => n + seat.income[r], seat.wild);
 }
 
+/** Lowers `distance` to what a new starting corner makes it. */
+function addOrigin(geo: Geometry, distance: Uint8Array, origin: number): void {
+  const row = origin * geo.n;
+  for (let c = 0; c < geo.n; c++) distance[c] = Math.min(distance[c]!, geo.distance[row + c]!);
+}
+
+function distancesFrom(geo: Geometry, origins: number[]): Uint8Array {
+  const distance = new Uint8Array(geo.n).fill(255);
+  for (const origin of origins) addOrigin(geo, distance, origin);
+  return distance;
+}
+
 class Run {
   readonly sims: Sim[];
   readonly occupied: Uint8Array;
@@ -173,6 +187,7 @@ class Run {
       points: s.points,
       settlements: [...s.settlements],
       frontier: [...s.frontier],
+      distance: distancesFrom(start.geo, s.frontier),
       settlementsLeft: s.settlementsLeft,
       citiesLeft: s.citiesLeft,
       piecesLeft: s.piecesLeft,
@@ -241,7 +256,7 @@ class Run {
       const waits = new Map<number, number>();
       for (let c = 0; c < geo.n; c++) {
         if (!geo.land[c] || !isOpen(geo, this.occupied, c)) continue;
-        const d = distanceFrom(geo, seat.frontier, c);
+        const d = seat.distance[c]!;
         if (d > Math.min(reach, seat.piecesLeft)) continue;
         let w = waits.get(d);
         if (w === undefined) {
@@ -335,6 +350,7 @@ class Run {
       seat.built += step.distance * ROUTE_ROAD_SHARE;
       seat.settlements.push(c);
       seat.frontier.push(c);
+      addOrigin(geo, seat.distance, c);
       seat.points += 1 + geo.bonus[c]!;
       seat.outlook.settled++;
       this.occupied[c] = 1;
@@ -358,7 +374,7 @@ class Run {
     const me = this.start.me;
     if (first) {
       const seat = this.sims[me]!;
-      const distance = first.kind === 'settlement' ? distanceFrom(this.start.geo, seat.frontier, first.corner) : 0;
+      const distance = first.kind === 'settlement' ? seat.distance[first.corner]! : 0;
       const cost = costOf(first, distance);
       seat.next = { goal: first, distance, cost, at: seat.clock + this.wait(seat, cost) };
     }

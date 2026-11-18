@@ -79,6 +79,10 @@ not 95% intervals. Use the final paired difference from `compare` for inference;
 - `bench-analysis [--results training/data/bench-1.json --full ...probe-3.json --stopped ...probe-4.json]`
   what the saved benchmark and probes say with no new games: signal and noise, equal-CPU scorers,
   ways to use the same rollouts, probe predictions, and a selector check (`bench-analysis.ts`).
+- `override-study [--games 150 --per-game 3 --rollouts 16 --variants 'name:knob=1;knob=2,...' --out f | --results f]` plays out each
+  decision where a variant disagrees with the shipped bot, by kind of change. `turn-end-audit` does the same for uses of cards
+  instead of ending the turn. `road-diagnosis`, `forecast-check` and `move-cost` compare the road model and forecast with real
+  games, and measure CPU per decision. `select --reuse-baseline file` keeps a baseline's games for later batches.
 - `records-awards [--dir training/data/dumps --only 24,26]` Longest Road and Largest Army in dumped
   saved games: turns each seat held each award, times taken, turns close behind, and every change of
   holder. Dumps need per-turn rows (made since 2026-11-17 by `replays --dump` or `dump-records.ts`,
@@ -360,3 +364,6 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
 - Narrowed candidate summary (2026-11-18, [analysis](analysis/2026-11-18-narrowed-candidates.md)):
   no clear win improvement; light setup forecasting is a weak lead, while the tested road
   variant holds the award less in two-player Jumbotan. Summary of an existing batch; no new games.
+- Forecast, Longest Road and placement (2026-11-18, [analysis](analysis/2026-11-18-forecast-roads-placement.md)): placement forecast about
+  +0.9 ±0.3 pp over four fresh seed sets but too slow to ship; spare roads hold the award more with no proven win gain; the forecast
+  doesn't yet improve build choices. All off by default.

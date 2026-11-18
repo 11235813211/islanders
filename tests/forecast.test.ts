@@ -6,10 +6,11 @@ import { forecast } from '../shared/bots/advanced/forecast';
 import { cornerPips } from '../shared/bots/advanced/geometry';
 import { makeParams, TRAINED } from '../shared/bots/advanced/params';
 import { forecastRank, forecastStart } from '../shared/bots/advanced/plan-forecast';
-import { canStart, rankedPlans } from '../shared/bots/advanced/plan-turn';
+import { canStart, overLimitTrade, rankedPlans } from '../shared/bots/advanced/plan-turn';
 import { setupEdge } from '../shared/bots/advanced/setup-forecast';
 import { hexPips } from '../shared/bots/analysis';
 import { applyAction, getActivePlayerId, getView } from '../shared/engine';
+import { emptyBag } from '../shared/engine/core';
 import { type GameState, RESOURCES } from '../shared/types';
 import { playBotGame } from './bot-harness';
 import { inSeatOrder, makeLobby, seeded, TEST_NOW } from './fixtures';
@@ -89,5 +90,17 @@ describe('game forecast', () => {
     const owners = new Int8Array(econ.geo.n).fill(-1);
     owners[0] = econ.seat;
     expect(Number.isFinite(setupEdge(view, econ.geo, owners, knobs))).toBe(true);
+  });
+
+  it('trades down only when over the discard limit', () => {
+    const g = buildStates()[3]!;
+    const id = getActivePlayerId(g)!;
+    const hold = (cards: number) => {
+      const next = structuredClone(g);
+      next.players.find(p => p.id === id)!.resources = { ...emptyBag(), wood: cards };
+      return new Economy(getView(next, id), knobs);
+    };
+    expect(overLimitTrade(hold(4))).toBeNull();
+    expect(overLimitTrade(hold(12))).toMatchObject({ type: 'trade', give: 'wood' });
   });
 });

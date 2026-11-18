@@ -8,33 +8,27 @@ In short, every earlier experiment measured or learned from the current bot's ow
 so it could only find one-step improvements. People beat the bot with strategies that pay off
 over many turns. The plan below tests that gap directly and then builds on it.
 
-## Status (2026-11-17, end of day)
+## Status (2026-11-18)
 
-- **Shipped `r1`** (committed): the plan-based planner with rival-model races and "what a
-  settlement opens next": +2.4 to +3.8 pp vs `s2` on fresh seeds, vs Intermediate ×1.91.
-- **Phase 1 probe:** with the dice leak fixed, choosing strategies by full rollouts gains
-  +6.7 ±3.2 pp vs r1 at 3 players (~250 CPU-s per game). Strategies are goal-kind leans
-  (`strategy.ts`).
-- **Phase 2:** `selector.ts` and `selector-fit` exist; a selector trained on the probe's choices
-  learned nothing (labels are mostly rollout noise).
-- **Static valuation has plateaued:** need-based income and measured enabling (`goalModel`) played
-  like r1 at twice the CPU; reverted. Knob tuning: null again. The measured headroom is lookahead.
-- **Rival model on a person:** 73% top 1, 89% top 3 (37 settlements).
-- Details, verdicts and weak points: [ANALYSIS.md](ANALYSIS.md).
+- **Shipped:** `r1`. Nothing below is shipped; every new behavior is behind a knob that is off.
+- **Placement forecast** (`setupForecast` 0.25): about +0.9 ±0.3 pp over four fresh seed sets, and +2.69 ±0.81 at tables where
+  everyone forecasts. Placement decisions cost up to 27.5 ms, too slow for the free plan.
+- **Longest Road** (`roadRace`): values only what committing adds, for spare cards after the early game. Holds the road more
+  (0.34 vs 0.26); win gain unproven (+0.71 ±0.55).
+- **Over-limit trades** (`overLimitTrade`): fewer discards, win gain unproven. **Forecast for builds** (`forecastPlan`): no gain yet.
+- **Strategy probe:** +6.7 ±3.2 pp at 3 players, unreplicated, ~250 CPU-s per game. Selectors don't beat constants.
+- Details: [forecast analysis](analysis/2026-11-18-forecast-roads-placement.md), [offline benchmark](analysis/2026-11-17-bench-offline.md).
 
 ## Next (start here)
 
-1. **Phase 3, value network as a rollout stand-in** (below). Step 2's benchmark is done: w1 stopped
-   at 4+ rounds already matches full rollouts per choice, which are mostly noise at 24 rollouts.
-   Next: the equal-CPU comparison and the probe rerun with stopped w1@4 at 48 rollouts (step 2
-   below), then refit (step 3) aiming at pair correlation and the cards bias.
-   _2026-11-17 evening: the equal-CPU comparison is answered from saved data (no advantage either
-   way). Proposed changes to this list await the owner: [offline analysis](analysis/2026-11-17-bench-offline.md)._
-2. **Longest Road as a race** (diagnosed 2026-11-17, [analysis](analysis/2026-11-17-awards-vs-people.md)): in all four
-   2-player Jumbotan games the person took the road and kept it; the bot never chases it more
-   than 3 roads back, pays it a flat 1.4 points, and never defends it. Largest Army was fine in
-   those games. Build the design in the analysis behind a knob, plus an award-racing test
-   opponent (bot fields don't race for it, so `compare` against them can't see the weakness).
+1. **Owner decision: placement forecast CPU.** Allow up to about 30 ms on placement moves, or require it to fit first.
+2. **Make the placement forecast faster** by reducing repeated affordability checks, then run the shipping lane on it alone.
+3. **Make the forecast able to judge waiting:** building on the side while saving, card risk from 7s, the robber's future moves,
+   and uncertain rivals. Judge it with `override-study` before whole games.
+4. **Check against people:** compare placements and forecast pace with saved human games, and watch the next games.
+5. **Replicate the strategy probe** on 180 fresh seeds with whole-game `cards` and `cities` controls, and test goal inputs for a
+   selector before refitting any value network ([why](analysis/2026-11-17-bench-offline.md)).
+6. **Longest Road:** keep what passed; revisit only with new evidence from games against people.
 
 ## How we work
 

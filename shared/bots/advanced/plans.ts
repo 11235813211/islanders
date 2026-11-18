@@ -149,7 +149,9 @@ function frontierSpots(econ: Economy): { corner: number; ours: number; gain: num
 export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<string, Target>): Plan[] {
   const { view, self } = econ;
   const plans: Plan[] = [];
-  const race = econ.knobs.roadRace > 0 ? roadRace(econ) : null;
+  // Only when we can build: other decisions don't need it, and it is the costly part of a plan list.
+  const race =
+    econ.knobs.roadRace > 0 && (view.phase === 'build' || view.phase === 'special-build') ? roadRace(econ) : null;
   const own = Object.entries(view.buildings).filter(([, b]) => b.playerId === view.selfId);
   if (self.citiesLeft)
     for (const [id, b] of own)

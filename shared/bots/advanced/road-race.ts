@@ -119,7 +119,15 @@ function worldOf(view: GameView, graph: Graph, cornerOf: Map<string, number>): W
 }
 
 /** A hypothetical change for `roadCurves`: a new building or road, or a whole draft of corners. */
-export type BoardChange = { corner?: number; edge?: string; seat?: number; owners?: Int8Array };
+export type BoardChange = {
+  corner?: number;
+  edge?: string;
+  seat?: number;
+  owners?: Int8Array;
+  /** Look only this many pieces ahead, with this many search steps (placement checks many starts). */
+  depth?: number;
+  limit?: number;
+};
 
 /** Each seat's longest road by number of new pieces, optionally after a change to the board. */
 export function roadCurves(view: GameView, geo: Geometry, change: BoardChange = {}): number[][] {
@@ -129,12 +137,21 @@ export function roadCurves(view: GameView, geo: Geometry, change: BoardChange = 
   if (change.corner !== undefined) world.corners[change.corner] = change.seat!;
   const edge = change.edge === undefined ? undefined : graph.indexOf.get(change.edge);
   if (edge !== undefined) world.edges[edge] = change.seat!;
-  return view.players.map((p, s) => reachOf(graph, world, s, p.roadsLeft + (p.shipsLeft ?? 0)).curve);
+  return view.players.map(
+    (p, s) => reachOf(graph, world, s, p.roadsLeft + (p.shipsLeft ?? 0), change.depth, change.limit).curve,
+  );
 }
 
 /** The longest trail a seat can make with each number of new pieces. */
-export function reachOf(graph: Graph, world: World, seat: number, pieces: number): RoadReach {
-  const most = Math.min(MAX_NEW, pieces);
+export function reachOf(
+  graph: Graph,
+  world: World,
+  seat: number,
+  pieces: number,
+  depth = MAX_NEW,
+  limit = SEARCH_LIMIT,
+): RoadReach {
+  const most = Math.min(depth, pieces);
   const curve = new Array<number>(most + 1).fill(0);
   const paths: number[][] = Array.from({ length: most + 1 }, () => []);
   const corners: number[][] = Array.from({ length: most + 1 }, () => []);
@@ -152,7 +169,7 @@ export function reachOf(graph: Graph, world: World, seat: number, pieces: number
     const blocked = length > 0 && world.corners[c]! >= 0 && world.corners[c] !== seat;
     if (!blocked)
       for (const { edge, to } of graph.links[c]!) {
-        if (used[edge] || steps > SEARCH_LIMIT) continue;
+        if (used[edge] || steps > limit) continue;
         const owner = world.edges[edge]!;
         const free = owner === -1 && paid < most;
         if (owner !== seat && !free) continue;

@@ -16,6 +16,7 @@ import { runGauntlet } from './gauntlet';
 import { goalReport } from './goal-report';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { askAuth, fetchRecords, SITE, saveLibrary } from './live';
+import { moveCost } from './move-cost';
 import { collect, fitNetwork } from './networks';
 import { overrideReport, overrideStudy } from './override-study';
 import { reportPlacements } from './placements';
@@ -39,6 +40,7 @@ import { playGame } from './sim';
 import { reportStrategyChoices } from './strategy-search';
 import { eventCollector, studyDumps, writeDump } from './study';
 import { TUNABLE, tune } from './tune';
+import { turnEndAudit } from './turn-end-audit';
 
 /**
  * Training commands (node training/run.mjs <command> --flag value). See training/README.md.
@@ -673,6 +675,24 @@ Object.assign(COMMANDS, {
       rollouts: Number(flags.rollouts ?? 16),
       out: flags.out,
     });
+  },
+  /** Better uses of cards than ending the turn: turn-end-audit [--games 100 --per-game 4 --rollouts 16 --out file]. */
+  async 'turn-end-audit'() {
+    await turnEndAudit(Number(flags.games ?? 100), Number(flags.seed ?? 9_300_000), {
+      filter: filterFromFlags(),
+      perGame: Number(flags['per-game'] ?? 4),
+      rollouts: Number(flags.rollouts ?? 16),
+      out: flags.out,
+    });
+  },
+  /** CPU per decision: move-cost [--games 30 --seed 9400000 --knobs '{"setupForecast":0.25}' --players 6]. */
+  'move-cost'() {
+    moveCost(
+      Number(flags.games ?? 30),
+      Number(flags.seed ?? 9_400_000),
+      flags.knobs ? JSON.parse(flags.knobs) : {},
+      filterFromFlags(),
+    );
   },
   /** List checkpoints with their last note. */
   checkpoints() {

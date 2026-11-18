@@ -56,6 +56,9 @@ export const KNOBS = {
   /** Setup: weight of the forecast against the setup network (setup-forecast.ts); 0 is off. */
   setupForecast: [0, 0, 2],
 
+  /** 1: over the discard limit at the end of a turn, make the bank trade that hurts the hand least. */
+  overLimitTrade: [0, 0, 1],
+
   // Expansion
   /** How much an opponent being closer to a spot cuts its value (0: ignore races). */
   racePenalty: [0.6, 0, 1],
