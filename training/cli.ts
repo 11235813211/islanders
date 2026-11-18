@@ -685,13 +685,14 @@ Object.assign(COMMANDS, {
       out: flags.out,
     });
   },
-  /** CPU per decision: move-cost [--games 30 --seed 9400000 --knobs '{"setupForecast":0.25}' --players 6]. */
+  /** CPU per decision: move-cost [--games 30 --seed 9400000 --knobs '{"setupForecast":0.25}' --players 6 --split true]. */
   'move-cost'() {
     moveCost(
       Number(flags.games ?? 30),
       Number(flags.seed ?? 9_400_000),
       flags.knobs ? JSON.parse(flags.knobs) : {},
       filterFromFlags(),
+      flags.split !== undefined,
     );
   },
   /** List checkpoints with their last note. */

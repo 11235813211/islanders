@@ -10,7 +10,7 @@ import { winningMove } from './endgame';
 import { type AdvancedParams, TRAINED } from './params';
 import { robberHex, stealTarget } from './robber';
 import { selectStrategy } from './selector';
-import { setupRoad, setupSettlement } from './setup';
+import { setupRoad, setupSettlement, thinkPlacement } from './setup';
 import { type Strategy, withStrategy } from './strategy';
 import { respond, review } from './trade';
 import { bestCity, bestSettlement, buildStep, knightNow, towardTarget } from './turn';
@@ -46,6 +46,7 @@ export function makeAdvanced(params: AdvancedParams): Brain {
   };
   return {
     turn: (view, options) => pick(view).turn(view, options),
+    think: (view, done) => pick(view).think!(view, done),
     discard: view => pick(view).discard(view),
     respond: (view, offer) => pick(view).respond(view, offer),
     review: (view, offer) => pick(view).review(view, offer),
@@ -71,7 +72,7 @@ function makeBrain(params: AdvancedParams): Brain {
   };
   return {
     turn(view: GameView, options: TurnOptions): GameAction {
-      if (view.phase === 'setup-settlement') return setupSettlement(view, params, knobs.setupExplore);
+      if (view.phase === 'setup-settlement') return setupSettlement(view, params, knobs.setupExplore, options.thought);
       if (view.phase === 'setup-road') return setupRoad(view, params);
       const econ = new Economy(view, knobs);
       switch (view.phase) {
@@ -95,6 +96,7 @@ function makeBrain(params: AdvancedParams): Brain {
           return { type: 'end-turn' };
       }
     },
+    think: (view: GameView, done) => thinkPlacement(view, params, done),
     discard: (view: GameView) => discard(view, knobs),
     respond: (view: GameView, offer: TradeOffer) => respond(new Economy(view, knobs), offer),
     review: (view: GameView, offer: TradeOffer) => review(new Economy(view, knobs), offer),

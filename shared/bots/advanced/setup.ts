@@ -1,6 +1,7 @@
 import { boardIndex } from '../../seafaring';
 import { CLASSIC_RESOURCES, type GameAction, type GameView } from '../../types';
 import { linkAction } from '../analysis';
+import type { BotThought } from '../types';
 import { classicSlot, distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import { predict } from './net';
 import { type AdvancedParams, type Knobs, makeParams } from './params';
@@ -137,7 +138,11 @@ const cornersOf = (owners: Int8Array, seat: number): number[] => {
   return out;
 };
 
-const occupiedOf = (owners: Int8Array): Uint8Array => Uint8Array.from(owners, o => (o >= 0 ? 1 : 0));
+function occupiedOf(owners: Int8Array): Uint8Array {
+  const occupied = new Uint8Array(owners.length);
+  for (let c = 0; c < owners.length; c++) if (owners[c]! >= 0) occupied[c] = 1;
+  return occupied;
+}
 
 /** Quick score for `seat` taking corner `c`: value, plus new kinds of resource and a fitting harbor. */
 function quickScore(ctx: Context, own: number[], c: number, variety: number): number {
@@ -384,6 +389,8 @@ interface Outcome {
 
 /** Candidates the forecast compares at our real pick. */
 const FORECAST_PICKS = 4;
+/** Forecasts run per request when a placement is spread over several. */
+const FORECASTS_PER_STEP = 2;
 
 /** Every candidate corner at this step with where its draft leads, best first. */
 function rankPicks(ctx: Context, owners: Int8Array, step: number, width: number): (Outcome & { corner: number })[] {
@@ -420,15 +427,30 @@ function bestPick(ctx: Context, owners: Int8Array, step: number, width: number):
   return rankPicks(ctx, owners, step, width)[0] ?? { corner: -1, score: -Infinity, final: owners };
 }
 
+/** The draft's best few for our real pick. Corners leading to the same position are judged once. */
+function forecastCandidates(ctx: Context, owners: Int8Array, step: number, width: number): BotThought['picks'] {
+  const seen = new Set<string>();
+  return rankPicks(ctx, owners, step, width)
+    .slice(0, FORECAST_PICKS)
+    .filter(({ final }) => {
+      const key = final.join();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 /** Our real pick: the draft's best few, reweighed by how the game should go from each. */
-function forecastPick(ctx: Context, owners: Int8Array, step: number, width: number): number {
-  const picks = rankPicks(ctx, owners, step, width).slice(0, FORECAST_PICKS);
+function forecastPick(ctx: Context, thought: BotThought): number {
+  const { picks, edges } = thought;
   let best = picks[0]?.corner ?? -1;
+  if (picks.length < 2) return best;
   let top = -Infinity;
-  for (const p of picks) {
-    const score = p.score + ctx.knobs.setupForecast * setupEdge(ctx.view, ctx.geo, p.final, ctx.knobs);
+  picks.forEach((p, i) => {
+    const edge = edges[i] ?? setupEdge(ctx.view, ctx.geo, p.final, ctx.knobs);
+    const score = p.score + ctx.knobs.setupForecast * edge;
     if (score > top) [best, top] = [p.corner, score];
-  }
+  });
   return best;
 }
 
@@ -440,17 +462,48 @@ function viewNoise(view: GameView): number {
   return (h >>> 0) / 2 ** 32;
 }
 
-/** Choose a starting settlement. */
-export function setupSettlement(view: GameView, params: AdvancedParams, explore = 0): GameAction {
+/** What choosing a starting settlement works from. */
+function placement(view: GameView, params: AdvancedParams) {
   const ctx = context(view, params);
   const owners = ownersOf(ctx);
-  const step = Object.keys(view.buildings).length;
   const legal = new Set(view.legal.settlements.map(id => ctx.geo.indexOf.get(id)!));
   // Corners the board allows but the engine doesn't list (should not happen) are dropped here.
   ctx.starts = ctx.starts.filter(c => legal.has(c) || !isOpen(ctx.geo, occupiedOf(owners), c));
-  const width = Math.round(params.knobs.setupCandidates);
-  let corner =
-    params.knobs.setupForecast > 0 ? forecastPick(ctx, owners, step, width) : bestPick(ctx, owners, step, width).corner;
+  return {
+    ctx,
+    owners,
+    legal,
+    step: Object.keys(view.buildings).length,
+    width: Math.round(params.knobs.setupCandidates),
+  };
+}
+
+/**
+ * The next piece of a forecast placement: first the draft, then the forecasts a few at a time, so
+ * each piece fits in one request. Null when nothing is left to do.
+ */
+export function thinkPlacement(view: GameView, params: AdvancedParams, done?: BotThought): BotThought | null {
+  if (view.phase !== 'setup-settlement' || params.knobs.setupForecast <= 0) return null;
+  if (!done) {
+    const { ctx, owners, step, width } = placement(view, params);
+    return { picks: forecastCandidates(ctx, owners, step, width), edges: [] };
+  }
+  const { picks } = done;
+  if (picks.length < 2 || done.edges.length >= picks.length) return null;
+  const geo = geometry(view);
+  const more = picks
+    .slice(done.edges.length, done.edges.length + FORECASTS_PER_STEP)
+    .map(p => setupEdge(view, geo, p.final, params.knobs));
+  return { picks, edges: [...done.edges, ...more] };
+}
+
+/** Choose a starting settlement (the same one whether or not `thought` has part of the work). */
+export function setupSettlement(view: GameView, params: AdvancedParams, explore = 0, thought?: BotThought): GameAction {
+  const { ctx, owners, legal, step, width } = placement(view, params);
+  let corner: number;
+  if (params.knobs.setupForecast > 0)
+    corner = forecastPick(ctx, thought ?? { picks: forecastCandidates(ctx, owners, step, width), edges: [] });
+  else corner = bestPick(ctx, owners, step, width).corner;
   if (explore) {
     // Training only: sometimes try another legal corner, to learn what other positions are worth.
     const noise = viewNoise(view);

@@ -1,4 +1,4 @@
-import { chooseBotAction } from '../bots';
+import { type BotThought, botThink, chooseBotAction } from '../bots';
 import { choiceGroups, fillChoice } from '../choices';
 import { hasAnswered } from '../rules';
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
@@ -96,8 +96,46 @@ function botStepsThisTurn(state: GameState, id: string): number {
   return state.log.filter(entry => entry.turn === state.turn && entry.text.startsWith(name)).length;
 }
 
+/** A bot's work on one starting placement, kept by the room between requests. */
+export interface BotThinking {
+  key: string;
+  thought: BotThought;
+}
+
+/** Identifies the decision: who is placing, and what is on the board. */
+function placementKey(state: GameState, id: string): string {
+  const pieces = Object.entries(state.buildings).map(([vertex, b]) => `${vertex}=${b.playerId}`);
+  return `${id}|${pieces.sort().join()}`;
+}
+
+const thoughtFor = (state: GameState, id: string, thinking?: BotThinking | null) =>
+  thinking?.key === placementKey(state, id) ? thinking.thought : undefined;
+
+/** The level whose placement is due now (a bot's, or one made for a seat out of time), or null. */
+function placementDue(state: GameState, now: number): { id: string; level: BotLevel } | null {
+  if (state.phase !== 'setup-settlement' || state.pausedAt !== null) return null;
+  const id = getActivePlayerId(state);
+  if (!id) return null;
+  if (state.turnDeadline !== null && state.turnDeadline <= now) return { id, level: DEFAULT_BOT_LEVEL };
+  const due = botDueAt(state);
+  const bot = state.players.find(p => p.id === id)?.bot;
+  return bot && due !== null && due <= now ? { id, level: bot } : null;
+}
+
+/**
+ * Does one piece of a slow bot decision that is due now. Returns the work so far, to hand to the
+ * next call and then to `advanceTime`, or null when the move can be made. The state never changes
+ * here and the move comes out the same, so a lost result only costs the work again.
+ */
+export function thinkAhead(state: GameState, now: number, held?: BotThinking | null): BotThinking | null {
+  const due = placementDue(state, now);
+  if (!due) return null;
+  const thought = botThink(getView(state, due.id), due.level, thoughtFor(state, due.id, held));
+  return thought && { key: placementKey(state, due.id), thought };
+}
+
 /** Apply one bot move. Falls back to simpler choices so a bot can never stall the table. */
-function runBotStep(state: GameState, now: number, random: () => number): GameState {
+function runBotStep(state: GameState, now: number, random: () => number, thinking?: BotThinking | null): GameState {
   const id = pendingBotActor(state)!;
   const level = state.players.find(p => p.id === id)!.bot ?? DEFAULT_BOT_LEVEL;
   const view = getView(state, id);
@@ -106,7 +144,7 @@ function runBotStep(state: GameState, now: number, random: () => number): GameSt
     () =>
       builds > MAX_BOT_STEPS_PER_TURN && state.phase === 'build'
         ? { type: 'end-turn' }
-        : chooseBotAction(view, { level }),
+        : chooseBotAction(view, { level, thought: thoughtFor(state, id, thinking) }),
     () => chooseBotAction(view, { level: 'beginner', builds: 99 }),
     () => bankGold(state, id),
   ];
@@ -174,7 +212,12 @@ function forced(state: GameState, id: string, action: GameAction, random: () => 
 }
 
 /** Called by durable alarms; deadlines and bots never depend on an open browser. */
-export function advanceTime(state: GameState, now: number, random: () => number = Math.random): GameState {
+export function advanceTime(
+  state: GameState,
+  now: number,
+  random: () => number = Math.random,
+  thinking?: BotThinking | null,
+): GameState {
   const next = cloneState(state);
   let changed = false;
   if (next.proposal && next.proposal.expiresAt <= now) {
@@ -189,7 +232,7 @@ export function advanceTime(state: GameState, now: number, random: () => number 
       changed = true;
     }
     if (next.turnDeadline !== null && next.turnDeadline <= now && playing(next))
-      return finishTimedTurn(next, now, random);
+      return finishTimedTurn(next, now, random, thinking);
     if (next.phase === 'roll' && next.rollDeadline !== null && next.rollDeadline <= now)
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll' }, random, now);
     if (next.phase === 'eruption' && next.rollDeadline !== null && next.rollDeadline <= now)
@@ -206,7 +249,7 @@ export function advanceTime(state: GameState, now: number, random: () => number 
     return next;
   }
   const due = botDueAt(state);
-  return due !== null && due <= now ? runBotStep(state, now, random) : state;
+  return due !== null && due <= now ? runBotStep(state, now, random, thinking) : state;
 }
 
 /**
@@ -241,7 +284,7 @@ function chooseGoldForAll(state: GameState, now: number, random: () => number): 
  * (setup placements, the roll, discards, the robber, a steal, gold, volcano dice), as an Advanced
  * bot would. Nothing is built, bought, traded, or played; Road Building just stops.
  */
-function forcedChoice(state: GameState, id: string, level: BotLevel): GameAction | null {
+function forcedChoice(state: GameState, id: string, level: BotLevel, thought?: BotThought): GameAction | null {
   switch (state.phase) {
     case 'roll':
       return { type: 'roll' };
@@ -252,7 +295,7 @@ function forcedChoice(state: GameState, id: string, level: BotLevel): GameAction
     case 'build':
       return null;
     default:
-      return chooseBotAction(getView(state, id), { level, allowOffers: false });
+      return chooseBotAction(getView(state, id), { level, allowOffers: false, thought });
   }
 }
 
@@ -267,7 +310,12 @@ function nextChooser(state: GameState): string {
  * Finish exactly one expired turn (or setup placement). A bot seat plays the rest of its turn; for
  * a person only the forced choices are made (see forcedChoice), then the turn ends.
  */
-function finishTimedTurn(state: GameState, now: number, random: () => number): GameState {
+function finishTimedTurn(
+  state: GameState,
+  now: number,
+  random: () => number,
+  thinking?: BotThinking | null,
+): GameState {
   // A special builder who runs out of time just passes; nobody builds for them.
   if (state.phase === 'special-build') {
     const next = applyAction(state, state.specialBuilder!, { type: 'end-turn' }, random, now);
@@ -286,12 +334,13 @@ function finishTimedTurn(state: GameState, now: number, random: () => number): G
     if (next.turn !== turn || next.setupIndex !== setupIndex) break;
     const id = nextChooser(next);
     const view = getView(next, id);
+    const thought = thoughtFor(next, id, thinking);
     const choices: (() => GameAction | null)[] = active.bot
       ? [
-          () => chooseBotAction(view, { level: DEFAULT_BOT_LEVEL, builds, allowOffers: false }),
+          () => chooseBotAction(view, { level: DEFAULT_BOT_LEVEL, builds, allowOffers: false, thought }),
           () => chooseBotAction(view, { level: 'beginner', builds: 99 }),
         ]
-      : [() => forcedChoice(next, id, DEFAULT_BOT_LEVEL), () => forcedChoice(next, id, 'beginner')];
+      : [() => forcedChoice(next, id, DEFAULT_BOT_LEVEL, thought), () => forcedChoice(next, id, 'beginner')];
     let applied: GameAction | null = null;
     for (const choose of choices) {
       const action = choose();

@@ -55,31 +55,51 @@ export function basePace(econ: Economy): { pace: Pace; rate: number } {
   return base;
 }
 
+/** Answers are whole multiples of this many rounds. */
+const AFFORD_STEP = CAP / 65536;
+
+/** How fast the last `affordMargin` was growing at its time. */
+let marginSlope = 0;
+
+/** Spare value at time `t` after paying `cost` (negative: still short), with surplus traded at our rates. */
+function affordMargin(hand: ResourceBag, pace: Pace, cost: ResourceBag, t: number): number {
+  let margin = pace.wild * t;
+  let slope = pace.wild;
+  for (const r of RESOURCES) {
+    const income = pace.income[r];
+    const left = hand[r] + income * t - cost[r];
+    if (left >= 0) {
+      margin += left / pace.rates[r];
+      slope += income / pace.rates[r];
+    } else {
+      margin += left;
+      slope += income;
+    }
+  }
+  marginSlope = slope;
+  return margin;
+}
+
 /**
  * Rounds until `hand` plus income pays `cost`, trading surplus at our rates and spending gold
  * on any shortfall (a continuous estimate: dice luck and whole-card trades are averaged out).
+ * The margin is made of straight pieces that only flatten, so following each piece reaches the
+ * answer in a few steps; this runs thousands of times per forecast.
  */
 export function roundsToAfford(hand: ResourceBag, pace: Pace, cost: ResourceBag): number {
-  const covered = (t: number) => {
-    let credit = pace.wild * t;
-    let need = 0;
-    for (const r of RESOURCES) {
-      const left = hand[r] + pace.income[r] * t - cost[r];
-      if (left >= 0) credit += left / pace.rates[r];
-      else need -= left;
-    }
-    return credit >= need;
-  };
-  if (covered(0)) return 0;
-  if (!covered(CAP)) return CAP;
-  let lo = 0;
-  let hi = CAP;
-  for (let i = 0; i < 16; i++) {
-    const mid = (lo + hi) / 2;
-    if (covered(mid)) hi = mid;
-    else lo = mid;
+  let short = affordMargin(hand, pace, cost, 0);
+  if (short >= 0) return 0;
+  if (affordMargin(hand, pace, cost, CAP) < 0) return CAP;
+  let t = 0;
+  short = affordMargin(hand, pace, cost, 0);
+  for (let piece = 0; piece <= RESOURCES.length && short < 0 && marginSlope > 0; piece++) {
+    t = Math.min(CAP, t - short / marginSlope);
+    short = affordMargin(hand, pace, cost, t);
   }
-  return hi;
+  let steps = Math.max(1, Math.ceil(t / AFFORD_STEP));
+  while (affordMargin(hand, pace, cost, steps * AFFORD_STEP) < 0) steps++;
+  while (steps > 1 && affordMargin(hand, pace, cost, (steps - 1) * AFFORD_STEP) >= 0) steps--;
+  return steps * AFFORD_STEP;
 }
 
 /** Points per round this pace earns on a typical mix of builds we still have pieces for. */

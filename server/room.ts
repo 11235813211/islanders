@@ -6,6 +6,7 @@ import {
   advanceTime,
   applyAction,
   awayHostSuccessor,
+  type BotThinking,
   createGame,
   GameError,
   getActivePlayerId,
@@ -18,6 +19,7 @@ import {
   normalizeGame,
   passHost,
   peekBoard,
+  thinkAhead,
 } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
 import { type RecordedStep, shouldRecord, tape, withBotSeat } from '../shared/replay';
@@ -157,6 +159,8 @@ function seatNamed(room: RoomRecord, typed: string): { id: string; name: string 
 /** One serialized, durable source of truth per invite code. No client owns game state. */
 export class GameRoom extends DurableObject<Env> {
   private record: RoomRecord | undefined;
+  /** A bot's unfinished placement. Memory is enough: if it is lost, the bot works it out again. */
+  private thinking: BotThinking | null = null;
   /** Set when this object is another room's own code (see room-code.ts): the room it stands for. */
   private alias: string | undefined;
   private queue: Promise<unknown> = Promise.resolve();
@@ -689,7 +693,7 @@ export class GameRoom extends DurableObject<Env> {
         await checkLimit(this.env.CONNECTION_LIMITER, `action:${room.game.roomId}:${attachment.playerId}`);
         const timeTape = tape(secureRandom);
         const timedAt = Date.now();
-        const timed = advanceTime(room.game, timedAt, timeTape.random);
+        const timed = advanceTime(room.game, timedAt, timeTape.random, this.thinking);
         if (timed !== room.game) {
           const logged = await this.logStep(room, { kind: 'time', now: timedAt, random: timeTape.draws });
           await this.commit(await this.endRecording({ ...logged, game: timed, lastActivity: Date.now() }));
@@ -927,12 +931,19 @@ export class GameRoom extends DurableObject<Env> {
           record = { ...record, game };
         }
         try {
-          const timeTape = tape(secureRandom);
-          const game = advanceTime(record.game, now, timeTape.random);
-          // Bot and timer moves don't count as activity, so abandoned rooms still expire.
-          if (game !== record.game) {
-            record = await this.logStep(record, { kind: 'time', now, random: timeTape.draws });
-            record = await this.endRecording({ ...record, game });
+          // A slow bot move is spread over several alarms: it stays due, so the alarm set below
+          // fires again at once, with a fresh CPU budget.
+          const thinking = thinkAhead(record.game, now, this.thinking);
+          if (thinking) this.thinking = thinking;
+          else {
+            const timeTape = tape(secureRandom);
+            const game = advanceTime(record.game, now, timeTape.random, this.thinking);
+            // Bot and timer moves don't count as activity, so abandoned rooms still expire.
+            if (game !== record.game) {
+              this.thinking = null;
+              record = await this.logStep(record, { kind: 'time', now, random: timeTape.draws });
+              record = await this.endRecording({ ...record, game });
+            }
           }
         } catch (error) {
           // Back off instead of retrying the same overdue deadline in a tight loop.

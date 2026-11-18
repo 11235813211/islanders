@@ -117,17 +117,35 @@ interface Step {
   at: number;
 }
 
-function costOf(goal: FirstGoal, distance: number): ResourceBag {
+function bagOf(parts: [ResourceBag, number][]): ResourceBag {
   const cost = emptyBag();
-  const add = (bag: ResourceBag, times = 1) => {
-    for (const r of RESOURCES) cost[r] += bag[r] * times;
-  };
-  if (goal.kind === 'city') add(COSTS.city);
-  else if (goal.kind === 'development') add(COSTS.development);
-  else if (goal.kind === 'road') add(COSTS.road, goal.pieces);
-  else {
-    add(COSTS.settlement);
-    add(COSTS.road, distance);
+  for (const [bag, times] of parts) for (const r of RESOURCES) cost[r] += bag[r] * times;
+  return cost;
+}
+
+/** Costs by number of road pieces, built once: they are only ever read. */
+const roadCosts: ResourceBag[] = [];
+const settlementCosts: ResourceBag[] = [];
+const CITY_COST = bagOf([[COSTS.city, 1]]);
+const DEVELOPMENT_COST = bagOf([[COSTS.development, 1]]);
+
+function costOf(goal: FirstGoal, distance: number): ResourceBag {
+  if (goal.kind === 'city') return CITY_COST;
+  if (goal.kind === 'development') return DEVELOPMENT_COST;
+  const road = goal.kind === 'road';
+  const pieces = road ? goal.pieces : distance;
+  const costs = road ? roadCosts : settlementCosts;
+  let cost = costs[pieces];
+  if (!cost) {
+    cost = bagOf(
+      road
+        ? [[COSTS.road, pieces]]
+        : [
+            [COSTS.settlement, 1],
+            [COSTS.road, pieces],
+          ],
+    );
+    costs[pieces] = cost;
   }
   return cost;
 }
@@ -141,13 +159,6 @@ function cornerIncome(geo: Geometry, c: number, players: number): CornerIncome {
   });
   cards.lodestone = geo.lodestone[c]! * perRound;
   return { cards, wild: geo.gold[c]! * perRound };
-}
-
-/** Worth of extra income: scarcer resources for this seat count for more. */
-function incomeWorth(seat: Sim, gain: CornerIncome, players: number): number {
-  let value = gain.wild * 1.3;
-  for (const r of RESOURCES) value += gain.cards[r] * (1.6 - Math.min(1, ((seat.income[r] * 36) / players) * 0.1));
-  return value;
 }
 
 function totalIncome(seat: Sim): number {
@@ -172,9 +183,18 @@ class Run {
   holder: number;
   deck: number;
   private readonly players: number;
+  /** Each corner's income, worked out once. */
+  private readonly incomes: (CornerIncome | undefined)[] = [];
+  /** Per route length, during one `choose`: the wait (-1: not worked out) and the road award's worth. */
+  private readonly routeWaits: Float64Array;
+  private readonly routeRoads: Float64Array;
+  /** What a card of each resource is worth to the seat choosing. */
+  private readonly cardWorth = new Float64Array(RESOURCES.length);
 
   constructor(readonly start: ForecastStart) {
     this.players = start.seats.length;
+    this.routeWaits = new Float64Array(start.reach + 1);
+    this.routeRoads = new Float64Array(start.reach + 1);
     this.occupied = Uint8Array.from(start.occupied);
     this.holder = start.holder;
     this.deck = start.deck;
@@ -201,16 +221,21 @@ class Run {
   }
 
   private incomeAt(c: number): CornerIncome {
-    return this.start.incomeAt?.(c) ?? cornerIncome(this.start.geo, c, this.players);
+    let income = this.incomes[c];
+    if (!income) {
+      income = this.start.incomeAt?.(c) ?? cornerIncome(this.start.geo, c, this.players);
+      this.incomes[c] = income;
+    }
+    return income;
   }
 
   private wait(seat: Sim, cost: ResourceBag): number {
-    const pace = { income: seat.income, wild: seat.wild, rates: seat.rates };
-    return roundsToAfford(seat.hand, pace, cost);
+    return roundsToAfford(seat.hand, seat, cost);
   }
 
   private roundsLeft(): number {
-    const leader = Math.max(...this.sims.map(s => s.points));
+    let leader = Number.NEGATIVE_INFINITY;
+    for (const s of this.sims) if (s.points > leader) leader = s.points;
     return Math.max(2, Math.min(25, this.start.roundsPerPoint * Math.max(1, this.start.target - leader)));
   }
 
@@ -226,48 +251,76 @@ class Run {
     return at > best ? ROAD_AWARD : 0;
   }
 
+  /** Extra income at `c` in points over the rounds left: scarcer resources count for more. */
+  private cornerWorth(c: number, rounds: number): number {
+    const gain = this.incomeAt(c);
+    let value = gain.wild * 1.3;
+    for (let r = 0; r < RESOURCES.length; r++) value += gain.cards[RESOURCES[r]!] * this.cardWorth[r]!;
+    return value * rounds * this.start.pointPerCard;
+  }
+
+  /** The best open corner for this seat, if it beats `top`. */
+  private bestSettlement(seat: Sim, index: number, rounds: number, top: number): (Step & { score: number }) | null {
+    const { geo, reach } = this.start;
+    const { routeWaits, routeRoads } = this;
+    routeWaits.fill(-1);
+    const farthest = Math.min(reach, seat.piecesLeft);
+    let corner = -1;
+    let distance = 0;
+    let wait = 0;
+    for (let c = 0; c < geo.n; c++) {
+      if (!geo.land[c]) continue;
+      const d = seat.distance[c]!;
+      if (d > farthest || !isOpen(geo, this.occupied, c)) continue;
+      let w = routeWaits[d]!;
+      if (w < 0) {
+        w = this.wait(seat, costOf({ kind: 'settlement', corner: c }, d));
+        routeWaits[d] = w;
+        routeRoads[d] = this.roadGain(seat, index, d * ROUTE_ROAD_SHARE);
+      }
+      const score = (1 + routeRoads[d]! + this.cornerWorth(c, rounds)) / (1 + w);
+      if (score > top) [top, corner, distance, wait] = [score, c, d, w];
+    }
+    if (corner < 0) return null;
+    const goal: FirstGoal = { kind: 'settlement', corner };
+    return { goal, distance, cost: costOf(goal, distance), at: seat.clock + wait, score: top };
+  }
+
   /** The seat's best next build: most worth for the wait. */
   private choose(index: number): Step | null {
     const seat = this.sims[index]!;
-    const { geo, pointPerCard, reach } = this.start;
     const rounds = this.roundsLeft();
-    const worth = (gain: CornerIncome) => incomeWorth(seat, gain, this.players) * rounds * pointPerCard;
+    RESOURCES.forEach((r, i) => {
+      this.cardWorth[i] = 1.6 - Math.min(1, ((seat.income[r] * 36) / this.players) * 0.1);
+    });
     let best: Step | null = null;
     let top = 0;
-    const consider = (goal: FirstGoal, value: number, distance = 0, wait?: number) => {
-      const cost = costOf(goal, distance);
-      const w = wait ?? this.wait(seat, cost);
-      const score = value / (1 + w);
+    const consider = (goal: FirstGoal, value: number) => {
+      const cost = costOf(goal, 0);
+      const wait = this.wait(seat, cost);
+      const score = value / (1 + wait);
       if (score > top) {
         top = score;
-        best = { goal, distance, cost, at: seat.clock + w };
+        best = { goal, distance: 0, cost, at: seat.clock + wait };
       }
     };
     if (seat.citiesLeft) {
       let corner = -1;
       let gain = 0;
       for (const c of seat.settlements) {
-        const v = worth(this.incomeAt(c));
+        const v = this.cornerWorth(c, rounds);
         if (v > gain) [corner, gain] = [c, v];
       }
       if (corner >= 0) consider({ kind: 'city', corner }, 1 + gain);
     }
     if (seat.settlementsLeft) {
-      const waits = new Map<number, number>();
-      for (let c = 0; c < geo.n; c++) {
-        if (!geo.land[c] || !isOpen(geo, this.occupied, c)) continue;
-        const d = seat.distance[c]!;
-        if (d > Math.min(reach, seat.piecesLeft)) continue;
-        let w = waits.get(d);
-        if (w === undefined) {
-          w = this.wait(seat, costOf({ kind: 'settlement', corner: c }, d));
-          waits.set(d, w);
-        }
-        const road = this.roadGain(seat, index, d * ROUTE_ROAD_SHARE);
-        consider({ kind: 'settlement', corner: c }, 1 + road + worth(this.incomeAt(c)), d, w);
+      const found = this.bestSettlement(seat, index, rounds, top);
+      if (found) {
+        top = found.score;
+        best = found;
       }
     }
-    if (this.deck > 0) consider({ kind: 'development' }, CARD_POINTS + 2.2 * pointPerCard);
+    if (this.deck > 0) consider({ kind: 'development' }, CARD_POINTS + 2.2 * this.start.pointPerCard);
     for (let pieces = 1; pieces <= Math.min(4, seat.piecesLeft); pieces++) {
       const gain = this.roadGain(seat, index, pieces);
       if (gain) consider({ kind: 'road', pieces }, gain);
@@ -382,10 +435,11 @@ class Run {
     for (let event = 0; event < limit; event++) {
       let index = -1;
       let soonest = LAST_ROUND;
-      this.sims.forEach((seat, i) => {
+      for (let i = 0; i < this.sims.length; i++) {
+        const seat = this.sims[i]!;
         seat.next ??= this.choose(i);
         if (seat.next && seat.next.at < soonest) [index, soonest] = [i, seat.next.at];
-      });
+      }
       if (index < 0) return;
       this.apply(index, this.sims[index]!.next!);
       const seat = this.sims[index]!;

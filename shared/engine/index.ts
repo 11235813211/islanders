@@ -26,10 +26,12 @@ export {
   BOT_ANSWER_SPREAD_MS,
   BOT_OFFER_WAIT_MS,
   BOT_THINK_MS,
+  type BotThinking,
   botDueAt,
   nextDueAt,
   pendingBotActor,
   ROLL_SHOW_MS,
+  thinkAhead,
   UNDO_GRACE_MS,
 } from './time';
 export { MAX_OPEN_OFFERS } from './trade';

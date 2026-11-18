@@ -6,9 +6,9 @@ import { beginner } from './beginner';
 import { cartographersTurn, keepsLodestone } from './cartographers';
 import { splitGoldChoice } from './charting';
 import { intermediate } from './strategic';
-import type { BotOptions, Brain, TurnOptions } from './types';
+import type { BotOptions, BotThought, Brain, TurnOptions } from './types';
 
-export type { BotOptions, Brain } from './types';
+export type { BotOptions, BotThought, Brain } from './types';
 
 /** Bot levels, weakest first. */
 export const BOTS: Record<BotLevel, { brain: Brain; label: string }> = {
@@ -24,6 +24,11 @@ export const BOTS: Record<BotLevel, { brain: Brain; label: string }> = {
  */
 export function chooseBotAction(view: GameView, options: BotOptions = {}): GameAction {
   return actWith(BOTS[options.level ?? DEFAULT_BOT_LEVEL].brain, view, options);
+}
+
+/** One more piece of work on a slow decision, or null when `chooseBotAction` can simply answer. */
+export function botThink(view: GameView, level: BotLevel, done?: BotThought): BotThought | null {
+  return BOTS[level].brain.think?.(keepRoutePiece(view), done) ?? null;
 }
 
 /** The same, for any brain (training plays candidate brains this way). */
