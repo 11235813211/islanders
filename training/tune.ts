@@ -43,6 +43,8 @@ export const TUNABLE = (Object.keys(KNOBS) as Knob[]).filter(
     k !== 'roadFrom' &&
     k !== 'overLimitTrade' &&
     k !== 'roadRoute' &&
+    k !== 'roadOpens' &&
+    k !== 'roadBlock' &&
     k !== 'forecastPlan' &&
     k !== 'setupForecast',
 );

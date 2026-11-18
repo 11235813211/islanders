@@ -4,7 +4,7 @@ import { RESOURCES, type ResourceBag } from '../../types';
 import { COSTS, resourceWeights } from '../analysis';
 import type { Economy, Target } from './economy';
 import { distanceFrom, isOpen } from './geometry';
-import { roadRace } from './road-race';
+import { type RoadRace, roadRace } from './road-race';
 import { goalLean } from './strategy';
 import { cornerYield } from './value';
 
@@ -39,6 +39,8 @@ export interface Plan {
 }
 
 const SHIP = BUILD_COSTS.ship;
+/** Routes checked against Longest Road per decision: each costs a trail search. */
+const ROUTES_CHECKED = 4;
 
 /** Development deck shares (standard deck): points, knights, and progress cards. */
 const DECK = { point: 5 / 25, knight: 14 / 25, progress: 6 / 25 };
@@ -128,7 +130,7 @@ function frontierGain(econ: Economy, c: number): number {
 const spotCache = new WeakMap<Economy, { corner: number; ours: number; gain: number }[]>();
 
 /** Open land corners with our distance to them and a settlement's return there (once per decision). */
-function frontierSpots(econ: Economy): { corner: number; ours: number; gain: number }[] {
+export function frontierSpots(econ: Economy): { corner: number; ours: number; gain: number }[] {
   let spots = spotCache.get(econ);
   if (spots) return spots;
   const { geo } = econ;
@@ -143,6 +145,18 @@ function frontierSpots(econ: Economy): { corner: number; ours: number; gain: num
   }
   spotCache.set(econ, spots);
   return spots;
+}
+
+/** The best routes also earn what they add to our Longest Road. */
+function creditRoutes(econ: Economy, race: RoadRace, plans: Plan[]): void {
+  const best = plans
+    .filter(p => p.kind === 'route')
+    .sort((a, b) => b.payoff - a.payoff)
+    .slice(0, ROUTES_CHECKED);
+  for (const plan of best) {
+    const corner = econ.geo.indexOf.get(plan.vertexId!)!;
+    plan.payoff += race.routeCredit(plan.path!.firstEdge, plan.path!.distance, corner);
+  }
 }
 
 /** Every plan worth weighing now. */
@@ -178,11 +192,10 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
       const piece = path.firstKind === 'ship' ? SHIP : COSTS.road;
       const cost = plus(COSTS.settlement, piece, path.distance);
       const turns = econ.turnsToAfford(view.hand, cost);
-      const payoff =
-        settlementPayoff(econ, id) * raceOdds(econ, c, path.distance, turns) +
-        (race ? race.blockAt(c) + race.routeCredit(path.firstEdge, path.distance) : 0);
+      const payoff = settlementPayoff(econ, id) * raceOdds(econ, c, path.distance, turns) + (race?.blockAt(c) ?? 0);
       plans.push({ kind: 'route', cost, payoff, vertexId: id, path });
     }
+    if (race && econ.knobs.roadRoute > 0) creditRoutes(econ, race, plans);
   }
   plans.push(...explorePlans(econ, fog));
   // Cartographers: a survey ship is a point for 3 lodestone and 1 ore, and charts tiles around a town.

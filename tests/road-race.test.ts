@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Economy } from '../shared/bots/advanced/economy';
 import { makeParams, TRAINED } from '../shared/bots/advanced/params';
+import { graphOf, worldOf } from '../shared/bots/advanced/road-graph';
+import { routeEdges } from '../shared/bots/advanced/road-links';
 import { roadRace } from '../shared/bots/advanced/road-race';
 import { getActivePlayerId, getView } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
@@ -90,5 +92,56 @@ describe('Longest Road race', () => {
       const race = roadRace(new Economy(getView(g, actor(g)), early));
       if (race.summary().left > 5) expect(race.plans).toHaveLength(0);
     }
+  });
+
+  it('follows a settlement route exactly: its first piece, then free or own edges to the spot', () => {
+    let routes = 0;
+    for (const g of buildStates()) {
+      const econ = new Economy(getView(g, actor(g)), knobs);
+      const graph = graphOf(econ.view, econ.geo.indexOf);
+      const world = worldOf(econ.view, graph, econ.geo.indexOf);
+      for (const plan of econ.plans.filter(p => p.kind === 'route')) {
+        const { firstEdge, distance } = plan.path!;
+        const corner = econ.geo.indexOf.get(plan.vertexId!)!;
+        const route = routeEdges(graph, world, econ.seat, firstEdge, corner, distance);
+        if (!route) continue;
+        routes++;
+        expect(graph.ids[route[0]!]).toBe(firstEdge);
+        expect(route.length).toBeLessThanOrEqual(distance);
+        for (const edge of route) expect(world.edges[edge]).toBe(-1);
+      }
+    }
+    expect(routes).toBeGreaterThan(0);
+  });
+
+  it('credits routes only for what they add to the road', () => {
+    const linked = { ...knobs, roadRoute: 1 };
+    let credited = 0;
+    for (const g of buildStates()) {
+      const payoffs = (k: typeof knobs) =>
+        new Map(
+          new Economy(getView(g, actor(g)), k).plans.filter(p => p.kind === 'route').map(p => [p.vertexId, p.payoff]),
+        );
+      const [plain, withCredit] = [payoffs(knobs), payoffs(linked)];
+      for (const [id, payoff] of withCredit) {
+        expect(payoff).toBeGreaterThanOrEqual(plain.get(id)! - 1e-9);
+        if (payoff > plain.get(id)! + 1e-9) credited++;
+      }
+    }
+    expect(credited).toBeGreaterThan(0);
+  });
+
+  it('lets what a road opens up change its worth, not how far the road can go', () => {
+    const opening = { ...knobs, roadOpens: 1 };
+    let raised = 0;
+    for (const g of buildStates()) {
+      const view = getView(g, actor(g));
+      const [plain, open] = [roadRace(new Economy(view, knobs)), roadRace(new Economy(view, opening))];
+      expect(open.summary().options.map(o => o.length)).toEqual(plain.summary().options.map(o => o.length));
+      expect(open.plans.every(p => p.payoff > 0)).toBe(true);
+      const total = (race: typeof plain) => race.plans.reduce((n, p) => n + p.payoff, 0);
+      if (total(open) > total(plain) + 1e-9) raised++;
+    }
+    expect(raised).toBeGreaterThan(0);
   });
 });

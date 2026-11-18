@@ -1,11 +1,20 @@
-import { BUILD_COSTS, emptyBag } from '../../engine/core';
-import { isRoadEdge, isShipEdge } from '../../seafaring';
-import { type Board, type GameView, RESOURCES, type ResourceBag } from '../../types';
-import { COSTS } from '../analysis';
+import type { GameView, ResourceBag } from '../../types';
 import type { Economy } from './economy';
 import type { Geometry } from './geometry';
 import { type Pace, paceFrom, roundsToAfford } from './goals';
 import { horizon } from './plans';
+import {
+  type Graph,
+  graphOf,
+  MAX_NEW,
+  pathCost,
+  type RoadReach,
+  reachOf,
+  SEARCH_LIMIT,
+  type World,
+  worldOf,
+} from './road-graph';
+import { openWeights, routeEdges } from './road-links';
 import { harborRates } from './value';
 
 /**
@@ -19,40 +28,12 @@ import { harborRates } from './value';
  * ignores the rule that a road and a ship join only at a building, which matters on few maps.
  */
 
-/** New pieces we look ahead per seat. */
-const MAX_NEW = 6;
-/** Steps of the trail search per seat, so a tangled network can't cost a whole move. */
-const SEARCH_LIMIT = 2500;
 /** Road building share of a rival's income when its roads also lead where it wants to settle. */
 const HEADING_SHARE = 0.85;
 /** Rivals, corners and edges tried as blocks per decision. */
 const BLOCK_RIVALS = 2;
 const BLOCK_CORNERS = 4;
 const BLOCK_EDGES = 2;
-
-interface Graph {
-  ids: string[];
-  indexOf: Map<string, number>;
-  ship: Uint8Array;
-  /** Per corner: the edges a road or ship could use, and the corner each leads to. */
-  links: { edge: number; to: number }[][];
-}
-
-/** Who holds what: edge owners and building owners by seat (-1: nobody). */
-interface World {
-  edges: Int8Array;
-  corners: Int8Array;
-}
-
-/** How far a seat's longest trail can grow. */
-export interface RoadReach {
-  /** Per number of new pieces (index): the longest trail possible. Never falls. */
-  curve: number[];
-  /** Per number of new pieces: the new edges of that trail, in building order. */
-  paths: number[][];
-  /** Per number of new pieces: the corners that trail passes through. */
-  corners: number[][];
-}
 
 /** A road plan the planner can weigh like any other. */
 export interface RoadPlan {
@@ -67,8 +48,8 @@ export interface RoadRace {
   plans: RoadPlan[];
   /** Extra payoff for settling a corner because of what it cuts off. */
   blockAt(corner: number): number;
-  /** Extra payoff for a route whose first piece also lengthens our road. */
-  routeCredit(firstEdge: string | null, pieces: number): number;
+  /** Extra payoff for a settlement route, by how much that exact route helps our road. */
+  routeCredit(firstEdge: string | null, pieces: number, corner: number): number;
   /** The numbers behind the plans, for checking them against real games. */
   summary(): RoadSummary;
 }
@@ -78,44 +59,6 @@ export interface RoadSummary {
   left: number;
   base: number;
   options: { pieces: number; length: number; arrive: number; keep: number; chance: number }[];
-}
-
-const graphs = new WeakMap<Board, Map<boolean, Graph>>();
-
-function graphOf(view: GameView, cornerOf: Map<string, number>): Graph {
-  let bySea = graphs.get(view.board);
-  if (!bySea) {
-    bySea = new Map();
-    graphs.set(view.board, bySea);
-  }
-  let graph = bySea.get(view.seafaring);
-  if (graph) return graph;
-  const { board, seafaring } = view;
-  const usable = board.edges.filter(e => isRoadEdge(board, e.id) || (seafaring && isShipEdge(board, e.id)));
-  const links: Graph['links'] = board.vertices.map(() => []);
-  const ship = new Uint8Array(usable.length);
-  usable.forEach((e, edge) => {
-    const [a, b] = [cornerOf.get(e.a)!, cornerOf.get(e.b)!];
-    links[a]!.push({ edge, to: b });
-    links[b]!.push({ edge, to: a });
-    ship[edge] = isRoadEdge(board, e.id) ? 0 : 1;
-  });
-  graph = { ids: usable.map(e => e.id), indexOf: new Map(usable.map((e, i) => [e.id, i])), ship, links };
-  bySea.set(seafaring, graph);
-  return graph;
-}
-
-function worldOf(view: GameView, graph: Graph, cornerOf: Map<string, number>): World {
-  const seat = new Map(view.players.map((p, i) => [p.id, i]));
-  const edges = new Int8Array(graph.ids.length).fill(-1);
-  for (const pieces of [view.roads, view.ships])
-    for (const [id, owner] of Object.entries(pieces)) {
-      const e = graph.indexOf.get(id);
-      if (e !== undefined) edges[e] = seat.get(owner) ?? -1;
-    }
-  const corners = new Int8Array(view.board.vertices.length).fill(-1);
-  for (const [id, b] of Object.entries(view.buildings)) corners[cornerOf.get(id)!] = seat.get(b.playerId) ?? -1;
-  return { edges, corners };
 }
 
 /** A hypothetical change for `roadCurves`: a new building or road, or a whole draft of corners. */
@@ -140,68 +83,6 @@ export function roadCurves(view: GameView, geo: Geometry, change: BoardChange = 
   return view.players.map(
     (p, s) => reachOf(graph, world, s, p.roadsLeft + (p.shipsLeft ?? 0), change.depth, change.limit).curve,
   );
-}
-
-/** The longest trail a seat can make with each number of new pieces. */
-export function reachOf(
-  graph: Graph,
-  world: World,
-  seat: number,
-  pieces: number,
-  depth = MAX_NEW,
-  limit = SEARCH_LIMIT,
-): RoadReach {
-  const most = Math.min(depth, pieces);
-  const curve = new Array<number>(most + 1).fill(0);
-  const paths: number[][] = Array.from({ length: most + 1 }, () => []);
-  const corners: number[][] = Array.from({ length: most + 1 }, () => []);
-  const used = new Uint8Array(world.edges.length);
-  const fresh: number[] = [];
-  const visited: number[] = [];
-  let steps = 0;
-  const walk = (c: number, length: number, paid: number) => {
-    visited.push(c);
-    if (length > curve[paid]!) {
-      curve[paid] = length;
-      paths[paid] = [...fresh];
-      corners[paid] = [...visited];
-    }
-    const blocked = length > 0 && world.corners[c]! >= 0 && world.corners[c] !== seat;
-    if (!blocked)
-      for (const { edge, to } of graph.links[c]!) {
-        if (used[edge] || steps > limit) continue;
-        const owner = world.edges[edge]!;
-        const free = owner === -1 && paid < most;
-        if (owner !== seat && !free) continue;
-        steps++;
-        used[edge] = 1;
-        if (free) fresh.push(edge);
-        walk(to, length + 1, paid + (free ? 1 : 0));
-        if (free) fresh.pop();
-        used[edge] = 0;
-      }
-    visited.pop();
-  };
-  for (let c = 0; c < graph.links.length; c++) {
-    const touches = world.corners[c] === seat || graph.links[c]!.some(l => world.edges[l.edge] === seat);
-    if (touches) walk(c, 0, 0);
-  }
-  for (let p = 1; p <= most; p++)
-    if (curve[p]! < curve[p - 1]!) {
-      curve[p] = curve[p - 1]!;
-      paths[p] = paths[p - 1]!;
-      corners[p] = corners[p - 1]!;
-    }
-  return { curve, paths, corners };
-}
-
-function pathCost(graph: Graph, path: number[]): ResourceBag {
-  const cost = emptyBag();
-  for (const edge of path) {
-    const piece = graph.ship[edge] ? BUILD_COSTS.ship : COSTS.road;
-    for (const r of RESOURCES) cost[r] += piece[r];
-  }
-  return cost;
 }
 
 /** One position of the race: every seat's reach, read against the game's expected length. */
@@ -306,11 +187,31 @@ class Race {
     this.heading = econ.races.intents.map(list => new Set(list.filter(t => t.share >= 0.2).map(t => t.corner)));
   }
 
-  standing(world = this.world): Standing {
+  /** Every seat's reach on `world`; `prefer` picks among our equally long trails. */
+  standing(world = this.world, prefer?: Float64Array): Standing {
     return new Standing(
       this,
-      this.econ.view.players.map((p, s) => reachOf(this.graph, world, s, p.roadsLeft + (p.shipsLeft ?? 0))),
+      this.econ.view.players.map((p, s) =>
+        reachOf(
+          this.graph,
+          world,
+          s,
+          p.roadsLeft + (p.shipsLeft ?? 0),
+          MAX_NEW,
+          SEARCH_LIMIT,
+          s === this.me ? prefer : undefined,
+        ),
+      ),
     );
+  }
+
+  /** `now` with only our reach redone for `world`, where we have already used `used` pieces. */
+  withOurReach(now: Standing, world: World, used: number): Standing {
+    const { self } = this.econ;
+    const pieces = Math.max(0, self.roadsLeft + (self.shipsLeft ?? 0) - used);
+    const reach = [...now.reach];
+    reach[this.me] = reachOf(this.graph, world, this.me, pieces);
+    return new Standing(this, reach);
   }
 
   /** Rounds for a seat's income, harbors and hand to pay for these pieces. */
@@ -367,6 +268,14 @@ function changeValue(race: Race, now: Standing, rival: number, world: World): nu
   return race.worth(rival) * (ours + race.rivalWeight(rival) * theirs);
 }
 
+/** The most a trail through these corners opens up. */
+function bestOpened(opens: Float64Array | undefined, corners: number[]): number {
+  if (!opens) return 0;
+  let best = 0;
+  for (const c of corners) best = Math.max(best, opens[c]!);
+  return best;
+}
+
 const races = new WeakMap<Economy, RoadRace>();
 
 /** The Longest Road race for this decision (once per decision). */
@@ -382,7 +291,8 @@ export function roadRace(econ: Economy): RoadRace {
 function buildRace(econ: Economy): RoadRace {
   const race = new Race(econ);
   const { graph, world, me } = race;
-  const now = race.standing();
+  const opens = econ.knobs.roadOpens > 0 ? openWeights(econ, graph) : undefined;
+  const now = race.standing(world, opens);
   const mine = now.reach[me]!;
   const base = now.baseline();
   const rivals = contenders(race, now);
@@ -401,7 +311,8 @@ function buildRace(econ: Economy): RoadRace {
     plans.push({
       edge: graph.ids[path[0]!]!,
       cost: pathCost(graph, path),
-      payoff: race.worth(main) * (chance - base),
+      // Among road plans (still spare cards only), the trail that leads somewhere comes first.
+      payoff: race.worth(main) * (chance - base) + econ.knobs.roadOpens * bestOpened(opens, mine.corners[pieces]!),
       spare,
     });
   }
@@ -429,14 +340,17 @@ function buildRace(econ: Economy): RoadRace {
   return {
     plans,
     summary,
-    blockAt: corner => econ.knobs.roadRoute * (blocks.get(corner) ?? 0),
-    routeCredit(firstEdge, pieces) {
-      const first = firstEdge === null ? undefined : graph.indexOf.get(firstEdge);
-      if (first === undefined) return 0;
-      let credit = 0;
-      for (const [p, gain] of gains)
-        if (p <= pieces && mine.paths[p]!.includes(first)) credit = Math.max(credit, race.worth(main) * gain);
-      return econ.knobs.roadRoute * credit;
+    blockAt: corner => econ.knobs.roadBlock * (blocks.get(corner) ?? 0),
+    routeCredit(firstEdge, pieces, corner) {
+      const route = routeEdges(graph, world, me, firstEdge, corner, pieces);
+      if (!route) return 0;
+      const edges = Int8Array.from(world.edges);
+      for (const e of route) edges[e] = me;
+      const corners = Int8Array.from(world.corners);
+      corners[corner] = me;
+      const after = race.withOurReach(now, { edges, corners }, route.length).baseline();
+      if (after <= base) return 0;
+      return econ.knobs.roadRoute * race.worth(main) * race.intime(race.rounds(me, route)) * (after - base);
     },
   };
 }
