@@ -34,6 +34,8 @@ export interface Plan {
   path?: Target;
   /** Longest Road race: the next road or ship to build. */
   edge?: string;
+  /** Only for cards nothing else needs: it never displaces a goal that compounds. */
+  spare?: boolean;
 }
 
 const SHIP = BUILD_COSTS.ship;
@@ -185,8 +187,9 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
   if (econ.survey && econ.knobs.surveyValue > 0)
     plans.push({ kind: 'survey', cost: econ.survey.cost, payoff: 1 + 0.3 * econ.knobs.surveyValue });
   if (view.developmentRemaining) plans.push({ kind: 'development', cost: COSTS.development, payoff: cardPayoff(econ) });
+  // The race adds roads for spare cards; taking the award when it is close stays a goal of its own.
+  plans.push(...fixedRoadGoal(econ));
   if (race) plans.push(...race.plans.map(p => ({ kind: 'road' as const, ...p })));
-  else plans.push(...fixedRoadGoal(econ));
   // A strategy (strategy.ts) leans the same goals one way; 1 everywhere for the shipped bot.
   for (const plan of plans) plan.payoff *= goalLean(econ.knobs, plan.kind);
   return plans;

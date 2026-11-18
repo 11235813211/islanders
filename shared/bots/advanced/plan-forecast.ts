@@ -1,9 +1,10 @@
+import { RESOURCES } from '../../types';
 import type { Economy } from './economy';
-import { type FirstGoal, type ForecastSeat, type ForecastStart, forecast } from './forecast';
+import { type CornerIncome, type FirstGoal, type ForecastSeat, type ForecastStart, forecast } from './forecast';
 import { paceFrom } from './goals';
-import type { Plan } from './plans';
+import { horizon, type Plan } from './plans';
 import { type BoardChange, roadCurves } from './road-race';
-import { harborRates } from './value';
+import { cornerYield, harborRates } from './value';
 
 /**
  * The build planner's lookahead (forecast.ts): the plans ranked best by payoff for the wait are
@@ -55,9 +56,27 @@ export function forecastStart(econ: Economy): ForecastStart {
     pointPerCard: knobs.pointPerCard,
     roundsPerPoint: knobs.roundsPerPoint,
     spread: knobs.forecastSpread,
+    incomeAt: incomeReader(econ),
   };
   starts.set(econ, start);
   return start;
+}
+
+/** Corner income with the robber counted, as the planner sees it. */
+function incomeReader(econ: Economy): (corner: number) => CornerIncome {
+  const perRound = econ.view.players.length / 36;
+  const known = new Map<number, CornerIncome>();
+  return corner => {
+    let income = known.get(corner);
+    if (!income) {
+      const { production, choice } = cornerYield(econ, econ.geo.ids[corner]!);
+      const cards = { ...production };
+      for (const r of RESOURCES) cards[r] *= perRound;
+      income = { cards, wild: choice * perRound };
+      known.set(corner, income);
+    }
+    return income;
+  };
 }
 
 /** The forecast's version of a plan, or null for kinds it doesn't model (fog, survey ships). */
@@ -92,6 +111,12 @@ function chanceWith(econ: Economy, start: ForecastStart, plan: Plan, goal: First
   return forecast(from, goal).chances[econ.seat]!;
 }
 
+/** Our forecast chance to win starting with `plan` (0 for kinds the forecast doesn't model). */
+export function planChance(econ: Economy, plan: Plan, start = forecastStart(econ)): number {
+  const goal = goalOf(plan, econ);
+  return goal ? chanceWith(econ, start, plan, goal) : 0;
+}
+
 /** The best few plans: the top ones overall plus the best of each kind, so roads get a hearing. */
 function candidates(ranked: Plan[]): Plan[] {
   const out = ranked.slice(0, TRIED);
@@ -104,17 +129,27 @@ function candidates(ranked: Plan[]): Plan[] {
   return out;
 }
 
-/** `ranked` with the plan the forecast prefers first, if it clearly beats the planner's own pick. */
-export function forecastRank(econ: Economy, ranked: Plan[]): Plan[] {
+const scores = (plan: Plan) => plan.kind === 'city' || plan.kind === 'settlement';
+
+/**
+ * `ranked` with the plan the forecast prefers first, if it clearly beats the planner's own pick.
+ * The forecast compares only moves we can make now: it has no 7s, no robber to come and no
+ * building on the side while saving, so it can't judge waiting. For the same reason an affordable
+ * city or settlement gives way only to another one. Which city to build stays with the planner:
+ * measured choices of the forecast there were no better.
+ */
+export function forecastRank(econ: Economy, ranked: Plan[], canStart: (plan: Plan) => boolean): Plan[] {
   const top = ranked[0];
   const topGoal = top && goalOf(top, econ);
-  if (!top || !topGoal) return ranked;
+  if (!top || !topGoal || !canStart(top) || top.kind === 'city') return ranked;
+  // Early on, what compounds matters most and the forecast's simple economy judges it worst.
+  if (horizon(econ).rounds > econ.knobs.roadFrom) return ranked;
   const start = forecastStart(econ);
   let best = top;
   let score = chanceWith(econ, start, top, topGoal) + econ.knobs.forecastMargin;
   for (const plan of candidates(ranked).slice(1)) {
     const goal = goalOf(plan, econ);
-    if (!goal) continue;
+    if (!goal || !canStart(plan) || (scores(top) && !scores(plan))) continue;
     const chance = chanceWith(econ, start, plan, goal);
     if (chance > score) [best, score] = [plan, chance];
   }

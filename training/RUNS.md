@@ -6,15 +6,51 @@ Newest first. Finished runs keep their one-line result; the full write-up goes i
 
 ## Running
 
-### Forecast decision diagnosis
+### End-of-turn audit
 
-- **Why:** the forecast predicts winners well but lost about 2 pp when steering builds or placement.
-  Find which choices it changes, and whether wider uncertainty or a higher bar for changing helps.
-- **What:** one shared baseline per batch (`select`), 100 seeds: forecast variants on all maps, and the
-  road race on 2-player Jumbotan against `shipped` and `style:roadracer`. Full logs kept.
-- **ETA:** about 10 minutes from the start of the batch.
+- **Why:** replacing "end turn" with a spare road gained per decision, and the bot averages about 1.9 discards a game.
+  Check whether stopping with usable cards is a general leak, and which spend is best.
+- **What:** `turn-end-audit`, 100 shipped games, up to 4 end-of-turn decisions per game, each option against ending the
+  turn with 16 paired rollouts. Rows in `training/data/turn-end-1.json`.
+- **ETA:** started 02:10 CST, about 10 minutes.
 
 ## Finished
+
+### Confirmation pilot: placement forecast and spare roads
+
+- **Result (2026-11-18 01:50–02:00, A − shared baseline):** 600 seeds 8600000, all maps: `setupForecast` 0.25 **+1.57 ±0.63 pp**,
+  `roadRace` 1 (spare roads plus the close-race goal) +0.79 ±0.62, both +1.78 ±0.81. Road held at the end 0.34 vs 0.27.
+  2-player Jumbotan (150 seeds 8700000): road race −0.67 ±0.94, road held 0.55 vs 0.50. Not shipped; shipping checks not run.
+
+### Fresh-seed check of the narrowed ideas
+
+- **Result (2026-11-18 01:40–01:48, 400 seeds 8400000, vs one baseline):** `setupForecast` 0.25 +0.93 ±0.84, 0.5 −0.55 ±0.98,
+  `roadRace` 1 +0.54 ±0.90, `forecastPlan` 1 −0.11 ±0.75, all three +0.17 ±1.10 pp. 2-player Jumbotan (150 seeds): road
+  race −2.00 ±1.88 vs `shipped`, −1.67 ±1.86 vs `style:roadracer`. Spare-only roads held the award less (0.22 vs 0.26;
+  Jumbotan 0.42 vs 0.50) because that version had dropped the old close-race goal, since restored.
+
+### Override study 2: after the first fixes
+
+- **Result (2026-11-18 01:27–01:39, 120 games, largely the same seeds as study 1, so not independent):** forecast −0.1 ±0.8 pp
+  over 343 decisions (route choice mid +2.9 ±1.4, early −1.7 ±1.8; city choice −1.8 ±1.6). Road race +0.5 ±0.7 over 336
+  (spare-card road +3.0 ±1.1; changing the road being built −3.0 ±1.5). Placement forecast +1.0 ±1.7 over 191
+  decisions. Many cuts were read, so single cells are leads only. Rows: `training/data/override-2.json`.
+
+### Override study 1: which disagreements with the shipped bot are good
+
+- **Result (2026-11-18, 150 games, 16 paired rollouts per decision, variant's move minus shipped's):** forecast
+  −1.0 ±0.7 pp over 442 decisions (different city, mid game −10.0 ±3.1; skipping an affordable settlement −2.2 ±1.8);
+  road race −0.1 ±0.7 over 438 (spare-card road mid +2.8 ±2.0, late +2.3 ±1.5, early −3.1 ±1.5; replacing a road
+  −2.5 ±1.3). A 1/20-card change moves the forecast 0.17 pp against 4.41 pp between its top plans, so its errors
+  are systematic rather than chaotic. Rows: `training/data/override-1.json`.
+
+### Forecast and road pilots with shared baselines
+
+- **Result (2026-11-18, `select`, 100 seeds per pilot, A − baseline):** all maps, field `shipped`, spread 5:
+  `forecastPlan` +0.30 ±1.83, with margin 0.03 −0.27 ±1.98, `setupForecast` 0.25 +1.32 ±1.33, 0.5 +0.73 ±1.72 pp.
+  2-player Jumbotan vs `shipped`: `roadRace` 0.5 −2.00 ±2.24, 1 −1.50 ±2.51 pp; road held 0.58 and 0.61 (from
+  0.50), road length 8.5 (from 7.0), but 0.3 fewer cities and settlements each. Vs `style:roadracer`: −1.00 ±2.35
+  and +1.50 ±2.70 pp. A wider forecast spread removed the earlier harm; nothing is shown better yet.
 
 ### Road race v2 and first forecast pilots
 

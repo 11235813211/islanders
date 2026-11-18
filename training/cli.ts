@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import type { Knob } from '../shared/bots/advanced/params';
 import { makeParams } from '../shared/bots/advanced/params';
 import { getView } from '../shared/engine';
@@ -17,6 +17,7 @@ import { goalReport } from './goal-report';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
 import { askAuth, fetchRecords, SITE, saveLibrary } from './live';
 import { collect, fitNetwork } from './networks';
+import { overrideReport, overrideStudy } from './override-study';
 import { reportPlacements } from './placements';
 import { runJobs } from './pool';
 import { raceCheck, raceCheckPeople } from './races';
@@ -402,11 +403,21 @@ Object.assign(COMMANDS, {
       rotate: true,
       quiet: true,
     };
-    const baseline = await playMatch(seatFor(flags.baseline ?? 'shipped'), field, options);
+    // --reuse-baseline file: keep the baseline's games, so later batches on these seeds skip them.
+    // Only valid while the baseline's code, knobs, field, seeds and maps are unchanged.
+    const saved = flags['reuse-baseline'];
+    const baseline: Awaited<ReturnType<typeof playMatch>> =
+      saved && existsSync(saved)
+        ? JSON.parse(readFileSync(saved, 'utf8'))
+        : await playMatch(seatFor(flags.baseline ?? 'shipped'), field, options);
+    if (saved && !existsSync(saved)) writeFileSync(saved, JSON.stringify(baseline));
+    // --report: each side's full counts too, so a saved log answers later questions without new games.
+    if (flags.report) report(`baseline ${flags.baseline ?? 'shipped'}`, summarize(baseline));
     const rows: { name: string; diff: number; err: number; edge: number }[] = [];
     for (const name of list(flags.candidates) ?? []) {
       const results = await playMatch(seatFor(name), field, options);
       const p = pairedDifference(results, baseline);
+      if (flags.report) report(name, summarize(results));
       rows.push({ name, diff: p.winDiff, err: p.winErr, edge: summarize(results).edge });
       console.log(`${name}: ${(p.winDiff * 100).toFixed(2)}% ±${(p.winErr * 100).toFixed(2)}%`);
     }
@@ -642,6 +653,26 @@ Object.assign(COMMANDS, {
       Number(flags.seed ?? 9_100_000),
       filterFromFlags(),
     );
+  },
+  /**
+   * Which disagreements with the shipped bot are good moves: override-study [--games 150 --seed 9200000
+   * --per-game 3 --rollouts 16 --variants 'forecast:forecastPlan=1,road:roadRace=1' --out file].
+   */
+  async 'override-study'() {
+    if (flags.results) return overrideReport(flags.results);
+    const variants = Object.fromEntries(
+      (list(flags.variants) ?? ['forecast:forecastPlan=1', 'road:roadRace=1']).map(entry => {
+        const [name, knobs] = entry.split(':');
+        const pairs = knobs!.split(';').map(part => part.split('='));
+        return [name!, Object.fromEntries(pairs.map(([k, v]) => [k!, Number(v)]))];
+      }),
+    );
+    await overrideStudy(Number(flags.games ?? 150), Number(flags.seed ?? 9_200_000), variants, {
+      filter: filterFromFlags(),
+      perGame: Number(flags['per-game'] ?? 3),
+      rollouts: Number(flags.rollouts ?? 16),
+      out: flags.out,
+    });
   },
   /** List checkpoints with their last note. */
   checkpoints() {

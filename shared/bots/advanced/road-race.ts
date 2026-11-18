@@ -59,6 +59,7 @@ export interface RoadPlan {
   edge: string;
   cost: ResourceBag;
   payoff: number;
+  spare: boolean;
 }
 
 /** What the race adds to the plan list. */
@@ -371,6 +372,11 @@ function buildRace(econ: Economy): RoadRace {
   const main = rivals[0] ?? (me + 1) % econ.view.players.length;
   const plans: RoadPlan[] = [];
   const gains = new Map<number, number>();
+  const summary = () => ({ left: race.left, base, options: now.options() });
+  // Roads don't compound: early cards go to what does. Measured: early road moves lost games.
+  if (race.left > econ.knobs.roadFrom) return { plans, summary, blockAt: () => 0, routeCredit: () => 0 };
+  // Spare cards only, unless these two points decide the game.
+  const spare = econ.self.points + 2 < econ.victoryTarget;
   for (const { pieces, chance } of now.options()) {
     gains.set(pieces, chance - base);
     if (chance <= base) continue;
@@ -379,6 +385,7 @@ function buildRace(econ: Economy): RoadRace {
       edge: graph.ids[path[0]!]!,
       cost: pathCost(graph, path),
       payoff: race.worth(main) * (chance - base),
+      spare,
     });
   }
   const legal = new Set([...econ.view.legal.roads, ...econ.view.legal.ships]);
@@ -399,20 +406,20 @@ function buildRace(econ: Economy): RoadRace {
       const edges = Int8Array.from(world.edges);
       edges[edge] = me;
       const value = changeValue(race, now, rival, { edges, corners: world.corners });
-      if (value > 0) plans.push({ edge: graph.ids[edge]!, cost: pathCost(graph, [edge]), payoff: value });
+      if (value > 0) plans.push({ edge: graph.ids[edge]!, cost: pathCost(graph, [edge]), payoff: value, spare });
     }
   }
   return {
     plans,
-    summary: () => ({ left: race.left, base, options: now.options() }),
-    blockAt: corner => blocks.get(corner) ?? 0,
+    summary,
+    blockAt: corner => econ.knobs.roadRoute * (blocks.get(corner) ?? 0),
     routeCredit(firstEdge, pieces) {
       const first = firstEdge === null ? undefined : graph.indexOf.get(firstEdge);
       if (first === undefined) return 0;
       let credit = 0;
       for (const [p, gain] of gains)
         if (p <= pieces && mine.paths[p]!.includes(first)) credit = Math.max(credit, race.worth(main) * gain);
-      return credit;
+      return econ.knobs.roadRoute * credit;
     },
   };
 }

@@ -7,7 +7,7 @@ import { emptyBag } from '../shared/engine/core';
 import type { GameState } from '../shared/types';
 import { playBotGame } from './bot-harness';
 
-const knobs = { ...TRAINED.knobs, roadRace: 1 };
+const knobs = { ...makeParams({ knobs: TRAINED.knobs }).knobs, roadRace: 1, roadFrom: 25 };
 
 /** Build-phase states of a real game, for whoever is to act. */
 function buildStates(players = 3): GameState[] {
@@ -41,6 +41,7 @@ describe('Longest Road race', () => {
       const econ = new Economy(getView(g, actor(g)), knobs);
       for (const plan of roadRace(econ).plans) {
         seen++;
+        expect(plan.spare).toBe(econ.self.points + 2 < econ.victoryTarget);
         expect(plan.payoff).toBeGreaterThan(0);
         expect(g.board.edges.some(e => e.id === plan.edge)).toBe(true);
         expect(g.roads[plan.edge]).toBeUndefined();
@@ -74,11 +75,20 @@ describe('Longest Road race', () => {
   it('pays only for what committing adds to the chance it would have anyway', () => {
     for (const g of buildStates()) {
       const race = roadRace(new Economy(getView(g, actor(g)), knobs));
-      const { base, options } = race.summary();
+      const { base, left, options } = race.summary();
       const worthwhile = options.filter(o => o.chance > base);
-      expect(race.plans.filter(p => p.payoff > 0).length).toBeGreaterThanOrEqual(worthwhile.length);
+      if (left <= knobs.roadFrom) expect(race.plans.length).toBeGreaterThanOrEqual(worthwhile.length);
+      else expect(race.plans).toHaveLength(0);
       for (const o of options) expect(o.chance).toBeLessThanOrEqual(1);
       if (!worthwhile.length) expect(base).toBeGreaterThanOrEqual(Math.max(0, ...options.map(o => o.chance)));
+    }
+  });
+
+  it('leaves the early game alone', () => {
+    const early = { ...knobs, roadFrom: 5 };
+    for (const g of buildStates()) {
+      const race = roadRace(new Economy(getView(g, actor(g)), early));
+      if (race.summary().left > 5) expect(race.plans).toHaveLength(0);
     }
   });
 });

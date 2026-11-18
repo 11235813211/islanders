@@ -40,6 +40,8 @@ export const TUNABLE = (Object.keys(KNOBS) as Knob[]).filter(
     k !== 'strategy' &&
     k !== 'raceModel' &&
     k !== 'roadRace' &&
+    k !== 'roadFrom' &&
+    k !== 'roadRoute' &&
     k !== 'forecastPlan' &&
     k !== 'setupForecast',
 );

@@ -113,6 +113,16 @@ export function seatFor(name: string): SeatSpec {
     };
   if ((LEVELS as string[]).includes(name)) return { level: name as BotLevel };
   if (name.startsWith('ref:')) return { ref: name.slice(4) as BotLevel };
+  // "knobs:forecastPlan=1;roadRace=0.5": the shipped bot with these knobs, for `select`.
+  if (name.startsWith('knobs:')) {
+    const base = loadCheckpoint('shipped');
+    const changes = name
+      .slice(6)
+      .split(';')
+      .map(part => part.split('='))
+      .map(([knob, value]) => [knob!, Number(value)]);
+    return { advanced: { ...paramsOf(base), knobs: { ...base.knobs, ...Object.fromEntries(changes) } } };
+  }
   if (name.startsWith('style:')) {
     const style = STYLES[name.slice(6)];
     if (!style) throw new Error(`No style "${name}" (styles: ${Object.keys(STYLES).join(', ')}).`);

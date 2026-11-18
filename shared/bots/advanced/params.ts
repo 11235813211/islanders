@@ -86,6 +86,10 @@ export const KNOBS = {
   roadRace: [0, 0, 2],
   /** Road race: share of a rival's income we expect on roads when they lead nowhere it wants. */
   roadShare: [0.4, 0.1, 1],
+  /** Road race: starts once the game has about this many rounds left (early cards should compound). */
+  roadFrom: [15, 5, 25],
+  /** Road race: how much it may also change which routes and settlements we pick (0: spare roads only). */
+  roadRoute: [0, 0, 1],
   /** Road race: share of our income we would really put into roads when going for the award. */
   roadCommit: [0.7, 0.3, 1],
 

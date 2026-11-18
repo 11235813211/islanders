@@ -20,12 +20,8 @@ export function planStep(econ: Economy, { builds = 0, allowOffers = true }: Turn
   if (play) return play;
   // With a spot already in reach, settle it before starting a route anywhere else (roads
   // toward a second spot leave the first one open, and then both may go to someone else).
-  const byScore = econ.plans
-    .filter(plan => !econ.spots || (plan.kind !== 'route' && plan.kind !== 'explore'))
-    .map(plan => ({ plan, score: planScore(econ, plan) }))
-    .sort((a, b) => b.score - a.score)
-    .map(r => r.plan);
-  const ranked = econ.knobs.forecastPlan >= 0.5 ? forecastRank(econ, byScore) : byScore;
+  const byScore = rankedPlans(econ);
+  const ranked = econ.knobs.forecastPlan >= 0.5 ? forecastRank(econ, byScore, p => canStart(econ, p)) : byScore;
   const best = ranked[0];
   if (!best) return { type: 'end-turn' };
   // A settlement we can build now beats the first piece of a route to a better one (the rollout
@@ -52,6 +48,21 @@ export function planStep(econ: Economy, { builds = 0, allowOffers = true }: Turn
   if (route) return route;
   if (econ.view.legal.development) return { type: 'buy-development' };
   return { type: 'end-turn' };
+}
+
+/** The plans in play, best payoff for the wait first; roads for spare cards come last. */
+export function rankedPlans(econ: Economy): Plan[] {
+  const sorted = econ.plans
+    .filter(plan => !econ.spots || (plan.kind !== 'route' && plan.kind !== 'explore'))
+    .map(plan => ({ plan, score: planScore(econ, plan) }))
+    .sort((a, b) => b.score - a.score)
+    .map(r => r.plan);
+  return [...sorted.filter(p => !p.spare), ...sorted.filter(p => p.spare)];
+}
+
+/** Whether the plan's next move can be made right now. */
+export function canStart(econ: Economy, plan: Plan): boolean {
+  return nextStep(econ, plan) !== null;
 }
 
 /** The plan's next move and its cost, if we can make it now. */

@@ -44,6 +44,14 @@ export interface ForecastStart {
   roundsPerPoint: number;
   /** Uncertainty in a seat's finish, per square root of the rounds still to play. */
   spread: number;
+  /** A corner's income as things stand (the robber counted); by default its full dice odds. */
+  incomeAt?: (corner: number) => CornerIncome;
+}
+
+/** Cards per round a corner brings, by resource, and free choices per round. */
+export interface CornerIncome {
+  cards: ResourceBag;
+  wild: number;
 }
 
 /** A goal the forecast can be told to start with. */
@@ -123,7 +131,7 @@ function costOf(goal: FirstGoal, distance: number): ResourceBag {
 }
 
 /** Cards per round that a corner adds, by resource, and any free choice. */
-function cornerIncome(geo: Geometry, c: number, players: number): { cards: ResourceBag; wild: number } {
+function cornerIncome(geo: Geometry, c: number, players: number): CornerIncome {
   const perRound = players / 36;
   const cards = emptyBag();
   RESOURCES.slice(0, 5).forEach((r, i) => {
@@ -134,7 +142,7 @@ function cornerIncome(geo: Geometry, c: number, players: number): { cards: Resou
 }
 
 /** Worth of extra income: scarcer resources for this seat count for more. */
-function incomeWorth(seat: Sim, gain: { cards: ResourceBag; wild: number }, players: number): number {
+function incomeWorth(seat: Sim, gain: CornerIncome, players: number): number {
   let value = gain.wild * 1.3;
   for (const r of RESOURCES) value += gain.cards[r] * (1.6 - Math.min(1, ((seat.income[r] * 36) / players) * 0.1));
   return value;
@@ -177,6 +185,10 @@ class Run {
     }));
   }
 
+  private incomeAt(c: number): CornerIncome {
+    return this.start.incomeAt?.(c) ?? cornerIncome(this.start.geo, c, this.players);
+  }
+
   private wait(seat: Sim, cost: ResourceBag): number {
     const pace = { income: seat.income, wild: seat.wild, rates: seat.rates };
     return roundsToAfford(seat.hand, pace, cost);
@@ -204,8 +216,7 @@ class Run {
     const seat = this.sims[index]!;
     const { geo, pointPerCard, reach } = this.start;
     const rounds = this.roundsLeft();
-    const worth = (gain: { cards: ResourceBag; wild: number }) =>
-      incomeWorth(seat, gain, this.players) * rounds * pointPerCard;
+    const worth = (gain: CornerIncome) => incomeWorth(seat, gain, this.players) * rounds * pointPerCard;
     let best: Step | null = null;
     let top = 0;
     const consider = (goal: FirstGoal, value: number, distance = 0, wait?: number) => {
@@ -221,7 +232,7 @@ class Run {
       let corner = -1;
       let gain = 0;
       for (const c of seat.settlements) {
-        const v = worth(cornerIncome(geo, c, this.players));
+        const v = worth(this.incomeAt(c));
         if (v > gain) [corner, gain] = [c, v];
       }
       if (corner >= 0) consider({ kind: 'city', corner }, 1 + gain);
@@ -238,7 +249,7 @@ class Run {
           waits.set(d, w);
         }
         const road = this.roadGain(seat, index, d * ROUTE_ROAD_SHARE);
-        consider({ kind: 'settlement', corner: c }, 1 + road + worth(cornerIncome(geo, c, this.players)), d, w);
+        consider({ kind: 'settlement', corner: c }, 1 + road + worth(this.incomeAt(c)), d, w);
       }
     }
     if (this.deck > 0) consider({ kind: 'development' }, CARD_POINTS + 2.2 * pointPerCard);
@@ -292,9 +303,9 @@ class Run {
   }
 
   private addCorner(seat: Sim, c: number, times: number): void {
-    const gain = cornerIncome(this.start.geo, c, this.players).cards;
-    for (const r of RESOURCES) seat.income[r] += gain[r] * times;
-    seat.wild += cornerIncome(this.start.geo, c, this.players).wild * times;
+    const gain = this.incomeAt(c);
+    for (const r of RESOURCES) seat.income[r] += gain.cards[r] * times;
+    seat.wild += gain.wild * times;
   }
 
   private apply(index: number, step: Step): void {

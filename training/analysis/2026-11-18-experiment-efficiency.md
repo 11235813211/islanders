@@ -112,3 +112,22 @@ temporary logs disappear. For a current runtime snapshot:
 ps -axo pid,ppid,etime,time,%cpu,state,command
 rg -n 'async compare|async select|const baseline|pairedDifference|forecastCheck|const scale' training/cli.ts training/evaluate.ts training/forecast-check.ts shared/bots/advanced/forecast.ts
 ```
+
+## 2026-11-18 follow-up: room for more workers
+
+`sysctl hw.physicalcpu hw.logicalcpu hw.perflevel0.name hw.perflevel0.physicalcpu hw.perflevel1.name hw.perflevel1.physicalcpu`
+reports 14 physical/logical cores: 10 Performance and 4 Efficiency. The subsequent
+`override-study --games 120 --rollouts 16` was launched with `THREADS=10`, using about
+1,016% CPU after eight minutes. `runJobs` creates a fixed worker count at startup; it does
+not grow the pool during a run. `overrideStudy` writes results only after all jobs finish.
+Thus a future run can try `THREADS=13` (or 14), but restarting this one would discard its
+in-memory progress. Additional throughput is plausible, not measured; heterogeneous cores
+and scheduling mean a 30% worker increase is not a 30% speed guarantee. OS scheduling does
+not bind these ten workers specifically to the ten Performance cores. Keep this run going;
+benchmark worker counts on a future fixed workload. No run was restarted or reconfigured.
+
+## 2026-11-18 follow-up: later batch reuses its baseline
+
+The [narrowed-candidate results](2026-11-18-narrowed-candidates.md), recorded at 01:48,
+use `select` with one shared baseline. The repeated-baseline finding above describes the
+earlier scripts, not this later batch. Other efficiency recommendations were not reaudited.

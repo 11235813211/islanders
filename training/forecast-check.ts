@@ -2,7 +2,8 @@ import { Economy } from '../shared/bots/advanced/economy';
 import { forecast } from '../shared/bots/advanced/forecast';
 import { type Net, predict, seatChances } from '../shared/bots/advanced/net';
 import { makeParams } from '../shared/bots/advanced/params';
-import { forecastStart } from '../shared/bots/advanced/plan-forecast';
+import { forecastStart, planChance } from '../shared/bots/advanced/plan-forecast';
+import { rankedPlans } from '../shared/bots/advanced/plan-turn';
 import { finalSetupFeatures } from '../shared/bots/advanced/setup';
 import { seatFeatures, seatPositions } from '../shared/bots/advanced/value';
 import { getActivePlayerId, getView } from '../shared/engine';
@@ -49,6 +50,26 @@ function correlation(pairs: [number, number][]): number {
   return xx && yy ? xy / Math.sqrt(xx * yy) : 0;
 }
 
+/**
+ * How much the forecast's verdict moves when nothing that matters changes: one extra twentieth of
+ * a card. If that shifts a plan's chance as much as choosing another plan does, plan differences
+ * are mostly noise from the simulation itself.
+ */
+function noteSensitivity(econ: Economy, out: { nudge: number[]; plans: number[] }): void {
+  const plans = rankedPlans(econ).slice(0, 3);
+  if (plans.length < 2) return;
+  const start = forecastStart(econ);
+  const nudged = {
+    ...start,
+    seats: start.seats.map((s, i) => (i === econ.seat ? { ...s, hand: { ...s.hand, wood: s.hand.wood + 0.05 } } : s)),
+  };
+  const base = plans.map(p => planChance(econ, p));
+  plans.forEach((p, i) => {
+    out.nudge.push(Math.abs(planChance(econ, p, nudged) - base[i]!));
+  });
+  out.plans.push(Math.abs(base[1]! - base[0]!));
+}
+
 /** Plays the games and prints how well the forecast did against the networks. */
 export function forecastCheck(
   games: number,
@@ -62,6 +83,7 @@ export function forecastCheck(
   const valueNet = loadCheckpoint('w1').valueNet as Net;
   const rows: Row[] = [];
   const paces: Pace[] = [];
+  const sensitivity = { nudge: [] as number[], plans: [] as number[] };
   for (let i = 0; i < games; i++) {
     const seed = firstSeed + i;
     const scenario = drawScenario(seed, filter);
@@ -108,6 +130,7 @@ export function forecastCheck(
           lastTurn = g.turn;
           const seat = Number(getActivePlayerId(g)!.slice(1));
           const econ = econFor(g, seat);
+          noteSensitivity(econ, sensitivity);
           const chance = seatChances(valueNet, seatFeatures(econ, seatPositions(econ)))[0]!;
           pending[seat]!.push({
             stage: stageOf(Math.max(...econ.view.players.map(p => p.points))),
@@ -154,6 +177,11 @@ export function forecastCheck(
       `${name.padEnd(22)}${String(pairs.length).padStart(6)} seats; forecast − actual ${miss.toFixed(1)} rounds, typical miss ${abs.toFixed(1)}, correlation ${correlation(pairs).toFixed(2)}`,
     );
   };
+  const pp = (xs: number[]) => `${(mean(xs) * 100).toFixed(2)} pp`;
+  console.log(
+    `\nforecast chance moves ${pp(sensitivity.nudge)} on average from a twentieth of a card; ` +
+      `the two best plans differ by ${pp(sensitivity.plans)}`,
+  );
   console.log('\nforecast at the end of setup against what happened');
   report('rounds to 5 points', p => p.atFive);
   report('rounds to 7 points', p => p.atSeven);

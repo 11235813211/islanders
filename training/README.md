@@ -50,7 +50,9 @@ not 95% intervals. Use the final paired difference from `compare` for inference;
 - `compare --a t2 --b t1 --games 600` the same games for both, paired difference ± standard
   error (across seeds) and by table size. Use this to decide whether a change helped.
 - `select --candidates t1-g5,t1-g10,t1 --baseline s1 --games 600 --seed 400000` pick among
-  saved candidates on fresh seeds.
+  saved candidates on fresh seeds. All share one baseline, so prefer it to repeated `compare` runs.
+  A candidate can be `knobs:roadRace=0.5;forecastPlan=1` (the shipped bot with those knobs); `--report`
+  prints each side's full counts.
 - `replay --seed 300868 --hero t1` one game inline, with the final state (for stuck games).
 - `search --seeds 50 [--screen 8 --confirm 32 --margin 1.5 --players 4]` the headroom probe
   (historical probe, assessed in [EVIDENCE.md](EVIDENCE.md), `search.ts`): one seat searches its
@@ -355,3 +357,6 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
 - Experiment efficiency audit (2026-11-18, [analysis](analysis/2026-11-18-experiment-efficiency.md)):
   current pilot sizes are reasonable, but repeated baselines and calibration games waste work;
   use the existing `select` path and target the original two-player problem. No new games.
+- Narrowed candidate summary (2026-11-18, [analysis](analysis/2026-11-18-narrowed-candidates.md)):
+  no clear win improvement; light setup forecasting is a weak lead, while the tested road
+  variant holds the award less in two-player Jumbotan. Summary of an existing batch; no new games.
