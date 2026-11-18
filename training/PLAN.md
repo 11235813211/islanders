@@ -49,8 +49,10 @@ what a better version would change. Rules for this lane:
 
 **Shipping: careful.** Changing `weights.json` or default behavior needs:
 - A paired comparison against `ref:advanced` on seeds not used to pick the candidate.
-- No regression worse than −2 pp on: the base island at 4 players, The Channel
-  (`new-board-4`), 5–6 players, and Middle Fog. Unfinished games not up.
+- No regression worse than −2 pp on any protected game: the base island at 2, 3, 4, 5, and 6
+  players (each on its own), The Channel (`new-board-4`), Middle Fog (`new-board-3`), Magnetic
+  North (`new-base-board-12`), and Jumbotan at 2 players (`new-base-board-16`). Unfinished games
+  not up.
 - `npm run check`, `tests/bots.test.ts` CPU limits, and the human trade limits all pass.
 - A claimed gain is reported with its `±` from that held-out run. Correctness fixes can ship
   without a measured gain if they don't regress.
