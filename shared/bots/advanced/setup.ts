@@ -4,6 +4,7 @@ import { linkAction } from '../analysis';
 import { classicSlot, distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import { predict } from './net';
 import { type AdvancedParams, type Knobs, makeParams } from './params';
+import { setupEdge } from './setup-forecast';
 import { setupLean } from './strategy';
 
 /**
@@ -342,15 +343,15 @@ function lodestoneScore(ctx: Context, owners: Int8Array, seat: number): number {
 }
 
 /** Play out the draft from `step`: opponents pick greedily; this bot picks by lookahead. */
-function playOut(ctx: Context, owners: Int8Array, step: number): number {
+function playOut(ctx: Context, owners: Int8Array, step: number): Outcome {
   const next = Int8Array.from(owners);
   for (let j = step; j < ctx.order.length; j++) {
     const seat = ctx.order[j]!;
-    if (seat === ctx.me) return bestPick(ctx, next, j, 3).score;
+    if (seat === ctx.me) return bestPick(ctx, next, j, 3);
     const c = greedyPick(ctx, next, seat, ctx.knobs.draftVariety);
     if (c >= 0) next[c] = seat;
   }
-  return evaluate(ctx, next, ctx.me);
+  return { score: evaluate(ctx, next, ctx.me), final: next };
 }
 
 /** Best gold field or bonus island within reach of corner `c`, by distance only (cached per decision). */
@@ -375,8 +376,17 @@ function prize(ctx: Context, c: number): number {
   return value;
 }
 
-/** Best corner for this bot at draft step `step`, judged by the position the draft leads to. */
-function bestPick(ctx: Context, owners: Int8Array, step: number, width: number): { corner: number; score: number } {
+/** Where a draft ends up: its score for us, and who owns what. */
+interface Outcome {
+  score: number;
+  final: Int8Array;
+}
+
+/** Candidates the forecast compares at our real pick. */
+const FORECAST_PICKS = 4;
+
+/** Every candidate corner at this step with where its draft leads, best first. */
+function rankPicks(ctx: Context, owners: Int8Array, step: number, width: number): (Outcome & { corner: number })[] {
   const occupied = occupiedOf(owners);
   const open = ctx.starts.filter(c => isOpen(ctx.geo, occupied, c));
   const reachOpen: number[] = [];
@@ -396,12 +406,28 @@ function bestPick(ctx: Context, owners: Int8Array, step: number, width: number):
     return { corner: c, score };
   });
   prefilter.sort((a, b) => b.score - a.score);
-  let best = { corner: prefilter[0]?.corner ?? -1, score: -Infinity };
-  for (const { corner } of prefilter.slice(0, width)) {
+  const picks = prefilter.slice(0, width).map(({ corner }) => {
     owners[corner] = ctx.me;
-    const score = playOut(ctx, owners, step + 1);
+    const outcome = playOut(ctx, owners, step + 1);
     owners[corner] = -1;
-    if (score > best.score) best = { corner, score };
+    return { ...outcome, corner };
+  });
+  return picks.sort((a, b) => b.score - a.score);
+}
+
+/** Best corner for this bot at draft step `step`, judged by the position the draft leads to. */
+function bestPick(ctx: Context, owners: Int8Array, step: number, width: number): Outcome & { corner: number } {
+  return rankPicks(ctx, owners, step, width)[0] ?? { corner: -1, score: -Infinity, final: owners };
+}
+
+/** Our real pick: the draft's best few, reweighed by how the game should go from each. */
+function forecastPick(ctx: Context, owners: Int8Array, step: number, width: number): number {
+  const picks = rankPicks(ctx, owners, step, width).slice(0, FORECAST_PICKS);
+  let best = picks[0]?.corner ?? -1;
+  let top = -Infinity;
+  for (const p of picks) {
+    const score = p.score + ctx.knobs.setupForecast * setupEdge(ctx.view, ctx.geo, p.final, ctx.knobs);
+    if (score > top) [best, top] = [p.corner, score];
   }
   return best;
 }
@@ -422,7 +448,9 @@ export function setupSettlement(view: GameView, params: AdvancedParams, explore 
   const legal = new Set(view.legal.settlements.map(id => ctx.geo.indexOf.get(id)!));
   // Corners the board allows but the engine doesn't list (should not happen) are dropped here.
   ctx.starts = ctx.starts.filter(c => legal.has(c) || !isOpen(ctx.geo, occupiedOf(owners), c));
-  let { corner } = bestPick(ctx, owners, step, Math.round(params.knobs.setupCandidates));
+  const width = Math.round(params.knobs.setupCandidates);
+  let corner =
+    params.knobs.setupForecast > 0 ? forecastPick(ctx, owners, step, width) : bestPick(ctx, owners, step, width).corner;
   if (explore) {
     // Training only: sometimes try another legal corner, to learn what other positions are worth.
     const noise = viewNoise(view);

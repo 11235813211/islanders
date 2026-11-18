@@ -279,8 +279,7 @@ export class Economy {
    */
   raceFactor(c: number, distance: number): number {
     if (this.knobs.raceModel >= 0.5) {
-      this.racesCache ??= races(this);
-      return this.racesCache.oursAt(c);
+      return this.races.oursAt(c);
     }
     const them = this.opponentDistance(c);
     const penalty = this.knobs.racePenalty;
@@ -288,6 +287,17 @@ export class Economy {
   }
 
   private racesCache: Races | null = null;
+
+  /** The rival model for this decision. */
+  get races(): Races {
+    this.racesCache ??= races(this);
+    return this.racesCache;
+  }
+
+  /** Whether our routes are within a couple of pieces of corner `c`. */
+  reachableSoon(c: number): boolean {
+    return distanceFrom(this.geo, this.frontiers[this.seat]!, c) <= 2;
+  }
 
   private goalOptions(): GoalOption[] {
     const { view, knobs, self } = this;

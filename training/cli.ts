@@ -11,6 +11,7 @@ import type { Kind } from './datasets';
 import { endDiagnostics, type RouteLog, traceRoutes } from './diagnostics';
 import { reportDisagreements } from './disagree';
 import { matchJobs, pairedDifference, playMatch, report, summarize } from './evaluate';
+import { forecastCheck } from './forecast-check';
 import { runGauntlet } from './gauntlet';
 import { goalReport } from './goal-report';
 import { brainFor, heroSeats, runJob, type SeatSpec } from './jobs';
@@ -28,6 +29,7 @@ import {
   reportRecordDecisions,
 } from './record-disagree';
 import { loadRecords, replayGame } from './replays';
+import { roadDiagnosis } from './road-diagnosis';
 import type { RolloutOptions } from './rollouts';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import type { BenchJob, BenchPosition, BenchResult, PositionsJob } from './scorer-bench';
@@ -625,6 +627,20 @@ Object.assign(COMMANDS, {
       JSON.parse(readFileSync(flags.results ?? data('bench-1.json'), 'utf8')) as BenchResult[],
       flags.full ?? data('strategy-probe-3.json'),
       flags.stopped ?? data('strategy-probe-4.json'),
+    );
+  },
+  /** How well the build forecast predicts games: forecast-check [--games 200 --seed 9000000 --players 4]. */
+  'forecast-check'() {
+    const knobs = flags.knobs ? JSON.parse(flags.knobs) : {};
+    forecastCheck(Number(flags.games ?? 200), Number(flags.seed ?? 9_000_000), filterFromFlags(), knobs);
+  },
+  /** The road race's promises against real games: road-diagnosis [--weight 1 --games 200 --seed 9100000]. */
+  'road-diagnosis'() {
+    roadDiagnosis(
+      Number(flags.weight ?? 1),
+      Number(flags.games ?? 200),
+      Number(flags.seed ?? 9_100_000),
+      filterFromFlags(),
     );
   },
   /** List checkpoints with their last note. */

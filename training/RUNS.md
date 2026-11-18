@@ -6,9 +6,32 @@ Newest first. Finished runs keep their one-line result; the full write-up goes i
 
 ## Running
 
-_Nothing running._
+### Forecast decision diagnosis
+
+- **Why:** the forecast predicts winners well but lost about 2 pp when steering builds or placement.
+  Find which choices it changes, and whether wider uncertainty or a higher bar for changing helps.
+- **What:** one shared baseline per batch (`select`), 100 seeds: forecast variants on all maps, and the
+  road race on 2-player Jumbotan against `shipped` and `style:roadracer`. Full logs kept.
+- **ETA:** about 10 minutes from the start of the batch.
 
 ## Finished
+
+### Road race v2 and first forecast pilots
+
+- **Result (2026-11-18 00:37–01:06, A − B vs the shipped bot, 300 seeds):** road race v2 (only what committing
+  adds): `roadRace` 1 −0.36 ±1.15 pp vs `shipped`, +0.21 ±1.20 vs `style:roadracer`; 0.5 −0.01 ±1.11. Road ranked
+  first on 2–3% of turns (was 9%). `forecastPlan` 1: −2.43 ±1.13; with `roadRace` 0.5: −3.43 ±1.25; `setupForecast`
+  0.5: −1.96 ±1.19; 1: −2.21 ±1.24 (all at spread 2.5). Prediction (`forecast-check`, 120 games, spread 5), Brier
+  forecast / even / network: after setup 0.1874 / 0.1925 / 0.2135, early 0.2077 / 0.2118 / 0.2582, mid 0.1874 /
+  0.2220 / 0.2721, late 0.1829 / 0.2268 / 0.2522. Nothing shipped; all knobs stay off.
+
+### Longest Road race weights (road-race.ts): holds the road more, no win gain
+
+- **Why:** the first version (`roadRace` 1) held the road more but won less on 2-player Jumbotan.
+- **Result (2026-11-18 00:10–00:25, 300 seeds; A − B vs the shipped bot):** against `shipped` (seeds
+  8100000): 0.25 −0.44 ±1.06, 0.5 −1.05 ±1.09, 1 −2.31 ±1.15 pp. Against `style:roadracer` (8200000):
+  0.25 +0.93 ±1.19, 0.5 +0.47 ±1.25, 1 −1.13 ±1.26 pp. Road held at the end vs `shipped`: 0.28, 0.31 and
+  0.34, from 0.26. Not shipped: a separate road goal ignores what its cards could buy instead.
 
 ### Scorer benchmark 1 (PLAN Phase 3 step 2)
 

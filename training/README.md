@@ -352,3 +352,6 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
 - Offline benchmark analysis (2026-11-17, [analysis](analysis/2026-11-17-bench-offline.md)): stopped w1 ties full
   rollouts at equal CPU (differences within ±0.25 pp per choice); linear selectors don't beat
   constants; per-choice gains overcount across a game. No new games.
+- Experiment efficiency audit (2026-11-18, [analysis](analysis/2026-11-18-experiment-efficiency.md)):
+  current pilot sizes are reasonable, but repeated baselines and calibration games waste work;
+  use the existing `select` path and target the original two-player problem. No new games.

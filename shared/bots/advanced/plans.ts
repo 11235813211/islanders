@@ -4,6 +4,7 @@ import { RESOURCES, type ResourceBag } from '../../types';
 import { COSTS, resourceWeights } from '../analysis';
 import type { Economy, Target } from './economy';
 import { distanceFrom, isOpen } from './geometry';
+import { roadRace } from './road-race';
 import { goalLean } from './strategy';
 import { cornerYield } from './value';
 
@@ -31,6 +32,8 @@ export interface Plan {
   vertexId?: string;
   /** Routes: the way there. */
   path?: Target;
+  /** Longest Road race: the next road or ship to build. */
+  edge?: string;
 }
 
 const SHIP = BUILD_COSTS.ship;
@@ -72,7 +75,7 @@ export function productionPoints(econ: Economy, gain: { production: ResourceBag;
  * Chance an open corner is still ours when we get there, `turns` from now: the rival model's odds
  * (rivals.ts, which already counts how long each player needs), or a rule of thumb by distance.
  */
-function race(econ: Economy, c: number, distance: number, turns: number): number {
+function raceOdds(econ: Economy, c: number, distance: number, turns: number): number {
   if (econ.knobs.raceModel >= 0.5) return econ.raceFactor(c, distance);
   const them = econ.opponentDistance(c);
   if (them > distance + 1) return 1;
@@ -144,6 +147,7 @@ function frontierSpots(econ: Economy): { corner: number; ours: number; gain: num
 export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<string, Target>): Plan[] {
   const { view, self } = econ;
   const plans: Plan[] = [];
+  const race = econ.knobs.roadRace > 0 ? roadRace(econ) : null;
   const own = Object.entries(view.buildings).filter(([, b]) => b.playerId === view.selfId);
   if (self.citiesLeft)
     for (const [id, b] of own)
@@ -157,11 +161,11 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
   if (self.settlementsLeft) {
     for (const id of econ.spotIds) {
       const turns = econ.turnsToAfford(view.hand, COSTS.settlement);
-      const odds = race(econ, econ.geo.indexOf.get(id)!, 0, turns);
+      const odds = raceOdds(econ, econ.geo.indexOf.get(id)!, 0, turns);
       plans.push({
         kind: 'settlement',
         cost: COSTS.settlement,
-        payoff: settlementPayoff(econ, id) * odds,
+        payoff: settlementPayoff(econ, id) * odds + (race?.blockAt(econ.geo.indexOf.get(id)!) ?? 0),
         vertexId: id,
       });
     }
@@ -170,7 +174,9 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
       const piece = path.firstKind === 'ship' ? SHIP : COSTS.road;
       const cost = plus(COSTS.settlement, piece, path.distance);
       const turns = econ.turnsToAfford(view.hand, cost);
-      const payoff = settlementPayoff(econ, id) * race(econ, c, path.distance, turns);
+      const payoff =
+        settlementPayoff(econ, id) * raceOdds(econ, c, path.distance, turns) +
+        (race ? race.blockAt(c) + race.routeCredit(path.firstEdge, path.distance) : 0);
       plans.push({ kind: 'route', cost, payoff, vertexId: id, path });
     }
   }
@@ -179,16 +185,22 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
   if (econ.survey && econ.knobs.surveyValue > 0)
     plans.push({ kind: 'survey', cost: econ.survey.cost, payoff: 1 + 0.3 * econ.knobs.surveyValue });
   if (view.developmentRemaining) plans.push({ kind: 'development', cost: COSTS.development, payoff: cardPayoff(econ) });
-  const others = Math.max(4, ...view.players.filter(p => p.id !== view.selfId).map(p => p.longestRoad));
-  const holding = view.longestRoadId === view.selfId;
-  const gap = others + 1 - self.longestRoad;
-  if (gap >= 1 && gap <= Math.min(3, self.roadsLeft + self.shipsLeft)) {
-    // Two points (or keeping them) while nobody passes us again.
-    plans.push({ kind: 'road', cost: plus(emptyCost(), COSTS.road, gap), payoff: holding ? 1.2 : 1.4 });
-  }
+  if (race) plans.push(...race.plans.map(p => ({ kind: 'road' as const, ...p })));
+  else plans.push(...fixedRoadGoal(econ));
   // A strategy (strategy.ts) leans the same goals one way; 1 everywhere for the shipped bot.
   for (const plan of plans) plan.payoff *= goalLean(econ.knobs, plan.kind);
   return plans;
+}
+
+/** The simple Longest Road goal: a flat worth when one to three roads would take it. */
+function fixedRoadGoal(econ: Economy): Plan[] {
+  const { view, self } = econ;
+  const others = Math.max(4, ...view.players.filter(p => p.id !== view.selfId).map(p => p.longestRoad));
+  const holding = view.longestRoadId === view.selfId;
+  const gap = others + 1 - self.longestRoad;
+  if (gap < 1 || gap > Math.min(3, self.roadsLeft + self.shipsLeft)) return [];
+  // Two points (or keeping them) while nobody passes us again.
+  return [{ kind: 'road', cost: plus(emptyCost(), COSTS.road, gap), payoff: holding ? 1.2 : 1.4 }];
 }
 
 const emptyCost = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 });

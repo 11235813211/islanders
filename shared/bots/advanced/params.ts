@@ -46,6 +46,16 @@ export const KNOBS = {
   /** Rounds the game lasts per point the leader still needs. */
   roundsPerPoint: [2.2, 1, 4],
 
+  // Forecast (forecast.ts)
+  /** 1: the planner's best plans are compared by a forecast of the game (plan-forecast.ts). */
+  forecastPlan: [0, 0, 1],
+  /** How much better (chance to win) another plan must forecast to replace the planner's pick. */
+  forecastMargin: [0.01, 0, 0.1],
+  /** Uncertainty in a seat's forecast finish, per square root of the rounds left. */
+  forecastSpread: [5, 0.3, 8],
+  /** Setup: weight of the forecast against the setup network (setup-forecast.ts); 0 is off. */
+  setupForecast: [0, 0, 2],
+
   // Expansion
   /** How much an opponent being closer to a spot cuts its value (0: ignore races). */
   racePenalty: [0.6, 0, 1],
@@ -72,6 +82,12 @@ export const KNOBS = {
   spareRoads: [2, 0, 4],
   /** Chase Longest Road when this many roads would take it. */
   longestRoadReach: [2, 0, 4],
+  /** Scale on Longest Road valued as a race (road-race.ts); 0 keeps the fixed road goal. */
+  roadRace: [0, 0, 2],
+  /** Road race: share of a rival's income we expect on roads when they lead nowhere it wants. */
+  roadShare: [0.4, 0.1, 1],
+  /** Road race: share of our income we would really put into roads when going for the award. */
+  roadCommit: [0.7, 0.3, 1],
 
   // Cartographers
   /** A survey ship as a goal (a point that also charts tiles), like cityValue. */

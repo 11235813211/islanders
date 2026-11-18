@@ -34,7 +34,14 @@ const value = (k: Knob, u: number) => KNOBS[k][1] + Math.min(1, Math.max(0, u)) 
 
 /** Knobs worth tuning by default (setupExplore is for data collection; setupCandidates is CPU). */
 export const TUNABLE = (Object.keys(KNOBS) as Knob[]).filter(
-  k => k !== 'setupExplore' && k !== 'setupCandidates' && k !== 'strategy' && k !== 'raceModel',
+  k =>
+    k !== 'setupExplore' &&
+    k !== 'setupCandidates' &&
+    k !== 'strategy' &&
+    k !== 'raceModel' &&
+    k !== 'roadRace' &&
+    k !== 'forecastPlan' &&
+    k !== 'setupForecast',
 );
 
 export async function tune(options: TuneOptions): Promise<Checkpoint> {

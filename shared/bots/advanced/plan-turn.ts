@@ -3,6 +3,7 @@ import { type GameAction, RESOURCES, type ResourceBag } from '../../types';
 import { COSTS, linkAction } from '../analysis';
 import type { TurnOptions } from '../types';
 import type { Economy } from './economy';
+import { forecastRank } from './plan-forecast';
 import { type Plan, planScore } from './plans';
 import { nextOffer } from './trade';
 import { bankTrade, developmentPlay, longestRoadMove } from './turn';
@@ -19,11 +20,12 @@ export function planStep(econ: Economy, { builds = 0, allowOffers = true }: Turn
   if (play) return play;
   // With a spot already in reach, settle it before starting a route anywhere else (roads
   // toward a second spot leave the first one open, and then both may go to someone else).
-  const ranked = econ.plans
+  const byScore = econ.plans
     .filter(plan => !econ.spots || (plan.kind !== 'route' && plan.kind !== 'explore'))
     .map(plan => ({ plan, score: planScore(econ, plan) }))
     .sort((a, b) => b.score - a.score)
     .map(r => r.plan);
+  const ranked = econ.knobs.forecastPlan >= 0.5 ? forecastRank(econ, byScore) : byScore;
   const best = ranked[0];
   if (!best) return { type: 'end-turn' };
   // A settlement we can build now beats the first piece of a route to a better one (the rollout
@@ -78,6 +80,10 @@ function nextStep(econ: Economy, plan: Plan): { action: GameAction; cost: Resour
     case 'development':
       return view.legal.development ? { action: { type: 'buy-development' }, cost: COSTS.development } : null;
     case 'road': {
+      if (plan.edge) {
+        const action = linkAction(view, plan.edge);
+        return action ? { action, cost: action.type === 'build-ship' ? BUILD_COSTS.ship : COSTS.road } : null;
+      }
       const move = longestRoadMove(econ);
       return move
         ? { action: move.action, cost: move.action.type === 'build-ship' ? BUILD_COSTS.ship : COSTS.road }
