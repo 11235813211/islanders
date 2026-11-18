@@ -34,18 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - id: browser-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # Browsers come from the cache when Playwright hasn't changed; system libraries always come from apt.
-      - if: steps.browser-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium webkit
-      - if: steps.browser-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium webkit
+      - uses: ./.github/actions/browsers
       - run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -61,17 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - id: browser-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - if: steps.browser-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium webkit
-      - if: steps.browser-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium webkit
+      - uses: ./.github/actions/browsers
       - run: npm run test:e2e:slow
       - uses: actions/upload-artifact@v4
         if: failure()

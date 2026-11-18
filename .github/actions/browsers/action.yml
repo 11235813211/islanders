@@ -1,0 +1,47 @@
+name: Install Playwright browsers
+description: >-
+  Chromium, WebKit, and their system libraries. Browsers and the library packages come from caches
+  when they can, and a stalled apt mirror is retried instead of using up the job's time limit.
+runs:
+  using: composite
+  steps:
+    - id: playwright
+      shell: bash
+      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+    - id: browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+    - id: packages
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/playwright-debs
+        key: playwright-debs-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+    - shell: bash
+      run: |
+        # A mirror that stops sending data fails fast, and apt tries it again.
+        printf 'Acquire::Retries "3";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' |
+          sudo tee /etc/apt/apt.conf.d/99-ci-network > /dev/null
+        mkdir -p ~/.cache/playwright-debs
+        sudo cp ~/.cache/playwright-debs/*.deb /var/cache/apt/archives/ 2> /dev/null || true
+        for attempt in 1 2 3; do
+          timeout --kill-after=10 90 npx playwright install-deps chromium webkit && break
+          if [ "$attempt" = 3 ]; then
+            echo "::error::Installing browser system libraries failed three times."
+            exit 1
+          fi
+          echo "::warning::Installing browser system libraries stalled or failed (attempt $attempt). Retrying."
+          sudo pkill -x apt-get || true
+          sleep 3
+        done
+        cp /var/cache/apt/archives/*.deb ~/.cache/playwright-debs/ 2> /dev/null || true
+    - if: steps.browsers.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx playwright install chromium webkit
+    # Saved right away, so a failing test doesn't lose it. Parallel jobs may race; the first one wins.
+    - if: steps.packages.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/playwright-debs
+        key: ${{ steps.packages.outputs.cache-primary-key }}
