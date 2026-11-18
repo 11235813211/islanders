@@ -232,7 +232,7 @@ export interface ChatMessage {
   at: number;
   spectator: boolean;
 }
-export const PIECE_STYLES = ['classic', 'chalet'] as const;
+export const PIECE_STYLES = ['classic', 'chalet', 'korean'] as const;
 /** How settlements and cities are drawn. Purely visual; the rules are the same. */
 export type PieceStyle = (typeof PIECE_STYLES)[number];
 /**

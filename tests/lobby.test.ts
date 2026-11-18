@@ -64,6 +64,7 @@ describe('lobby setup', () => {
   it('accepts a known piece style and rejects others', () => {
     const base = { autoRollSeconds: 10, trackDice: true };
     expect(validSettings({ ...base, pieceStyle: 'chalet' })).toBe(true);
+    expect(validSettings({ ...base, pieceStyle: 'korean' })).toBe(true);
     expect(validSettings({ ...base, pieceStyle: 'castle' })).toBe(false);
     let game = makeLobby(2);
     game = applyAction(

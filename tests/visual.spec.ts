@@ -7,34 +7,47 @@ import { mountGame } from './ui-harness';
 
 // Screenshot review for art and seat colors: writes test-results/visual-*.png.
 // Every seat gets a city, settlements, and roads spread across different tiles.
-// The second set uses the chalet piece style, so both styles get a board screenshot.
+// Each set uses a different piece style, so every style gets a board screenshot.
 const SEAT_SETS: [PlayerColor[], PieceStyle][] = [
   [['white', 'black', 'green', 'brown'], 'classic'],
   [['orange', 'red', 'blue', 'purple'], 'chalet'],
+  [['red', 'blue', 'white', 'black'], 'korean'],
 ];
+
+/** A rich game with every seat's cities, settlements, and roads spread across the board. */
+function spreadPieces(colors: PlayerColor[], pieceStyle: PieceStyle) {
+  const game = richGame();
+  game.settings.pieceStyle = pieceStyle;
+  game.players.forEach((p, i) => {
+    p.color = colors[i]!;
+  });
+  const owners = game.players.map(p => p.id);
+  // Spread pieces: every fourth open corner and edge, cycling owners, so each color lands on varied terrain.
+  game.board.vertices
+    .filter((_, i) => i % 4 === 0)
+    .slice(0, 12)
+    .forEach((v, i) => {
+      game.buildings[v.id] = { playerId: owners[i % owners.length]!, kind: i < 4 ? 'city' : 'settlement' };
+    });
+  game.board.edges
+    .filter((_, i) => i % 3 === 1)
+    .slice(0, 20)
+    .forEach((e, i) => {
+      game.roads[e.id] ??= owners[i % owners.length]!;
+    });
+  game.turnIndex = game.players.findIndex(p => p.id === getActivePlayerId(game));
+  return game;
+}
+
+test('Korean pieces on a phone board', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mountGame(page, spreadPieces(['red', 'blue', 'white', 'black'], 'korean'));
+  await page.screenshot({ path: 'test-results/phone-korean-board.png' });
+});
 
 for (const [colors, pieceStyle] of SEAT_SETS) {
   test(`board pieces stay visible for ${colors.join(', ')} (${pieceStyle})`, async ({ page }) => {
-    const game = richGame();
-    game.settings.pieceStyle = pieceStyle;
-    game.players.forEach((p, i) => {
-      p.color = colors[i]!;
-    });
-    const owners = game.players.map(p => p.id);
-    // Spread pieces: every fourth open corner and edge, cycling owners, so each color lands on varied terrain.
-    game.board.vertices
-      .filter((_, i) => i % 4 === 0)
-      .slice(0, 12)
-      .forEach((v, i) => {
-        game.buildings[v.id] = { playerId: owners[i % owners.length]!, kind: i < 4 ? 'city' : 'settlement' };
-      });
-    game.board.edges
-      .filter((_, i) => i % 3 === 1)
-      .slice(0, 20)
-      .forEach((e, i) => {
-        game.roads[e.id] ??= owners[i % owners.length]!;
-      });
-    game.turnIndex = game.players.findIndex(p => p.id === getActivePlayerId(game));
+    const game = spreadPieces(colors, pieceStyle);
     await mountGame(page, game);
     await page.locator('.board-svg').screenshot({ path: `test-results/visual-board-${colors.join('-')}.png` });
     await page.locator('.player-panel').screenshot({ path: `test-results/visual-scoreboard-${colors.join('-')}.png` });

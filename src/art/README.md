@@ -28,6 +28,10 @@ import from `src/art` and never draw art themselves.
   shadow, its flag on a taller post beside it.
   `v16/` adds the survey ship's target marker (a small compass rose in the seat's color) and the seam
   down a split tile; older versions borrow both.
+  `v17/` gives each building style its own design in `pieces/` (add one to `DESIGNS` in `pieces/index.tsx`).
+  Classic and chalet look the same as v16. It adds the Korean style (`korean.ts`), built from palettes of named
+  materials, `roofs.ts` (curved roofs from a few numbers), and `timber.ts` (platforms and halls). A design's
+  settlement and city share one camera.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Review Cartographers art: `npx playwright test tests/cartographers-art.spec.ts` writes

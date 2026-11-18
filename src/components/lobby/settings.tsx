@@ -197,6 +197,7 @@ export const CATEGORIES: Category[] = [
           options: [
             { value: 'classic', label: 'Classic' },
             { value: 'chalet', label: 'Mountain chalet' },
+            { value: 'korean', label: 'Korean' },
           ],
         },
       },

@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   numberLayout: 'ordered',
   // Show the bank's card counts: 'auto' (3+ players), 'always', or 'never'.
   showBank: 'auto',
-  // Piece look: 'classic' or 'chalet'.
+  // Piece look: 'classic', 'chalet', or 'korean'.
   pieceStyle: 'classic',
   // Seafarers rules (ships, pirate): true or false.
   seafarers: false,

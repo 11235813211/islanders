@@ -49,7 +49,7 @@ export default function PieceIcon({
   style?: PieceStyle;
 }) {
   return (
-    <svg className="piece-icon" width={size} height={size} viewBox={FRAMES[kind]} aria-hidden="true">
+    <svg className="piece-icon" width={size} height={size} viewBox={FRAMES[kind]} overflow="visible" aria-hidden="true">
       <PieceArt kind={kind} color={playerColor(color).fill} style={style} />
     </svg>
   );
