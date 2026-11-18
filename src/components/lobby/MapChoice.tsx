@@ -1,7 +1,7 @@
 import { AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useState } from 'react';
 import { TUNING } from '../../../shared/default-settings';
-import { isLargeGame, proposalsBy } from '../../../shared/engine';
+import { boardPlayerCount, isLargeGame, proposalsBy } from '../../../shared/engine';
 import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView } from '../../../shared/types';
 import { useBoardLibrary } from '../../hooks/useBoardLibrary';
@@ -16,6 +16,7 @@ import {
   STANDARD_ISLAND,
 } from '../maps/mapInfo';
 import type { Proposing } from '../maps/ProposeButton';
+import BoardPlayers from './BoardPlayers';
 import MapProposals from './MapProposals';
 
 /** The Maps button's words: the host chooses, seated people propose, spectators look. */
@@ -46,12 +47,13 @@ export default function MapChoice({
   );
   const { library, error } = useBoardLibrary();
   const map = view.map;
-  const players = view.players.length;
+  // What people browse and propose for; the warning below is about who is actually seated.
+  const players = boardPlayerCount(view);
   const base = isLargeGame(players) ? LARGE_ISLAND : STANDARD_ISLAND;
   const found = map && library?.boards.find(b => b.id === map.id);
   // The thumbnail shows the layout that will be played.
   const design = map ? found && designFor(found, map.layout?.min ?? players) : base;
-  const warning = map && roomMapWarning(map, players);
+  const warning = map && roomMapWarning(map, view.players.length);
   const layoutOf = (layoutFor?: number) => (layoutFor === undefined ? {} : { layoutFor });
   const propose: Proposing | undefined =
     view.role === 'player'
@@ -75,6 +77,7 @@ export default function MapChoice({
           {mapsLabel(host, view.role === 'player')}
         </button>
       </div>
+      {host && <BoardPlayers view={view} busy={busy} send={send} />}
       <MapProposals
         view={view}
         host={host}
@@ -94,6 +97,7 @@ export default function MapChoice({
           library={library}
           error={error}
           players={players}
+          planned={view.boardPlayers !== null}
           currentId={map?.id ?? BASE_MAP_ID}
           currentLayout={map?.layout ?? null}
           initial={browsing.initial}

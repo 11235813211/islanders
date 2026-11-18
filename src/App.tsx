@@ -10,10 +10,15 @@ import InviteDialog, { type InviteKind } from './components/InviteDialog';
 import { roomCodeOf } from './components/lobby/RoomCode';
 import RoomLobby from './components/RoomLobby';
 import { useAccount } from './hooks/useAccount';
-import { enterRoom, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
+import { enterRoom, rememberRoomCode, roomFromLocation, savedSession, useRoom } from './hooks/useRoom';
 import { ApiError } from './lib/api';
 
 declare const __LAN_ORIGIN__: string;
+
+/** Put a room code in the address bar without reloading or firing hashchange. */
+function showRoomInAddress(code: string) {
+  history.replaceState(null, '', `${location.pathname}${location.search}#room=${code}`);
+}
 
 function App() {
   const account = useAccount();
@@ -59,6 +64,13 @@ function App() {
     attemptedInvite.current = key;
     void enter('join', inviteCode, true);
   }, [inviteCode, session, account.account?.username]);
+  // The address follows the room's code, so an old link lands on the new one.
+  const currentCode = session && view?.roomId === session.roomId ? roomCodeOf(view) : null;
+  useEffect(() => {
+    if (!session || !currentCode) return;
+    rememberRoomCode(session, currentCode);
+    if (roomFromLocation() !== currentCode) showRoomInAddress(currentCode);
+  }, [session, currentCode]);
   // Left, removed, or the room closed: go home and say why.
   // biome-ignore lint/correctness/useExhaustiveDependencies: react only to the room ending.
   useEffect(() => {
@@ -95,7 +107,7 @@ function App() {
           saved?.token,
         ));
       if (entryRequest.current !== request) return;
-      history.replaceState(null, '', `${location.pathname}${location.search}#room=${next.roomId}`);
+      showRoomInAddress(kind === 'join' ? target : next.roomId);
       setEditing(false);
       setSession(next);
       void account.refresh();

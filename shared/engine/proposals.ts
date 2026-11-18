@@ -1,11 +1,16 @@
 import { TUNING } from '../default-settings';
-import type { GameState, MapProposal } from '../types';
-import { type Handlers, needPhase, requireRule } from './core';
+import type { GameState, GameView, MapProposal } from '../types';
+import { type Handlers, MAX_PLAYERS, needPhase, requireRule } from './core';
 import { requireHost } from './lobby';
 
 /** How many maps this person proposes or backs right now (at most TUNING.mapProposalsPerPlayer). */
 export function proposalsBy(proposals: readonly MapProposal[], playerId: string): number {
   return proposals.filter(p => p.by.includes(playerId)).length;
+}
+
+/** The player count the lobby shows and proposes maps for: the host's number, else the seats. */
+export function boardPlayerCount(room: Pick<GameView, 'boardPlayers' | 'players'>): number {
+  return room.boardPlayers ?? room.players.length;
 }
 
 /** Map proposals only live in the lobby, and only count people still seated. */
@@ -18,7 +23,7 @@ export function pruneMapProposals(next: GameState): void {
 }
 
 /** Lobby map proposals: players put maps forward and back them; the host picks one (choose-map) or turns one down. */
-export const mapProposalHandlers: Pick<Handlers, 'propose-map' | 'decline-map'> = {
+export const mapProposalHandlers: Pick<Handlers, 'propose-map' | 'decline-map' | 'set-board-players'> = {
   /**
    * Any seated person, the host too, puts a map forward or backs one already proposed, up to
    * TUNING.mapProposalsPerPlayer at a time; backing the same one again takes it back.
@@ -52,5 +57,14 @@ export const mapProposalHandlers: Pick<Handlers, 'propose-map' | 'decline-map'> 
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'turn down maps');
     next.mapProposals = next.mapProposals.filter(p => p.mapId !== action.mapId);
+  },
+
+  /** Only changes which maps people see first; the game still uses the seats at the start. */
+  'set-board-players'({ next, playerId }, action) {
+    needPhase(next, 'lobby');
+    requireHost(next, playerId, 'set the player count for maps');
+    const { players } = action;
+    requireRule(players === undefined || (players >= 2 && players <= MAX_PLAYERS), 'Choose 2 to 6 players.');
+    next.boardPlayers = players ?? null;
   },
 };

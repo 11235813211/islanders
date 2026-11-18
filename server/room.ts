@@ -139,6 +139,7 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'choose-map',
   'propose-map',
   'decline-map',
+  'set-board-players',
 ]);
 
 /**
@@ -461,6 +462,7 @@ export class GameRoom extends DurableObject<Env> {
       if ((!seat || seat.bot) && !game.spectators.some(s => s.id === playerId)) return null;
       return {
         roomId: game.roomId,
+        inviteCode: game.inviteCode,
         playerId,
         phase: game.phase,
         players: game.players.map(p => p.name),

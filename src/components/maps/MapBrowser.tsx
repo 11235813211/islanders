@@ -36,6 +36,7 @@ export default function MapBrowser({
   library,
   error,
   players,
+  planned,
   currentId = null,
   currentLayout = null,
   choose,
@@ -50,6 +51,8 @@ export default function MapBrowser({
   error?: string | null;
   /** The room's player count, for warnings and the default filter. */
   players: number;
+  /** `players` is the number the host set, not the people seated. */
+  planned?: boolean;
   currentId?: string | null;
   /** The layout of the current map the host picked, or null when the table's size picks it. */
   currentLayout?: { min: number; max: number } | null;
@@ -141,6 +144,7 @@ export default function MapBrowser({
         <MapDetail
           design={open}
           players={players}
+          planned={planned}
           layoutFor={open === initial?.design ? (initial.layoutFor ?? undefined) : undefined}
           current={open.id === currentId}
           currentLayout={currentLayout}

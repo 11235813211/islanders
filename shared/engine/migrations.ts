@@ -206,6 +206,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.inviteCode ??= null;
   },
+  // 24 → 25: the host may set the player count maps are shown for.
+  s => {
+    s.boardPlayers ??= null;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

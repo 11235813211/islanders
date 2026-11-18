@@ -2,7 +2,7 @@ import { Check, Eye, Undo2, X } from 'lucide-react';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { TUNING } from '../../../shared/default-settings';
-import { isLargeGame, proposalsBy } from '../../../shared/engine';
+import { boardPlayerCount, isLargeGame, proposalsBy } from '../../../shared/engine';
 import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView, MapProposal } from '../../../shared/types';
 import MapThumbnail from '../maps/MapThumbnail';
@@ -60,7 +60,7 @@ export default function MapProposals({
     const timer = setTimeout(() => setWithdrawn(null), UNDO_MS);
     return () => clearTimeout(timer);
   }, [withdrawn]);
-  const players = view.players.length;
+  const players = boardPlayerCount(view);
   const seat = (id: string) => view.players.find(p => p.id === id);
   const choose = (p: MapProposal) =>
     send({ type: 'choose-map', mapId: p.mapId, ...(p.layoutFor === null ? {} : { layoutFor: p.layoutFor }) });

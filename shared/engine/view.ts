@@ -72,6 +72,7 @@ export function getView(state: GameState, selfId: string): GameView {
   const view = copyData({
     roomId: state.roomId,
     inviteCode: state.inviteCode,
+    boardPlayers: state.boardPlayers,
     version: state.version,
     board: null as unknown as GameView['board'],
     hostId: state.hostId,

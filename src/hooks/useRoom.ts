@@ -44,14 +44,35 @@ export function parseJoinInput(text: string): { code: string; spectate: boolean 
   };
 }
 
-export function savedSession(roomId: string): Session | null {
+/** This browser's seat for a room code: the room's first code or the one its host chose. */
+export function savedSession(code: string): Session | null {
   try {
-    const value = JSON.parse(localStorage.getItem(`islanders:${roomId}`) ?? 'null') as Session | null;
-    return value?.roomId === roomId && typeof value.token === 'string' && typeof value.playerId === 'string'
+    const value = JSON.parse(localStorage.getItem(`islanders:${code}`) ?? 'null') as Session | null;
+    return typeof value?.roomId === 'string' && typeof value.token === 'string' && typeof value.playerId === 'string'
       ? value
       : null;
   } catch {
     return null;
+  }
+}
+
+/** Keep this seat under the room's current code too, so a link with that code finds it. */
+export function rememberRoomCode(session: Session, code: string): void {
+  try {
+    localStorage.setItem(`islanders:${code}`, JSON.stringify(session));
+  } catch {
+    /* The live seat still works without local storage. */
+  }
+}
+
+/** Drop this room's saved seat under every code it was kept. */
+function forgetRoom(roomId: string): void {
+  try {
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith('islanders:') && savedSession(key.slice('islanders:'.length))?.roomId === roomId)
+        localStorage.removeItem(key);
+  } catch {
+    /* Storage may be disabled. */
   }
 }
 
@@ -195,13 +216,7 @@ export function useRoom(session: Session | null, signedIn = false) {
           setPending(false);
           inFlight.current = null;
           if (event.code === LEFT_ROOM || event.code === 4404) setLeft(event.reason || 'This room has closed.');
-          if ([LEFT_ROOM, 4401, 4404].includes(event.code)) {
-            try {
-              localStorage.removeItem(`islanders:${session.roomId}`);
-            } catch {
-              /* Storage may be disabled. */
-            }
-          }
+          if ([LEFT_ROOM, 4401, 4404].includes(event.code)) forgetRoom(session.roomId);
           if (event.code !== LEFT_ROOM && event.code !== 4404)
             setError(event.reason || 'The table could not be reached. Return home and use your invite to try again.');
           return;

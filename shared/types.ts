@@ -334,6 +334,7 @@ export interface UndoRecord {
     | 'board'
     | 'roomId'
     | 'inviteCode'
+    | 'boardPlayers'
     | 'hostId'
     | 'version'
     | 'chat'
@@ -367,6 +368,8 @@ export interface GameState {
   roomId: string;
   /** The code an admin host chose for the room, set once; joining with it reaches this room. */
   inviteCode: string | null;
+  /** Lobby: the player count the host set for showing and proposing maps; null follows the seats. */
+  boardPlayers: number | null;
   version: number;
   board: Board;
   players: Player[];
@@ -546,6 +549,7 @@ export interface HandGuess {
 export interface GameView {
   roomId: string;
   inviteCode: string | null;
+  boardPlayers: number | null;
   version: number;
   board: Board;
   players: PublicPlayer[];
@@ -645,6 +649,8 @@ export type GameAction =
   | { type: 'seat-spectator'; spectatorId: string; playerId?: string }
   /** Host: turn a map proposal down. */
   | { type: 'decline-map'; mapId: string }
+  /** Host: show and propose maps for this many players; without `players`, follow the seats again. */
+  | { type: 'set-board-players'; players?: number }
   | { type: 'transfer-host'; playerId: string }
   /** Host, mid-game: an Advanced bot takes the seat; the person watches (`watch`) or leaves the room. */
   | { type: 'seat-to-bot'; playerId: string; watch: boolean }
@@ -719,6 +725,7 @@ export interface AccountRoom {
 }
 /** "My rooms" entry with live status from the room. */
 export interface AccountRoomStatus extends AccountRoom {
+  inviteCode: string | null;
   phase: Phase;
   players: string[];
   yourTurn: boolean;

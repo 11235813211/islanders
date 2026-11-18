@@ -203,7 +203,7 @@ export default function HomeScreen({
                 >
                   <Sailboat size={22} />
                   <span className="recent-room-text">
-                    <strong>{item.roomId}</strong>
+                    <strong>{item.inviteCode ?? item.roomId}</strong>
                     <small>
                       {roomStatusLabel(item)} · {item.players.join(', ')}
                     </small>

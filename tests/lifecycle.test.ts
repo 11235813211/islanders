@@ -5,21 +5,25 @@ import {
   applyAction,
   awayHostSuccessor,
   BOT_THINK_MS,
+  boardPlayerCount,
   botDueAt,
   GameError,
   getActivePlayerId,
   getView,
   idlePause,
   idleResume,
+  normalizeGame,
   passHost,
   peekBoard,
   pendingBotActor,
   ROLL_SHOW_MS,
+  SCHEMA_VERSION,
   UNDO_GRACE_MS,
 } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
 import { hasAnswered } from '../shared/rules';
 import { EMPTY_ROOM_MS, emptyRoomMs, isBotGame, SAVED_BOT_GAME_HOURS } from '../shared/settings';
+import type { GameState } from '../shared/types';
 import { conserved, grant, inSeatOrder, makeLobby, TEST_NOW as now, seeded, settled } from './fixtures';
 
 const act = (g: ReturnType<typeof makeLobby>, id: string, action: Parameters<typeof applyAction>[2]) =>
@@ -141,6 +145,23 @@ describe('room membership', () => {
     g = act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 4 });
     g = act(g, 'p0', { type: 'propose-map', mapId: 'base', layoutFor: 5 });
     expect(g.mapProposals.find(p => p.layoutFor === 5)!.by).toEqual(['p0']);
+  });
+
+  it('lets only the host set the player count for maps, in the lobby, without changing the seats', () => {
+    let g = makeLobby(4);
+    expect(boardPlayerCount(getView(g, 'p1'))).toBe(4);
+    expect(() => act(g, 'p1', { type: 'set-board-players', players: 5 })).toThrow(/host/);
+    expect(() => act(g, 'p0', { type: 'set-board-players', players: 1 })).toThrow(/2 to 6/);
+    expect(() => act(g, 'p0', { type: 'set-board-players', players: 7 })).toThrow(/2 to 6/);
+    g = act(g, 'p0', { type: 'set-board-players', players: 5 });
+    expect(g.players).toHaveLength(4);
+    expect(boardPlayerCount(getView(g, 'p1'))).toBe(5);
+    g = act(g, 'p0', { type: 'set-board-players' });
+    expect(g.boardPlayers).toBeNull();
+    const { boardPlayers: _gone, ...older } = g;
+    expect(normalizeGame({ ...older, schemaVersion: SCHEMA_VERSION - 1 } as GameState).boardPlayers).toBeNull();
+    g = act(g, 'p0', { type: 'new-board' });
+    expect(() => act(g, 'p0', { type: 'set-board-players', players: 5 })).toThrow();
   });
 
   it('starts a fresh game with the same seats after the game ends', () => {

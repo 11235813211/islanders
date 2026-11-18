@@ -267,6 +267,41 @@ test('an admin host sets the room code once, in a box that fits every width', as
   expect(room.errors).toEqual([]);
 });
 
+test('the host sets the player count for maps, and maps open for that count', async ({ page }) => {
+  const room = await mountGame(page, makeLobby(4));
+  const row = page.locator('.board-players');
+  await expect(row.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(row.locator('output')).toHaveText('4');
+  await row.getByRole('button', { name: 'More players for maps' }).click();
+  await expect(row.locator('output')).toHaveText('5');
+  await expect(row.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.setup-players .subtle-badge')).toHaveText('4 / 6');
+  await expect(page.locator('.map-choice .mode-card h3')).toHaveText('Large island');
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(row);
+  }
+  await row.screenshot({ path: 'test-results/lobby-board-players.png' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: 'Choose map' }).click();
+  await expect(page.getByRole('radio', { name: 'Maps for 5 players' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('button', { name: 'Close maps' }).click();
+  await row.getByRole('button', { name: 'Auto' }).click();
+  await expect(row.locator('output')).toHaveText('4');
+  expect(room.errors).toEqual([]);
+});
+
+test('only the host sees the player count for maps, and everyone gets its maps', async ({ page }) => {
+  const lobby = makeLobby(4);
+  lobby.hostId = lobby.players[1]!.id;
+  lobby.boardPlayers = 5;
+  await mountGame(page, lobby);
+  await expect(page.locator('.board-players')).toHaveCount(0);
+  await expect(page.locator('.map-choice .mode-card h3')).toHaveText('Large island');
+  await page.getByRole('button', { name: 'Propose map' }).click();
+  await expect(page.getByRole('radio', { name: 'Maps for 5 players' })).toHaveAttribute('aria-checked', 'true');
+});
+
 test('on a Seafarers map extra pieces give roads and ships, shown with the seat color pieces', async ({ page }) => {
   const sea = BUILTIN_BOARDS.find(b => b.id === 'outer-isles')!;
   const lobby = seaLobby(sea, 2);

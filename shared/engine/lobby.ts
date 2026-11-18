@@ -134,6 +134,7 @@ export function createGame(
     schemaVersion: SCHEMA_VERSION,
     roomId,
     inviteCode: null,
+    boardPlayers: null,
     version: 0,
     board,
     players: [],

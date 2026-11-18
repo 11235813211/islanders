@@ -60,6 +60,7 @@ function LayoutSwitch({ index, count, go }: { index: number; count: number; go: 
 export default function MapDetail({
   design,
   players,
+  planned = false,
   layoutFor = players,
   current,
   currentLayout,
@@ -69,6 +70,8 @@ export default function MapDetail({
 }: {
   design: BoardDesign;
   players: number;
+  /** `players` is the number the host set, not the people seated. */
+  planned?: boolean;
   /** Show the layout for this many players first (default: the room's). */
   layoutFor?: number;
   /** This map is the room's map. */
@@ -94,6 +97,7 @@ export default function MapDetail({
   const pick = several && design.id !== BASE_MAP_ID;
   const range = playerRange(shown.players);
   const mismatch = playersMismatch(design, players);
+  const roomSize = planned ? `This room is set for ${players}.` : `This room has ${players}.`;
   const inUse = current && (!pick || currentLayout?.min === shown.players.min);
   const land = shown.tiles.filter(t => t.kind !== 'sea' && t.kind !== 'iceberg').length;
   return (
@@ -128,13 +132,13 @@ export default function MapDetail({
         {mismatch && (
           <p className="map-warning" role="note">
             <AlertTriangle size={17} />
-            Made for {playersLabel(design)} players. This room has {players}.
+            Made for {playersLabel(design)} players. {roomSize}
           </p>
         )}
         {pick && !mismatch && !fits(shown, players) && (
           <p className="map-warning" role="note">
             <AlertTriangle size={17} />
-            This layout is made for {range} players. This room has {players}.
+            This layout is made for {range} players. {roomSize}
           </p>
         )}
         <SpecialRulesList layout={shown} design={design} />
