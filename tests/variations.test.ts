@@ -401,12 +401,13 @@ describe('harbors and fog', () => {
 describe('island mixes', () => {
   it('an island with its own mix draws from it; the rest use the board mix', async () => {
     const { buildBoard } = await import('../shared/maps');
+    const { setIslandMix } = await import('../shared/maps/land-mix');
     const design = testDesign(['~ ~ ~ ~ ~ ~ ~ ~', ' ~ L L L ~ L L ~', '~ L L L ~ L L ~', ' ~ ~ ~ ~ ~ ~ ~ ~'], {
       pool: { wood: 1 },
     });
     const east = design.tiles.filter(t => t.kind === 'land').sort((a, b) => b.q + b.r / 2 - (a.q + a.r / 2))[0]!;
-    design.islandPools = { [`${east.q},${east.r}`]: { ore: 1 } };
-    const board = buildBoard(design, seeded(3)).board;
+    const mixed = setIslandMix(design, new Set([`${east.q},${east.r}`]), { pool: { ore: 1 } });
+    const board = buildBoard(mixed, seeded(3)).board;
     const land = board.hexes.filter(h => h.island !== undefined);
     const islandOfEast = land.find(h => h.q === east.q && h.r === east.r)!.island;
     for (const h of land) expect(h.terrain).toBe(h.island === islandOfEast ? 'ore' : 'wood');

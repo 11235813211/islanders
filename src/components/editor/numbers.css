@@ -13,6 +13,10 @@
   gap: 5px;
   min-width: 0;
 }
+/* In the land mix panel the copy row stands alone between the mix and the board's counts. */
+.inspector-section > .number-apply {
+  margin-block: 8px;
+}
 .number-profile {
   display: grid;
   gap: 6px;

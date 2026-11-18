@@ -62,8 +62,21 @@ export default function RoomLobby({
   const change = (next: Partial<GameSettings>) => send({ type: 'configure', settings: { ...view.settings, ...next } });
   /** One setting: its icon, label and hint, and its control. */
   function renderSetting(def: SettingDef) {
-    // A <label> forwards clicks to its first button, so stepper rows use a plain <div>.
-    const Row = def.control.kind === 'stepper' ? 'div' : 'label';
+    // A <label> forwards clicks to its first button, so rows with buttons use a plain <div>.
+    const Row = def.control.kind === 'stepper' || def.preview ? 'div' : 'label';
+    const Preview = def.preview;
+    const control = (
+      <SettingControl
+        def={def}
+        settings={view.settings}
+        disabled={busy}
+        readOnly={!host}
+        change={next => {
+          const question = def.confirm?.(view, next[def.key]!);
+          if (!question || window.confirm(question)) change(next);
+        }}
+      />
+    );
     return (
       <Row className="setting-row" key={def.key}>
         <span className="setting-label">
@@ -73,16 +86,14 @@ export default function RoomLobby({
             <small>{def.hint}</small>
           </span>
         </span>
-        <SettingControl
-          def={def}
-          settings={view.settings}
-          disabled={busy}
-          readOnly={!host}
-          change={next => {
-            const question = def.confirm?.(view, next[def.key]!);
-            if (!question || window.confirm(question)) change(next);
-          }}
-        />
+        {Preview ? (
+          <span className="setting-control-group">
+            {control}
+            <Preview view={view} />
+          </span>
+        ) : (
+          control
+        )}
       </Row>
     );
   }

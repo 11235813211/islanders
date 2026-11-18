@@ -33,6 +33,14 @@ export interface DesignTile {
   numberLevels?: NumberLevels;
   /** What this fog tile's island may hide (see shared/maps/fog.ts). Every tile of a fog island carries the same. */
   fogMix?: FogMix;
+  /** The mix this tile's island draws its random land from (see shared/maps/land-mix.ts). Every tile of the island carries the same. */
+  landMix?: LandMix;
+}
+
+/** An island's own random-land mix: shares of each terrain, with `exact` terrains as exact counts. */
+export interface LandMix {
+  pool: Pool;
+  exact?: FillKind[];
 }
 
 /** What a fog island may hide: shares of each kind, or with `exact`, how many of each. */
@@ -160,11 +168,9 @@ export interface BoardDesign {
    * each way, so a board with set numbers plays differently with the same odds.
    */
   swapNumbers?: boolean;
-  /** Own random-land mixes for some islands, keyed by one of the island's tiles (`q,r`). */
-  islandPools?: Record<string, Pool>;
   /**
-   * Terrains a mix gives an exact count of (its value, rounded) instead of a share, keyed like
-   * islandPools, with '' for the board's mix. The other terrains share the rest of the tiles.
+   * Terrains the board's mix gives an exact count of (its value, rounded) instead of a share, under
+   * the key ''. The other terrains share the rest of the tiles. Island mixes hold their own.
    */
   exactMix?: Record<string, FillKind[]>;
   /** Random numbers are never 2 or 12 (set numbers and dot limits still may be). */
@@ -240,7 +246,9 @@ export function boardExpansions(
   design: Pick<BoardDesign, 'expansions' | 'tiles'> & Partial<Pick<BoardDesign, 'pool'>>,
 ): Expansion[] {
   const chosen = design.expansions ?? (needsShips(design.tiles) ? ['seafarers'] : []);
-  const lodestone = design.tiles.some(t => t.kind === 'lodestone') || (design.pool?.lodestone ?? 0) > 0;
+  const lodestone =
+    design.tiles.some(t => t.kind === 'lodestone' || (t.landMix?.pool.lodestone ?? 0) > 0) ||
+    (design.pool?.lodestone ?? 0) > 0;
   return lodestone && !chosen.includes('cartographers') ? [...chosen, 'cartographers'] : chosen;
 }
 

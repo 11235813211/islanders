@@ -21,7 +21,8 @@ import {
 } from './balance';
 import { fogIslandsOf, fogKinds, fogMayBeSea, fogMixOf } from './fog';
 import { autoHarbors, harborTarget } from './harbors';
-import { islandLevels, numberLeanings } from './numbers';
+import { landMixOf } from './land-mix';
+import { islandLevels, islandsOf, numberLeanings } from './numbers';
 import { rulesOf } from './special';
 import {
   BASE_POOL,
@@ -33,6 +34,7 @@ import {
   FOG_POOL,
   type FogKind,
   type FogMix,
+  type LandMix,
   type Pool,
   SIDE_DIRECTIONS,
   tileKey,
@@ -102,59 +104,63 @@ function poolMap(pool: Pool | undefined): Map<FillKind, number> {
   return map;
 }
 
-/**
- * Which mix each tile draws from: '' for the board's, or the key of the island tile that carries
- * an island's own mix (design.islandPools). Islands are connected land and random land.
- */
-function mixGroups(design: BoardDesign): Map<string, string> {
-  const group = new Map<string, string>();
-  const own = design.islandPools ?? {};
-  const byKey = new Map(design.tiles.map(t => [tileKey(t.q, t.r), t]));
-  const isLand = (t: DesignTile | undefined) => !!t && t.kind !== 'sea' && t.kind !== 'iceberg' && t.kind !== 'fog';
-  const seen = new Set<string>();
-  for (const tile of design.tiles) {
-    const start = tileKey(tile.q, tile.r);
-    if (!isLand(tile) || seen.has(start)) continue;
-    const island: string[] = [];
-    const queue = [tile];
-    seen.add(start);
-    while (queue.length) {
-      const t = queue.pop()!;
-      island.push(tileKey(t.q, t.r));
-      for (const k of neighborKeys(t))
-        if (!seen.has(k) && isLand(byKey.get(k))) {
-          seen.add(k);
-          queue.push(byKey.get(k)!);
-        }
-    }
-    const anchor = island.find(k => own[k]) ?? '';
-    for (const k of island) group.set(k, anchor);
+/** The mixes in play: the board's under '', and each island's own under its first tile's key. */
+interface Mixes {
+  /** The mix a tile's island draws from. */
+  keyOf: (t: { q: number; r: number }) => string;
+  pools: Map<string, Map<FillKind, number>>;
+  /** The terrains a mix gives as exact counts. */
+  exactOf: (key: string) => FillKind[];
+}
+
+function mixesOf(design: BoardDesign): Mixes {
+  const keys = new Map<string, string>();
+  const own = new Map<string, LandMix>();
+  const islands = design.tiles.some(t => t.landMix) ? islandsOf(design) : [];
+  for (const island of islands) {
+    const mix = landMixOf(island);
+    if (!mix) continue;
+    const key = tileKey(island[0]!.q, island[0]!.r);
+    own.set(key, mix);
+    for (const t of island) keys.set(tileKey(t.q, t.r), key);
   }
-  return group;
+  const pools = new Map([['', poolMap(design.pool)]]);
+  for (const [key, mix] of own) pools.set(key, poolMap(mix.pool));
+  return {
+    keyOf: t => keys.get(tileKey(t.q, t.r)) ?? '',
+    pools,
+    exactOf: key => (key ? own.get(key)?.exact : design.exactMix?.['']) ?? [],
+  };
 }
 
 /**
  * A terrain for each open link letter that satisfies the board's link rules ("B, C in mountains or
- * hills", "A, B, C distinct"), drawn by what the mix still has room for. A short backtracking
- * search; if the rules can't all hold, the remaining letters take their first allowed terrain.
+ * hills", "A, B, C distinct"), drawn by what the mix still has room for. A letter on several
+ * islands takes a terrain all their mixes allow, so no island gets one its mix leaves out. A short
+ * backtracking search; if the rules can't all hold, the remaining letters take their first allowed terrain.
  */
 function chooseLinks(
   design: BoardDesign,
   open: [string, LinkGroup][],
   fixed: Map<string, Terrain>,
   counts: Map<string, Map<FillKind, number>>,
-  mixKey: (t: { q: number; r: number }) => string,
+  { keyOf, pools }: Mixes,
   random: () => number,
 ): Map<string, FillKind> {
   const rules = design.linkRules ?? [];
   const options = new Map<string, FillKind[]>();
   for (const [link, g] of open) {
     const members = g.tiles.filter(t => t.kind === 'land');
-    // A linked group draws from the mix of its first tile's island (or the board's).
-    const mix = counts.get(members[0] ? mixKey(members[0]) : '')!;
+    // A group with no tiles of its own (only harbors or "Not" marks) goes by the board's mix.
+    const keys = members.length ? [...new Set(members.map(keyOf))] : [''];
+    const first = keys[0]!;
+    const inEvery = (k: FillKind) => keys.every(key => pools.get(key)!.has(k));
+    const room = (k: FillKind) => keys.reduce((n, key) => n + Math.max(0, counts.get(key)!.get(k) ?? 0), 0);
+    const drawn = [...counts.get(first)!.keys()].filter(inEvery);
+    const shared = drawn.length ? drawn : [...pools.get(first)!.keys()].filter(inEvery);
     const fits = (k: FillKind) =>
       !g.harbor || (RESOURCES.includes(k as Resource) && !design.harborExclude.includes(k as Resource));
-    let allowed = [...mix.keys()].filter(fits);
+    let allowed = (shared.length ? shared : [...pools.get(first)!.keys()]).filter(fits);
     for (const rule of rules)
       if (rule.kind === 'in' && rule.links.includes(link)) {
         const within = allowed.filter(k => rule.terrains.includes(k));
@@ -164,7 +170,7 @@ function chooseLinks(
     const ordered: FillKind[] = [];
     const left = [...allowed];
     while (left.length) {
-      const k = weightedPick(left, x => Math.max(0, mix.get(x) ?? 0) + 0.25, random)!;
+      const k = weightedPick(left, x => room(x) + 0.25, random)!;
       ordered.push(k);
       left.splice(left.indexOf(k), 1);
     }
@@ -203,12 +209,10 @@ function chooseLinks(
  * without that terrain, counting what the other tiles already hold (so a rare kind stays rare).
  */
 function keepNotLinks(
-  design: BoardDesign,
   singles: DesignTile[],
   kinds: FillKind[],
   links: Map<string, Terrain>,
-  pools: Map<string, Map<FillKind, number>>,
-  mixKey: (t: { q: number; r: number }) => string,
+  { keyOf: mixKey, pools, exactOf }: Mixes,
   random: () => number,
 ): void {
   const banned = (i: number) => (singles[i]!.notLink ? links.get(singles[i]!.notLink!) : undefined);
@@ -231,7 +235,7 @@ function keepNotLinks(
   for (const [key, tiles] of stuck) {
     const [mix, not] = key.split('|') as [string, FillKind];
     // Exact terrains already have their count, so the redraw takes from the shared ones.
-    const exact = new Set(design.exactMix?.[mix] ?? []);
+    const exact = new Set(exactOf(mix));
     const allowed = [...pools.get(mix)!].filter(([k]) => k !== not);
     const shared = allowed.filter(([k]) => !exact.has(k));
     const weights = new Map(shared.length ? shared : allowed);
@@ -283,10 +287,8 @@ function resolveTerrains(
   for (const g of groups.values())
     if (g.fixed) for (const tile of g.tiles) terrains.set(tileKey(tile.q, tile.r), g.fixed);
 
-  const mixOf = mixGroups(design);
-  const mixKey = (t: { q: number; r: number }) => mixOf.get(tileKey(t.q, t.r)) ?? '';
-  const pools = new Map<string, Map<FillKind, number>>([['', poolMap(design.pool)]]);
-  for (const key of new Set(mixOf.values())) if (key) pools.set(key, poolMap(design.islandPools![key]));
+  const mixes = mixesOf(design);
+  const { keyOf: mixKey, pools, exactOf } = mixes;
   const open = design.tiles.filter(t => t.kind === 'land' && !terrains.has(tileKey(t.q, t.r)));
   const counts = new Map<string, Map<FillKind, number>>();
   for (const [key, pool] of pools) {
@@ -298,15 +300,15 @@ function resolveTerrains(
     }
     const mine = new Map<FillKind, number>();
     const size = open.filter(t => mixKey(t) === key).length;
-    const exact = design.exactMix?.[key] ?? [];
-    for (const kind of mixDraw(size, pool, exact, fixedCounts, random)) mine.set(kind, (mine.get(kind) ?? 0) + 1);
+    for (const kind of mixDraw(size, pool, exactOf(key), fixedCounts, random))
+      mine.set(kind, (mine.get(kind) ?? 0) + 1);
     counts.set(key, mine);
   }
 
   const links = new Map<string, Terrain>();
   for (const [link, g] of groups) if (g.fixed) links.set(link, g.fixed);
   const openGroups = [...groups].filter(([, g]) => !g.fixed).sort((a, b) => b[1].tiles.length - a[1].tiles.length);
-  const choices = chooseLinks(design, openGroups, links, counts, mixKey, random);
+  const choices = chooseLinks(design, openGroups, links, counts, mixes, random);
   for (const [link, g] of openGroups) {
     const members = g.tiles.filter(t => t.kind === 'land');
     const kind = choices.get(link)!;
@@ -331,7 +333,7 @@ function resolveTerrains(
   for (let attempt = 0; attempt < 24 && singles.length; attempt++) {
     const shuffledBags = new Map([...bags].map(([key, bag]) => [key, shuffled(bag, random)]));
     const kinds = singles.map(t => shuffledBags.get(mixKey(t))!.pop()!);
-    keepNotLinks(design, singles, kinds, links, pools, mixKey, random);
+    keepNotLinks(singles, kinds, links, mixes, random);
     const layout = new Map<string, Cell & { kind: string }>();
     for (const tile of design.tiles) {
       const k = tileKey(tile.q, tile.r);
@@ -358,6 +360,41 @@ function weightedPick<K>(items: K[], weight: (item: K) => number, random: () => 
     if (at < 0) return item;
   }
   return items.at(-1);
+}
+
+type DrawnHarbor = { q: number; r: number; side: number; resource: Resource | 'any'; drawn: boolean };
+
+/**
+ * "Not A" harbors: swap a drawn harbor holding A's resource with one that may take it and whose
+ * resource this harbor may hold. Harbors with no such partner redraw from the kinds left to them
+ * (3:1 when none are).
+ */
+function keepHarborNotLinks(
+  valid: DesignHarbor[],
+  drawn: DrawnHarbor[],
+  links: Map<string, Terrain>,
+  weights: Map<Resource | 'any', number>,
+  random: () => number,
+): void {
+  const banned = (i: number) => (valid[i]!.notLink ? links.get(valid[i]!.notLink!) : undefined);
+  const clashes = (i: number) => drawn[i]!.drawn && drawn[i]!.resource === banned(i);
+  drawn.forEach((harbor, i) => {
+    if (!clashes(i)) return;
+    const partners = drawn.flatMap((other, k) =>
+      k !== i && other.drawn && other.resource !== banned(i) && banned(k) !== harbor.resource ? [k] : [],
+    );
+    if (!partners.length) return;
+    const partner = drawn[partners[Math.floor(random() * partners.length)]!]!;
+    [harbor.resource, partner.resource] = [partner.resource, harbor.resource];
+  });
+  const held = new Map<Resource | 'any', number>();
+  for (const [i, h] of drawn.entries()) if (!clashes(i)) held.set(h.resource, (held.get(h.resource) ?? 0) + 1);
+  drawn.forEach((harbor, i) => {
+    if (!clashes(i)) return;
+    const allowed = new Map([...weights].filter(([kind]) => kind !== banned(i)));
+    harbor.resource = apportion(1, allowed, held, random)[0] ?? 'any';
+    held.set(harbor.resource, (held.get(harbor.resource) ?? 0) + 1);
+  });
 }
 
 /** Harbor resources: fixed ones stay, linked ones follow their group, the rest are a balanced draw. */
@@ -393,14 +430,7 @@ function resolveHarbors(
   for (const h of resolved) if (h.resource) fixed.set(h.resource, (fixed.get(h.resource) ?? 0) + 1);
   const draw = shuffled(apportion(resolved.filter(h => !h.resource).length, weights, fixed, random), random);
   const drawn = resolved.map(h => ({ ...h, resource: h.resource ?? draw.pop() ?? 'any', drawn: !h.resource }));
-  // "Not A" harbors: swap with another drawn harbor, or fall back to 3:1.
-  valid.forEach((h, i) => {
-    const not = h.notLink ? links.get(h.notLink) : undefined;
-    if (!not || drawn[i]!.resource !== not || !drawn[i]!.drawn) return;
-    const j = drawn.findIndex((d, k) => k !== i && d.drawn && d.resource !== not);
-    if (j >= 0) [drawn[i]!.resource, drawn[j]!.resource] = [drawn[j]!.resource, drawn[i]!.resource];
-    else drawn[i]!.resource = 'any';
-  });
+  keepHarborNotLinks(valid, drawn, links, weights, random);
   return drawn.map(({ drawn: _d, ...h }) => h);
 }
 

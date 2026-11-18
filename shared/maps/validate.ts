@@ -14,6 +14,7 @@ import {
   type FillKind,
   type FogKind,
   type FogMix,
+  type LandMix,
   type LinkRule,
   NUMBER_KINDS,
   type NumberLevels,
@@ -85,6 +86,21 @@ function parseFogMix(value: unknown): FogMix {
   return value.exact ? { pool, exact: true } : { pool };
 }
 
+/** The terrains of a mix given as exact counts, each once. */
+function parseExact(value: unknown): FillKind[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || !value.every(k => FILL_KINDS.includes(k))) return fail('Invalid exact counts.');
+  return [...new Set(value as FillKind[])];
+}
+
+/** An island's own land mix (icebergs belong to the board's mix). */
+function parseLandMix(value: unknown): LandMix {
+  if (!record(value)) return fail('Invalid island mix.');
+  const { iceberg: _sea, ...pool } = parsePool(value.pool, FILL_KINDS) as Pool;
+  const exact = parseExact(value.exact);
+  return exact?.length ? { pool, exact } : { pool };
+}
+
 function parseTile(v: unknown): DesignTile {
   const c = DESIGN_LIMITS.coordinate;
   if (!record(v) || !int(v.q, -c, c) || !int(v.r, -c, c)) fail('A tile is outside the editing area.');
@@ -114,6 +130,7 @@ function parseTile(v: unknown): DesignTile {
     if (Object.keys(levels).length && (isLandKind(tile.kind) || tile.kind === 'fog')) tile.numberLevels = levels;
   }
   if (t.fogMix !== undefined && tile.kind === 'fog') tile.fogMix = parseFogMix(t.fogMix);
+  if (t.landMix !== undefined && isLandKind(tile.kind)) tile.landMix = parseLandMix(t.landMix);
   return tile;
 }
 
@@ -159,21 +176,13 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
   if (typeof value.categoryId !== 'string' || !categoryIds.includes(value.categoryId)) fail('Choose a category.');
   const layout = parseLayout(value);
   const pool = parsePool(value.pool, FILL_KINDS) as Pool;
-  const islandPools: Record<string, Pool> = {};
-  if (value.islandPools !== undefined) {
-    if (!record(value.islandPools) || Object.keys(value.islandPools).length > 40) fail('Invalid island mixes.');
-    for (const [key, mix] of Object.entries(value.islandPools as Record<string, unknown>)) {
-      if (!/^-?\d{1,2},-?\d{1,2}$/.test(key)) fail('Invalid island mixes.');
-      islandPools[key] = parsePool(mix, FILL_KINDS) as Pool;
-    }
-  }
   const exactMix: Record<string, FillKind[]> = {};
   if (value.exactMix !== undefined) {
-    if (!record(value.exactMix) || Object.keys(value.exactMix).length > 41) fail('Invalid exact counts.');
+    if (!record(value.exactMix)) fail('Invalid exact counts.');
     for (const [key, kinds] of Object.entries(value.exactMix as Record<string, unknown>)) {
-      const valid = key === '' || /^-?\d{1,2},-?\d{1,2}$/.test(key);
-      if (!valid || !Array.isArray(kinds) || !kinds.every(k => FILL_KINDS.includes(k))) fail('Invalid exact counts.');
-      if ((kinds as FillKind[]).length) exactMix[key] = [...new Set(kinds as FillKind[])];
+      if (key !== '') fail('Invalid exact counts.');
+      const exact = parseExact(kinds);
+      if (exact?.length) exactMix[key] = exact;
     }
   }
   const exclude = value.harborExclude;
@@ -201,7 +210,6 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     description: text(value.description ?? '', 120, 'Description'),
     ...layout,
     pool,
-    ...(Object.keys(islandPools).length ? { islandPools } : {}),
     ...(Object.keys(exactMix).length ? { exactMix } : {}),
     harborExclude: [...new Set(exclude as BoardDesign['harborExclude'])],
     ...(value.swapNumbers ? { swapNumbers: true } : {}),

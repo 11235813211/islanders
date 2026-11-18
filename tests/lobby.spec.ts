@@ -322,3 +322,29 @@ test('on a Seafarers map extra pieces give roads and ships, shown with the seat 
   }
   await rules.screenshot({ path: 'test-results/lobby-rewards-sea.png' });
 });
+
+test('host and other players can view each art style in red and blue, at every width', async ({ page }) => {
+  const lobby = makeLobby(2);
+  // Seen from a seat that is not the host's.
+  lobby.hostId = lobby.players[1]!.id;
+  const room = await mountGame(page, lobby);
+  const row = page.locator('.setting-row').filter({ hasText: 'Art style' });
+  await expect(row.getByLabel('Art style')).toHaveValue('classic');
+  await row.getByRole('button', { name: 'View' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Art styles' });
+  for (const name of ['Classic', 'Mountain chalet', 'Korean'])
+    await expect(dialog.getByRole('article', { name }).locator('.piece-icon')).toHaveCount(4);
+  await expect(dialog.getByRole('article', { name: 'Classic' })).toContainText('This room');
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(dialog.locator('.modal-body'));
+    await dialog.screenshot({ path: `test-results/lobby-art-styles-${width}.png` });
+  }
+  await dialog.getByRole('button', { name: 'Close dialog' }).click();
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(row);
+  }
+  await row.screenshot({ path: 'test-results/lobby-art-style-row.png' });
+  expect(room.errors).toEqual([]);
+});

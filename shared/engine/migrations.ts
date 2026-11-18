@@ -214,6 +214,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.timeGivenBy ??= [];
   },
+  // 26 → 27: an island's own land mix moves from one tile's key onto all of the island's tiles.
+  s => {
+    if (s.design) s.design = upgradeDesign(s.design);
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

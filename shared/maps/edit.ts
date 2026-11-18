@@ -98,7 +98,7 @@ export function tidy(design: BoardDesign): BoardDesign {
         const { notLink: _n, ...kept } = t;
         return kept;
       }
-      const { link: _l, notLink: _x, number: _n, noSetup: _s, bonus: _b, pips: _p, ...rest } = t;
+      const { link: _l, notLink: _x, number: _n, noSetup: _s, bonus: _b, pips: _p, landMix: _m, ...rest } = t;
       return t.kind === 'iceberg' && t.number ? { ...rest, number: t.number } : rest;
     }),
     harbors: harbors.map(h => {
@@ -116,8 +116,6 @@ export function tidy(design: BoardDesign): BoardDesign {
     ...noStartOn(design, byKey),
     robber: robber ? design.robber : null,
     pirate: pirate ? design.pirate : null,
-    ...islandPoolsOn(design, byKey),
-    ...exactMixOn(design, byKey),
   };
 }
 
@@ -129,26 +127,6 @@ function noStartOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<Bo
     return !!tile && isLand(tile.kind);
   });
   return { noStart: kept.length ? kept : undefined };
-}
-
-/** Exact counts for the board's mix and for island mixes whose tile is still land. */
-function exactMixOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<BoardDesign, 'exactMix'> {
-  if (!design.exactMix) return {};
-  const kept = Object.entries(design.exactMix).filter(([k]) => {
-    const tile = byKey.get(k);
-    return k === '' || (!!tile && isLand(tile.kind) && !!design.islandPools?.[k]);
-  });
-  return { exactMix: kept.length ? Object.fromEntries(kept) : undefined };
-}
-
-/** Island mixes whose tile is still land (anything else drops them). */
-function islandPoolsOn(design: BoardDesign, byKey: Map<string, DesignTile>): Pick<BoardDesign, 'islandPools'> {
-  if (!design.islandPools) return {};
-  const kept = Object.entries(design.islandPools).filter(([k]) => {
-    const tile = byKey.get(k);
-    return !!tile && isLand(tile.kind);
-  });
-  return { islandPools: kept.length ? Object.fromEntries(kept) : undefined };
 }
 
 /**
@@ -170,7 +148,9 @@ export function paint(design: BoardDesign, cells: { q: number; r: number }[], br
         // Painting a set terrain takes a tile out of its link group; painting random land keeps it in.
         const { link, ...unlinked } = tile;
         const kept = takesNumber(brush) ? unlinked : { q, r };
-        byKey.set(key, { ...kept, q, r, kind: brush, ...(brush === 'land' && link ? { link } : {}) });
+        // A one-tile island keeps its mix through a repaint to desert or any other land.
+        const mix = isLand(brush) && tile.landMix ? { landMix: tile.landMix } : {};
+        byKey.set(key, { ...kept, ...mix, q, r, kind: brush, ...(brush === 'land' && link ? { link } : {}) });
       }
     } else if (byKey.size < DESIGN_LIMITS.tiles) byKey.set(key, { q, r, kind: brush });
   }
