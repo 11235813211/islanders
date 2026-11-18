@@ -9,7 +9,8 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   retries: process.env.CI ? 1 : 0,
-  reporter: 'list',
+  // On CI, failures also appear as annotations, readable without downloading the logs.
+  reporter: process.env.CI ? [['list'], ['github']] : 'list',
   use: {
     baseURL: process.env.PLAYTEST_URL || 'http://127.0.0.1:5173',
     trace: 'retain-on-failure',
