@@ -93,7 +93,7 @@ export const KNOBS = {
   roadFrom: [15, 5, 25],
   /** Road race: how much a settlement route earns for what that exact route adds to our road. */
   roadRoute: [0, 0, 1],
-  /** Road race: how much a road plan earns for the open spot it brings closer. */
+  /** Road race: how much more a road plan is worth, at most, for the open spot it brings closer. */
   roadOpens: [0, 0, 1],
   /** Road race: how much settling a corner earns for cutting a rival's trail. */
   roadBlock: [0, 0, 1],

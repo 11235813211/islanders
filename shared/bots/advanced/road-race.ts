@@ -268,12 +268,12 @@ function changeValue(race: Race, now: Standing, rival: number, world: World): nu
   return race.worth(rival) * (ours + race.rivalWeight(rival) * theirs);
 }
 
-/** The most a trail through these corners opens up. */
-function bestOpened(opens: Float64Array | undefined, corners: number[]): number {
+/** How much a trail through these corners opens up, from 0 to nearly 1. */
+function openedShare(opens: Float64Array | undefined, corners: number[]): number {
   if (!opens) return 0;
   let best = 0;
   for (const c of corners) best = Math.max(best, opens[c]!);
-  return best;
+  return best / (1 + best);
 }
 
 const races = new WeakMap<Economy, RoadRace>();
@@ -311,8 +311,10 @@ function buildRace(econ: Economy): RoadRace {
     plans.push({
       edge: graph.ids[path[0]!]!,
       cost: pathCost(graph, path),
-      // Among road plans (still spare cards only), the trail that leads somewhere comes first.
-      payoff: race.worth(main) * (chance - base) + econ.knobs.roadOpens * bestOpened(opens, mine.corners[pieces]!),
+      // A share of the race's own worth, so a road that leads somewhere comes first among road
+      // plans without making roads worth more to the hand than the race says.
+      payoff:
+        race.worth(main) * (chance - base) * (1 + econ.knobs.roadOpens * openedShare(opens, mine.corners[pieces]!)),
       spare,
     });
   }

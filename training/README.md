@@ -369,3 +369,4 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
   doesn't yet improve build choices. All off by default.
 - Combined bot shipped (2026-11-18, [analysis](analysis/2026-11-18-shipping-combined-bot.md)): placement forecast, spare-card Longest Road and
   over-limit trades, +1.26 ±0.60 pp on 1,200 fresh seeds against the previous bot; all nine protected games above −2 pp; ×1.92 against Intermediate.
+- Linking roads and settlements (2026-11-18, [analysis](analysis/2026-11-18-road-settlement-links.md)): no version won more (best −0.06 ±0.63 pp); off.

@@ -10,6 +10,12 @@ _Nothing running._
 
 ## Finished
 
+### Linking roads and settlements
+
+- **Why:** test whether routes that lengthen the road, and roads that lead to open spots, win more.
+- **Result (2026-11-18 12:52–13:32, 600 seeds 9900000):** no gain. Route overlap −0.06 ±0.63 pp; corrected road-opening credit −0.41 ±0.36;
+  both −0.29 ±0.64. The first road-opening design lost −1.89 ±0.49. Not shipped. [Write-up](analysis/2026-11-18-road-settlement-links.md).
+
 ### Shipping test for the combined bot
 
 - **Why:** confirm last night's +2.32 pp on seeds that didn't pick the candidate, on the owner's nine protected games.

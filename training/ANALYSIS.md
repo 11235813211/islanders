@@ -65,6 +65,7 @@ Newest first.
 
 | Date            | Question                                                                                                      | Answer in one line                                             | Verdict                         |
 | --------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------- |
+| 11-18 afternoon | [Do linked roads and settlements win more?](analysis/2026-11-18-road-settlement-links.md) | No gain in any version; stays off | Not shipped |
 | 11-18 midday    | [Should the combined bot ship?](analysis/2026-11-18-shipping-combined-bot.md)                                 | Yes: +1.26 ±0.60 pp, all protected games pass                  | Shipped                         |
 | 11-18 night     | [Can a forecast improve placement, builds and Longest Road?](analysis/2026-11-18-forecast-roads-placement.md) | Placement yes, modestly; builds not yet; roads held more       | Keep placement, make it faster  |
 | 11-18 01:48     | [What did the narrowed candidates establish?](analysis/2026-11-18-narrowed-candidates.md)                     | No clear gain; light setup forecast leads, road holds fall     | Confirm setup lead, rework road |
