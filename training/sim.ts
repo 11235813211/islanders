@@ -164,6 +164,8 @@ export function step(g: GameState, actor: string, brain: Brain, turnSteps: numbe
   const owed =
     g.phase === 'gold'
       ? ` Owed ${g.pendingGold[actor]}, splits ${JSON.stringify(g.pendingSplit[actor])}, bank ${JSON.stringify(g.bank)}.`
-      : '';
+      : g.phase === 'discard'
+        ? ` Owes ${g.pendingDiscards[actor]}, hand ${JSON.stringify(g.players.find(p => p.id === actor)!.resources)}, discoveries ${JSON.stringify(g.players.find(p => p.id === actor)!.discoveries)}, rule ${g.settings.discoveries}.`
+        : '';
   throw new Error(`Seat ${actor} has no legal move in phase ${g.phase}.${owed}`);
 }

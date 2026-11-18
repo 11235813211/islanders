@@ -367,3 +367,5 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
 - Forecast, Longest Road and placement (2026-11-18, [analysis](analysis/2026-11-18-forecast-roads-placement.md)): placement forecast about
   +0.9 ±0.3 pp over four fresh seed sets but too slow to ship; spare roads hold the award more with no proven win gain; the forecast
   doesn't yet improve build choices. All off by default.
+- Combined bot shipped (2026-11-18, [analysis](analysis/2026-11-18-shipping-combined-bot.md)): placement forecast, spare-card Longest Road and
+  over-limit trades, +1.26 ±0.60 pp on 1,200 fresh seeds against the previous bot; all nine protected games above −2 pp; ×1.92 against Intermediate.

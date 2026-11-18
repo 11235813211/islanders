@@ -10,6 +10,14 @@ _Nothing running._
 
 ## Finished
 
+### Shipping test for the combined bot
+
+- **Why:** confirm last night's +2.32 pp on seeds that didn't pick the candidate, on the owner's nine protected games.
+- **Result (2026-11-18 11:37–12:20, about 43 minutes):** all maps (1,200) **+1.26 ±0.60 pp**; placement forecast alone +0.60 ±0.37.
+  Every protected game is above −2 pp; lowest are base 2 players −1.59 ±1.04 and Jumbotan 2 players −1.00 ±1.09 (600 seeds each after follow-up).
+  No unfinished games. Shipped. Found and fixed a crash: discards above 19 of one resource were refused.
+  [Write-up](analysis/2026-11-18-shipping-combined-bot.md).
+
 ### Faster placement forecast
 
 - **Result (2026-11-18 03:00–03:04):** `setupForecast` 0.25, looking three road pieces ahead at setup: **+0.87 ±0.54 pp** (600 seeds 9100000).

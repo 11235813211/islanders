@@ -84,6 +84,9 @@ For each starting settlement, the bot:
 3. Scores the resulting position with the setup network. Inputs summarize classic resource
    income, number diversity, harbors, expansion opportunities, opponents, and room settings.
 4. Adds `setupLodestone * min(lodestonePips, 8)` on Cartographers maps, outside the network.
+5. Reweighs the best four finished drafts by a forecast of how the game goes from each
+   (`setupForecast`, [setup-forecast.ts](../shared/bots/advanced/setup-forecast.ts)). On the server this
+   runs in pieces across alarms, so each fits the CPU budget; the chosen corner is the same either way.
 
 The network score is a ranking estimate learned from simulated outcomes, not a calibrated
 probability of beating a person. It has no dedicated lodestone-income or charting-plan input;
@@ -96,6 +99,11 @@ hands, road construction, or blocking moves. Production forecasts and opponent d
 are approximations. Shortlisting also means some legal starts never receive network evaluation.
 
 ## How resources and goals are valued
+
+Two later additions sit on top of the planner below. Spare cards after the early game can go to
+Longest Road when committing adds to the chance of holding it (`roadRace`,
+[road-race.ts](../shared/bots/advanced/road-race.ts)), and a seat over the discard limit trades before
+ending its turn (`overLimitTrade`).
 
 `Economy` gathers production, routes, reachable empty settlement corners, an expansion target,
 and a possible survey route. Its normal goals are a city, a settlement with any required

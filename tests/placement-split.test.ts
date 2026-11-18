@@ -10,7 +10,8 @@ import { type GameState, RESOURCES } from '../shared/types';
 import { playBotGame } from './bot-harness';
 import { inSeatOrder, makeLobby, seeded, TEST_NOW } from './fixtures';
 
-const forecasting = makeAdvanced(makeParams({ ...TRAINED, knobs: { ...TRAINED.knobs, setupForecast: 0.25 } }));
+const forecasting = BOTS.advanced.brain;
+const noForecast = makeAdvanced(makeParams({ ...TRAINED, knobs: { ...TRAINED.knobs, setupForecast: 0 } }));
 const shipped = BOTS.advanced.brain;
 
 afterEach(() => {
@@ -95,7 +96,6 @@ describe('placement in pieces', () => {
   });
 
   it('thinks without changing the game, then makes the same move', () => {
-    BOTS.advanced.brain = forecasting;
     const g = botTable();
     const now = botDueAt(g)!;
     const before = structuredClone(g);
@@ -108,7 +108,6 @@ describe('placement in pieces', () => {
   });
 
   it('does nothing before the move is due, and drops work from another position', () => {
-    BOTS.advanced.brain = forecasting;
     const g = botTable();
     const now = botDueAt(g)!;
     expect(thinkAhead(g, now - 1)).toBeNull();
@@ -122,6 +121,7 @@ describe('placement in pieces', () => {
   });
 
   it('is not used by a bot with the forecast off', () => {
+    BOTS.advanced.brain = noForecast;
     const g = botTable();
     expect(thinkAhead(g, botDueAt(g)!)).toBeNull();
   });

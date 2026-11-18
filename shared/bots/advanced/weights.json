@@ -1,6 +1,9 @@
 {
   "source": "r1",
   "knobs": {
+    "setupForecast": 0.25,
+    "roadRace": 1,
+    "overLimitTrade": 1,
     "setupCandidates": 8,
     "quickVariety": 1.0399,
     "quickGold": 1.1467,

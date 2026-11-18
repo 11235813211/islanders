@@ -106,8 +106,11 @@ export function isIdentifier(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 100 && /^[\w:.,-]+$/.test(value);
 }
 
+/** Most of one resource in an action: above any hand, since large banks let a seat hold over 19. */
+const MAX_BAG_COUNT = 99;
+
 /**
- * Every resource a whole number from 0 to 19. Lodestone may be left out (a bag from before
+ * Every resource a whole number from 0 to MAX_BAG_COUNT. Lodestone may be left out (a bag from before
  * Cartographers, or an old client); parseAction fills it in as 0.
  */
 export function isResourceBag(value: unknown): value is ResourceBag {
@@ -118,7 +121,7 @@ export function isResourceBag(value: unknown): value is ResourceBag {
     RESOURCES.every(
       r =>
         (r === 'lodestone' && value[r] === undefined) ||
-        (Number.isInteger(value[r]) && (value[r] as number) >= 0 && (value[r] as number) <= 19),
+        (Number.isInteger(value[r]) && (value[r] as number) >= 0 && (value[r] as number) <= MAX_BAG_COUNT),
     )
   );
 }

@@ -10,19 +10,18 @@ over many turns. The plan below tests that gap directly and then builds on it.
 
 ## Status (2026-11-18)
 
-- **Shipped:** `r1`. Nothing below is shipped; every new behavior is behind a knob that is off.
-- **Placement forecast** (`setupForecast` 0.25): about +0.9 ±0.3 pp over four fresh seed sets, and +2.69 ±0.81 at tables where
-  everyone forecasts. Placement decisions cost up to 27.5 ms, too slow for the free plan.
-- **Longest Road** (`roadRace`): values only what committing adds, for spare cards after the early game. Holds the road more
-  (0.34 vs 0.26); win gain unproven (+0.71 ±0.55).
-- **Over-limit trades** (`overLimitTrade`): fewer discards, win gain unproven. **Forecast for builds** (`forecastPlan`): no gain yet.
+- **Shipped:** `r1` plus placement forecast (`setupForecast` 0.25), spare-card Longest Road (`roadRace` 1), and over-limit trades
+  (`overLimitTrade` 1): **+1.26 ±0.60 pp** on fresh seeds, every protected game passing ([write-up](analysis/2026-11-18-shipping-combined-bot.md)).
+  Placement runs in pieces across alarms to fit the free plan.
+- **Watch:** both 2-player protected boards lean negative (base −1.59 ±1.04, Jumbotan −1.00 ±1.09).
+- **Forecast for builds** (`forecastPlan`): no gain yet; still off.
 - **Strategy probe:** +6.7 ±3.2 pp at 3 players, unreplicated, ~250 CPU-s per game. Selectors don't beat constants.
 - Details: [forecast analysis](analysis/2026-11-18-forecast-roads-placement.md), [offline benchmark](analysis/2026-11-17-bench-offline.md).
 
 ## Next (start here)
 
-1. **Owner decision: placement forecast CPU.** Allow up to about 30 ms on placement moves, or require it to fit first.
-2. **Make the placement forecast faster** by reducing repeated affordability checks, then run the shipping lane on it alone.
+1. **Watch games against people** after this release, and check real Worker CPU on placements.
+2. **Separate placement from over-limit trades at 2 players,** where the combination leans negative.
 3. **Make the forecast able to judge waiting:** building on the side while saving, card risk from 7s, the robber's future moves,
    and uncertain rivals. Judge it with `override-study` before whole games.
 4. **Check against people:** compare placements and forecast pace with saved human games, and watch the next games.
@@ -52,7 +51,7 @@ what a better version would change. Rules for this lane:
 - No regression worse than −2 pp on any protected game: the base island at 2, 3, 4, 5, and 6
   players (each on its own), The Channel (`new-board-4`), Middle Fog (`new-board-3`), Magnetic
   North (`new-base-board-12`), and Jumbotan at 2 players (`new-base-board-16`). Unfinished games
-  not up.
+  not up. Screen each at about 200 seeds; give any game below −1 pp 400 more and decide on all its seeds.
 - `npm run check`, `tests/bots.test.ts` CPU limits, and the human trade limits all pass.
 - A claimed gain is reported with its `±` from that held-out run. Correctness fixes can ship
   without a measured gain if they don't regress.

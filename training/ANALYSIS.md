@@ -42,7 +42,9 @@ Updated 2026-11-18. All bot-vs-bot unless it says otherwise.
 
 | Conclusion                                                                                                  | Status                   | Evidence                                                          |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------- |
-| Placement forecast (weight 0.25) gains about +0.9 ±0.3 pp, also against forecasting opponents               | Likely, too slow to ship | [forecast](analysis/2026-11-18-forecast-roads-placement.md)       |
+| The combined bot (placement forecast, spare roads, over-limit trades) gains +1.26 ±0.60 pp on fresh seeds   | Shipped 2026-11-18       | [shipping](analysis/2026-11-18-shipping-combined-bot.md)          |
+| Both 2-player protected boards lean negative (−1.59 ±1.04, −1.00 ±1.09), probably not from the road race    | Watch                    | [shipping](analysis/2026-11-18-shipping-combined-bot.md)          |
+| Placement forecast (weight 0.25) gains about +0.9 ±0.3 pp, also against forecasting opponents               | Likely, now fast enough  | [forecast](analysis/2026-11-18-forecast-roads-placement.md)       |
 | The forecast predicts winners well but can't yet judge waiting or choose builds                             | Measured                 | [forecast](analysis/2026-11-18-forecast-roads-placement.md)       |
 | Value Longest Road by what committing adds; spare roads hold it more, win gain unproven                     | Measured                 | [forecast](analysis/2026-11-18-forecast-roads-placement.md)       |
 | Earlier road/forecast grids repeated baselines; the later narrowed-candidate batch uses one shared baseline | Verified in batch code   | [efficiency audit](analysis/2026-11-18-experiment-efficiency.md)  |
@@ -63,6 +65,7 @@ Newest first.
 
 | Date            | Question                                                                                                      | Answer in one line                                             | Verdict                         |
 | --------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------- |
+| 11-18 midday    | [Should the combined bot ship?](analysis/2026-11-18-shipping-combined-bot.md)                                 | Yes: +1.26 ±0.60 pp, all protected games pass                  | Shipped                         |
 | 11-18 night     | [Can a forecast improve placement, builds and Longest Road?](analysis/2026-11-18-forecast-roads-placement.md) | Placement yes, modestly; builds not yet; roads held more       | Keep placement, make it faster  |
 | 11-18 01:48     | [What did the narrowed candidates establish?](analysis/2026-11-18-narrowed-candidates.md)                     | No clear gain; light setup forecast leads, road holds fall     | Confirm setup lead, rework road |
 | 11-18           | [Are the current experiments worth their cost?](analysis/2026-11-18-experiment-efficiency.md)                 | Useful pilots; reuse baselines and target the original problem | Keep evidence, rework batches   |

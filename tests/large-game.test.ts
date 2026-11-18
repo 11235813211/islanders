@@ -4,7 +4,7 @@ import { advanceTime, applyAction, getActivePlayerId, getView, normalizeGame } f
 import { BUILTIN_BOARDS } from '../shared/maps';
 import type { GameAction, GameState } from '../shared/types';
 import { playBotGame } from './bot-harness';
-import { grant, seeded, settled, TEST_NOW } from './fixtures';
+import { grant, inSeatOrder, makeLobby, seeded, settled, TEST_NOW } from './fixtures';
 
 const act = (g: GameState, id: string, action: GameAction) => applyAction(g, id, action, seeded(), TEST_NOW);
 const neighbours = (a: { q: number; r: number }, b: { q: number; r: number }) =>
@@ -171,4 +171,15 @@ describe('special build phase', () => {
     const sea = BUILTIN_BOARDS.find(b => b.players.max >= 6) ?? BUILTIN_BOARDS[0]!;
     expect(playBotGame(Array(6).fill('intermediate'), 4, 9000, sea).phase).toBe('finished');
   }, 30_000);
+
+  it('lets a seat discard more than 19 of one resource from the larger bank', () => {
+    const g = inSeatOrder(applyAction(makeLobby(6), 'p0', { type: 'start' }, seeded(), TEST_NOW));
+    g.phase = 'discard';
+    g.pendingDiscards = { p0: 21 };
+    g.players[0]!.resources = { wood: 24, brick: 6, sheep: 5, wheat: 5, ore: 0, lodestone: 3 };
+    const resources = { wood: 21, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
+    const next = applyAction(g, 'p0', { type: 'discard', resources }, seeded(), TEST_NOW);
+    expect(next.players[0]!.resources.wood).toBe(3);
+    expect(next.phase).toBe('robber');
+  });
 });

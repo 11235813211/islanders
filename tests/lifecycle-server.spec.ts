@@ -73,7 +73,7 @@ test('a bot seat takes its own setup turns on the server', async ({ request }) =
   const host = new PlayerConnection(hostSession.roomId);
   try {
     await host.authenticate(hostSession);
-    await host.action({ type: 'add-bot', level: 'beginner' });
+    await host.action({ type: 'add-bot', level: 'advanced' });
     await host.action({ type: 'start' });
     // Either seat may be drawn first; the host places whenever it is their turn and the bot does the rest.
     for (let placed = 0; placed < 2; placed++) {

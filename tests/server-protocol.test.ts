@@ -105,7 +105,7 @@ describe('public protocol boundary', () => {
     for (const invalid of [
       { ...resources, wood: -1 },
       { ...resources, wood: 0.5 },
-      { ...resources, wood: 20 },
+      { ...resources, wood: 100 },
       { ...resources, wood: '2' },
       { ...resources, fake: 0 },
       { wood: 2 },
