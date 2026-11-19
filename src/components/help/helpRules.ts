@@ -159,9 +159,8 @@ function cartographers(view: GameView): HelpSection[] {
       tab: 'cartographers',
       title: 'Finished charts',
       lines: [
-        'Whoever makes a tile’s last chart (6, 5, 4 or 8, 9, 10) claims it. A marker on the tile shows who.',
-        'A claimed tile is worth 1 point while you are the only player with a settlement, city, or relay station beside it.',
-        'If anyone else builds beside it, you lose the point. With nothing of yours there, it scores nothing until you build there.',
+        'A fully charted tile (6, 5, 4 or 8, 9, 10) is worth 1 point to the only player with a settlement, city, or relay station beside it. It doesn’t matter who charted it.',
+        'If anyone else builds beside it, the point is lost. A marker on the tile shows 1 in the scorer’s color, or 0 when no one scores it.',
       ],
     },
     {

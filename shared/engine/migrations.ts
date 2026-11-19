@@ -235,6 +235,10 @@ const MIGRATIONS: Migration[] = [
       delete stats.built?.survey;
     for (const entry of s.log ?? []) if (entry.event?.piece === 'survey') entry.event.piece = 'ship';
   },
+  // 28 → 29: a full tile scores for whoever is alone beside it, so nobody holds a claim on one.
+  s => {
+    for (const hex of s.board?.hexes ?? []) delete hex.chartedBy;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

@@ -1,4 +1,4 @@
-import { chartedNumbers, chartScores, fullyCharted, hexNumbers } from '../rules';
+import { chartedNumbers, chartScorer, fullyCharted, hexNumbers } from '../rules';
 import { boardIndex, terrainResource } from '../seafaring';
 import type { GameState, Player } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, ownBoard, pay, requireRule, tally } from './core';
@@ -66,7 +66,7 @@ export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'peek-fog' | 
   },
 };
 
-/** One chart step on a tile, logged for everyone. The step that fills the tile claims it (see chartScores). */
+/** One chart step on a tile, logged for everyone, saying who a full tile now scores for. */
 function chartHex(next: GameState, player: Player, hexId: string): void {
   ownBoard(next);
   const hex = boardIndex(next.board).hex.get(hexId)!;
@@ -76,8 +76,8 @@ function chartHex(next: GameState, player: Player, hexId: string): void {
   const numbers = hexNumbers(hex).join(', ');
   let text = `${player.name} charted a tile: it now pays on ${numbers}.`;
   if (fullyCharted(hex)) {
-    hex.chartedBy = player.id;
-    const result = chartScores(next, hex) ? 'It scores 1 point.' : 'It scores no point yet.';
+    const scorer = next.players.find(p => p.id === chartScorer(next, hex));
+    const result = scorer ? `${scorer.name} scores 1 point.` : 'No one scores it yet.';
     text = `${player.name} finished charting a tile: it now pays on ${numbers}. ${result}`;
   }
   addLog(next, text, { kind: 'chart', playerId: player.id, hexId, numbers: hexNumbers(hex) });

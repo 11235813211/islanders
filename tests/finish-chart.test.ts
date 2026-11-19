@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { finishMove, finishTarget } from '../shared/bots/charting';
 import { getView, normalizeGame } from '../shared/engine';
-import { chartPoints, chartScores, chartsLeft, fullyCharted, victoryPoints } from '../shared/rules';
+import { chartPoints, chartScorer, chartsLeft, fullyCharted, victoryPoints } from '../shared/rules';
 import { boardIndex } from '../shared/seafaring';
 import type { GameState, Hex } from '../shared/types';
 import { act, cartographersGame, conserved, grant, hexOf, TEST_NOW } from './fixtures';
@@ -34,15 +34,15 @@ describe('finished charts', () => {
     expect(fullyCharted({ number: 6, extra: [5] })).toBe(false);
   });
 
-  it('score 1 point for whoever makes the last chart, alone beside the tile', () => {
+  it('score 1 point for the only player beside the tile', () => {
     const { g, hex } = almostFull();
     const before = victoryPoints(g, 'p0');
     const next = finish(g, hex);
-    expect(sameHex(next, hex).chartedBy).toBe('p0');
+    expect(chartScorer(next, sameHex(next, hex))).toBe('p0');
     expect(victoryPoints(next, 'p0')).toBe(before + 1);
     expect(getView(next, 'p1').players[0]!.chartPoints).toBe(1);
     expect(getView(next, 'p1').players[0]!.publicPoints).toBe(before + 1);
-    expect(next.log.at(-1)!.text).toContain('It scores 1 point.');
+    expect(next.log.at(-1)!.text).toContain(`${next.players[0]!.name} scores 1 point.`);
     expect(conserved(next)).toBe(true);
   });
 
@@ -50,7 +50,7 @@ describe('finished charts', () => {
     const { g, hex } = almostFull();
     hex.extra = [5, 2];
     const next = finish(g, hex);
-    expect(sameHex(next, hex).chartedBy).toBeUndefined();
+    expect(chartScorer(next, sameHex(next, hex))).toBeNull();
     expect(chartPoints(next, 'p0')).toBe(0);
   });
 
@@ -74,23 +74,29 @@ describe('finished charts', () => {
     expect(chartPoints({ ...relay, roads: { ...done.roads, [edgeId]: 'p0' } }, 'p0')).toBe(1);
   });
 
-  it('go to the charter only: a rival’s last chart gives neither player the point', () => {
+  it('score for the player alone beside the tile, even when a rival made the last chart', () => {
+    const { g, hex } = almostFull();
+    grant(g, 'p1', { lodestone: 1 });
+    g.turnIndex = 1;
+    const next = finish(g, hex, 'p1');
+    expect([chartPoints(next, 'p0'), chartPoints(next, 'p1')]).toEqual([1, 0]);
+  });
+
+  it('score for no one while two players are beside the tile', () => {
     const { g, hex } = almostFull();
     g.buildings[hex.vertexIds[3]!] = { playerId: 'p1', kind: 'settlement' };
     const next = finish(g, hex);
-    expect(chartScores(next, sameHex(next, hex))).toBe(false);
-    expect(next.log.at(-1)!.text).toContain('no point yet');
-    // p0 charted but p1 is there; p1 is there but didn't chart.
-    expect([chartPoints(next, 'p0'), chartPoints(next, 'p1')]).toEqual([0, 0]);
+    expect(chartScorer(next, sameHex(next, hex))).toBeNull();
+    expect(next.log.at(-1)!.text).toContain('No one scores it yet.');
   });
 
-  it('wait for you to build there when you finished a tile from afar', () => {
+  it('wait for someone to build there when no one is beside the tile', () => {
     const { g, hex } = almostFull();
     g.buildings = {};
     const next = finish(g, hex);
     expect(chartPoints(next, 'p0')).toBe(0);
-    next.buildings[hex.vertexIds[0]!] = { playerId: 'p0', kind: 'settlement' };
-    expect(chartPoints(next, 'p0')).toBe(1);
+    next.buildings[hex.vertexIds[0]!] = { playerId: 'p1', kind: 'settlement' };
+    expect(chartPoints(next, 'p1')).toBe(1);
   });
 
   it('can win the game', () => {
@@ -108,6 +114,19 @@ describe('bots and finished charts', () => {
     expect(finishMove(getView(g, 'p0'))).toEqual({ type: 'chart-hex', hexId: hex.id });
     g.buildings[hex.vertexIds[3]!] = { playerId: 'p1', kind: 'settlement' };
     expect(finishTarget(getView(g, 'p0'))).not.toBe(hex.id);
+  });
+});
+
+describe('rooms saved with chart claims', () => {
+  it('drop the claim and score by who is beside the tile', () => {
+    const { g, hex } = almostFull();
+    hex.extra = [5, 4];
+    const old = structuredClone(g);
+    old.schemaVersion = 28;
+    Object.assign(sameHex(old, hex), { chartedBy: 'p1' });
+    const up = normalizeGame(old, TEST_NOW);
+    expect(sameHex(up, hex)).not.toHaveProperty('chartedBy');
+    expect(chartPoints(up, 'p0')).toBe(1);
   });
 });
 

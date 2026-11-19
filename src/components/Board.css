@@ -510,17 +510,17 @@
   stroke-dasharray: 3 5;
 }
 
-/* A finished chart's marker on its tile (ChartClaims). Taps pass through to the tile below. */
-.chart-claim {
+/* A finished chart's marker on its tile (FinishedCharts). Taps pass through to the tile below. */
+.finished-chart {
   pointer-events: none;
   paint-order: stroke;
 }
-.chart-claim text {
+.finished-chart text {
   font-size: 14px;
   font-weight: 800;
   stroke: none;
 }
-.chart-claim-scores text {
+.finished-chart-scores text {
   stroke: rgb(0 0 0 / 45%);
   stroke-width: 2px;
   paint-order: stroke;

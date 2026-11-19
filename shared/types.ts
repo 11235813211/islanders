@@ -33,8 +33,6 @@ export interface Hex {
   extra?: number[];
   /** Cartographers: a split tile also pays this resource; whoever it pays picks either half. */
   split?: Resource;
-  /** Cartographers: who made this tile's last chart. See chartScores. */
-  chartedBy?: string;
   /** Corner vertices in order: lower right, bottom, lower left, upper left, top, upper right. */
   vertexIds: string[];
   /** Land tiles on sea maps: which island (connected land) the tile belongs to. */

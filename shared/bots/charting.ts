@@ -1,7 +1,7 @@
 import { type ChoiceGroup, choiceGroups, choiceLimit, fillChoice } from '../choices';
 import { BUILD_COSTS } from '../engine/core';
 import { affordsSplit, chartHexes, splitHexes } from '../engine/legal';
-import { aloneBesideTile, chartedNumbers, chartsLeft, hexNumbers } from '../rules';
+import { chartedNumbers, chartsLeft, hexNumbers, onlyPlayerBeside } from '../rules';
 import { boardIndex, isLandVertex, terrainResource } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 import { Board, roadPaths } from './analysis';
@@ -129,7 +129,7 @@ export function finishTarget(view: GameView): string | null {
   let best: { hexId: string; left: number } | null = null;
   for (const hexId of chartHexes(view)) {
     const hex = index.hex.get(hexId)!;
-    if (!aloneBesideTile(view, hex, view.selfId)) continue;
+    if (onlyPlayerBeside(view, hex) !== view.selfId) continue;
     const left = chartsLeft(hexNumbers(hex));
     if (!best || left < best.left) best = { hexId, left };
   }

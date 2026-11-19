@@ -233,23 +233,23 @@ export function playersBesideTile(state: ChartBoard, hex: Pick<Hex, 'id' | 'vert
   return players;
 }
 
-/** Would this player be the only one beside the tile, as a finished chart needs to score? */
-export function aloneBesideTile(state: ChartBoard, hex: Pick<Hex, 'id' | 'vertexIds'>, playerId: string): boolean {
+/** The one player beside this tile, or null when there are none or several. */
+export function onlyPlayerBeside(state: ChartBoard, hex: Pick<Hex, 'id' | 'vertexIds'>): string | null {
   const players = playersBesideTile(state, hex);
-  return players.size === 1 && players.has(playerId);
+  return players.size === 1 ? [...players][0]! : null;
 }
 
 /**
- * Does this tile's finished chart score right now? Checked live, so the point goes when anyone else
- * builds beside the tile, and comes when the charter is alone there.
+ * Who a fully charted tile scores for right now: the only player beside it, whoever charted it.
+ * Checked live, so the point goes when anyone else builds there.
  */
-export function chartScores(state: ChartBoard, hex: Hex): boolean {
-  return !!hex.chartedBy && fullyCharted(hex) && aloneBesideTile(state, hex, hex.chartedBy);
+export function chartScorer(state: ChartBoard, hex: Hex): string | null {
+  return fullyCharted(hex) ? onlyPlayerBeside(state, hex) : null;
 }
 
-/** Points from finished charts that count for this player right now (Cartographers). */
+/** Points from fully charted tiles that count for this player right now (Cartographers). */
 export function chartPoints(state: ChartBoard, playerId: string): number {
-  return state.board.hexes.filter(hex => hex.chartedBy === playerId && chartScores(state, hex)).length;
+  return state.board.hexes.filter(hex => chartScorer(state, hex) === playerId).length;
 }
 
 /** Has this recipient answered the offer (yes, no, or a counter)? */

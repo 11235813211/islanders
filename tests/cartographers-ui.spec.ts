@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { getView } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
-import { aloneBesideTile, hexNumbers } from '../shared/rules';
+import { hexNumbers, onlyPlayerBeside } from '../shared/rules';
 import type { GameState } from '../shared/types';
 import { grant, seaSettled } from './fixtures';
 import { expectNoSpill, mountGame } from './ui-harness';
@@ -37,23 +37,25 @@ test('the last chart on a tile says what it scores and leaves a marker', async (
   const initial = game();
   const view = getView(initial, 'p0');
   initial.board = structuredClone(initial.board);
-  const hex = initial.board.hexes.find(h => view.legal.chartHexes.includes(h.id) && aloneBesideTile(initial, h, 'p0'))!;
+  const hex = initial.board.hexes.find(
+    h => view.legal.chartHexes.includes(h.id) && onlyPlayerBeside(initial, h) === 'p0',
+  )!;
   hex.number = 6;
   hex.extra = [5, 3];
   const room = await mountGame(page, initial);
   await page.getByRole('button', { name: `Chart the tile ${hex.id}` }).click();
   await expect(page.locator('.map-confirm')).toContainText('6, 5, 3 → 6, 5, 4: +1 point');
   await page.getByRole('button', { name: 'Confirm chart' }).click();
-  await expect(page.locator('.chart-claim-scores')).toHaveCount(1);
-  expect(room.state().board.hexes.find(h => h.id === hex.id)!.chartedBy).toBe('p0');
+  await expect(page.locator('.finished-chart-scores')).toHaveCount(1);
+  expect(getView(room.state(), 'p0').players[0]!.chartPoints).toBe(1);
   await page.screenshot({ path: 'test-results/cartographers-finished-chart.png' });
   // Someone else building beside the tile takes the point away.
   room.update(g => {
     const corner = hex.vertexIds.find(v => !g.buildings[v])!;
     g.buildings[corner] = { playerId: 'p1', kind: 'settlement' };
   });
-  await expect(page.locator('.chart-claim-scores')).toHaveCount(0);
-  await expect(page.locator('.chart-claim')).toHaveCount(1);
+  await expect(page.locator('.finished-chart-scores')).toHaveCount(0);
+  await expect(page.locator('.finished-chart')).toHaveCount(1);
   expect(room.errors).toEqual([]);
 });
 

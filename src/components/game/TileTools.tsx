@@ -3,7 +3,7 @@
 import { Check } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { affordsSplit, BUILD_COSTS } from '../../../shared/engine';
-import { aloneBesideTile, chartedNumbers, chartsLeft, hexNumbers } from '../../../shared/rules';
+import { chartedNumbers, chartsLeft, hexNumbers, onlyPlayerBeside } from '../../../shared/rules';
 import { terrainResource } from '../../../shared/seafaring';
 import {
   type GameAction,
@@ -44,7 +44,10 @@ function chartPreview(view: GameView, hex: Hex): string {
   const now = hexNumbers(hex);
   const change = `${now.join(', ')} → ${(chartedNumbers(now) ?? now).join(', ')}`;
   if (chartsLeft(now) !== 1) return change;
-  return `${change}: ${aloneBesideTile(view, hex, view.selfId) ? '+1 point' : 'no point'}`;
+  const scorer = onlyPlayerBeside(view, hex);
+  if (!scorer) return `${change}: no point`;
+  if (scorer === view.selfId) return `${change}: +1 point`;
+  return `${change}: +1 ${view.players.find(p => p.id === scorer)!.name}`;
 }
 
 const TITLES: Record<TileTool, string> = { chart: 'Chart a tile', split: 'Split a tile' };

@@ -9,7 +9,7 @@ import BoardScene, { type Drift } from './BoardScene';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
-import ChartClaims from './game/ChartClaims';
+import FinishedCharts from './game/FinishedCharts';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
@@ -248,7 +248,7 @@ export default function Board({
               </g>
             );
           })}
-          <ChartClaims view={view} color={color} playerName={playerName} />
+          <FinishedCharts view={view} color={color} playerName={playerName} />
           {direct && !disabled && onChart && <ChartTaps view={view} onChart={onChart} />}
           <ShipPieces
             view={view}
