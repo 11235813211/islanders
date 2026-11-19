@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createGame, getView, normalizeGame } from '../shared/engine';
 import { pieceCounts } from '../shared/engine/core';
-import { produce } from '../shared/engine/production';
+import { eruptingVolcanoes, produce } from '../shared/engine/production';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { buildBoard } from '../shared/maps/generate';
-import { chartedNumbers, longestRoad, tradeRates, victoryPoints } from '../shared/rules';
+import { chartedNumbers, longestRoad, payingNumbers, tradeRates, victoryPoints } from '../shared/rules';
 import { boardIndex } from '../shared/seafaring';
 import type { GameState, Hex } from '../shared/types';
 import { playBotGame } from './bot-harness';
@@ -216,6 +216,33 @@ describe('charting', () => {
     expect(produce(structuredClone(g), 6).p1?.wood).toBe(2);
     wood.extra = [8];
     expect(produce(structuredClone(g), 8).p1?.wood).toBe(1);
+  });
+
+  it('the robber blocks only a charted tile’s most likely number', () => {
+    expect(payingNumbers({ number: 6, extra: [5, 4] }, true)).toEqual([5, 4]);
+    expect(payingNumbers({ number: 8, extra: [12] }, true)).toEqual([12]);
+    expect(payingNumbers({ number: 9 }, true)).toEqual([]);
+    expect(payingNumbers({ number: 6, extra: [5, 4] }, false)).toEqual([6, 5, 4]);
+    const g = building();
+    const wood = hexOf(g, 'wood');
+    g.buildings[wood.vertexIds[0]!] = { playerId: 'p1', kind: 'city' };
+    wood.number = 6;
+    wood.extra = [5, 4];
+    g.robber = wood.id;
+    expect(produce(structuredClone(g), 6).p1?.wood ?? 0).toBe(0);
+    expect(produce(structuredClone(g), 5).p1?.wood).toBe(2);
+    expect(produce(structuredClone(g), 4).p1?.wood).toBe(2);
+  });
+
+  it('a robbed charted volcano still erupts on its other numbers', () => {
+    const g = building();
+    const volcano = hexOf(g, 'volcano');
+    g.buildings[volcano.vertexIds[0]!] = { playerId: 'p1', kind: 'settlement' };
+    volcano.number = 8;
+    volcano.extra = [9];
+    g.robber = volcano.id;
+    expect(eruptingVolcanoes(g, 8)).not.toContain(volcano.id);
+    expect(eruptingVolcanoes(g, 9)).toContain(volcano.id);
   });
 
   it('a room can keep gold fields and volcanoes from being charted', () => {

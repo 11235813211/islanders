@@ -1,7 +1,7 @@
 import { type ChoiceGroup, choiceGroups, choiceLimit, fillChoice } from '../choices';
 import { BUILD_COSTS } from '../engine/core';
 import { affordsSplit, chartHexes, splitHexes } from '../engine/legal';
-import { chartedNumbers, hexNumbers } from '../rules';
+import { chartedNumbers, hexNumbers, payingNumbers } from '../rules';
 import { boardIndex, isLandVertex, terrainResource } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 import { Board, roadPaths } from './analysis';
@@ -97,7 +97,7 @@ function income(view: GameView): ResourceBag {
   const bag = Object.fromEntries(RESOURCES.map(r => [r, 0])) as ResourceBag;
   for (const hex of view.board.hexes) {
     const resource = terrainResource(hex.terrain);
-    if (resource && hex.id !== view.robber) bag[resource] += tileDots(hexNumbers(hex)) * share(view, hex);
+    if (resource) bag[resource] += tileDots(payingNumbers(hex, hex.id === view.robber)) * share(view, hex);
   }
   return bag;
 }
@@ -131,8 +131,7 @@ export function splitMove(view: GameView, tuning = SIMPLE_TILES): GameAction | n
   const candidates = view.legal.splitHexes.length || !tuning.splitTrade ? view.legal.splitHexes : splitHexes(view);
   const tile = candidates
     .map(id => index.hex.get(id)!)
-    .filter(hex => hex.id !== view.robber)
-    .map(hex => ({ hex, value: tileDots(hexNumbers(hex)) * netShare(view, hex, tuning) }))
+    .map(hex => ({ hex, value: tileDots(payingNumbers(hex, hex.id === view.robber)) * netShare(view, hex, tuning) }))
     .sort((a, b) => b.value - a.value)[0];
   if (!tile || tile.value < 5) return null;
   const own = terrainResource(tile.hex.terrain);

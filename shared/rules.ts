@@ -188,6 +188,18 @@ export function hexNumbers(hex: Pick<Hex, 'number' | 'extra'>): number[] {
   return hex.number === null ? [] : [hex.number, ...(hex.extra ?? [])];
 }
 
+/**
+ * The numbers a tile pays (and a volcano erupts) on. The robber blocks only the most likely one,
+ * so a robbed 6, 5, 4 tile still pays on 5 and 4; an uncharted tile pays nothing under it.
+ */
+export function payingNumbers(hex: Pick<Hex, 'number' | 'extra'>, robbed: boolean): number[] {
+  const numbers = hexNumbers(hex);
+  if (!robbed || !numbers.length) return numbers;
+  const odds = (n: number) => -Math.abs(n - 7);
+  const blocked = numbers.reduce((best, n, i) => (odds(n) > odds(numbers[best]!) ? i : best), 0);
+  return numbers.filter((_, i) => i !== blocked);
+}
+
 /** A tile holds at most this many numbers. */
 export const MAX_HEX_NUMBERS = 3;
 

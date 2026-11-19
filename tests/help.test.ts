@@ -55,6 +55,7 @@ describe('help', () => {
     expect(cartographers).toMatch(/harbor’s edge/);
     expect(cartographers).toMatch(/1 lodestone to see what one fog tile hides/);
     expect(cartographers).toMatch(/Gold fields and volcanoes can’t be charted/);
+    expect(cartographers).toMatch(/robber blocks only a tile’s most likely number/);
   });
 
   it('explains the special build phase only with 5 or 6 players', () => {

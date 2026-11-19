@@ -262,8 +262,9 @@ reachable settlements, cities, and Longest Road. It is not a complete opponent p
 
 Robber destinations maximize blocked production and useful steals, weighted by threat,
 minus own harm. Pirate destinations use adjacent ships instead of production. Theft targets
-favor useful cards held by dangerous opponents. Land blocking and knight relief count only
-the base number, missing extra charted numbers. See [robber.ts](../shared/bots/advanced/robber.ts).
+favor useful cards held by dangerous opponents. Land blocking and knight relief count the one
+number the robber blocks (a tile's most likely; a charted tile keeps paying on the rest).
+See [robber.ts](../shared/bots/advanced/robber.ts).
 
 ## Gold, discards, and special build
 

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { payingNumbers } from '../../../shared/rules';
 import { paysChoice } from '../../../shared/seafaring';
 import { type GameLog, type GameView, type Hex, RESOURCES, type Resource } from '../../../shared/types';
 import { useFreshLog } from '../../hooks/useFreshLog';
@@ -33,8 +34,8 @@ function onScreen(x: number, y: number): { x: number; y: number } | null {
 function sources(view: GameView, playerId: string, total: number | null, pays: (hex: Hex) => boolean): Hex[] {
   return view.board.hexes.filter(
     hex =>
-      hex.number === total &&
-      hex.id !== view.robber &&
+      total !== null &&
+      payingNumbers(hex, hex.id === view.robber).includes(total) &&
       pays(hex) &&
       hex.vertexIds.some(v => view.buildings[v]?.playerId === playerId),
   );

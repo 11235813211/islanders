@@ -8,8 +8,8 @@ import {
   COSTS,
   estimateHand,
   type Goal,
-  hexPips,
   maySettle,
+  paidPips,
   roadPaths,
   routeGoalAt,
 } from '../analysis';
@@ -139,15 +139,16 @@ export class Economy {
 
   /**
    * Pips by resource for a player, and pips from gold and paying volcanoes (a free choice). Charted
-   * numbers count; a split tile's pips go half to each of its resources; relay stations earn one
-   * card per tile beside them, robber or not (as `produce` in engine/production.ts pays them).
+   * numbers count; a split tile's pips go half to each of its resources; the robber blocks a tile's
+   * most likely number for buildings, while relay stations earn one card per tile beside them, robber
+   * or not (as `produce` in engine/production.ts pays them).
    */
   productionOf(playerId: string): { production: ResourceBag; choice: number } {
     const production = emptyBag();
     let choice = 0;
     const index = boardIndex(this.view.board);
-    const add = (hex: Hex, times: number) => {
-      const p = hexPips(hex) * times;
+    const add = (hex: Hex, times: number, robbed = false) => {
+      const p = paidPips(hex, robbed) * times;
       if (!p) return;
       if (terrainResource(hex.terrain)) addTileYield(production, hex, p);
       else if (hex.terrain === 'gold' || (hex.terrain === 'volcano' && this.view.settings.volcanoGold)) choice += p;
@@ -155,7 +156,7 @@ export class Economy {
     for (const [vertexId, b] of Object.entries(this.view.buildings)) {
       if (b.playerId !== playerId) continue;
       for (const hexId of index.vertex.get(vertexId)!.hexIds)
-        if (hexId !== this.view.robber) add(index.hex.get(hexId)!, b.kind === 'city' ? 2 : 1);
+        add(index.hex.get(hexId)!, b.kind === 'city' ? 2 : 1, hexId === this.view.robber);
     }
     for (const edgeId of this.view.relays ?? [])
       if (this.view.roads[edgeId] === playerId) for (const hex of index.edgeHexes.get(edgeId)!) add(hex, 1);

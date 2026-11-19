@@ -10,6 +10,12 @@ _Nothing running._
 
 ## Finished
 
+### Robber blocks one number (Cartographers)
+
+- **Why:** the robber now blocks only a charted tile's most likely number; check that Advanced counting just that number is no weaker.
+- **Result (2026-11-19, about 12 minutes):** Cartographers maps (1,200 seeds) **+1.12 ±0.52 pp** vs main's bot; ×1.92 vs Intermediate (2,000 games).
+  Shipped. [Write-up](analysis/2026-11-19-robber-top-number.md).
+
 ### Shipping test for the combined bot
 
 - **Why:** confirm last night's +2.32 pp on seeds that didn't pick the candidate, on the owner's nine protected games.

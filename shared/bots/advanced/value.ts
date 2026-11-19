@@ -1,6 +1,6 @@
 import { boardIndex } from '../../seafaring';
 import { CLASSIC_RESOURCES, RESOURCES, type Resource, type ResourceBag } from '../../types';
-import { COSTS, pips } from '../analysis';
+import { COSTS, paidPips } from '../analysis';
 import type { Economy } from './economy';
 import { cornerPips, distanceFrom, openCorners } from './geometry';
 
@@ -237,7 +237,7 @@ export function cornerYield(econ: Economy, vertexId: string): { production: Reso
   let choice = 0;
   for (const hexId of index.vertex.get(vertexId)!.hexIds) {
     const hex = index.hex.get(hexId)!;
-    const p = hex.id === econ.view.robber ? 0 : pips(hex.number);
+    const p = paidPips(hex, hex.id === econ.view.robber);
     if (!p) continue;
     if ((RESOURCES as readonly string[]).includes(hex.terrain)) production[hex.terrain as keyof ResourceBag] += p;
     else if (hex.terrain === 'gold' || (hex.terrain === 'volcano' && econ.view.settings.volcanoGold)) choice += p;

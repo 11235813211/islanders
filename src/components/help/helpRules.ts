@@ -160,8 +160,9 @@ function cartographers(view: GameView): HelpSection[] {
         `On your turn after the roll, pay ${BUILD_COSTS.chart.lodestone} lodestone to chart any tile with a number.`,
         'A charted number steps toward 7 (5 becomes 6, 12 becomes 11). Once it is a 6, the tile gains a 2; once an 8, a 12.',
         'A second number stops at 5 or 9 and a third at 4 or 10, so a fully charted tile pays on 6, 5, 4 or 8, 9, 10.',
+        'The robber blocks only a tile’s most likely number: a robbed 6, 5, 4 tile still pays on 5 and 4.',
         view.settings.chartSpecial
-          ? 'In this room gold fields and volcanoes can be charted too.'
+          ? 'In this room gold fields and volcanoes can be charted too. A robbed volcano still erupts on its other numbers.'
           : 'Gold fields and volcanoes can’t be charted in this room.',
       ],
     },

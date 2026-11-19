@@ -1,6 +1,6 @@
 import { emptyBag } from '../engine/core';
 import { routeCorners } from '../maps/special';
-import { hexNumbers, linksAnywhere } from '../rules';
+import { hexNumbers, linksAnywhere, payingNumbers } from '../rules';
 import {
   boardIndex,
   isLandVertex,
@@ -31,6 +31,13 @@ export const pips = (n: number | null) => (n ? 6 - Math.abs(7 - n) : 0);
 /** Dice combinations (out of 36) a tile pays on: its own number plus any charted ones (Cartographers). */
 export const hexPips = (hex: Pick<Hex, 'number' | 'extra'>) => hexNumbers(hex).reduce((sum, n) => sum + pips(n), 0);
 
+/** Pips a tile's buildings still earn on, robber counted (it blocks only the most likely number). */
+export const paidPips = (hex: Pick<Hex, 'number' | 'extra'>, robbed: boolean) =>
+  payingNumbers(hex, robbed).reduce((sum, n) => sum + pips(n), 0);
+
+/** Pips the robber takes from each building on this tile. */
+export const blockedPips = (hex: Pick<Hex, 'number' | 'extra'>) => hexPips(hex) - paidPips(hex, true);
+
 /**
  * Add `amount` of a tile's payout to `bag`. A split tile pays one of its two resources per card, so
  * each counts half; gold and volcanoes pay whatever is needed, so they count a little of everything.
@@ -60,11 +67,11 @@ export class Board {
     return this.vertex.get(vertexId)!.hexIds.map(id => this.hex.get(id)!);
   }
 
-  /** Expected cards per 36 rolls from one settlement on this corner. The robber's hex counts for little. */
+  /** Expected cards per 36 rolls from one settlement on this corner. The number the robber blocks counts for little. */
   yieldAt(vertexId: string): ResourceBag {
     const bag = emptyBag();
     for (const hex of this.hexesAt(vertexId))
-      addTileYield(bag, hex, hexPips(hex) * (hex.id === this.view.robber ? 0.3 : 1));
+      addTileYield(bag, hex, hexPips(hex) - (hex.id === this.view.robber ? 0.7 * blockedPips(hex) : 0));
     return bag;
   }
 

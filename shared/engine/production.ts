@@ -1,6 +1,6 @@
 import { shuffled } from '../board';
 import { choiceGroups, choiceLimit } from '../choices';
-import { hexNumbers, linksAnywhere } from '../rules';
+import { hexNumbers, linksAnywhere, payingNumbers } from '../rules';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type Resource, type ResourceBag, type SplitChoice } from '../types';
 import {
@@ -19,7 +19,7 @@ import {
  * Pay out a roll. Resource tiles pay cards (if the bank can't cover everyone owed a resource,
  * nobody gets it unless only one player is owed). Gold fields, volcanoes, and split tiles leave
  * each owner a choice (state.pendingGold, state.pendingSplit); jungles pay discoveries. Relay
- * stations collect even under the robber.
+ * stations collect even under the robber, which blocks only a tile's most likely number.
  */
 export function produce(state: GameState, total: number): Record<string, ResourceBag> {
   const demand = new Map<string, ResourceBag>(state.players.map(player => [player.id, emptyBag()]));
@@ -29,20 +29,22 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   const relays = relaysByHex(state);
   for (const hex of state.board.hexes) {
     // A charted tile pays once per matching number (charts keep them apart, but older games may repeat one).
-    const times = hexNumbers(hex).filter(n => n === total).length;
-    if (!times) continue;
-    const robbed = hex.id === state.robber;
-    if (robbed) noteBlocked(state, hex);
+    const count = (numbers: number[]) => numbers.filter(n => n === total).length;
+    const all = count(hexNumbers(hex));
+    if (!all) continue;
+    // The robber blocks only the tile's most likely number; relay stations earn on every one.
+    const paid = count(payingNumbers(hex, hex.id === state.robber));
+    if (paid < all) noteBlocked(state, hex);
     // Without the gold variant a volcano only erupts.
     if (hex.terrain === 'volcano' && state.settings.volcanoGold === false) continue;
     const resource = terrainResource(hex.terrain);
     const owed: [string, number][] = [
-      ...(robbed ? [] : hex.vertexIds.flatMap(id => buildingShare(state, id))),
+      ...hex.vertexIds.flatMap(id => buildingShare(state, id, paid)),
       // Each relay station on the tile's sides earns one, like a settlement, robber or not.
-      ...(relays.get(hex.id) ?? []).map(owner => [owner, 1] as [string, number]),
+      ...(relays.get(hex.id) ?? []).map(owner => [owner, all] as [string, number]),
     ];
-    for (const [playerId, each] of owed) {
-      const amount = each * times;
+    for (const [playerId, amount] of owed) {
+      if (!amount) continue;
       if (resource && hex.split) {
         choices[playerId] = (choices[playerId] ?? 0) + amount;
         splits[playerId] = addSplit(splits[playerId] ?? [], [resource, hex.split], amount);
@@ -93,10 +95,10 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   return gains;
 }
 
-/** What a settlement (1) or city (2) on this corner earns, and for whom. */
-function buildingShare(state: GameState, vertexId: string): [string, number][] {
+/** What a settlement (1 a number) or city (2) on this corner earns from `times` paying numbers, and for whom. */
+function buildingShare(state: GameState, vertexId: string, times: number): [string, number][] {
   const building = state.buildings[vertexId];
-  return building ? [[building.playerId, building.kind === 'city' ? 2 : 1]] : [];
+  return building ? [[building.playerId, (building.kind === 'city' ? 2 : 1) * times]] : [];
 }
 
 /** Count more cards from a split tile, merged with others from a tile that pays the same two. */
@@ -127,12 +129,12 @@ function noteBlocked(state: GameState, hex: GameState['board']['hexes'][number])
 }
 
 /**
- * Volcanoes showing `total` that will erupt. The robber keeps its volcano quiet, and so does having
- * no settlement or city on its corners (it pays nobody and has nothing to wreck).
+ * Volcanoes showing `total` that will erupt. The robber keeps its volcano's most likely number quiet,
+ * and a volcano with no settlement or city on its corners stays quiet (it pays nobody and has nothing to wreck).
  */
 export function eruptingVolcanoes(state: GameState, total: number): string[] {
   return state.board.hexes
-    .filter(hex => hex.terrain === 'volcano' && hexNumbers(hex).includes(total) && hex.id !== state.robber)
+    .filter(hex => hex.terrain === 'volcano' && payingNumbers(hex, hex.id === state.robber).includes(total))
     .filter(hex => hex.vertexIds.some(id => state.buildings[id]))
     .map(hex => hex.id);
 }
