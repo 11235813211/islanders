@@ -36,7 +36,7 @@ and public history. It receives bank counts only when the room reveals them.
 It cannot read opponents' actual hands, the deck order, or unrevealed fog contents.
 
 Bot views also contain `likelyHands`, the engine's count inferred from observable events.
-Unknown steals and survey finds introduce uncertainty; these estimates are not guaranteed
+Unknown steals introduce uncertainty; these estimates are not guaranteed
 hands. When absent, the bot estimates hands from public card counts and production.
 See [view.ts](../shared/engine/view.ts), [hands.ts](../shared/engine/hands.ts), and
 `Economy.handOf` in [economy.ts](../shared/bots/advanced/economy.ts).
@@ -106,16 +106,15 @@ Longest Road when committing adds to the chance of holding it (`roadRace`,
 ending its turn (`overLimitTrade`).
 
 `Economy` gathers production, routes, reachable empty settlement corners, an expansion target,
-and a possible survey route. Its normal goals are a city, a settlement with any required
-routes, a development card, and a survey ship when one can be reached.
+Its normal goals are a city, a settlement with any required routes, and a development card.
 
 Each goal receives:
 
 `goal score = goal value / (1 + estimated rounds to afford it)`
 
 City and settlement values include production estimates and an endgame multiplier.
-Settlement values also include island or route rewards. Development uses a fixed knob value;
-survey uses a fixed value with the endgame multiplier. The highest score is the saving goal;
+Settlement values also include island or route rewards. Development uses a fixed knob value.
+The highest score is the saving goal;
 it does not override every earlier build priority.
 
 The affordability estimate divides each missing resource by expected production per round,
@@ -138,7 +137,7 @@ estimate asks when a rival can pay for a settlement or what a blocking road woul
 
 [plans.ts](../shared/bots/advanced/plans.ts) lists concrete goals each decision: a city on each
 own settlement, a settlement on each reached corner, a route plus settlement to each reachable
-open corner, a development card, a Longest Road push, and (Cartographers) a survey ship. Each
+open corner, a development card, and a Longest Road push. Each
 goal's payoff is in points: its points now plus its extra production over the rounds the game
 probably has left (`roundsPerPoint` per point the leader still needs), cards valued at
 `pointPerCard`. Goals are ranked by payoff / (1 + rounds to afford), and
@@ -155,8 +154,6 @@ Added for `r1` (2026-11-17, [analysis](analysis/2026-11-17-plan-based-planner.md
   don't already approach.
 - **Fog exploring off** (`exploreValue` 0): its payoff counted a new spot at every fog corner
   and overbuilt ships on Middle Fog. Needs a redesign before it returns.
-- **Survey ship goal:** payoff 1 + 0.3 × `surveyValue`; the plan sails out, and the
-  Cartographers step builds the ship.
 
 Commitment comes only from progress: a half-built route is cheaper to finish, so it ranks
 higher. There is no stored plan between decisions.
@@ -173,7 +170,6 @@ the first available action and starting again from a fresh view after that actio
 | 2     | Build the legal city with the best resource-weighted production.                                                          |
 | 3     | Build the legal settlement with the best spot value.                                                                      |
 | 4     | Extend Longest Road when its gap passes the configured reach limit and a legal piece increases length.                    |
-| 5     | If saving for a survey ship, build the first ship toward open sea.                                                        |
 | 6     | If saving for a settlement and no empty corner is already connected, build toward the expansion target.                   |
 | 7     | Make a bank/harbor exchange when surplus can cover the saving goal's entire shortfall.                                    |
 | 8     | Offer a player trade toward that goal, subject to offer limits.                                                           |
@@ -181,8 +177,8 @@ the first available action and starting again from a fresh view after that actio
 | 10    | Build a spare route toward a sufficiently close target, if no empty corner is already connected and enough pieces remain. |
 | 11    | End the turn.                                                                                                             |
 
-An affordable city therefore normally precedes an affordable settlement, a settlement race,
-and a survey route, regardless of their relative goal scores. An earlier action can spend
+An affordable city therefore normally precedes an affordable settlement and a settlement race,
+regardless of their relative goal scores. An earlier action can spend
 cards the saving goal needs. The stored `spareDevelopment` value is 5, the top of its tuning
 range, so late-priority card purchases can be permissive.
 
@@ -203,8 +199,7 @@ but there is no explicit test that changing targets wastes earlier investments.
   otherwise they use the first legal link, or finish the free-road phase.
 
 The endgame check in [endgame.ts](../shared/bots/advanced/endgame.ts) combines up to four
-scoring items: cities, settlements within two new links, an already reachable survey ship,
-and a one-piece Longest Road capture. It includes bank/harbor trades and Year of Plenty,
+scoring items: cities, settlements within two new links, and a one-piece Longest Road capture. It includes bank/harbor trades and Year of Plenty,
 permits at most one settlement plan requiring routes, and rechecks after each action.
 It skips a required route goal that is not yet complete. It does not enumerate all legal
 winning sequences, future turns, development-card draws, or negotiated player trades.
@@ -221,14 +216,13 @@ It does not yet budget ships or roads for the route, so it can still run out of 
 ## Cartographers spending
 
 The shared wrapper can supersede even a move selected by the immediate-win check:
-1. Fit out an affordable survey ship first. Use the first legal survey edge and choose the
-   best tied town by chart benefit.
-2. Reserve lodestone for an immediately usable survey/relay, or for Advanced's reachable
-   survey route. Advanced searches up to four new ships and reserves the survey cost whenever
-   such a route exists, even when survey is not its highest-scoring goal.
+1. Chart the tile it alone stands beside that is closest to full, for the finished-chart point.
+   This is a simple placeholder (2026-11-18): it ignores rivals who could still build there or
+   take the last chart, and it isn't part of the planner's goals.
+2. Keep lodestone for that tile or a usable relay.
 3. Spend surplus lodestone on a split first, then a chart.
-4. On ending the turn, try a productive relay or an exchange completing a survey/relay.
-   A planned action giving away reserved lodestone can also be replaced by this step or a pass.
+4. On ending the turn, try a productive relay or an exchange completing one.
+   A planned action giving away kept lodestone can also be replaced by this step or a pass.
 
 Charts use the extra production dots multiplied by own tile share minus weighted rival
 share, including an estimate of future rival settlements/cities. The minimum gain is two
@@ -238,8 +232,7 @@ trade for the card needed to add a resource it earns none of. Relay selection re
 least five dots and avoids edges with a currently settleable endpoint.
 
 These choices use [charting.ts](../shared/bots/charting.ts), whose chart scores count all
-tile numbers. This differs from the main planner's income calculation. Survey routes choose
-the shortest qualifying route, without comparing the eventual chart benefit of every route.
+tile numbers. This differs from the main planner's income calculation.
 
 ## Trades and opponents
 
@@ -275,8 +268,8 @@ the base number, missing extra charted numbers. See [robber.ts](../shared/bots/a
   receive no explicit next-turn winning-plan search.
 - Discards remove the card that hurts hand value least, one at a time. If discoveries count
   toward the limit, the wrapper discards them only after resource cards run out.
-- Special build takes a city, settlement, or survey first, then the normal build planner
-  with offers disabled. Only roads, ships, surveys, cities, settlements, and card purchases
+- Special build takes a city or settlement first, then the normal build planner
+  with offers disabled. Only roads, ships, cities, settlements, and card purchases
   returned by that planner survive its action filter; otherwise it passes. It does not
   compare every affordable special-build option independently.
 
@@ -289,10 +282,10 @@ heuristics; correcting one input can change many decisions in either direction.
 | ID  | Confirmed behavior or limitation                                                                                                                                                  | Consequence that can be established now                                                                                                                                      |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | C1  | Fixed 2026-11-16: income, spot pips, city gains, and robber scoring now count charted numbers (`hexPips`), split tiles (half each resource), and relay stations (`productionOf`). | Matches engine payouts (tests in `cartographers-bots.test.ts`). Measured win change vs the old bot: +0.5 ±1.0 pp (Cartographers), +1.4 ±0.7 pp (5–6p): no demonstrated gain. |
-| C2  | Fixed 2026-11-16: the survey route is found before the expansion target, so lodestone counts in the first ranking.                                                                | Measured together with C1 above.                                                                                                                                             |
-| C3  | Cartographers runs after the Advanced brain.                                                                                                                                      | Its survey/split/chart action can replace `winningMove`; there is no final win-priority check. Actual missed-win frequency is unmeasured.                                    |
+| C2  | Fixed 2026-11-16, since removed with survey ships: the survey route was found before the expansion target.                                                                        | Measured together with C1 above.                                                                                                                                             |
+| C3  | Cartographers runs after the Advanced brain.                                                                                                                                      | Its split/chart action can replace `winningMove`; there is no final win-priority check. Actual missed-win frequency is unmeasured.                                           |
 | C4  | Opponent trade gain uses card counts; expansion races use geometric proximity.                                                                                                    | Neither models an opponent's resource-enabled settlement race or economic investment.                                                                                        |
-| C5  | City-first spending, survey reserves, and the two-dot chart cutoff are separate priorities.                                                                                       | They do not directly compare a sequence of economic investments against immediate points.                                                                                    |
+| C5  | City-first spending, lodestone kept for a finished chart, and the two-dot chart cutoff are separate priorities.                                                                   | They do not directly compare a sequence of economic investments against immediate points.                                                                                    |
 | C6  | Split choices favor low hand counts; own-turn winning gold does not cover off-turn choices.                                                                                       | Several related resource-choice paths optimize different objectives.                                                                                                         |
 | C7  | `choices()` filters available resource kinds but does not limit every enumerated count to known stock.                                                                            | A high-valued bag can be rejected by the engine and replaced by fallback play. Frequency is unmeasured.                                                                      |
 
@@ -305,7 +298,8 @@ must preserve those distinctions rather than simply adding all possible payouts 
 
 [advanced-bot.test.ts](../tests/advanced-bot.test.ts) covers selected robber/pirate decisions
 and human trade limits. [cartographers-bots.test.ts](../tests/cartographers-bots.test.ts)
-covers survey use and selected split/chart decisions. [endgame.test.ts](../tests/endgame.test.ts)
+covers selected split/chart decisions, and
+[finish-chart.test.ts](../tests/finish-chart.test.ts) the finished-chart move. [endgame.test.ts](../tests/endgame.test.ts)
 checks selected scoring sequences. [search.test.ts](../tests/search.test.ts) checks hidden-state
 resampling. These are behavior checks, not statistical proof of higher win rates.
 

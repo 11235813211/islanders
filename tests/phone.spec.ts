@@ -223,7 +223,7 @@ test('the scoreboard fold button sits in the header row, clear of the first name
   await page.locator('.player-panel').screenshot({ path: 'test-results/phone-scoreboard.png' });
 });
 
-test('a Cartographers game: the build bar fits relay and survey buttons, each easy to tap', async ({ page }) => {
+test('a Cartographers game: the build bar fits its buttons, each easy to tap', async ({ page }) => {
   const g = seaSettled(BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!, 3);
   g.testMode = true;
   g.phase = 'build';
@@ -233,7 +233,7 @@ test('a Cartographers game: the build bar fits relay and survey buttons, each ea
   const room = await mountGame(page, g);
   const bar = page.locator('.table-actions');
   await expectNoSpill(bar);
-  const names = ['Build relay station', 'Make a ship a survey ship', 'Build road', 'Buy development card'];
+  const names = ['Build relay station', 'Build road', 'Buy development card'];
   for (const name of [...names, /^Chart a tile/, /^Split a tile/]) {
     const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
     expect(box.width, String(name)).toBeGreaterThanOrEqual(40);

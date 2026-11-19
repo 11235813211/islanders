@@ -2,21 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { chooseBotAction } from '../shared/bots';
 import { choiceFits, choiceGroups, choiceLimit, fillChoice } from '../shared/choices';
 import { advanceTime, createGame, getView, normalizeGame } from '../shared/engine';
-import { chartHexes } from '../shared/engine/legal';
-import { chartedNumbers, hexNumbers } from '../shared/rules';
-import { boardIndex } from '../shared/seafaring';
+import { hexNumbers } from '../shared/rules';
 import type { GameState, Resource, ResourceBag } from '../shared/types';
-import {
-  act,
-  cartographersGame,
-  conserved,
-  grant,
-  hexOf,
-  seeded,
-  sequence,
-  shipsToOpenSea,
-  TEST_NOW,
-} from './fixtures';
+import { act, cartographersGame, conserved, grant, hexOf, seeded, sequence, TEST_NOW } from './fixtures';
 
 const bag = (cards: Partial<ResourceBag>): ResourceBag => ({
   wood: 0,
@@ -151,55 +139,6 @@ describe('split tiles', () => {
       state.players[id]!.resources.wheat + state.players[id]!.resources.ore;
     expect(gained(timedOut, 0) - gained(g, 0)).toBe(1);
     expect(gained(timedOut, 1) - gained(g, 1)).toBe(1);
-  });
-});
-
-describe('survey ships chart', () => {
-  /** p0 with a settlement, ships out to open sea, and the cards to fit the last one out. */
-  function withShip(length = 1) {
-    const g = cartographersGame();
-    const route = shipsToOpenSea(g, 'p0', length);
-    grant(g, 'p0', { lodestone: 3, ore: 1 });
-    return { g, ...route };
-  }
-  const numbers = (g: GameState, id: string) => hexNumbers(g.board.hexes.find(h => h.id === id)!);
-
-  it('every tile around the nearest town, once, when fitted out', () => {
-    const { g, town, edgeId } = withShip();
-    expect(getView(g, 'p0').legal.surveyTowns).toEqual({ [edgeId]: [town] });
-    const chartable = new Set(chartHexes(g));
-    const around = boardIndex(g.board)
-      .vertex.get(town)!
-      .hexIds.filter(id => chartable.has(id));
-    expect(around.length).toBeGreaterThan(0);
-    const next = act(g, 'p0', { type: 'build-survey', edgeId, vertexId: town });
-    for (const id of around) expect(numbers(next, id)).toEqual(chartedNumbers(numbers(g, id)));
-    const charts = next.log.filter(e => e.event?.kind === 'chart');
-    expect(charts).toHaveLength(around.length);
-    expect(next.players[0]!.resources).toMatchObject({ lodestone: 0, ore: 0 });
-    expect(conserved(next)).toBe(true);
-  });
-
-  it('only the nearest town counts, and someone else’s building cuts the route', () => {
-    const { g, town, edgeId, path } = withShip(2);
-    expect(path.length).toBeGreaterThan(1);
-    // A second town of p0's one ship closer: it alone is nearest.
-    const first = boardIndex(g.board).edge.get(path[0]!)!;
-    const closer = first.a === town ? first.b : first.a;
-    g.buildings[closer] = { playerId: 'p0', kind: 'settlement' };
-    expect(getView(g, 'p0').legal.surveyTowns[edgeId]).toEqual([closer]);
-    expect(() => act(g, 'p0', { type: 'build-survey', edgeId, vertexId: town })).toThrow(/nearest/);
-    // With p1's settlement there instead, no town of p0's is reached, so the ship can't be fitted out.
-    g.buildings[closer] = { playerId: 'p1', kind: 'settlement' };
-    expect(getView(g, 'p0').legal.surveys).not.toContain(edgeId);
-  });
-
-  it('lets you pick between towns equally near', () => {
-    const { g, edgeId } = withShip();
-    const ship = boardIndex(g.board).edge.get(edgeId)!;
-    for (const v of [ship.a, ship.b]) g.buildings[v] = { playerId: 'p0', kind: 'settlement' };
-    expect([...getView(g, 'p0').legal.surveyTowns[edgeId]!].sort()).toEqual([ship.a, ship.b].sort());
-    expect(act(g, 'p0', { type: 'build-survey', edgeId, vertexId: ship.b }).surveys).toContain(edgeId);
   });
 });
 

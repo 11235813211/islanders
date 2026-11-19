@@ -336,9 +336,8 @@ function evaluate(ctx: Context, owners: Int8Array, seat: number): number {
 }
 
 /**
- * Cartographers: lodestone pays for survey ships (a point for 3 lodestone and 1 ore), which the
- * setup network was never trained on, so its worth is added on top. Past about two survey ships'
- * worth of income, more counts for little.
+ * Cartographers: lodestone pays for charts and relay stations, which the setup network was never
+ * trained on, so its worth is added on top. Past a steady income of it, more counts for little.
  */
 function lodestoneScore(ctx: Context, owners: Int8Array, seat: number): number {
   if (!ctx.view.cartographers) return 0;

@@ -21,7 +21,6 @@ const KINDS: { kind: SupplyKind; label: string; icon: PlaceKind; needs?: 'seafar
   { kind: 'roads', label: 'Roads', icon: 'road' },
   { kind: 'ships', label: 'Ships', icon: 'ship', needs: 'seafarers' },
   { kind: 'relays', label: 'Relays', icon: 'relay', needs: 'cartographers' },
-  { kind: 'surveys', label: 'Survey ships', icon: 'survey', needs: 'cartographers' },
 ];
 
 /** The pieces this board's expansions use. */
@@ -40,7 +39,7 @@ function withCount(design: BoardDesign, kind: SupplyKind, n: number): BoardDesig
 
 /**
  * The pieces each player starts with, as a dropdown in the editor's fields row: a stepper per
- * piece the board's expansions use (ships only with Seafarers, relays and survey ships only with
+ * piece the board's expansions use (ships only with Seafarers, relays only with
  * Cartographers), and Reset back to the usual counts.
  */
 export default function PiecesMenu({

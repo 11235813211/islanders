@@ -7,26 +7,9 @@ import { chartMove, splitMove } from '../shared/bots/charting';
 import { getView } from '../shared/engine';
 import { chartHexes } from '../shared/engine/legal';
 import { produce } from '../shared/engine/production';
-import { BUILTIN_BOARDS } from '../shared/maps';
 import { boardIndex } from '../shared/seafaring';
 import { type GameState, RESOURCES, type Resource, type ResourceBag } from '../shared/types';
-import { playBotGame } from './bot-harness';
 import { act, cartographersGame } from './fixtures';
-
-const compass = BUILTIN_BOARDS.find(b => b.id === 'compass-sea')!;
-
-describe('Advanced bots on Cartographers maps', () => {
-  // Before the planner knew lodestone, four Advanced bots fit out about one survey ship in 25 games.
-  it('save lodestone for survey ships and fit them out', () => {
-    let surveys = 0;
-    for (const seed of [1, 2, 3, 4]) {
-      const end = playBotGame(['advanced', 'advanced', 'advanced', 'advanced'], seed, 9000, compass);
-      expect(end.phase).toBe('finished');
-      surveys += end.surveys.length;
-    }
-    expect(surveys).toBeGreaterThanOrEqual(4);
-  }, 60_000);
-});
 
 /** A Cartographers game with the board cleared and p0 to build, holding `hand`. */
 function emptyBoard(hand: Partial<ResourceBag>) {

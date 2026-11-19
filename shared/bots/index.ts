@@ -52,18 +52,11 @@ export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}
     const incoming = view.tradeOffers.find(o => o.to.includes(view.selfId) && !hasAnswered(o, view.selfId));
     if (incoming)
       // Bots don't value discoveries, so they pass on offers that include them.
-      return incoming.give.discovery ||
-        incoming.want.discovery ||
-        keepsLodestone(view, incoming, reserveOf(brain, view))
+      return incoming.give.discovery || incoming.want.discovery || keepsLodestone(view, incoming)
         ? { type: 'decline-trade', offerId: incoming.id }
         : brain.respond(view, incoming);
     const own = view.tradeOffers.find(o => o.fromId === view.selfId);
     if (own) return brain.review(view, own);
   }
-  return cartographersTurn(view, brain.turn(view, options), reserveOf(brain, view), brain.tiles);
-}
-
-/** Lodestone the brain's own plans are saving (Cartographers only). */
-function reserveOf(brain: Brain, view: GameView): number {
-  return view.cartographers && brain.lodestoneReserve ? brain.lodestoneReserve(view) : 0;
+  return cartographersTurn(view, brain.turn(view, options), brain.tiles);
 }

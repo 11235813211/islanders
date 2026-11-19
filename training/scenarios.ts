@@ -106,7 +106,7 @@ export interface ScenarioFilter {
   maps?: string[];
   /** Only these table sizes. */
   players?: number[];
-  /** Only maps that play Cartographers (lodestone, survey ships). */
+  /** Only maps that play Cartographers (lodestone, charts). */
   cartographers?: boolean;
   /** Share of games on the standard island (default 0.3). */
   baseShare?: number;

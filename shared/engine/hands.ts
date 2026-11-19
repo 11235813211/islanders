@@ -4,8 +4,7 @@ import { emptyBag, resourceCount } from './core';
 /**
  * A public count of each player's cards: what anyone at the table could work out by watching.
  * Every change to a hand is public (production, building, trades, discards, gold, monopoly) except
- * which card a steal took and what a survey ship found under the fog, so those count exactly; a
- * steal moves one card spread over what the victim probably held, a find one spread over every kind.
+ * which card a steal took, so those count exactly; a steal moves one card spread over what the victim probably held, a find one spread over every kind.
  *
  * `seen` holds the real hands as of the last update (hidden; never sent), so this can catch up
  * after any change without knowing where it came from. Bots see `likely` (getView).

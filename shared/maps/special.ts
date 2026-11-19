@@ -18,7 +18,7 @@ export const SPECIAL_LIMITS = {
 } as const;
 
 /** Each player's usual pieces (a map's `supply` changes some). */
-export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4, surveys: 4 } as const;
+export const PIECE_LIMITS = { roads: 15, ships: 15, settlements: 5, cities: 4, relays: 4 } as const;
 
 /** How few and how many of each piece a map may give each player (the usual counts are in PIECE_LIMITS). */
 export const SUPPLY_LIMITS = {
@@ -27,7 +27,6 @@ export const SUPPLY_LIMITS = {
   roads: { min: 2, max: 30 },
   ships: { min: 0, max: 30 },
   relays: { min: 0, max: 8 },
-  surveys: { min: 0, max: 8 },
 } as const;
 export type SupplyKind = keyof typeof SUPPLY_LIMITS;
 
@@ -196,7 +195,6 @@ export function specialRules(rules: BoardRules | undefined, sea = false): Specia
       roads: 'roads',
       ships: 'ships',
       relays: 'relays',
-      surveys: 'survey ships',
     };
     const kinds = (Object.keys(names) as SupplyKind[]).filter(k => rules.supply![k] !== undefined);
     const lines = [`Each player has ${kinds.map(k => `${rules.supply![k]} ${names[k]}`).join(', ')}.`];

@@ -1,7 +1,6 @@
 import { BUILD_COSTS } from '../../engine/core';
 import { type GameAction, RESOURCES, type Resource, type ResourceBag } from '../../types';
 import { COSTS, canPay, linkAction, roadPaths, routeGoalAt } from '../analysis';
-import { surveyMove } from '../cartographers';
 import type { Economy } from './economy';
 import { isOpen } from './geometry';
 import { longestRoadMove } from './turn';
@@ -10,14 +9,14 @@ import { harborRates } from './value';
 /**
  * Endgame checks, kept cheap (a few hundred combinations at most). Near the target, the bot asks
  * whether some set of points it can buy this turn wins: cities, settlements (with the roads to
- * them), a survey ship, Longest Road, paid for with its hand, bank and harbor trades, and a Year of
+ * them), Longest Road, paid for with its hand, bank and harbor trades, and a Year of
  * Plenty it holds. If so it plays that out move by move. The same check on an opponent's likely
  * hand says who could win on their next turn, so the robber and trades treat them as the danger.
  */
 
 /** One way to score: what it costs and how many points it brings. */
 interface Score {
-  kind: 'city' | 'settlement' | 'survey' | 'road';
+  kind: 'city' | 'settlement' | 'road';
   points: number;
   cost: ResourceBag;
   /** The move that starts it (a build, or the first road toward a settlement). */
@@ -75,8 +74,6 @@ function ownScores(econ: Economy): Score[] {
       out.push({ kind: 'settlement', points, cost, start, route: path.distance > 0 });
     }
   }
-  if (econ.survey?.distance === 0)
-    out.push({ kind: 'survey', points: 1, cost: econ.survey.cost, start: surveyMove(view) });
   const award = longestRoadMove(econ);
   if (award && view.longestRoadId !== view.selfId) {
     const others = Math.max(4, ...view.players.filter(p => p.id !== view.selfId).map(p => p.longestRoad));

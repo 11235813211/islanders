@@ -166,7 +166,7 @@ export const CATEGORIES: Category[] = [
         key: 'chartSpecial',
         theme: 'cartographers',
         label: 'Chart gold and volcanoes',
-        hint: 'Whether survey ships may chart gold fields and volcanoes after a 7.',
+        hint: 'Whether gold fields and volcanoes can be charted.',
         icon: <Compass size={20} />,
         when: view => view.cartographers,
         control: { kind: 'toggle' },

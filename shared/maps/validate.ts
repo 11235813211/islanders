@@ -262,6 +262,8 @@ function parseSupply(value: unknown, setup: SetupPiece[]): PieceSupply {
   if (!record(value)) return fail('Invalid pieces.');
   const out: PieceSupply = {};
   for (const [kind, n] of Object.entries(value)) {
+    // Boards saved while survey ships existed may still list them.
+    if (kind === 'surveys') continue;
     const range = SUPPLY_LIMITS[kind as SupplyKind];
     if (!range || !int(n, range.min, range.max)) fail('Invalid pieces.');
     out[kind as SupplyKind] = n as number;

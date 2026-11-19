@@ -1,15 +1,12 @@
-import { chartedNumbers, hexNumbers } from '../rules';
+import { chartedNumbers, chartScores, fullyCharted, hexNumbers } from '../rules';
 import { boardIndex, terrainResource } from '../seafaring';
 import type { GameState, Player } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, ownBoard, pay, requireRule, tally } from './core';
 import { revealFog } from './fog';
 import { chartHexes, legalMoves, peekHexes, splitCost, splitHexes } from './legal';
 
-/** Relay stations, survey ships, peeks, charts, and splits. */
-export const cartographersHandlers: Pick<
-  Handlers,
-  'build-relay' | 'build-survey' | 'peek-fog' | 'chart-hex' | 'split-hex'
-> = {
+/** Relay stations, peeks, charts, and splits. */
+export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'peek-fog' | 'chart-hex' | 'split-hex'> = {
   'build-relay'({ next, player, playerId }, action) {
     needPhase(next, 'build', 'special-build');
     requireRule(
@@ -27,26 +24,6 @@ export const cartographersHandlers: Pick<
       paid: BUILD_COSTS.relay,
     });
     revealFog(next, action.edgeId, playerId);
-  },
-
-  /** A ship out at sea becomes a survey ship and charts every tile around the nearest town on its route. */
-  'build-survey'({ next, player, playerId }, action) {
-    needPhase(next, 'build', 'special-build');
-    const towns = legalMoves(next, playerId).surveyTowns[action.edgeId];
-    requireRule(towns, 'Choose your ship out at sea, away from the pirate and from tiles another survey ship borders.');
-    requireRule(towns.includes(action.vertexId), 'Choose the settlement or city nearest the ship along your route.');
-    pay(next, player, BUILD_COSTS.survey);
-    next.surveys.push(action.edgeId);
-    tally(next, playerId, 'built', 'survey');
-    addLog(next, `${player.name} fitted out a survey ship.`, {
-      kind: 'build',
-      playerId,
-      piece: 'survey',
-      paid: BUILD_COSTS.survey,
-    });
-    const chartable = new Set(chartHexes(next));
-    for (const hexId of boardIndex(next.board).vertex.get(action.vertexId)!.hexIds)
-      if (chartable.has(hexId)) chartHex(next, player, hexId);
   },
 
   /** A lodestone to the bank to see what one fog tile hides. Everyone sees which tile; only you see what's there. */
@@ -89,17 +66,19 @@ export const cartographersHandlers: Pick<
   },
 };
 
-/** One chart step on a tile, logged for everyone (a paid chart, or one of a survey ship's). */
+/** One chart step on a tile, logged for everyone. The step that fills the tile claims it (see chartScores). */
 function chartHex(next: GameState, player: Player, hexId: string): void {
   ownBoard(next);
   const hex = boardIndex(next.board).hex.get(hexId)!;
   const [first, ...extra] = chartedNumbers(hexNumbers(hex))!;
   hex.number = first!;
   hex.extra = extra.length ? extra : undefined;
-  addLog(next, `${player.name} charted a tile: it now pays on ${hexNumbers(hex).join(', ')}.`, {
-    kind: 'chart',
-    playerId: player.id,
-    hexId,
-    numbers: hexNumbers(hex),
-  });
+  const numbers = hexNumbers(hex).join(', ');
+  let text = `${player.name} charted a tile: it now pays on ${numbers}.`;
+  if (fullyCharted(hex)) {
+    hex.chartedBy = player.id;
+    const result = chartScores(next, hex) ? 'It scores 1 point.' : 'It scores no point yet.';
+    text = `${player.name} finished charting a tile: it now pays on ${numbers}. ${result}`;
+  }
+  addLog(next, text, { kind: 'chart', playerId: player.id, hexId, numbers: hexNumbers(hex) });
 }

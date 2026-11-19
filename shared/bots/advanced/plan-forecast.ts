@@ -79,7 +79,7 @@ function incomeReader(econ: Economy): (corner: number) => CornerIncome {
   };
 }
 
-/** The forecast's version of a plan, or null for kinds it doesn't model (fog, survey ships). */
+/** The forecast's version of a plan, or null for kinds it doesn't model (fog). */
 function goalOf(plan: Plan, econ: Economy): FirstGoal | null {
   const corner = plan.vertexId === undefined ? -1 : econ.geo.indexOf.get(plan.vertexId)!;
   if (plan.kind === 'city') return { kind: 'city', corner };

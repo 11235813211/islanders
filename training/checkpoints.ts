@@ -62,8 +62,8 @@ export const STYLES: Record<string, Record<string, number>> = {
   builder: { settlementValue: 3.5, spareRoads: 4, longestRoadReach: 4, developmentValue: 0.6, spareDevelopment: 0 },
   /** Races hard for Longest Road (road-race.ts), as people do: the test opponent for that weakness. */
   roadracer: { roadRace: 2, roadShare: 0.6 },
-  /** Blind to lodestone (as before the Cartographers planner): survey ships only when they come. */
-  lodeblind: { surveyValue: 0, lodestoneSpot: 0, setupLodestone: 0 },
+  /** Blind to lodestone in settling and setup. */
+  lodeblind: { lodestoneSpot: 0, setupLodestone: 0 },
 };
 
 export function loadCheckpoint(name: string): Checkpoint {

@@ -1,4 +1,4 @@
-import { Check, Compass, Eye, House, Move, Route, Sailboat, SplitSquareHorizontal, TrendingUp, X } from 'lucide-react';
+import { Check, Eye, House, Move, Route, Sailboat, SplitSquareHorizontal, TrendingUp, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BUILD_COSTS } from '../../../shared/engine';
 import { type GameAction, type GameView, type PublicPlayer, RESOURCES, type Resource } from '../../../shared/types';
@@ -20,10 +20,9 @@ const LABELS: Record<ButtonKind, { short: string; long: string }> = {
   settlement: { short: 'settlement', long: 'Build settlement' },
   city: { short: 'city', long: 'Build city' },
   relay: { short: 'relay', long: 'Build relay station' },
-  survey: { short: 'survey', long: 'Make a ship a survey ship' },
   development: { short: 'Dev Card', long: 'Buy development card' },
   peek: { short: 'peek', long: 'Peek at a fog tile (only you see it)' },
-  chart: { short: 'chart', long: 'Chart a tile: its number steps toward 7' },
+  chart: { short: 'chart', long: 'Chart a tile: its number steps toward 7. A full tile can score 1 point' },
   split: { short: 'split', long: 'Split a tile: pay 1 of a resource and it pays that too' },
 };
 const ICONS: Record<ButtonKind, ReactNode> = {
@@ -32,7 +31,6 @@ const ICONS: Record<ButtonKind, ReactNode> = {
   settlement: <House size={23} />,
   city: <CityIcon size={23} />,
   relay: <RelayIcon size={23} />,
-  survey: <Compass size={23} />,
   development: <span className="development-icon">✦</span>,
   peek: <Eye size={23} />,
   chart: <TrendingUp size={23} />,
@@ -224,13 +222,6 @@ export default function BuildBar({
             selected={mode === 'relay'}
             disabled={blocked || !view.legal.relays.length}
             onClick={() => toggle('relay')}
-          />
-          <BuildButton
-            kind="survey"
-            remaining={self.surveysLeft}
-            selected={mode === 'survey'}
-            disabled={blocked || !view.legal.surveys.length}
-            onClick={() => toggle('survey')}
           />
           <BuildButton
             kind="chart"

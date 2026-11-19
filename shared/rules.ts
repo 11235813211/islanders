@@ -171,9 +171,8 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
     ? (state.players.find(p => p.id === playerId)?.development.filter(c => c.kind === 'victory-point').length ?? 0)
     : 0;
   const awards = (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
-  // A survey ship is worth a point (Cartographers).
-  const surveys = (state.surveys ?? []).filter(id => state.ships[id] === playerId).length;
-  return structures + surveys + cards + awards + (state.bonusPoints?.[playerId] ?? 0) + routePoints(state, playerId);
+  const bonus = state.bonusPoints?.[playerId] ?? 0;
+  return structures + cards + awards + bonus + chartPoints(state, playerId) + routePoints(state, playerId);
 }
 
 /** Points for building in your route's finish area, on maps that give them. */
@@ -183,7 +182,7 @@ export function routePoints(state: Pick<GameState, 'board' | 'buildings' | 'rout
   return routeFinished(state.board, state.buildings, playerId, state.routeOf?.[playerId]) ? points : 0;
 }
 
-/** Every number a tile pays on: its own, then any a survey ship charted (Cartographers). */
+/** Every number a tile pays on: its own, then any charted onto it (Cartographers). */
 export function hexNumbers(hex: Pick<Hex, 'number' | 'extra'>): number[] {
   return hex.number === null ? [] : [hex.number, ...(hex.extra ?? [])];
 }
@@ -204,6 +203,53 @@ export function chartedNumbers(numbers: readonly number[]): number[] | null {
   if (moving >= 0) return numbers.map((n, i) => (i !== moving ? n : n < 7 ? n + 1 : n - 1));
   if (!numbers.length || numbers.length >= MAX_HEX_NUMBERS) return null;
   return [...numbers, numbers[0]! < 7 ? 2 : 12];
+}
+
+/** How many charts a tile still takes to be full (0 when it is). */
+export function chartsLeft(numbers: readonly number[]): number {
+  let left = 0;
+  for (let next = chartedNumbers(numbers); next; next = chartedNumbers(next)) left++;
+  return left;
+}
+
+/** Has this tile been charted as far as it goes (6, 5, 4 or 8, 9, 10)? */
+export function fullyCharted(hex: Pick<Hex, 'number' | 'extra'>): boolean {
+  const numbers = hexNumbers(hex);
+  return numbers.length === MAX_HEX_NUMBERS && chartsLeft(numbers) === 0;
+}
+
+type ChartBoard = Pick<GameState, 'board' | 'buildings' | 'roads' | 'relays'>;
+
+/** Everyone with a settlement, city, or relay station beside this tile. */
+export function playersBesideTile(state: ChartBoard, hex: Pick<Hex, 'id' | 'vertexIds'>): Set<string> {
+  const players = new Set<string>();
+  for (const vertexId of hex.vertexIds) {
+    const building = state.buildings[vertexId];
+    if (building) players.add(building.playerId);
+  }
+  const index = boardIndex(state.board);
+  for (const edgeId of state.relays)
+    if (index.edgeHexes.get(edgeId)!.some(h => h.id === hex.id)) players.add(state.roads[edgeId]!);
+  return players;
+}
+
+/** Would this player be the only one beside the tile, as a finished chart needs to score? */
+export function aloneBesideTile(state: ChartBoard, hex: Pick<Hex, 'id' | 'vertexIds'>, playerId: string): boolean {
+  const players = playersBesideTile(state, hex);
+  return players.size === 1 && players.has(playerId);
+}
+
+/**
+ * Does this tile's finished chart score right now? Checked live, so the point goes when anyone else
+ * builds beside the tile, and comes when the charter is alone there.
+ */
+export function chartScores(state: ChartBoard, hex: Hex): boolean {
+  return !!hex.chartedBy && fullyCharted(hex) && aloneBesideTile(state, hex, hex.chartedBy);
+}
+
+/** Points from finished charts that count for this player right now (Cartographers). */
+export function chartPoints(state: ChartBoard, playerId: string): number {
+  return state.board.hexes.filter(hex => hex.chartedBy === playerId && chartScores(state, hex)).length;
 }
 
 /** Has this recipient answered the offer (yes, no, or a counter)? */

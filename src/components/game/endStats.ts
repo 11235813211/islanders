@@ -113,9 +113,9 @@ export const STAT_CATEGORIES: StatCategory[] = [
       { icon: Sailboat, label: 'Islands', title: 'Island bonus points', value: p => p.bonusPoints, optional: true },
       {
         icon: Compass,
-        label: 'Survey',
-        title: 'Survey ships (1 each)',
-        value: (p, v) => v.surveys.filter(id => v.ships[id] === p.id).length,
+        label: 'Charts',
+        title: 'Finished charts that scored (1 each)',
+        value: p => p.chartPoints,
         optional: true,
       },
       { label: 'Total', title: 'Victory points', value: p => p.points, total: true },
@@ -259,13 +259,6 @@ export const STAT_CATEGORIES: StatCategory[] = [
         label: 'Relays',
         title: 'Relay stations built',
         value: p => p.stats.built.relay ?? 0,
-        optional: true,
-      },
-      {
-        icon: Compass,
-        label: 'Surveys',
-        title: 'Survey ships fitted out',
-        value: p => p.stats.built.survey ?? 0,
         optional: true,
       },
       {

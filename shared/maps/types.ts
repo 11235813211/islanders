@@ -99,7 +99,7 @@ export interface PieceReward {
 }
 
 /** How many of each piece a player has in all; absent kinds keep the usual count (PIECE_LIMITS). */
-export type PieceSupply = Partial<Record<'settlements' | 'cities' | 'roads' | 'ships' | 'relays' | 'surveys', number>>;
+export type PieceSupply = Partial<Record<'settlements' | 'cities' | 'roads' | 'ships' | 'relays', number>>;
 
 /**
  * One route, as tile keys (`q,r`). A player's starting settlements must include one touching

@@ -35,7 +35,7 @@ function samples(every: number): GameState[] {
 describe('strategies and the strategy selector', () => {
   it('lean goals only for the chosen strategy', () => {
     const knobs = TRAINED.knobs;
-    for (const kind of ['city', 'settlement', 'route', 'development', 'road', 'survey', 'explore'] as const)
+    for (const kind of ['city', 'settlement', 'route', 'development', 'road', 'explore'] as const)
       expect(goalLean(withStrategy(knobs, 'current'), kind)).toBe(1);
     expect(goalLean(withStrategy(knobs, 'cities'), 'city')).toBeGreaterThan(1);
     expect(goalLean(withStrategy(knobs, 'cards'), 'development')).toBeGreaterThan(1);
