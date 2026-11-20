@@ -106,7 +106,7 @@ export const BUILTIN_CATEGORIES: BoardCategory[] = [
   { id: 'cartographers', name: 'Cartographers', color: '#7a5a99' },
 ];
 
-/** Cartographers maps: lodestone on the home island and the isles, and open sea for survey ships. */
+/** Cartographers maps: lodestone on the home island and the isles. */
 const CARTOGRAPHERS = {
   categoryId: 'cartographers',
   pool: { ...BASE_POOL, lodestone: 2 },
@@ -244,7 +244,7 @@ export const BUILTIN_BOARDS: BoardDesign[] = [
   map(
     'compass-sea',
     'Compass Sea',
-    'Lodestone on the home island and two isles (one with gold), and open sea for survey ships.',
+    'Lodestone on the home island and two isles, one with gold.',
     { ...CARTOGRAPHERS, players: [3, 4], harbors: 9 },
     [
       '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',
@@ -259,7 +259,7 @@ export const BUILTIN_BOARDS: BoardDesign[] = [
   map(
     'magnetic-north',
     'Magnetic North',
-    'For five or six: a long home island with lodestone, gold offshore, and a wide sea for survey ships.',
+    'For five or six: a long home island with lodestone, and gold offshore.',
     { ...CARTOGRAPHERS, players: [5, 6], harbors: 12 },
     [
       '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~',

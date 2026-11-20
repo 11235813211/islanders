@@ -123,7 +123,7 @@ export type CardSource = (typeof CARD_SOURCES)[number];
 /** Where a player's cards went. */
 export const CARD_LOSSES = ['build', 'discard', 'steal', 'monopoly', 'bank', 'trade'] as const;
 export type CardLoss = (typeof CARD_LOSSES)[number];
-export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey';
+export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay';
 /** Public per-player totals for the whole game, shown on the end-of-game screen. */
 export interface PlayerStats {
   cardsIn: Partial<Record<CardSource, number>>;
@@ -176,7 +176,7 @@ export type GameEvent =
   | {
       kind: 'build';
       playerId: string;
-      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey';
+      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay';
       paid?: ResourceBag;
     }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
@@ -422,9 +422,8 @@ export interface GameState {
   diceDeck: [number, number][];
   /** Total of the last roll (balanced dice make a repeat less likely). */
   lastRollTotal: number | null;
-  /** Cartographers: edges in `roads` that hold relay stations, and in `ships` that hold survey ships. */
+  /** Cartographers: edges in `roads` that hold relay stations. */
   relays: string[];
-  surveys: string[];
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -488,7 +487,8 @@ export interface PublicPlayer {
   roadsLeft: number;
   shipsLeft: number;
   relaysLeft: number;
-  surveysLeft: number;
+  /** Cartographers: points from finished charts that count right now. */
+  chartPoints: number;
   settlementsLeft: number;
   citiesLeft: number;
   developmentCount: number;
@@ -512,14 +512,8 @@ export interface LegalMoves {
   /** Land hexes for the robber and, on sea maps, sea hexes for the pirate. */
   robberHexes: string[];
   stealTargets: string[];
-  /**
-   * Cartographers: edges for a relay station, ships that may become survey ships (and, for each,
-   * the nearest of your settlements and cities along your route, several when tied), and tiles you
-   * can chart or split now.
-   */
+  /** Cartographers: edges for a relay station, and tiles you can chart or split now. */
   relays: string[];
-  surveys: string[];
-  surveyTowns: Record<string, string[]>;
   chartHexes: string[];
   splitHexes: string[];
   /** Fog tiles you may pay a lodestone to peek at. */
@@ -564,8 +558,7 @@ export interface GameView {
   roads: Record<string, string>;
   ships: Record<string, string>;
   relays: string[];
-  surveys: string[];
-  /** Cartographers rules are in play: lodestone, relay stations, survey ships, charts, and splits. */
+  /** Cartographers rules are in play: lodestone, relay stations, charts, and splits. */
   cartographers: boolean;
   /** Fog tiles you peeked at, and what each hides. Only ever your own (all of them once the game ends). */
   fogPeeks: Record<string, { terrain: Terrain; number: number | null }>;
@@ -682,8 +675,6 @@ export type GameAction =
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
   | { type: 'build-relay'; edgeId: string }
-  /** Turn one of your ships into a survey ship; it charts the tiles around `vertexId`, the nearest town on its route. */
-  | { type: 'build-survey'; edgeId: string; vertexId: string }
   /** Cartographers: pay a lodestone to see what a fog tile hides (only you see it). */
   | { type: 'peek-fog'; hexId: string }
   /** Cartographers: pay lodestone to step a tile's number toward 7. */

@@ -1,14 +1,14 @@
 import { type ChoiceGroup, choiceGroups, choiceLimit, fillChoice } from '../choices';
 import { BUILD_COSTS } from '../engine/core';
 import { affordsSplit, chartHexes, splitHexes } from '../engine/legal';
-import { chartedNumbers, hexNumbers, payingNumbers } from '../rules';
+import { chartedNumbers, chartsLeft, hexNumbers, onlyPlayerBeside, payingNumbers } from '../rules';
 import { boardIndex, isLandVertex, terrainResource } from '../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
 import { Board, roadPaths } from './analysis';
 
 /**
  * Cartographers tile moves for every bot level, kept cheap: chart or split the tile that pays the
- * bot most, send a survey ship's charts to its best tied town, and pick from split tiles by need.
+ * bot most, work toward a finished chart, and pick from split tiles by need.
  */
 
 /** Dots on a number token: how many of the 36 rolls hit it. */
@@ -121,6 +121,28 @@ export function chartMove(view: GameView, tuning = SIMPLE_TILES): GameAction | n
 }
 
 /**
+ * The chartable tile this seat alone stands beside that is closest to full, if any. A placeholder
+ * for real planning: it ignores rivals who could still build there or take the last chart.
+ */
+export function finishTarget(view: GameView): string | null {
+  const index = boardIndex(view.board);
+  let best: { hexId: string; left: number } | null = null;
+  for (const hexId of chartHexes(view)) {
+    const hex = index.hex.get(hexId)!;
+    if (onlyPlayerBeside(view, hex) !== view.selfId) continue;
+    const left = chartsLeft(hexNumbers(hex));
+    if (!best || left < best.left) best = { hexId, left };
+  }
+  return best?.hexId ?? null;
+}
+
+/** The next chart on that tile, when this seat can pay for one now. */
+export function finishMove(view: GameView): GameAction | null {
+  const hexId = finishTarget(view);
+  return hexId && view.legal.chartHexes.includes(hexId) ? { type: 'chart-hex', hexId } : null;
+}
+
+/**
  * A split on its best-paying tile, adding the resource it earns least of. Simple levels add only
  * what they can pay for now; with `splitTrade` the bot adds the resource it most lacks, trading
  * for the card first when that resource is one it doesn't earn at all.
@@ -160,18 +182,6 @@ export function bankTradeFor(view: GameView, want: Resource, keep: ResourceBag):
     (a, b) => spare(b) - spare(a),
   );
   return give[0] ? { type: 'trade', give: give[0], receive: want } : null;
-}
-
-/** Of the towns tied nearest a survey ship, the one whose tiles this seat gains most from charting. */
-export function surveyTown(view: GameView, edgeId: string, tuning = SIMPLE_TILES): string | null {
-  const index = boardIndex(view.board);
-  const chartable = new Set(view.legal.chartHexes.length ? view.legal.chartHexes : chartHexes(view));
-  const value = (vertexId: string) =>
-    index.vertex
-      .get(vertexId)!
-      .hexIds.filter(id => chartable.has(id))
-      .reduce((sum, id) => sum + chartGain(view, index.hex.get(id)!, tuning), 0);
-  return [...(view.legal.surveyTowns[edgeId] ?? [])].sort((a, b) => value(b) - value(a))[0] ?? null;
 }
 
 /**

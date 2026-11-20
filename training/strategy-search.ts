@@ -104,7 +104,6 @@ export function strategyBrain(
     review: (view, offer) => brain().review(view, offer),
     gold: view => brain().gold!(view),
     specialBuild: view => brain().specialBuild!(view),
-    lodestoneReserve: view => brain().lodestoneReserve?.(view) ?? 0,
     get tiles() {
       return brain().tiles;
     },

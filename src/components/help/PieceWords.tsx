@@ -2,13 +2,12 @@ import type { ReactNode } from 'react';
 import type { PlaceKind } from '../Board';
 import PieceIcon from '../PieceIcon';
 
-/** Piece names in help text, longest first so "survey ship" wins over "ship". */
-const WORDS = /\b(survey ships?|relay stations?|relays?|settlements?|cities|city|roads?|ships?)\b/gi;
+/** Piece names in help text. */
+const WORDS = /\b(relay stations?|relays?|settlements?|cities|city|roads?|ships?)\b/gi;
 
 /** The piece a matched word names. */
 function kindOf(word: string): PlaceKind {
   const w = word.toLowerCase();
-  if (w.startsWith('survey')) return 'survey';
   if (w.startsWith('relay')) return 'relay';
   if (w.startsWith('settlement')) return 'settlement';
   if (w.startsWith('cit')) return 'city';

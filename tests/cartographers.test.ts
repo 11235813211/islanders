@@ -8,22 +8,9 @@ import { chartedNumbers, longestRoad, payingNumbers, tradeRates, victoryPoints }
 import { boardIndex } from '../shared/seafaring';
 import type { GameState, Hex } from '../shared/types';
 import { playBotGame } from './bot-harness';
-import {
-  act,
-  cartographersGame,
-  conserved,
-  grant,
-  hexOf,
-  inSeatOrder,
-  openSeaEdges,
-  seaLobby,
-  seeded,
-  shipsToOpenSea,
-  TEST_NOW,
-} from './fixtures';
+import { act, cartographersGame, conserved, grant, hexOf, inSeatOrder, seaLobby, seeded, TEST_NOW } from './fixtures';
 
 const building = cartographersGame;
-const seaEdges = openSeaEdges;
 
 /** The edge between two tiles, and its two corners. */
 function between(g: GameState, a: Hex, b: Hex) {
@@ -90,11 +77,11 @@ describe('lodestone', () => {
     const old = structuredClone(g) as unknown as Record<string, unknown> & GameState;
     old.schemaVersion = 14;
     delete (old.bank as Partial<GameState['bank']>).lodestone;
-    for (const key of ['relays', 'surveys', 'pendingCharts', 'chartDeadline']) delete old[key];
+    for (const key of ['relays', 'pendingCharts', 'chartDeadline']) delete old[key];
     const up = normalizeGame(old, TEST_NOW);
     expect(up.bank.lodestone).toBe(0);
     expect(up.relays).toEqual([]);
-    expect(up.surveys).toEqual([]);
+    expect(up).not.toHaveProperty('surveys');
     expect(up.pendingSplit).toEqual({});
     expect(up).not.toHaveProperty('pendingCharts');
     expect(up.settings.chartSpecial).toBe(false);
@@ -153,36 +140,6 @@ describe('relay stations', () => {
     for (const id of g.relays) g.roads[id] = 'p0';
     expect(getView(g, 'p0').legal.relays).not.toContain(relay.id);
     expect(getView(g, 'p0').players[0]!.relaysLeft).toBe(0);
-  });
-});
-
-describe('survey ships', () => {
-  it('upgrade your ship out at sea for 3 lodestone and 1 ore, score a point, and stay put', () => {
-    const g = building();
-    const { edgeId, town, path } = shipsToOpenSea(g, 'p0');
-    grant(g, 'p0', { lodestone: 2, ore: 1 });
-    expect(getView(g, 'p0').legal.surveys).toEqual([]);
-    grant(g, 'p0', { lodestone: 1 });
-    expect(getView(g, 'p0').legal.surveys).toContain(edgeId);
-    const next = act(g, 'p0', { type: 'build-survey', edgeId, vertexId: town });
-    expect(next.surveys).toEqual([edgeId]);
-    expect(victoryPoints(next, 'p0')).toBe(victoryPoints(g, 'p0') + 1);
-    expect(pieceCounts(next, 'p0')).toMatchObject({ ships: path.length - 1, surveys: 1 });
-    expect(getView(next, 'p0').legal.shipMoves[edgeId!]).toBeUndefined();
-    expect(conserved(next)).toBe(true);
-  });
-
-  it('no two survey ships, anyone’s, border the same tile', () => {
-    const g = building();
-    const index = boardIndex(g.board);
-    const { edgeId } = shipsToOpenSea(g, 'p0');
-    grant(g, 'p0', { lodestone: 3, ore: 1 });
-    expect(getView(g, 'p0').legal.surveys).toContain(edgeId);
-    const tiles = index.edgeHexes.get(edgeId)!;
-    const near = seaEdges(g).find(id => id !== edgeId && index.edgeHexes.get(id)!.some(h => tiles.includes(h)))!;
-    g.ships[near] = 'p1';
-    g.surveys = [near];
-    expect(getView(g, 'p0').legal.surveys).not.toContain(edgeId);
   });
 });
 
@@ -260,10 +217,7 @@ describe('charting', () => {
 });
 
 describe('bots on Cartographers maps', () => {
-  it('play to the end with relay stations, survey ships, charts, and splits', () => {
-    // Relays and survey ships come up in about half of these games, so they are counted over both
-    // maps; any one map's three games can miss them by chance (magnetic-north often does).
-    let built = 0;
+  it('play to the end and spend lodestone on tiles', () => {
     for (const id of ['compass-sea', 'magnetic-north']) {
       const design = BUILTIN_BOARDS.find(b => b.id === id)!;
       const levels =
@@ -274,12 +228,10 @@ describe('bots on Cartographers maps', () => {
       for (const seed of [1, 2, 3]) {
         const g = playBotGame([...levels], seed, 8000, design);
         expect(g.phase).toBe('finished');
-        built += Object.values(g.stats).reduce((n, s) => n + (s.built.relay ?? 0) + (s.built.survey ?? 0), 0);
         tiles += g.log.filter(l => l.event?.kind === 'chart' || l.event?.kind === 'split').length;
       }
       expect(tiles, id).toBeGreaterThan(0);
     }
-    expect(built).toBeGreaterThan(0);
     // Six whole bot games: well under a second each alone, but slower beside the rest of the suite.
   }, 120_000);
 });

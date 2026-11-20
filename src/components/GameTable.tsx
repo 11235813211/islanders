@@ -234,7 +234,6 @@ export default function GameTable({
       city: view.legal.cities,
       settlement: view.legal.settlements,
       relay: view.legal.relays,
-      survey: view.legal.surveys,
     };
     if (!(selected.choices ?? [selected.kind]).some(kind => legal[kind].includes(selected.id))) setSelected(null);
   }, [view.legal, selected]);
@@ -263,8 +262,6 @@ export default function GameTable({
     if (kind === 'road') send({ type: setup ? 'place-road' : 'build-road', edgeId: id });
     else if (kind === 'ship') send({ type: setup ? 'place-ship' : 'build-ship', edgeId: id });
     else if (kind === 'relay') send({ type: 'build-relay', edgeId: id });
-    else if (kind === 'survey')
-      return; // fitted out from the survey panel (TileTools)
     else
       send({
         type:
@@ -285,14 +282,7 @@ export default function GameTable({
       send({ type: 'move-ship', from: moveFrom, to: id });
       return setMode(null);
     }
-    if (mode === 'survey') return tiles.pickShip(id);
     if (mode === 'relay') return place(mode, id);
-    // Tapping a ship that can become a survey ship starts fitting it out (Move still moves it).
-    if (!mode && view.legal.surveys.includes(id)) {
-      setSelected(null);
-      setModeState('survey');
-      return tiles.pickShip(id);
-    }
     // Tapping one of your movable ships picks it up, as the Move button would.
     if (view.legal.shipMoves[id]) {
       setSelected(null);
@@ -488,7 +478,7 @@ export default function GameTable({
         mode={view.phase === 'robber' ? 'robber' : mode}
         disabled={blocked}
         selected={selected}
-        moveFrom={mode === 'survey' ? tiles.ship : moveFrom}
+        moveFrom={moveFrom}
         onConfirm={kind => selected && place(kind, selected.id)}
         onVertex={pickVertex}
         onEdge={pickEdge}

@@ -16,6 +16,12 @@ _Nothing running._
 - **Result (2026-11-19, about 12 minutes):** Cartographers maps (1,200 seeds) **+1.12 ±0.52 pp** vs main's bot; ×1.92 vs Intermediate (2,000 games).
   Shipped. [Write-up](analysis/2026-11-19-robber-top-number.md).
 
+### Check after replacing survey ships with finished charts
+
+- **Why:** Cartographers lost survey ships and every bot level got a simple finished-chart move, so confirm Advanced still beats Intermediate.
+- **Result (2026-11-18, `eval --games 2000`, a few minutes):** Advanced won **56.4% ±1.1%** against a fair 29.7% (×1.90), no unfinished games.
+  Finished charts scored little: 0.07 points per Advanced seat per game, 0.15 per Intermediate seat, averaged over all maps. Not a test of whether the move helps.
+
 ### Shipping test for the combined bot
 
 - **Why:** confirm last night's +2.32 pp on seeds that didn't pick the candidate, on the owner's nine protected games.

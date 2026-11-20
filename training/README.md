@@ -115,7 +115,7 @@ at the table agreed; format in `shared/replay.ts`, storage in `server/recording.
   browser's `islanders-account` localStorage entry). Save one or an array of them to a file.
 - `replays --file records.json [--dump training/data/dumps]` re-runs each through the engine and
   says whether it ends as recorded; `--dump` saves each game's final state and logged events, and
-  `records-study [--dir training/data/dumps]` prints a seat-by-seat table (points, survey ships,
+  `records-study [--dir training/data/dumps]` prints a seat-by-seat table (points,
   charts, lodestone, …). A record replays only on the engine it was played on: when the rules have
   changed since, dump it from a git worktree at that commit (copy `study.ts` in). The 11 finished
   records of 2026-11-12..16 (unfinished ones deleted) replay on 0526457 (0–2), 0ac5720 (3–4),
@@ -369,5 +369,9 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
   doesn't yet improve build choices. All off by default.
 - Combined bot shipped (2026-11-18, [analysis](analysis/2026-11-18-shipping-combined-bot.md)): placement forecast, spare-card Longest Road and
   over-limit trades, +1.26 ±0.60 pp on 1,200 fresh seeds against the previous bot; all nine protected games above −2 pp; ×1.92 against Intermediate.
+- Survey ships removed and finished charts added (2026-11-18). Survey results above describe the old
+  rules. All bot levels now chart the tile they alone stand beside that is closest to full, a simple
+  placeholder that is not in the planner's goals. `eval --games 2000`: Advanced 56.4% ±1.1% against a
+  fair 29.7% (×1.90), with 0.07 chart points per Advanced seat per game. See [RUNS.md](RUNS.md).
 - Robber blocks one number (2026-11-19, [analysis](analysis/2026-11-19-robber-top-number.md)): Advanced counts only the number the robber
   blocks on a charted tile; +1.12 ±0.52 pp on Cartographers maps vs the previous bot; ×1.92 against Intermediate.

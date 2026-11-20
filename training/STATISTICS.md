@@ -15,7 +15,7 @@ sizes, seed lists, action limit, analysis method, and stopping rule. Define the 
 population explicitly: a bot field, one particular human, or a specified group of humans.
 
 Use one primary outcome: the candidate's change in probability of winning a whole game.
-Production, points, charts, survey ships, and action disagreements explain behavior but do
+Production, points, charts, and action disagreements explain behavior but do
 not substitute for wins. Specify the smallest effect worth the work before observing results.
 
 Keep three disjoint sets of games: exploratory pilot, confirmation, and replication.

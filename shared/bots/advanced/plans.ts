@@ -20,7 +20,7 @@ import { cornerYield } from './value';
  * many cards a point is worth and how long the game has left.
  */
 
-export type PlanKind = 'city' | 'settlement' | 'route' | 'explore' | 'development' | 'road' | 'survey';
+export type PlanKind = 'city' | 'settlement' | 'route' | 'explore' | 'development' | 'road';
 
 export interface Plan {
   kind: PlanKind;
@@ -185,9 +185,6 @@ export function makePlans(econ: Economy, paths: Map<string, Target>, fog: Map<st
     }
   }
   plans.push(...explorePlans(econ, fog));
-  // Cartographers: a survey ship is a point for 3 lodestone and 1 ore, and charts tiles around a town.
-  if (econ.survey && econ.knobs.surveyValue > 0)
-    plans.push({ kind: 'survey', cost: econ.survey.cost, payoff: 1 + 0.3 * econ.knobs.surveyValue });
   if (view.developmentRemaining) plans.push({ kind: 'development', cost: COSTS.development, payoff: cardPayoff(econ) });
   // The race adds roads for spare cards; taking the award when it is close stays a goal of its own.
   plans.push(...fixedRoadGoal(econ));

@@ -1,7 +1,5 @@
-import { BUILD_COSTS } from '../../engine/core';
 import type { GameAction, GameView, TradeOffer } from '../../types';
 import { linkAction } from '../analysis';
-import { surveyMove } from '../cartographers';
 import type { TileTuning } from '../charting';
 import type { Brain, TurnOptions } from '../types';
 import { valueBuild } from './choose';
@@ -21,7 +19,6 @@ const SPECIAL_BUILDS = new Set<GameAction['type']>([
   'build-settlement',
   'build-road',
   'build-ship',
-  'build-survey',
   'buy-development',
 ]);
 
@@ -52,7 +49,6 @@ export function makeAdvanced(params: AdvancedParams): Brain {
     review: (view, offer) => pick(view).review(view, offer),
     gold: view => pick(view).gold!(view),
     specialBuild: view => pick(view).specialBuild!(view),
-    lodestoneReserve: view => pick(view).lodestoneReserve!(view),
     tiles: base.tiles,
   };
 }
@@ -101,17 +97,12 @@ function makeBrain(params: AdvancedParams): Brain {
     respond: (view: GameView, offer: TradeOffer) => respond(new Economy(view, knobs), offer),
     review: (view: GameView, offer: TradeOffer) => review(new Economy(view, knobs), offer),
     gold: (view: GameView) => goldChoice(view, knobs),
-    // Saving for a survey ship it can reach: its lodestone stays off tiles and out of trades.
-    lodestoneReserve: (view: GameView) =>
-      knobs.surveyValue > 0 && new Economy(view, knobs).survey ? BUILD_COSTS.survey.lodestone : 0,
     tiles,
     specialBuild(view: GameView): GameAction {
       // Only building is allowed here: a city or settlement first, then what its turn would build.
       const econ = new Economy(view, knobs);
       if (view.legal.cities.length) return { type: 'build-city', vertexId: bestCity(econ) };
       if (view.legal.settlements.length) return { type: 'build-settlement', vertexId: bestSettlement(econ) };
-      const survey = view.cartographers ? surveyMove(view, tiles) : null;
-      if (survey) return survey;
       const step = buildStep(econ, { builds: 0, allowOffers: false });
       return SPECIAL_BUILDS.has(step.type) ? step : { type: 'end-turn' };
     },

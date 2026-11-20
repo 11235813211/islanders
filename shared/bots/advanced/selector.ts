@@ -17,7 +17,7 @@ import { SEAT_FEATURES, seatFeatures, seatPositions } from './value';
 export type Selector = Partial<Record<Strategy, Net>>;
 
 /** Goal kinds the planner weighs, in the order goal features list them. */
-const GOAL_KINDS: PlanKind[] = ['city', 'settlement', 'route', 'development', 'road', 'survey'];
+const GOAL_KINDS: PlanKind[] = ['city', 'settlement', 'route', 'development', 'road'];
 
 /**
  * What the planner sees in this position (plans.ts), per goal kind: the best goal's payoff and

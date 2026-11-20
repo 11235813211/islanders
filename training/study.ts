@@ -85,7 +85,6 @@ export function seatRows(dump: GameDump, game: number): Row[] {
     const mine = dump.events.filter(e => 'playerId' in e.event && e.event.playerId === p.id);
     const built = (piece: string) =>
       mine.filter(e => e.event.kind === 'build' && 'piece' in e.event && e.event.piece === piece);
-    const firstSurvey = built('survey')[0]?.turn;
     // Lodestone pips touching its buildings at the end.
     const towns = Object.entries(final.buildings)
       .filter(([, b]) => b.playerId === p.id)
@@ -109,8 +108,6 @@ export function seatRows(dump: GameDump, game: number): Row[] {
       who: dump.seats[seat] ?? 'PERSON',
       won: dump.winnerSeat === seat ? 1 : 0,
       points: getView(final, p.id).players.find(q => q.id === p.id)!.points,
-      surveys: built('survey').length,
-      firstSurvey: firstSurvey ?? '-',
       relays: built('relay').length,
       charts: mine.filter(e => e.event.kind === 'chart').length,
       splits: mine.filter(e => e.event.kind === 'split').length,

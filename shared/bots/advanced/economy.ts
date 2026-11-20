@@ -18,16 +18,14 @@ import { distanceFrom, type Geometry, geometry, isOpen } from './geometry';
 import type { Knobs } from './params';
 import { makePlans, type Plan, type PlanKind, planScore } from './plans';
 import { type Races, races } from './rivals';
-import { type SurveyRoute, surveyRoute } from './survey';
 
-const GOAL: Record<PlanKind, Goal | 'survey'> = {
+const GOAL: Record<PlanKind, Goal> = {
   city: 'city',
   settlement: 'settlement',
   route: 'settlement',
   explore: 'road',
   development: 'development',
   road: 'road',
-  survey: 'survey',
 };
 
 /**
@@ -46,7 +44,7 @@ export interface Target {
 }
 
 export interface GoalOption {
-  goal: Goal | 'survey';
+  goal: Goal;
   cost: ResourceBag;
   value: number;
 }
@@ -71,8 +69,6 @@ export class Economy {
   readonly spotIds: string[] = [];
   /** Per seat (view.players order): corners its routes can grow from. */
   readonly frontiers: number[][];
-  /** Cartographers: the way to the next survey ship, if any. */
-  readonly survey: SurveyRoute | null;
 
   constructor(
     readonly view: GameView,
@@ -86,8 +82,6 @@ export class Economy {
     this.production = production;
     this.choicePips = choice;
     this.frontiers = view.players.map(p => this.frontier(p.id));
-    // The survey route first: spotWorth values lodestone only when there is one.
-    this.survey = surveyRoute(this);
     this.target = this.expansionTarget();
     if (knobs.planner < 0.5) {
       this.goals = this.goalOptions();
@@ -194,7 +188,7 @@ export class Economy {
 
   /**
    * Value of a corner for any player with this production (rivals.ts judges rivals' targets the
-   * same way we judge ours). Lodestone counts only for us: their survey plans aren't visible.
+   * same way we judge ours). Lodestone counts only for us: their plans for it aren't visible.
    */
   worthFor(vertexId: string, playerId: string, production: ResourceBag): number {
     const c = this.geo.indexOf.get(vertexId)!;
@@ -206,8 +200,8 @@ export class Economy {
       const have = production[RESOURCES[r]!];
       value += this.geo.pips[c * 5 + r]! * (1.6 - Math.min(1, have / 10));
     }
-    // Lodestone pays for survey ships, worth less once the bot already earns plenty.
-    if (mine && this.survey)
+    // Lodestone pays for charts and relay stations, worth less once the bot already earns plenty.
+    if (mine && this.view.cartographers)
       value += this.geo.lodestone[c]! * k.lodestoneSpot * (1.6 - Math.min(1, production.lodestone / 10));
     const harbor = this.geo.harbor[c];
     if (harbor === 'any') value += 1.2;
@@ -333,8 +327,6 @@ export class Economy {
     }
     if (view.developmentRemaining)
       goals.push({ goal: 'development', cost: COSTS.development, value: knobs.developmentValue });
-    if (this.survey && knobs.surveyValue > 0)
-      goals.push({ goal: 'survey', cost: this.survey.cost, value: knobs.surveyValue * push });
     return goals;
   }
 

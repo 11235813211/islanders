@@ -145,16 +145,6 @@ function cartographers(view: GameView): HelpSection[] {
     },
     {
       tab: 'cartographers',
-      title: 'Survey ships',
-      lines: [
-        `Cost: ${BUILD_COSTS.survey.lodestone} lodestone, 1 ore. Upgrades one of your ships with water on both sides. 4 each. 1 point.`,
-        'When you fit it out, it charts once every tile around your nearest settlement or city along your roads and ships. If two are equally near, you pick.',
-        'It can’t move afterward and still counts in your trade route. The pirate blocks upgrading a ship beside it.',
-        'No two survey ships (anyone’s) may border the same tile.',
-      ],
-    },
-    {
-      tab: 'cartographers',
       title: 'Charting',
       lines: [
         `On your turn after the roll, pay ${BUILD_COSTS.chart.lodestone} lodestone to chart any tile with a number.`,
@@ -164,6 +154,14 @@ function cartographers(view: GameView): HelpSection[] {
         view.settings.chartSpecial
           ? 'In this room gold fields and volcanoes can be charted too. A robbed volcano still erupts on its other numbers.'
           : 'Gold fields and volcanoes can’t be charted in this room.',
+      ],
+    },
+    {
+      tab: 'cartographers',
+      title: 'Finished charts',
+      lines: [
+        'A fully charted tile (6, 5, 4 or 8, 9, 10) is worth 1 point to the only player with a settlement, city, or relay station beside it. It doesn’t matter who charted it.',
+        'If anyone else builds beside it, the point is lost. A marker on the tile shows 1 in the scorer’s color, or 0 when no one scores it.',
       ],
     },
     {

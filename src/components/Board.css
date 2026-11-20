@@ -246,29 +246,6 @@
   filter: drop-shadow(0 0 4px #fff7c2) drop-shadow(0 0 2px #fff7c2);
   outline: none;
 }
-/* Survey mode: the ships that can be fitted out breathe with the same glow until one is picked; the
-   picked one keeps it while you choose its tile. */
-.board-ship-glow {
-  animation: ship-glow 2.2s ease-in-out infinite;
-}
-@keyframes ship-glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 1px #fff7c2);
-  }
-  50% {
-    filter: drop-shadow(0 0 5px #fff7c2) drop-shadow(0 0 2px #fff7c2);
-  }
-}
-.board-ship-picked {
-  filter: drop-shadow(0 0 5px #fff7c2) drop-shadow(0 0 2px #fff7c2);
-}
-@media (prefers-reduced-motion: reduce) {
-  .board-ship-glow {
-    animation: none;
-    filter: drop-shadow(0 0 4px #fff7c2);
-  }
-}
 
 /* ---- The dice: resting in the board's bottom-right corner, or tumbling in on a new roll. ---- */
 .board-dice {
@@ -531,4 +508,20 @@
 .board-chart-tap:focus-visible polygon {
   stroke: #e7d8f4;
   stroke-dasharray: 3 5;
+}
+
+/* A finished chart's marker on its tile (FinishedCharts). Taps pass through to the tile below. */
+.finished-chart {
+  pointer-events: none;
+  paint-order: stroke;
+}
+.finished-chart text {
+  font-size: 14px;
+  font-weight: 800;
+  stroke: none;
+}
+.finished-chart-scores text {
+  stroke: rgb(0 0 0 / 45%);
+  stroke-width: 2px;
+  paint-order: stroke;
 }

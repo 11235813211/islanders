@@ -97,8 +97,6 @@ export const KNOBS = {
   roadCommit: [0.7, 0.3, 1],
 
   // Cartographers
-  /** A survey ship as a goal (a point that also charts tiles), like cityValue. */
-  surveyValue: [2.6, 1, 5],
   /** Worth of a lodestone pip at a new settlement, against a scarce pip of another resource. */
   lodestoneSpot: [1.2, 0, 3],
   /** Setup: score per lodestone pip at a seat's starting corners (outside the setup network). */

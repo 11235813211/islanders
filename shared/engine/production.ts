@@ -242,10 +242,7 @@ export function sinkShip(state: GameState, edgeId: string): void {
   const owner = state.ships[edgeId]!;
   delete state.ships[edgeId];
   const stranded = strandedShips(state, owner);
-  if (!stranded.size) {
-    dropSunkSurveys(state);
-    return;
-  }
+  if (!stranded.size) return;
   state.ships[edgeId] = owner;
   const index = boardIndex(state.board);
   const onRoute = routePiece(state, owner);
@@ -264,12 +261,6 @@ export function sinkShip(state: GameState, edgeId: string): void {
   }
   const far = [...stranded].sort((x, y) => (distance.get(y) ?? 0) - (distance.get(x) ?? 0))[0]!;
   delete state.ships[far];
-  dropSunkSurveys(state);
-}
-
-/** A sunk survey ship is gone with its ship. */
-function dropSunkSurveys(state: GameState): void {
-  state.surveys = state.surveys.filter(id => state.ships[id]);
 }
 
 /** A player's ships no longer joined along their route to one of their settlements or cities. */

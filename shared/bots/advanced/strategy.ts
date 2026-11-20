@@ -28,8 +28,8 @@ const GOAL_LEAN: Record<Strategy, Partial<Record<PlanKind, number>>> = {
   cards: { development: 1.6, city: 1.1, settlement: 0.85, route: 0.8, road: 0.7 },
   /** Sea maps: routes to new islands and fog. */
   explore: { route: 1.3, explore: 1.5 },
-  /** Cartographers: survey ships. */
-  chart: { survey: 1.6 },
+  /** Cartographers: no goal of its own; its lodestone knobs are below. */
+  chart: {},
 };
 
 /** Knob changes per strategy beyond the goal leans (fog exploring, lodestone in setup). */

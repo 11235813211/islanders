@@ -9,13 +9,14 @@ import BoardScene, { type Drift } from './BoardScene';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
+import FinishedCharts from './game/FinishedCharts';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
 import RouteZones from './RouteZones';
 import './Board.css';
 
-export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'survey';
+export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay';
 export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | 'chart' | 'split' | null;
 /** Pieces that go on an edge. */
 export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city';
@@ -36,12 +37,12 @@ export interface BoardProps {
   camera?: { x: number; y: number; zoom: number };
   selected?: Selection | null;
   onConfirm?: (kind: PlaceKind) => void;
-  /** While moving a ship or fitting out a survey ship: that ship, once picked. */
+  /** While moving a ship: that ship, once picked. */
   moveFrom?: string | null;
   /** The tile the robber or pirate was just moved to, or a fog tile to peek at, waiting for confirm or cancel. */
   hexPick?: string | null;
   onHexConfirm?: (confirm: boolean) => void;
-  /** Cartographers: tiles the chart, split, or survey tool can pick, and the one picked. */
+  /** Cartographers: tiles the chart or split tool can pick, and the one picked. */
   tiles?: TilePicking | null;
   /** With no tool picked: a tap on a tile you can chart starts charting it. */
   onChart?: (hexId: string) => void;
@@ -113,7 +114,6 @@ function hintFor(
 ): string {
   if (mode === 'chart') return 'Choose a tile to chart';
   if (mode === 'split') return 'Choose a tile to split';
-  if (mode === 'survey') return moveFrom ? 'It charts the tiles around your nearest town' : 'Choose a ship out at sea';
   if (mode === 'peek') return 'Choose a fog tile to peek at';
   if (hexes) return view.seafaring ? 'Choose a tile for the robber or the pirate' : 'Choose a tile for the robber';
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
@@ -199,8 +199,7 @@ export default function Board({
       : vertices.get(selected.id)
     : null;
   const choices = selected?.choices ?? (selected ? [selected.kind] : []);
-  // In survey mode the ships themselves are the first targets.
-  const pickable = (tiles?.hexes.length ?? 0) + (mode === 'survey' ? view.legal.surveys.length : 0);
+  const pickable = tiles?.hexes.length ?? 0;
   const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + pickable > 0;
   const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected && !tiles?.picked;
   return (
@@ -249,6 +248,7 @@ export default function Board({
               </g>
             );
           })}
+          <FinishedCharts view={view} color={color} playerName={playerName} />
           {direct && !disabled && onChart && <ChartTaps view={view} onChart={onChart} />}
           <ShipPieces
             view={view}

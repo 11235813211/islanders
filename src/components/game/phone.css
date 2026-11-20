@@ -292,7 +292,7 @@
   }
 }
 
-/* Cartographers adds relay, survey, chart, split, and peek buttons: on a phone they take two rows of
+/* Cartographers adds relay, chart, split, and peek buttons: on a phone they take two rows of
    equal buttons, with the count tucked in a corner, and End turn spans both rows. */
 @media (max-width: 720px) and (orientation: portrait) {
   .game-table:has(.table-actions.cartographers) {

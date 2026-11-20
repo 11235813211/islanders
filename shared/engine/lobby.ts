@@ -147,7 +147,6 @@ export function createGame(
     roads: {},
     ships: {},
     relays: [],
-    surveys: [],
     robber,
     pirate,
     stealHex: null,

@@ -35,7 +35,6 @@ const COMPARED = new Set<GameAction['type']>([
   'move-ship',
   'build-settlement',
   'build-city',
-  'build-survey',
   'build-relay',
   'buy-development',
   'play-knight',

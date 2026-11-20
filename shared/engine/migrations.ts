@@ -218,6 +218,27 @@ const MIGRATIONS: Migration[] = [
   s => {
     if (s.design) s.design = upgradeDesign(s.design);
   },
+  // 27 → 28: survey ships are gone. Each one standing becomes a plain ship and its point is kept as
+  // a bonus point; undo is cleared in those rooms so it can't bring the old piece back.
+  s => {
+    const standing = (s.surveys ?? []).filter((id: string) => s.ships?.[id]);
+    for (const id of standing) {
+      const owner = s.ships[id];
+      s.bonusPoints[owner] = (s.bonusPoints[owner] ?? 0) + 1;
+    }
+    if (standing.length) {
+      s.undo = null;
+      s.undoHistory = [];
+    }
+    delete s.surveys;
+    for (const stats of Object.values(s.stats ?? {}) as { built?: Record<string, number> }[])
+      delete stats.built?.survey;
+    for (const entry of s.log ?? []) if (entry.event?.piece === 'survey') entry.event.piece = 'ship';
+  },
+  // 28 → 29: a full tile scores for whoever is alone beside it, so nobody holds a claim on one.
+  s => {
+    for (const hex of s.board?.hexes ?? []) delete hex.chartedBy;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

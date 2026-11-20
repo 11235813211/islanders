@@ -41,8 +41,6 @@ export interface Brain {
   gold?(view: GameView): GameAction;
   /** Five or six players: the special build phase (default: specialBuild in analysis.ts). */
   specialBuild?(view: GameView): GameAction;
-  /** Cartographers: lodestone its own plans are saving (not to be spent on tiles or traded away). */
-  lodestoneReserve?(view: GameView): number;
   /** Cartographers: how it judges tiles to chart and split (SIMPLE_TILES when absent). */
   tiles?: TileTuning;
 }

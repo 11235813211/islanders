@@ -70,7 +70,7 @@ export const MAX_PLAYERS = 6;
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
 export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
   state.settings.seafarers !== false && boardIndex(state.board).seafaring;
-/** Cartographers rules (lodestone, relay stations, survey ships, charts, splits): the map asks for them. */
+/** Cartographers rules (lodestone, relay stations, charts, splits): the map asks for them. */
 export const cartographersRules = (state: Pick<GameState, 'design'>): boolean =>
   !!state.design && boardExpansions(state.design).includes('cartographers');
 /** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
@@ -95,7 +95,7 @@ export function discoveriesLeft(state: Pick<GameState, 'players'>): number {
   return Math.max(0, discoverySupply(state.players.length) - state.players.reduce((n, p) => n + p.discoveries, 0));
 }
 export const BUILD_COSTS: Record<
-  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'survey' | 'peek' | 'chart' | 'split',
+  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'peek' | 'chart' | 'split',
   ResourceBag
 > = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
@@ -104,7 +104,6 @@ export const BUILD_COSTS: Record<
   city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
   development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
   relay: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 1 },
-  survey: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 3 },
   /** Cartographers: a look under one fog tile, for your eyes only. */
   peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
   /** Cartographers: one step toward 7 on any tile. */
@@ -209,19 +208,15 @@ export function pay(state: GameState, player: Player, cost: ResourceBag): void {
   }
 }
 
-export function pieceCounts(
-  state: Pick<GameState, 'buildings' | 'roads' | 'ships' | 'relays' | 'surveys'>,
-  playerId: string,
-) {
+export function pieceCounts(state: Pick<GameState, 'buildings' | 'roads' | 'ships' | 'relays'>, playerId: string) {
   const buildings = Object.values(state.buildings).filter(building => building.playerId === playerId);
   const settlements = buildings.filter(building => building.kind === 'settlement').length;
   const cities = buildings.filter(building => building.kind === 'city').length;
-  // Relay stations stand on road edges and survey ships were ships; neither uses up a road or ship.
+  // Relay stations stand on road edges but don't use up a road.
   const relays = (state.relays ?? []).filter(id => state.roads[id] === playerId).length;
-  const surveys = (state.surveys ?? []).filter(id => state.ships[id] === playerId).length;
   const roads = Object.values(state.roads).filter(owner => owner === playerId).length - relays;
-  const ships = Object.values(state.ships).filter(owner => owner === playerId).length - surveys;
-  return { settlements, cities, roads, ships, relays, surveys, points: settlements + cities * 2 + surveys };
+  const ships = Object.values(state.ships).filter(owner => owner === playerId).length;
+  return { settlements, cities, roads, ships, relays, points: settlements + cities * 2 };
 }
 
 /** Context passed to every action handler. `next` is a private clone the handler mutates. */

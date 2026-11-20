@@ -75,7 +75,7 @@ Build (training only):
      built or lost; roads/ships toward it before cities.
    - `cities`: ore/wheat cities and development cards; settle only toward ore/wheat.
    - `explore`: ships, fog, island bonuses (sea maps only).
-   - `chart`: survey ship, charts, splits, lodestone (Cartographers maps only).
+   - `chart`: finished charts, splits, lodestone (Cartographers maps only).
    - `award`: Longest Road or Largest Army race.
      Each strategy needs behavior checks (a unit test or a diagnostic count) showing it does what
      it says, e.g. `expand` builds more settlements and income than `current`. A strategy that
@@ -168,7 +168,7 @@ Make strategy choice cheap enough for live play.
 Retry the learned evaluation with the flaws in [ANALYSIS.md](ANALYSIS.md) fixed.
 - **Real afterstates**: score a move by applying it to the state (as the engine would) and
   computing features, not by editing a summary.
-- **Inputs**: add lodestone, charts, splits, relays and surveys; the committed strategy and its
+- **Inputs**: add lodestone, charts, splits, and relays; the committed strategy and its
   progress; the rival-target predictions (who reaches which open corner first); income by turn.
 - **Labels with credit for single moves**: n-step or TD(λ) returns; final points and turns to
   win alongside win/loss; action comparisons from the same position (run `moves-collect`).
@@ -193,7 +193,7 @@ Order of work (updated 2026-11-17 evening):
    same strategy as full rollouts, and the correlation of their scores. Cheap to run, and the
    target a new network must hit. (The probe files hold features and scores, not game states;
    saving the states, or seeds plus steps to rebuild them, is part of this step.)
-3. **Refit on r1 self-play** with better inputs: the seat summaries plus lodestone and surveys,
+3. **Refit on r1 self-play** with better inputs: the seat summaries plus lodestone and finished charts,
    pace and trade-aware affordability (`goals.ts`), the rival model's odds on our next targets,
    pieces left, award gaps. Labels: TD(λ) or n-step returns and final points, not only the winner.
 4. **Judge by the benchmark** (agreement with full rollouts), then rerun the probe with the new

@@ -2,7 +2,7 @@ import type { GameView, Hex } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import { keyboardActivate } from './BoardConfirm';
 
-/** Tiles a Cartographers tool can pick (chart, split, survey target), the one picked, and a pick. */
+/** Tiles a Cartographers tool can pick (chart, split), the one picked, and a pick. */
 export interface TilePicking {
   hexes: string[];
   picked: string | null;
