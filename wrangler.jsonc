@@ -3,12 +3,16 @@
   "name": "play",
   "main": "server/index.ts",
   "compatibility_date": "2025-06-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": [
+      "/api/*"
+    ]
   },
   "durable_objects": {
     "bindings": [
@@ -33,19 +37,27 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["GameRoom"]
+      "new_sqlite_classes": [
+        "GameRoom"
+      ]
     },
     {
       "tag": "v2",
-      "new_sqlite_classes": ["AccountStore"]
+      "new_sqlite_classes": [
+        "AccountStore"
+      ]
     },
     {
       "tag": "v3",
-      "new_sqlite_classes": ["BoardLibraryStore"]
+      "new_sqlite_classes": [
+        "BoardLibraryStore"
+      ]
     },
     {
       "tag": "v4",
-      "new_sqlite_classes": ["GameRecordStore"]
+      "new_sqlite_classes": [
+        "GameRecordStore"
+      ]
     }
   ],
   "ratelimits": [
@@ -79,7 +91,7 @@
     "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173",
     "DEV_MODE": "false",
     // Account usernames (comma-separated) that may create solo test rooms and edit boards in production.
-    "PLAYTEST_USERS": "BentoBox"
+    "PLAYTEST_USERS": "BentoBox, Skeege"
   },
   "observability": {
     "enabled": true,
