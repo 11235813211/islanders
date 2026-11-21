@@ -1,7 +1,9 @@
+import { allPieces } from '../../../shared/crossings';
 import type { GameView } from '../../../shared/types';
 import { SEA } from '../../art';
 import type { BoardMode } from '../Board';
 import { keyboardActivate } from './BoardConfirm';
+import { pieceEnds } from './sharedEdges';
 
 type Point = { x: number; y: number };
 
@@ -30,12 +32,13 @@ export default function ShipPieces({
 }) {
   return (
     <>
-      {Object.entries(view.ships).map(([edgeId, owner]) => {
-        const [a, b] = ends(edgeId);
-        const movable = !disabled && mode !== 'move-ship' && !!view.legal.shipMoves[edgeId];
+      {allPieces(view, 'ship').map(([edgeId, owner]) => {
+        const [a, b] = pieceEnds(view, edgeId, owner, ends(edgeId));
+        const mine = owner === view.selfId;
+        const movable = mine && !disabled && mode !== 'move-ship' && !!view.legal.shipMoves[edgeId];
         const className = [
           'board-ship-piece',
-          mode === 'move-ship' && picked === edgeId ? 'board-ship-moving' : '',
+          mode === 'move-ship' && mine && picked === edgeId ? 'board-ship-moving' : '',
           movable ? 'board-ship-movable' : '',
         ]
           .filter(Boolean)
@@ -44,7 +47,7 @@ export default function ShipPieces({
         return (
           // biome-ignore lint/a11y/noStaticElementInteractions: role is set when the ship can be picked.
           <g
-            key={edgeId}
+            key={`${edgeId}:${owner}`}
             className={className}
             aria-label={label}
             role={movable ? 'button' : undefined}

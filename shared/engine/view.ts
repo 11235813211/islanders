@@ -110,6 +110,8 @@ export function getView(state: GameState, selfId: string): GameView {
     buildings: state.buildings,
     roads: state.roads,
     ships: state.ships,
+    crossings: state.crossings,
+    routeOf: state.routeOf,
     relays: state.relays,
     cartographers: cartographersRules(state),
     // Once the game is over, every fog tile shows what it hid.

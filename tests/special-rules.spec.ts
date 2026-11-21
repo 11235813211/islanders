@@ -122,6 +122,35 @@ test('setup shows the order of every round and where your route must start; then
   expect(table.errors).toEqual([]);
 });
 
+test('the lobby offers crossing routes on a map with routes; shared edges draw both pieces side by side', async ({
+  page,
+}) => {
+  const lobby = await mountGame(page, seaLobby(rulesBoard(), 3));
+  await expect(page.getByText('Cross other routes')).toBeVisible();
+  lobby.update(g => Object.assign(g, afterSetup(setupGame())));
+  const [edgeId, owner] = Object.entries(lobby.state().roads)[0]!;
+  const other = owner === 'p0' ? 'p1' : 'p0';
+  lobby.update(g => {
+    g.crossings = { [edgeId]: { [other]: 'road' } };
+  });
+  const roads = page.locator('.board-svg .board-road');
+  await expect(roads).toHaveCount(Object.keys(lobby.state().roads).length + 1);
+  const shared = page.locator(`.board-svg .board-road[aria-label$="road"]`);
+  const boxes = await Promise.all(
+    [owner, other].map(async id => {
+      const name = lobby.state().players.find(p => p.id === id)!.name;
+      const all = await shared.filter({ has: page.locator('title', { hasText: `${name}'s road` }) }).all();
+      return Promise.all(all.map(r => r.boundingBox()));
+    }),
+  );
+  // The two pieces on the shared edge sit apart, so neither hides the other.
+  const centers = (list: ({ x: number; y: number; width: number; height: number } | null)[]) =>
+    list.map(b => `${Math.round(b!.x + b!.width / 2)},${Math.round(b!.y + b!.height / 2)}`);
+  expect(new Set([...centers(boxes[0]!), ...centers(boxes[1]!)]).size).toBe(boxes[0]!.length + boxes[1]!.length);
+  await page.screenshot({ path: 'test-results/special-crossing.png' });
+  expect(lobby.errors).toEqual([]);
+});
+
 /** Click the middle of tile (q, r) on the editor canvas, below its number token. */
 async function clickTile(page: Page, q: number, r: number) {
   const svg = page.locator('.editor-canvas > svg');

@@ -146,6 +146,7 @@ export function createGame(
     buildings: {},
     roads: {},
     ships: {},
+    crossings: {},
     relays: [],
     robber,
     pirate,

@@ -23,5 +23,6 @@ Object.assign(DEFAULT_SETTINGS, {
   volcanoStart: true,
   volcanoDice: 'balanced',
   routeLinks: 'anywhere',
+  crossRoutes: false,
   chartSpecial: false,
 } satisfies typeof DEFAULT_SETTINGS);

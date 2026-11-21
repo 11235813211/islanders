@@ -239,6 +239,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     for (const hex of s.board?.hexes ?? []) delete hex.chartedBy;
   },
+  // 29 → 30: roads and ships may share an edge with another route's piece (settings.crossRoutes).
+  s => {
+    s.crossings ??= {};
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

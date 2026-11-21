@@ -1,4 +1,5 @@
 import { choiceFits, choiceGroups, choiceLimit } from '../choices';
+import { placePiece, removePiece } from '../crossings';
 import { type GameState, RESOURCES } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, pay, requireRule, resourceCount, tally } from './core';
 import { revealFog } from './fog';
@@ -27,7 +28,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
         legalMoves(next, playerId).ships.includes(action.edgeId),
         'Connect this ship to the settlement you just placed.',
       );
-      next.ships[action.edgeId] = playerId;
+      placePiece(next, playerId, action.edgeId, 'ship');
       tally(next, playerId, 'built', 'ship');
       addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship' });
       revealFog(next, action.edgeId, playerId);
@@ -42,7 +43,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       );
       const paid = next.phase === 'free-roads' ? undefined : BUILD_COSTS.ship;
       if (paid) pay(next, player, paid);
-      next.ships[action.edgeId] = playerId;
+      placePiece(next, playerId, action.edgeId, 'ship');
       next.shipsBuilt.push(action.edgeId);
       tally(next, playerId, 'built', 'ship');
       addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship', ...(paid && { paid }) });
@@ -57,8 +58,8 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
         legalMoves(next, playerId).shipMoves[action.from]?.includes(action.to),
         'Move a ship from the open end of your line, built before this turn and away from the pirate.',
       );
-      delete next.ships[action.from];
-      next.ships[action.to] = playerId;
+      removePiece(next, playerId, action.from);
+      placePiece(next, playerId, action.to, 'ship');
       next.shipMoved = true;
       addLog(next, `${player.name} moved a ship.`);
       revealFog(next, action.to, playerId);

@@ -1,3 +1,4 @@
+import { ownEdges } from '../../crossings';
 import { emptyBag } from '../../engine/core';
 import { boardIndex, terrainResource } from '../../seafaring';
 import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../../types';
@@ -162,13 +163,11 @@ export class Economy {
     const out = new Set<number>();
     for (const [id, b] of Object.entries(this.view.buildings))
       if (b.playerId === playerId) out.add(this.geo.indexOf.get(id)!);
-    for (const pieces of [this.view.roads, this.view.ships])
-      for (const [edgeId, owner] of Object.entries(pieces)) {
-        if (owner !== playerId) continue;
-        const e = this.board.edge.get(edgeId)!;
-        out.add(this.geo.indexOf.get(e.a)!);
-        out.add(this.geo.indexOf.get(e.b)!);
-      }
+    for (const edgeId of ownEdges(this.view, playerId)) {
+      const e = this.board.edge.get(edgeId)!;
+      out.add(this.geo.indexOf.get(e.a)!);
+      out.add(this.geo.indexOf.get(e.b)!);
+    }
     return [...out];
   }
 

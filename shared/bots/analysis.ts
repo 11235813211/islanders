@@ -1,3 +1,4 @@
+import { crosses, edgeOpen, pieceOn } from '../crossings';
 import { emptyBag } from '../engine/core';
 import { routeCorners } from '../maps/special';
 import { hexNumbers, linksAnywhere, payingNumbers } from '../rules';
@@ -215,11 +216,16 @@ function searchPaths(board: Board, self: string): Map<string, Path> {
     else back.push({ vertex, mode, path });
   };
   const start: Path = { distance: 0, firstEdge: null, firstKind: null };
+  // Another player's building blocks a route, unless crossing routes lets us through it.
+  const passable = (vertexId: string) => {
+    const building = view.buildings[vertexId];
+    return !building || building.playerId === self || crosses(view, self, building.playerId);
+  };
   for (const v of view.board.vertices) {
     const own = view.buildings[v.id]?.playerId === self;
-    if (own || (!view.buildings[v.id] && v.edgeIds.some(id => view.roads[id] === self)))
+    if (own || (passable(v.id) && v.edgeIds.some(id => pieceOn(view, self, id) === 'road')))
       visit(v.id, 'road', start, true);
-    if (own || (!view.buildings[v.id] && v.edgeIds.some(id => view.ships[id] === self)))
+    if (own || (passable(v.id) && v.edgeIds.some(id => pieceOn(view, self, id) === 'ship')))
       visit(v.id, 'ship', start, true);
   }
   const besidePirate = (edgeId: string) => {
@@ -231,21 +237,21 @@ function searchPaths(board: Board, self: string): Map<string, Path> {
   while (front.length || backHead < back.length) {
     const { vertex, mode, path } = front.length ? front.pop()! : back[backHead++]!;
     const building = view.buildings[vertex];
-    if (building && building.playerId !== self) continue;
+    if (!passable(vertex)) continue;
     // Roads and ships meet at our buildings, or anywhere when the room allows it.
-    const kinds: Link[] = building || anywhere ? ['road', 'ship'] : [mode];
+    const kinds: Link[] = building?.playerId === self || anywhere ? ['road', 'ship'] : [mode];
     for (const edgeId of board.vertex.get(vertex)!.edgeIds) {
       const e = board.edge.get(edgeId)!;
       const other = e.a === vertex ? e.b : e.a;
       for (const kind of kinds) {
-        const owner = kind === 'road' ? view.roads[edgeId] : view.ships[edgeId];
-        if (owner && owner !== self) continue;
-        if (!owner) {
-          if (view.roads[edgeId] || view.ships[edgeId]) continue;
+        const mine = pieceOn(view, self, edgeId);
+        if (mine && mine !== kind) continue;
+        if (!mine) {
+          if (!edgeOpen(view, self, edgeId)) continue;
           if (kind === 'road' && !isRoadEdge(view.board, edgeId)) continue;
           if (kind === 'ship' && (!view.seafaring || !isShipEdge(view.board, edgeId) || besidePirate(edgeId))) continue;
         }
-        const cost = owner ? 0 : 1;
+        const cost = mine ? 0 : 1;
         const first = path.firstEdge ?? (cost ? edgeId : null);
         visit(
           other,

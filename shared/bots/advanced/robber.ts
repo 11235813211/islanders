@@ -1,3 +1,4 @@
+import { allPieces } from '../../crossings';
 import { boardIndex } from '../../seafaring';
 import { type GameView, RESOURCES } from '../../types';
 import { blockedPips } from '../analysis';
@@ -46,7 +47,7 @@ export function hexScore(econ: Economy, hexId: string): number {
   if (hex.terrain === 'sea') {
     // The pirate: robs ship owners beside it and stops them building or moving ships there.
     const ships = new Map<string, number>();
-    for (const [edgeId, owner] of Object.entries(view.ships))
+    for (const [edgeId, owner] of allPieces(view, 'ship'))
       if (index.edgeHexes.get(edgeId)!.includes(hex)) ships.set(owner, (ships.get(owner) ?? 0) + 1);
     for (const [owner, count] of ships) {
       if (owner === view.selfId) value -= knobs.selfHarm * count * 0.6;

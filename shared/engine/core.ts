@@ -1,4 +1,5 @@
 import { copyData } from '../copy';
+import { ownEdges } from '../crossings';
 import { PIECE_LIMITS, rewardTotals } from '../maps/special';
 
 export { PIECE_LIMITS };
@@ -208,14 +209,17 @@ export function pay(state: GameState, player: Player, cost: ResourceBag): void {
   }
 }
 
-export function pieceCounts(state: Pick<GameState, 'buildings' | 'roads' | 'ships' | 'relays'>, playerId: string) {
+export function pieceCounts(
+  state: Pick<GameState, 'buildings' | 'roads' | 'ships' | 'relays'> & Partial<Pick<GameState, 'crossings'>>,
+  playerId: string,
+) {
   const buildings = Object.values(state.buildings).filter(building => building.playerId === playerId);
   const settlements = buildings.filter(building => building.kind === 'settlement').length;
   const cities = buildings.filter(building => building.kind === 'city').length;
   // Relay stations stand on road edges but don't use up a road.
   const relays = (state.relays ?? []).filter(id => state.roads[id] === playerId).length;
-  const roads = Object.values(state.roads).filter(owner => owner === playerId).length - relays;
-  const ships = Object.values(state.ships).filter(owner => owner === playerId).length;
+  const roads = ownEdges(state, playerId, 'road').length - relays;
+  const ships = ownEdges(state, playerId, 'ship').length;
   return { settlements, cities, roads, ships, relays, points: settlements + cities * 2 };
 }
 

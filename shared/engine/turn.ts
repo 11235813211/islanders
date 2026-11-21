@@ -1,3 +1,4 @@
+import { placePiece } from '../crossings';
 import { TUNING } from '../default-settings';
 import { setupPieces } from '../maps/special';
 import { canGiveTime } from '../rules';
@@ -188,7 +189,7 @@ export const turnHandlers: Pick<
       legalMoves(next, playerId).roads.includes(action.edgeId),
       'Connect this road to the settlement you just placed.',
     );
-    next.roads[action.edgeId] = playerId;
+    placePiece(next, playerId, action.edgeId, 'road');
     tally(next, playerId, 'built', 'road');
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road' });
     revealFog(next, action.edgeId, playerId);
@@ -276,7 +277,7 @@ export const turnHandlers: Pick<
     );
     const paid = next.phase === 'free-roads' ? undefined : BUILD_COSTS.road;
     if (paid) pay(next, player, paid);
-    next.roads[action.edgeId] = playerId;
+    placePiece(next, playerId, action.edgeId, 'road');
     tally(next, playerId, 'built', 'road');
     addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road', ...(paid && { paid }) });
     if (next.phase === 'free-roads') afterFreePiece(next, playerId);

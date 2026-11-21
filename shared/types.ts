@@ -271,9 +271,13 @@ export interface GameSettings {
   volcanoDice: 'random' | 'balanced';
   /** Seafarers: where a road and a ship may join. `settlement` is the published rule (only at your own building). */
   routeLinks: 'anywhere' | 'settlement';
+  /** Maps with routes: players on different routes may build roads and ships through each other's pieces and buildings. */
+  crossRoutes: boolean;
   /** Cartographers: gold fields and volcanoes may be charted too. */
   chartSpecial: boolean;
 }
+/** Edge id → player id → the piece that player has there, on top of the edge's `roads`/`ships` owner. */
+export type Crossings = Record<string, Record<string, 'road' | 'ship'>>;
 /** A recipient's alternative terms. `give` is what the countering player gives. */
 export interface TradeCounter {
   id: string;
@@ -384,6 +388,8 @@ export interface GameState {
   roads: Record<string, string>;
   /** Edge id → owner. Only on sea maps. */
   ships: Record<string, string>;
+  /** Pieces sharing an edge that already holds another route's road or ship (settings.crossRoutes). */
+  crossings: Crossings;
   /** Robber hex id, or '' when it starts off the board (sea maps without a desert). */
   robber: string;
   /** Pirate hex id on sea maps, or null when it is not on the board. */
@@ -557,6 +563,9 @@ export interface GameView {
   buildings: Record<string, Building>;
   roads: Record<string, string>;
   ships: Record<string, string>;
+  crossings: Crossings;
+  /** Maps with routes: each player's route (see GameState.routeOf). */
+  routeOf: Record<string, number>;
   relays: string[];
   /** Cartographers rules are in play: lodestone, relay stations, charts, and splits. */
   cartographers: boolean;

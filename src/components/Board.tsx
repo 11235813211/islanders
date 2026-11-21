@@ -1,5 +1,6 @@
 import { type CSSProperties, useId } from 'react';
 import { playerColor } from '../../shared/colors';
+import { allPieces } from '../../shared/crossings';
 import type { GameLog, GameView } from '../../shared/types';
 import { ArtDefs, BuildingPiece, CARTOGRAPHERS, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
 import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
@@ -12,6 +13,7 @@ import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEff
 import FinishedCharts from './game/FinishedCharts';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
+import { pieceEnds } from './game/sharedEdges';
 import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
 import RouteZones from './RouteZones';
 import './Board.css';
@@ -233,12 +235,12 @@ export default function Board({
             peeks={view.fogPeeks}
           />
           <RouteZones zones={viewerZones(view)} />
-          {Object.entries(view.roads).map(([edgeId, owner]) => {
-            const [a, b] = edgeEnds(edgeId);
+          {allPieces(view, 'road').map(([edgeId, owner]) => {
+            const [a, b] = pieceEnds(view, edgeId, owner, edgeEnds(edgeId));
             const relay = view.relays.includes(edgeId);
             const name = `${playerName(owner)}'s ${relay ? 'relay station' : 'road'}`;
             return (
-              <g key={edgeId} className="board-road" aria-label={name}>
+              <g key={`${edgeId}:${owner}`} className="board-road" aria-label={name}>
                 <title>{name}</title>
                 {relay ? (
                   <CARTOGRAPHERS.Relay from={a} to={b} color={color(owner)} inset={ROAD_INSET} />

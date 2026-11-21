@@ -1,4 +1,5 @@
 import { shuffled } from './board';
+import { crosses, ownEdges, pieceOn } from './crossings';
 import { routeFinished } from './maps/special';
 import { boardIndex } from './seafaring';
 import {
@@ -109,33 +110,29 @@ export const linksAnywhere = (state: { settings: Pick<GameSettings, 'routeLinks'
 
 /** A player's longest route. Takes a view too (bots try out roads with it). */
 export function longestRoad(
-  state: Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'>,
+  state: Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'> &
+    Partial<Pick<GameState, 'crossings' | 'routeOf'>>,
   playerId: string,
 ): number {
-  const own = (id: string): 'road' | 'ship' | null =>
-    state.roads[id] === playerId ? 'road' : state.ships?.[id] === playerId ? 'ship' : null;
+  const own = (id: string) => pieceOn(state, playerId, id);
   // Only this player's routes, found by id: scanning every edge for every player after every move
   // was one of the largest costs of a turn.
   const edgeById = boardIndex(state.board).edge;
   const incident = new Map<string, Edge[]>();
-  const add = (routes: Record<string, string> | undefined) => {
-    for (const id in routes) {
-      if (routes[id] !== playerId) continue;
-      const edge = edgeById.get(id);
-      if (!edge) continue;
-      for (const v of [edge.a, edge.b]) {
-        const list = incident.get(v);
-        if (list) list.push(edge);
-        else incident.set(v, [edge]);
-      }
+  for (const id of ownEdges(state, playerId)) {
+    const edge = edgeById.get(id);
+    if (!edge) continue;
+    for (const v of [edge.a, edge.b]) {
+      const list = incident.get(v);
+      if (list) list.push(edge);
+      else incident.set(v, [edge]);
     }
-  };
-  add(state.roads);
-  add(state.ships);
+  }
   const anywhere = linksAnywhere(state);
   const walk = (vertex: string, used: Set<string>, kind: 'road' | 'ship' | null): number => {
     const building = state.buildings[vertex];
-    if (used.size && building && building.playerId !== playerId) return 0;
+    if (used.size && building && building.playerId !== playerId && !crosses(state, playerId, building.playerId))
+      return 0;
     let best = 0;
     for (const edge of incident.get(vertex) ?? []) {
       if (used.has(edge.id)) continue;

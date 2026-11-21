@@ -16,6 +16,7 @@ import {
   Shield,
   Timer,
   Trophy,
+  Waypoints,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import {
@@ -113,6 +114,14 @@ export const CATEGORIES: Category[] = [
             { value: 'settlement', label: 'At a settlement' },
           ],
         },
+      },
+      {
+        key: 'crossRoutes',
+        label: 'Cross other routes',
+        hint: 'Players on different routes may build roads and ships through each other. Settlements still keep their distance.',
+        icon: <Waypoints size={20} />,
+        when: view => !!view.board.rules?.routes?.length,
+        control: { kind: 'toggle' },
       },
       {
         key: 'volcanoStart',
