@@ -122,12 +122,8 @@ test('setup shows the order of every round and where your route must start; then
   expect(table.errors).toEqual([]);
 });
 
-test('the lobby offers crossing routes on a map with routes; shared edges draw both pieces side by side', async ({
-  page,
-}) => {
-  const lobby = await mountGame(page, seaLobby(rulesBoard(), 3));
-  await expect(page.getByText('Cross other routes')).toBeVisible();
-  lobby.update(g => Object.assign(g, afterSetup(setupGame())));
+test('shared edges on a map with crossing routes draw both pieces side by side', async ({ page }) => {
+  const lobby = await mountGame(page, afterSetup(setupGame()));
   const [edgeId, owner] = Object.entries(lobby.state().roads)[0]!;
   const other = owner === 'p0' ? 'p1' : 'p0';
   lobby.update(g => {
@@ -192,6 +188,12 @@ test('the editor sets setup rounds, extra pieces, and paints routes; the panel f
   await expect(special.getByRole('button', { name: 'Finish 1' })).toBeVisible();
   await expect(page.locator('.editor-canvas .zone-finish')).toHaveCount(1);
   await expect(special.getByRole('note')).toContainText('needs Second tiles');
+  // Crossing other routes only means something with two or more routes.
+  const cross = special.getByRole('button', { name: 'Cross other routes' });
+  await expect(cross).toBeHidden();
+  await special.getByRole('button', { name: 'Add route' }).click();
+  await cross.click();
+  await expect(cross).toHaveAttribute('aria-pressed', 'true');
 
   for (const [width, height] of WIDTHS) {
     await page.setViewportSize({ width, height });

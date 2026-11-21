@@ -66,7 +66,7 @@ export const routeGoalOf = (design: BoardDesign): RouteGoal => design.routeGoal 
 /** Set what finishing a route does. An optional route always gives at least a point. */
 export function setRouteGoal(design: BoardDesign, goal: RouteGoal): BoardDesign {
   const points = goal.required ? goal.points : Math.max(1, goal.points);
-  return { ...design, routeGoal: { required: goal.required, points } };
+  return { ...design, routeGoal: { required: goal.required, points, ...(goal.cross ? { cross: true } : {}) } };
 }
 
 /** What each setup round places (the usual two settlements are stored as nothing). */

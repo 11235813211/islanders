@@ -223,6 +223,10 @@ export function specialRules(rules: BoardRules | undefined, sea = false): Specia
         : `Build in your Finish area to score ${goal.points} point${goal.points === 1 ? '' : 's'}.`,
     );
     lines.push('Your Finish area is outlined in green.');
+    if (several && goal.cross)
+      lines.push(
+        'Roads and ships may share edges with, and pass the settlements of, players on other routes. Settlements keep their distance.',
+      );
     out.push({ kind: 'routes', title: goal.required ? 'Route to finish' : 'Route bonus', lines });
   }
   return out;

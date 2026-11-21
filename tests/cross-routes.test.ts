@@ -1,23 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { getView, normalizeGame } from '../shared/engine';
 import { pieceCounts } from '../shared/engine/core';
+import { parseDesign } from '../shared/maps';
+import { setRouteGoal } from '../shared/maps/special-edit';
 import { longestRoad } from '../shared/rules';
 import { boardIndex, isRoadEdge, isShipEdge, otherEnd } from '../shared/seafaring';
 import type { GameState } from '../shared/types';
 import { act, grant, inSeatOrder, seaLobby, settled, testDesign } from './fixtures';
 
 /**
- * Crossing routes (settings.crossRoutes): players on different routes share edges and build past
+ * Crossing routes (a map's routeGoal.cross): players on different routes share edges and build past
  * each other's buildings; players on the same route block each other as usual.
  * p0 and p1 hold route 0, p2 holds route 1.
  */
+
+/** Turn the map's crossing rule on or off (the board is a fresh copy in each test). */
+function setCross(g: GameState, on: boolean) {
+  g.board = { ...g.board, rules: { ...g.board.rules, routeGoal: { required: false, points: 1, cross: on } } };
+}
 
 /** A building turn for p0 on the base island with nothing built, and four corners in a line. */
 function crossing(on = true) {
   const g = settled(3);
   Object.assign(g, { buildings: {}, roads: {}, ships: {}, crossings: {}, phase: 'build', turnIndex: 0 });
   g.rollDeadline = null;
-  g.settings.crossRoutes = on;
+  setCross(g, on);
   g.routeOf = { p0: 0, p1: 0, p2: 1 };
   grant(g, 'p0', { wood: 4, brick: 4, sheep: 2, wheat: 2 });
   return { g, line: landLine(g) };
@@ -57,7 +64,7 @@ describe('crossing routes', () => {
     g.roads[line.edges[0]!] = 'p1';
     expect(getView(g, 'p0').legal.roads).not.toContain(line.edges[0]);
     g.roads[line.edges[0]!] = 'p2';
-    g.settings.crossRoutes = false;
+    setCross(g, false);
     expect(getView(g, 'p0').legal.roads).not.toContain(line.edges[0]);
   });
 
@@ -82,10 +89,10 @@ describe('crossing routes', () => {
     expect(getView(g, 'p0').legal.roads).toContain(line.edges[2]);
     g.roads[line.edges[2]!] = 'p0';
     expect(longestRoad(g, 'p0')).toBe(3);
-    g.settings.crossRoutes = false;
+    setCross(g, false);
     expect(longestRoad(g, 'p0')).toBe(2);
     g.buildings[line.corners[2]!] = { playerId: 'p1', kind: 'settlement' };
-    g.settings.crossRoutes = true;
+    setCross(g, true);
     delete g.roads[line.edges[2]!];
     expect(getView(g, 'p0').legal.roads).not.toContain(line.edges[2]);
   });
@@ -97,6 +104,14 @@ describe('crossing routes', () => {
     g.roads[line.edges[1]!] = 'p0';
     g.buildings[line.corners[3]!] = { playerId: 'p2', kind: 'settlement' };
     expect(getView(g, 'p0').legal.settlements).not.toContain(line.corners[2]);
+  });
+
+  it('is saved with the map and kept by the editor', () => {
+    const { g } = crossing();
+    const design = setRouteGoal(ISLE, { required: true, points: 2, cross: true });
+    expect(parseDesign(design, ['seafaring']).routeGoal).toEqual({ required: true, points: 2, cross: true });
+    expect(setRouteGoal(design, { required: false, points: 1 }).routeGoal).toEqual({ required: false, points: 1 });
+    expect(g.board.rules?.routeGoal?.cross).toBe(true);
   });
 
   it('starts empty in rooms saved before it', () => {
@@ -119,8 +134,8 @@ describe('crossing routes at sea', () => {
   /** p0's settlement on the shore, p1 (another route) holding the ship edge beside it. */
   function sea() {
     let g = seaLobby(ISLE, 2);
-    g = act(g, 'p0', { type: 'configure', settings: { ...g.settings, crossRoutes: true } });
     g = inSeatOrder(act(g, 'p0', { type: 'start' }));
+    setCross(g, true);
     Object.assign(g, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null, pirate: null });
     Object.assign(g, { buildings: {}, roads: {}, ships: {}, crossings: {}, shipsBuilt: [] });
     g.routeOf = { p0: 0, p1: 1 };

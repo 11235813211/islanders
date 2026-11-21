@@ -239,7 +239,7 @@ export const EDITOR_HELP: EditorHelpTab[] = [
       {
         icon: <Flag size={ICON} />,
         title: 'Finishing a route',
-        text: 'Needed to win, or only bonus points. Players see their Finish area outlined in green.',
+        text: 'Needed to win, or only bonus points. Players see their Finish area outlined in green. With two or more routes, Cross other routes lets players on different routes build through each other.',
       },
     ],
   },

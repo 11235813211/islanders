@@ -1,7 +1,7 @@
-import type { Crossings, GameSettings } from './types';
+import type { Board, Crossings } from './types';
 
 /**
- * Crossing routes (settings.crossRoutes): on maps with routes, players whose starting settlements
+ * Crossing routes (the map's routeGoal.cross): on maps with routes, players whose starting settlements
  * chose different routes may build roads and ships on the same edges and past each other's
  * settlements and cities. An edge's first piece stays in `roads`/`ships`; any others sit in
  * `crossings`. Everything that asks whose piece is on an edge goes through here.
@@ -16,13 +16,13 @@ export interface EdgePieces {
 
 /** What deciding who may cross whom looks at. */
 export interface CrossRules {
-  settings: Pick<GameSettings, 'crossRoutes'>;
+  board: Pick<Board, 'rules'>;
   routeOf?: Record<string, number>;
 }
 
-/** Whether these two players may build through each other: crossing is on and they hold different routes. */
+/** Whether these two players may build through each other: the map allows it and they hold different routes. */
 export function crosses(state: CrossRules, a: string, b: string): boolean {
-  if (!state.settings.crossRoutes || a === b) return false;
+  if (!state.board.rules?.routeGoal?.cross || a === b) return false;
   const ra = state.routeOf?.[a];
   const rb = state.routeOf?.[b];
   return ra !== undefined && rb !== undefined && ra !== rb;

@@ -36,8 +36,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
   seafarers: false,
   // Where a road and a ship may join: 'anywhere' or 'settlement' (published rule).
   routeLinks: 'anywhere',
-  // Maps with routes: players on different routes may build through each other: true or false.
-  crossRoutes: false,
   // Jungle discoveries: 'kept', 'tradable', or 'card'.
   discoveries: 'kept',
   // Volcanoes pay a resource of the owner's choice: true or false.

@@ -112,10 +112,14 @@ export interface RouteZones {
 }
 export type RouteZone = keyof RouteZones;
 
-/** Finishing a route: `required` to win, and worth `points` (0–5) either way. */
+/**
+ * Finishing a route: `required` to win, and worth `points` (0–5) either way. `cross`: players on
+ * different routes may build roads and ships through each other (see shared/crossings.ts).
+ */
 export interface RouteGoal {
   required: boolean;
   points: number;
+  cross?: boolean;
 }
 
 /** A board's special rules as the game plays them, carried on the built Board (absent parts: usual rules). */

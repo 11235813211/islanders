@@ -239,7 +239,7 @@ const MIGRATIONS: Migration[] = [
   s => {
     for (const hex of s.board?.hexes ?? []) delete hex.chartedBy;
   },
-  // 29 → 30: roads and ships may share an edge with another route's piece (settings.crossRoutes).
+  // 29 → 30: roads and ships may share an edge with another route's piece (the map's routeGoal.cross).
   s => {
     s.crossings ??= {};
   },

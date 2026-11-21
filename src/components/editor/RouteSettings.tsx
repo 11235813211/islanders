@@ -1,4 +1,4 @@
-import { AlertTriangle, Paintbrush, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import type { BoardDesign, RouteZone } from '../../../shared/maps';
 import { SPECIAL_LIMITS } from '../../../shared/maps/special';
@@ -141,6 +141,21 @@ export default function RouteSettings({
               ))}
             </span>
           </div>
+          {routes.length > 1 && (
+            <div className="special-line">
+              <span className="chip-row">
+                <button
+                  type="button"
+                  aria-pressed={!!goal.cross}
+                  data-tip="Players on different routes may build roads and ships through each other. Settlements keep their distance."
+                  onClick={() => edit(d => setRouteGoal(d, { ...routeGoalOf(d), cross: !routeGoalOf(d).cross }))}
+                >
+                  {goal.cross && <Check size={14} />}
+                  Cross other routes
+                </button>
+              </span>
+            </div>
+          )}
           <div className="special-line">
             <span className="special-name">Points for finishing</span>
             <CountStepper

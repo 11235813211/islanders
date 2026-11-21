@@ -332,9 +332,18 @@ function parseSpecial(value: Record<string, unknown>): Partial<BoardDesign> {
   if (value.supply !== undefined) out.supply = parseSupply(value.supply, out.setupPieces ?? DEFAULT_SETUP);
   if (value.routeGoal !== undefined) {
     const goal = value.routeGoal;
-    if (!record(goal) || typeof goal.required !== 'boolean' || !int(goal.points, 0, SPECIAL_LIMITS.routePoints))
+    if (
+      !record(goal) ||
+      typeof goal.required !== 'boolean' ||
+      !int(goal.points, 0, SPECIAL_LIMITS.routePoints) ||
+      (goal.cross !== undefined && typeof goal.cross !== 'boolean')
+    )
       return fail('Invalid route goal.');
-    out.routeGoal = { required: goal.required, points: goal.points as number } as RouteGoal;
+    out.routeGoal = {
+      required: goal.required,
+      points: goal.points as number,
+      ...(goal.cross ? { cross: true } : {}),
+    } as RouteGoal;
   }
   return out;
 }

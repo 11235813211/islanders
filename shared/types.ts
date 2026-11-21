@@ -271,8 +271,6 @@ export interface GameSettings {
   volcanoDice: 'random' | 'balanced';
   /** Seafarers: where a road and a ship may join. `settlement` is the published rule (only at your own building). */
   routeLinks: 'anywhere' | 'settlement';
-  /** Maps with routes: players on different routes may build roads and ships through each other's pieces and buildings. */
-  crossRoutes: boolean;
   /** Cartographers: gold fields and volcanoes may be charted too. */
   chartSpecial: boolean;
 }
@@ -388,7 +386,7 @@ export interface GameState {
   roads: Record<string, string>;
   /** Edge id → owner. Only on sea maps. */
   ships: Record<string, string>;
-  /** Pieces sharing an edge that already holds another route's road or ship (settings.crossRoutes). */
+  /** Pieces sharing an edge that already holds another route's road or ship (the map's routeGoal.cross). */
   crossings: Crossings;
   /** Robber hex id, or '' when it starts off the board (sea maps without a desert). */
   robber: string;
