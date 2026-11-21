@@ -10,6 +10,12 @@ _Nothing running._
 
 ## Finished
 
+### Check after adding Cities & Knights
+
+- **Why:** commodities joined `RESOURCES`, so the bots now reason over `TILE_RESOURCES`; confirm the base-game bots play as before.
+- **Result (2026-11-21, `eval --games 2000`, about 23 minutes on a busy machine):** Advanced won **56.8% ±1.1%** against a fair 29.7% (×1.91), no unfinished games, 687 ms per game. Same as the last check (56.4%).
+  Cities & Knights itself is played by one hand-written layer for every level (`shared/bots/knights.ts`); `tests/knights-bots.test.ts` plays full games. Not tuned or measured for strength.
+
 ### Robber blocks one number (Cartographers)
 
 - **Why:** the robber now blocks only a charted tile's most likely number; check that Advanced counting just that number is no weaker.
