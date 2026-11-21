@@ -10,6 +10,9 @@ export const RESOURCE_LABELS: Record<Resource, string> = {
   wheat: 'Grain',
   ore: 'Ore',
   lodestone: 'Lodestone',
+  paper: 'Paper',
+  cloth: 'Cloth',
+  coin: 'Coin',
 };
 
 /** Most cards drawn in one stack; the count badge carries the rest. */

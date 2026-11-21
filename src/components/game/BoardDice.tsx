@@ -2,6 +2,7 @@ import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import type { GameView } from '../../../shared/types';
 import { sinceLatestRoll, useFreshLog } from '../../hooks/useFreshLog';
 import { DieFace } from './BoardEffects';
+import '../knights/knights.css';
 
 /** Where a fresh roll starts and where the board's middle is, relative to the dice's resting spot. */
 interface Path {
@@ -57,13 +58,13 @@ export default function BoardDice({ view }: { view: GameView }) {
       className={`board-dice${tumble ? ' rolling' : ''}`}
       style={style}
       role="img"
-      aria-label={`Dice: ${a} and ${b}, total ${a + b}`}
+      aria-label={view.ck ? `Dice: red ${a}, yellow ${b}, total ${a + b}` : `Dice: ${a} and ${b}, total ${a + b}`}
       onAnimationEnd={event => event.target === event.currentTarget && roll && setSettled(roll.id)}
     >
       {dice.map((value, i) => (
         <svg
           key={i}
-          className="board-die"
+          className={`board-die${view.ck ? (i ? ' ck-yellow-die' : ' ck-red-die') : ''}`}
           viewBox="-30 -30 60 60"
           style={{ '--spin': `${i ? -540 : 540}deg` } as CSSProperties}
         >

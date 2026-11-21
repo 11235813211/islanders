@@ -292,16 +292,16 @@
   }
 }
 
-/* Cartographers adds relay, chart, split, and peek buttons: on a phone they take two rows of
+/* Cartographers (relay, chart, split, peek) and Cities & Knights (knight, wall, improve) add buttons: on a phone they take two rows of
    equal buttons, with the count tucked in a corner, and End turn spans both rows. */
 @media (max-width: 720px) and (orientation: portrait) {
-  .game-table:has(.table-actions.cartographers) {
+  .game-table:has(.table-actions:is(.cartographers, .knights)) {
     grid-template-rows: 30px auto minmax(0, 1fr) 60px 82px;
   }
-  .table-actions.cartographers {
+  .table-actions:is(.cartographers, .knights) {
     gap: 5px;
   }
-  .table-actions.cartographers .build-buttons {
+  .table-actions:is(.cartographers, .knights) .build-buttons {
     display: grid;
     flex: 1 1 auto;
     grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
@@ -309,28 +309,36 @@
     gap: 4px;
     min-width: 0;
   }
-  .table-actions.cartographers .recipe-control {
+  .table-actions:is(.cartographers, .knights) .recipe-control {
     min-width: 0;
   }
-  .table-actions.cartographers .build-compact {
+  .table-actions:is(.cartographers, .knights) .build-compact {
     width: 100%;
     min-width: 0;
     padding: 3px 2px;
     gap: 0;
     box-sizing: border-box;
   }
-  .table-actions.cartographers .build-compact > svg {
+  .table-actions:is(.cartographers, .knights) .build-compact > svg {
     width: 21px;
     height: 21px;
   }
-  .table-actions.cartographers .build-compact small {
+  .table-actions:is(.cartographers, .knights) .build-compact small {
     position: absolute;
     top: 1px;
     right: 3px;
     font-size: 9px;
   }
-  .table-actions.cartographers .turn-action {
+  .table-actions:is(.cartographers, .knights) .turn-action {
     flex: 0 0 auto;
     padding: 4px 10px;
+  }
+}
+
+/* Cities & Knights: the improvement levels beside each name don't fit a phone's scoreboard; the
+   knights column's tooltip and the Improve panel still show them. */
+@media (max-width: 720px) {
+  .ck-player-stats {
+    display: none;
   }
 }

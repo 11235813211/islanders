@@ -27,7 +27,7 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
-import { type GameView, type PublicPlayer, RESOURCES, type Resource } from '../../../shared/types';
+import { CLASSIC_RESOURCES, type GameView, type PublicPlayer, RESOURCES, type Resource } from '../../../shared/types';
 
 /** One column of an end-of-game stats table: a number per player. */
 export interface StatColumn {
@@ -201,8 +201,8 @@ export const STAT_CATEGORIES: StatCategory[] = [
         resource,
         title: `${capitalized(resource)} from rolls and gold`,
         value: (p: PublicPlayer) => p.stats.produced[resource] ?? 0,
-        // Lodestone only shows on Cartographers maps.
-        optional: resource === 'lodestone',
+        // Lodestone shows only on Cartographers maps, commodities only with Cities & Knights.
+        optional: !(CLASSIC_RESOURCES as readonly string[]).includes(resource),
       })),
       { label: 'Total', title: 'Resources from rolls and gold', value: p => sum(p.stats.produced), total: true },
       { icon: Ban, label: 'Blocked', title: 'Cards the robber kept from this player', value: p => p.stats.blocked },

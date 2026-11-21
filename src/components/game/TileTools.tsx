@@ -9,9 +9,9 @@ import {
   type GameAction,
   type GameView,
   type Hex,
-  RESOURCES,
   type Resource,
   type Terrain,
+  TILE_RESOURCES,
 } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import type { BoardMode } from '../Board';
@@ -150,7 +150,7 @@ function chartConfirm(
 
 /** The resources a split may add to this tile: any but its own, and never lodestone. */
 const splitOptions = (hex: Hex): Resource[] =>
-  RESOURCES.filter(r => r !== terrainResource(hex.terrain) && r !== 'lodestone');
+  TILE_RESOURCES.filter(r => r !== terrainResource(hex.terrain) && r !== 'lodestone');
 
 /** The corner panel for a tile picked to split: what it is, the resource to add, and what it costs. */
 function SplitPanel({

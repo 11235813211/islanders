@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
-import type { Board, GameView, Hex, Resource } from '../../shared/types';
+import type { Board, GameView, Hex, TileResource } from '../../shared/types';
 import {
   CARTOGRAPHERS,
   type Frame,
@@ -52,7 +52,7 @@ function PeekedFog({ uid, hex, peek }: { uid: string; hex: Hex; peek: GameView['
 }
 
 /** A split tile (Cartographers): its own terrain on the left half, the added resource's on the right. */
-function SplitTile({ uid, hex, split }: { uid: string; hex: Hex; split: Resource }) {
+function SplitTile({ uid, hex, split }: { uid: string; hex: Hex; split: TileResource }) {
   return (
     <g aria-label={`Split tile: ${hex.terrain} or ${split}`}>
       <g clipPath={`url(#${uid}-half-left)`}>

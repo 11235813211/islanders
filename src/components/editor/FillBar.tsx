@@ -11,7 +11,7 @@ import {
   unfillHarbors,
   unfillLand,
 } from '../../../shared/maps/fill';
-import { RESOURCES, type Resource } from '../../../shared/types';
+import { TILE_RESOURCES, type TileResource } from '../../../shared/types';
 import { ResourceIcon } from '../../art';
 import { useDismiss } from '../../hooks/useDismiss';
 import { RESOURCE_LABELS } from '../ResourceHand';
@@ -76,8 +76,8 @@ function FillButton({
   );
 }
 
-const HARBOR_KINDS: (Resource | 'any')[] = ['any', ...RESOURCES];
-const kindLabel = (kind: Resource | 'any') => (kind === 'any' ? '3:1 any' : `2:1 ${RESOURCE_LABELS[kind]}`);
+const HARBOR_KINDS: (TileResource | 'any')[] = ['any', ...TILE_RESOURCES];
+const kindLabel = (kind: TileResource | 'any') => (kind === 'any' ? '3:1 any' : `2:1 ${RESOURCE_LABELS[kind]}`);
 
 /** Which kinds random harbors can become. All are on by default; the design stores the ones turned off. */
 function HarborKindsMenu({ design, edit }: { design: BoardDesign; edit: Edit }) {
@@ -86,7 +86,7 @@ function HarborKindsMenu({ design, edit }: { design: BoardDesign; edit: Edit }) 
   const close = useCallback(() => setOpen(false), []);
   useDismiss(open, close, root);
   const allowed = HARBOR_KINDS.filter(k => !design.harborExclude.includes(k));
-  const toggle = (kind: Resource | 'any') =>
+  const toggle = (kind: TileResource | 'any') =>
     edit(d => ({
       ...d,
       harborExclude: d.harborExclude.includes(kind)

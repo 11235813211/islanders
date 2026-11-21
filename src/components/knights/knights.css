@@ -1,0 +1,217 @@
+/* Cities & Knights: board pieces, the barbarian track, panels, and progress cards. */
+.ck-knight-ring {
+  fill: rgba(255, 249, 223, 0.18);
+  stroke: #fff9df;
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+.ck-knight-target {
+  cursor: pointer;
+}
+.ck-corner-mark {
+  fill: rgba(255, 224, 138, 0.35);
+  stroke: #ffe08a;
+  stroke-width: 2.5;
+}
+
+.ck-barbarians {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: calc(100% - 20px);
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: rgba(255, 252, 240, 0.92);
+  border: 1px solid #c9b98a;
+  color: #3b2f1a;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.ck-barbarians.losing .ck-strength {
+  color: #a32a1d;
+}
+.ck-sea {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  width: 98px;
+  min-width: 0;
+}
+.ck-sea > span:not(.ck-ship) {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #9fc6d8;
+}
+.ck-sea > span.sailed {
+  background: #b8392d;
+}
+.ck-ship {
+  position: absolute;
+  top: -16px;
+  transform: translateX(-50%);
+  transition: left 0.6s ease;
+}
+.ck-event {
+  display: flex;
+}
+
+.ck-actions,
+.ck-players,
+.ck-tracks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  min-width: 0;
+}
+.ck-tracks {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+.ck-actions > .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  box-sizing: border-box;
+}
+.ck-cost {
+  display: inline-flex;
+  gap: 1px;
+}
+.ck-free {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2f6b3a;
+}
+.ck-note,
+.ck-card-text {
+  margin: 0 12px 8px;
+  font-size: 0.85rem;
+  color: #4a3f2c;
+}
+.ck-card-text {
+  padding: 8px 10px;
+  border-left: 4px solid;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.ck-track {
+  min-width: 0;
+  padding: 6px 8px;
+  border-left: 4px solid var(--track);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.ck-track-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+.ck-track-head > strong {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--track-dark);
+}
+.ck-pips {
+  display: flex;
+  gap: 3px;
+}
+.ck-pips > span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--track-dark);
+  box-sizing: border-box;
+}
+.ck-pips > span.on {
+  background: var(--track);
+}
+.ck-raise {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 32px;
+  min-width: 66px;
+  box-sizing: border-box;
+  justify-content: center;
+}
+.ck-track-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.75rem;
+  color: #5a4d33;
+}
+.ck-dice-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 8px;
+}
+.ck-die {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.ck-die > strong {
+  width: 18px;
+  text-align: center;
+}
+.ck-players > .button[aria-pressed="true"] {
+  outline: 2px solid #3b2f1a;
+}
+
+.cards-progress .cards-card-label {
+  letter-spacing: -0.2px;
+}
+
+/* The player panel's improvement levels and knight strength. */
+.ck-player-stats {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.ck-player-stats > span {
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: #fff;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* The red and yellow production dice. */
+.ck-red-die .board-die-face rect {
+  fill: #c8392b;
+  stroke: #7d1f15;
+}
+.ck-red-die .board-die-face circle {
+  fill: #fff;
+}
+.ck-yellow-die .board-die-face rect {
+  fill: #f2c94c;
+  stroke: #9a7406;
+}
+.ck-yellow-die .board-die-face circle {
+  fill: #3b2a05;
+}
+
+/* With a corner panel open the zoom buttons move to the top right: the strip steps left of them. */
+.board-viewport:has(.board-corner) .ck-barbarians {
+  right: 48px;
+  max-width: calc(100% - 58px);
+}

@@ -57,9 +57,10 @@ export interface SettingDef {
 export interface SettingPreviewProps {
   view: GameView;
 }
-export type Theme = 'seafarers' | 'tropics' | 'cartographers';
+export type Theme = 'knights' | 'seafarers' | 'tropics' | 'cartographers';
 /** Titles of the themed boxes, in the order they appear. */
 export const THEMES: Record<Theme, string> = {
+  knights: 'Cities & Knights',
   seafarers: 'Seafarers',
   tropics: 'Volcanoes and jungles',
   cartographers: 'Cartographers',
@@ -85,6 +86,14 @@ export const CATEGORIES: Category[] = [
     title: 'Variations',
     tone: 'sea',
     settings: [
+      {
+        key: 'citiesKnights',
+        theme: 'knights',
+        label: 'Cities & Knights',
+        hint: 'Commodities, city improvements, knights, barbarians, and progress cards. Plays to 13 points.',
+        icon: <Shield size={20} />,
+        control: { kind: 'toggle' },
+      },
       {
         key: 'seafarers',
         theme: 'seafarers',

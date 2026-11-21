@@ -17,8 +17,8 @@ import {
   bagHas,
   bagTotal,
   held,
-  resourcesIn,
   TradableIcon,
+  tileResourcesIn,
   tradableLabel,
   tradableStyle,
   tradablesFor,
@@ -149,9 +149,15 @@ export function Palette({
 
 const without = (bag: TradeBag, r: Tradable): TradeBag => withItem(bag, r, -1);
 
+/** Cards you must hand over now: a discard on a 7 (or Saboteur), or a Wedding gift. */
+export function cardsOwed(view: GameView): number {
+  if (view.phase === 'gift') return view.ck?.gifts[view.selfId] ?? 0;
+  return view.phase === 'discard' ? (view.pendingDiscards[view.selfId] ?? 0) : 0;
+}
+
 /** Add one card (or discovery, where it counts) from your hand to a discard, within what you hold and owe. */
 export function addDiscard(bag: TradeBag, item: Tradable, view: GameView): TradeBag {
-  const owed = view.pendingDiscards[view.selfId] ?? 0;
+  const owed = cardsOwed(view);
   if (!tradablesFor(view, 'discard').includes(item)) return bag;
   if (bagHas(bag, item) >= held(view, item) || bagTotal(bag) >= owed) return bag;
   return withItem(bag, item, 1);
@@ -171,26 +177,29 @@ export function DiscardPanel({
   busy: boolean;
   send: (a: GameAction) => void;
 }) {
-  const owed = view.pendingDiscards[view.selfId] ?? 0;
+  const owed = cardsOwed(view);
   const count = bagTotal(bag);
+  // A Wedding gift is chosen the same way, but goes to the player who played the card.
+  const gift = view.phase === 'gift';
+  const to = view.players.find(p => p.id === view.turnPlayerId)?.name;
   return (
     <Panel
-      title="Discard resources"
+      title={gift ? `Wedding gift for ${to}` : 'Discard resources'}
       status={`${count} / ${owed} chosen`}
       action={
         <button
           className="button primary"
           disabled={busy || count !== owed}
-          onClick={() => send({ type: 'discard', resources: bag })}
+          onClick={() => send(gift ? { type: 'give-cards', resources: bag } : { type: 'discard', resources: bag })}
         >
           <Check size={18} />
-          Discard {owed}
+          {gift ? `Give ${owed}` : `Discard ${owed}`}
         </button>
       }
     >
       <Chosen
         bag={bag}
-        label="Discard"
+        label={gift ? 'Give' : 'Discard'}
         direction="out"
         hint={`Tap ${owed} cards in your hand`}
         remove={r => setBag(without(bag, r))}
@@ -338,7 +347,7 @@ export function GoldPanel({
         </p>
       ))}
       <Palette
-        items={resourcesIn(view)}
+        items={tileResourcesIn(view)}
         label="Choose resources from gold"
         name={r => `Take one more ${tradableLabel(r)}`}
         disabled={r => busy || picked >= owed || r === 'discovery' || outOf(r) || !fits(r)}

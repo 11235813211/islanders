@@ -2,9 +2,11 @@ import type { CSSProperties } from 'react';
 import { DISCOVERY_RULES } from '../../../shared/settings';
 import {
   CLASSIC_RESOURCES,
+  COMMODITIES,
   type GameView,
   RESOURCES,
   type Resource,
+  TILE_RESOURCES,
   type Tradable,
   type TradeBag,
 } from '../../../shared/types';
@@ -38,9 +40,15 @@ export const withItem = (bag: TradeBag, item: Tradable, change: number): TradeBa
 /** What the room lets discoveries do here: trade with players, count toward discards, or be taken by cards. */
 export type DiscoveryUse = 'trade' | 'discard' | 'take';
 
-/** The resources in play: lodestone only on Cartographers maps. */
-export const resourcesIn = (view: Pick<GameView, 'cartographers'>): Resource[] => [
-  ...(view.cartographers ? RESOURCES : CLASSIC_RESOURCES),
+/** The resources a tile pays here (what gold can be): lodestone only on Cartographers maps. */
+export const tileResourcesIn = (view: Pick<GameView, 'cartographers'>): Resource[] => [
+  ...(view.cartographers ? TILE_RESOURCES : CLASSIC_RESOURCES),
+];
+
+/** The card kinds in play: the tile resources, plus commodities with Cities & Knights. */
+export const resourcesIn = (view: Pick<GameView, 'cartographers' | 'ck'>): Resource[] => [
+  ...tileResourcesIn(view),
+  ...(view.ck ? COMMODITIES : []),
 ];
 
 /** The items a panel offers: the resources in play, plus discoveries when this map and room allow it. */

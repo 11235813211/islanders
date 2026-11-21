@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { BUILTIN_BOARDS } from '../shared/maps';
-import { grant, richGame, seaSettled, settled } from './fixtures';
+import { grant, knightsTable, richGame, seaSettled, settled } from './fixtures';
 import { expectNoSpill, mountGame } from './ui-harness';
 
 // Runs in the "iphone" project (WebKit, touch, 390×664 viewport). See playwright.config.ts.
@@ -326,5 +326,29 @@ test('portrait phone: giving time and leaving the special build line fit the tur
   await page.screenshot({ path: 'test-results/phone-give-time.png' });
   await page.getByRole('button', { name: /^Cancel special build/ }).tap();
   await expect.poll(() => game.state().specialQueue).toEqual([]);
+  expect(game.errors).toEqual([]);
+});
+
+test('Cities & Knights fits a phone: build bar, knight menu, and city panel, all tappable', async ({ page }) => {
+  const game = await mountGame(page, knightsTable());
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await expectNoSpill(page.locator('.table-actions'));
+  for (const name of ['Build road', 'Build a city wall: keep 2 more cards on a 7', 'End turn']) {
+    const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
+    expect(box.height, `${name} is tall enough to tap`).toBeGreaterThanOrEqual(30);
+    expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+  }
+  await page.getByRole('button', { name: /City improvements/ }).tap();
+  const city = page.getByRole('dialog', { name: 'City improvements' });
+  await expectNoSpill(city);
+  await page.getByRole('button', { name: /Raise Trade to level 2/ }).tap();
+  await expect.poll(() => game.state().ck!.improvements.p0!.trade).toBe(2);
+  await page.getByRole('button', { name: 'Close City improvements' }).tap();
+  await page
+    .getByRole('button', { name: /inactive. Choose what it does/ })
+    .first()
+    .tap();
+  await expectNoSpill(page.getByRole('dialog', { name: 'Basic knight' }));
+  await page.screenshot({ path: 'test-results/phone-knights.png' });
   expect(game.errors).toEqual([]);
 });

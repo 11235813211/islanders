@@ -1,13 +1,14 @@
 // Active art version. To roll back, point this at an older folder (e.g. './v1').
 import type { ReactElement } from 'react';
 import { createElement } from 'react';
-import type { BaseTerrain, Resource, Terrain } from '../../shared/types';
-import type { CardColors, CartographersArt, SeaArt, SeaTileKind } from './types';
+import { type BaseTerrain, COMMODITIES, type Commodity, type Resource, type Terrain } from '../../shared/types';
+import type { CardColors, CartographersArt, KnightsArt, SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
 import { FogTile as FallbackFogTile } from './v12/sea/fog';
 import { cartographers as fallbackCartographers } from './v14/cartographers';
 import { cartographers as splitCartographers } from './v16/cartographers';
-import { art } from './v17';
+import { art } from './v18';
+import { knights as fallbackKnights } from './v18/knights';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
@@ -19,20 +20,29 @@ export const CARTOGRAPHERS: CartographersArt =
 /** Split seams and peek veils: the active version's, or v16's for versions made before them. */
 export const SplitSeam = CARTOGRAPHERS.SplitSeam ?? splitCartographers.SplitSeam!;
 export const PeekVeil = CARTOGRAPHERS.PeekVeil ?? splitCartographers.PeekVeil!;
-export const CARD_COLORS: Record<Resource, CardColors> = { ...art.cardColors, lodestone: CARTOGRAPHERS.cardColors };
+/** Cities & Knights art: the active version's, or v18's for versions made before it. */
+export const KNIGHTS: KnightsArt = (art as { knights?: KnightsArt }).knights ?? fallbackKnights;
+export const CARD_COLORS: Record<Resource, CardColors> = {
+  ...art.cardColors,
+  lodestone: CARTOGRAPHERS.cardColors,
+  ...KNIGHTS.cardColors,
+};
+
+const isCommodity = (resource: Resource): resource is Commodity =>
+  (COMMODITIES as readonly string[]).includes(resource);
 
 /** A resource's small icon (card corners, harbors, logs). */
 export function ResourceIcon({ resource, size }: { resource: Resource; size?: number }): ReactElement {
-  return resource === 'lodestone'
-    ? createElement(CARTOGRAPHERS.ResourceIcon, { size })
-    : createElement(art.ResourceIcon, { resource, size });
+  if (resource === 'lodestone') return createElement(CARTOGRAPHERS.ResourceIcon, { size });
+  if (isCommodity(resource)) return createElement(KNIGHTS.CommodityIcon, { commodity: resource, size });
+  return createElement(art.ResourceIcon, { resource, size });
 }
 
 /** The large illustration in the middle of a resource card. */
 export function ResourceArt({ resource }: { resource: Resource }): ReactElement {
-  return resource === 'lodestone'
-    ? createElement(CARTOGRAPHERS.ResourceArt)
-    : createElement(art.ResourceArt, { resource });
+  if (resource === 'lodestone') return createElement(CARTOGRAPHERS.ResourceArt);
+  if (isCommodity(resource)) return createElement(KNIGHTS.CommodityArt, { commodity: resource });
+  return createElement(art.ResourceArt, { resource });
 }
 /** Sea-map art: the active version's, or v7's for versions made before sea maps. */
 export const SEA: SeaArt = (art as { sea?: SeaArt }).sea ?? fallbackSea;

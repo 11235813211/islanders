@@ -17,11 +17,16 @@ test('a guest without a name gets one from the list, picks a color, and sets the
   await expect(page.locator('.lobby-player span').first()).toContainText('Purple');
 
   await expect(page.getByLabel('Number layout', { exact: true })).toHaveValue('ordered');
-  // No Seafarers on the standard island: nothing about ships, and no empty Variations group.
+  // No Seafarers on the standard island: nothing about ships; Variations holds only Cities & Knights.
   await expect(page.getByLabel('Roads meet ships', { exact: true })).toBeHidden();
   await expect(page.getByLabel('Ships and pirate', { exact: true })).toBeHidden();
-  await expect(page.locator('.setting-group').filter({ hasText: 'Variations' })).toHaveCount(0);
   const points = page.getByRole('group', { name: 'Points to win' });
+  // Cities & Knights plays to 13; turning it off again brings back 10.
+  const knights = page.getByRole('checkbox', { name: 'Cities & Knights' });
+  await knights.click();
+  await expect(points.locator('output')).toHaveText('13');
+  await knights.click();
+  await expect(points.locator('output')).toHaveText('10');
   await points.getByRole('button', { name: 'More points to win' }).click();
   await expect(points.locator('output')).toHaveText('11');
   // Saving games is off until the host chooses it; with nobody to opt out, the lobby says the game will be saved.

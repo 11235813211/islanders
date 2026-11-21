@@ -1,13 +1,15 @@
 import { Bot, ChevronDown, ChevronUp, Flag, Route, WifiOff } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
+import { activeStrength, type KnightsView, TRACK_INFO, TRACKS } from '../../../shared/knights';
 import { DISCOVERY_RULES } from '../../../shared/settings';
 import type { GameView } from '../../../shared/types';
-import { ResourceIcon, SEA } from '../../art';
+import { KNIGHTS, ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
 import { canHandSeat } from './SeatDialog';
 import { resourcesIn, tradableStyle } from './tradables';
+import '../knights/knights.css';
 
 const FOLDED_KEY = 'islanders:scoreboard-folded';
 
@@ -49,6 +51,7 @@ export default function PlayerPanel({
   pickSeat: (playerId: string) => void;
   rename: () => void;
 }) {
+  const ck = view.ck;
   const [folded, setFolded] = useFolded();
   return (
     <section className={`player-panel${folded ? ' folded' : ''}`} aria-label="Player scoreboard">
@@ -70,15 +73,15 @@ export default function PlayerPanel({
               <span className="mini-card" />
               <span className="sr-only">Resources</span>
             </th>
-            <th title="Development cards">
+            <th title={ck ? 'Progress cards' : 'Development cards'}>
               <span className="mini-card dev" />
-              <span className="sr-only">Development cards</span>
+              <span className="sr-only">{ck ? 'Progress cards' : 'Development cards'}</span>
             </th>
             <th title="Longest road length">
               <Route size={16} />
               <span className="sr-only">Road</span>
             </th>
-            <th title="Knights played">
+            <th title={ck ? 'Active knight strength' : 'Knights played'}>
               <KnightIcon />
               <span className="sr-only">Knights</span>
             </th>
@@ -105,6 +108,7 @@ export default function PlayerPanel({
                   >
                     <NameText view={view} player={p} offline={offline} pickSeat={pickSeat} rename={rename} />
                     {p.id === view.selfId && <small>you</small>}
+                    {ck && <ImprovementLevels ck={ck} playerId={p.id} />}
                   </span>
                 </th>
                 <td
@@ -113,21 +117,33 @@ export default function PlayerPanel({
                 >
                   <CardCount count={p.resourceCount} over={overLimit(view, p)} />
                 </td>
-                <td aria-label={`${p.developmentCount} development cards`}>
-                  {p.developmentCount > 0 && <CardCount count={p.developmentCount} development />}
-                </td>
+                {ck ? (
+                  <td aria-label={`${ck.handCounts[p.id] ?? 0} progress cards`}>
+                    {!!ck.handCounts[p.id] && <CardCount count={ck.handCounts[p.id]!} development />}
+                  </td>
+                ) : (
+                  <td aria-label={`${p.developmentCount} development cards`}>
+                    {p.developmentCount > 0 && <CardCount count={p.developmentCount} development />}
+                  </td>
+                )}
                 <td
                   className={view.longestRoadId === p.id ? 'award' : ''}
                   title={view.longestRoadId === p.id ? 'Longest Road · 2 points' : 'Longest road length'}
                 >
                   {p.longestRoad}
                 </td>
-                <td
-                  className={view.largestArmyId === p.id ? 'award' : ''}
-                  title={view.largestArmyId === p.id ? 'Largest Army · 2 points' : 'Knights played'}
-                >
-                  {p.knights}
-                </td>
+                {ck ? (
+                  <td title={`Active knight strength · improvements: ${improvementText(ck, p.id)}`}>
+                    {activeStrength(ck, p.id)}
+                  </td>
+                ) : (
+                  <td
+                    className={view.largestArmyId === p.id ? 'award' : ''}
+                    title={view.largestArmyId === p.id ? 'Largest Army · 2 points' : 'Knights played'}
+                  >
+                    {p.knights}
+                  </td>
+                )}
                 <td
                   className="points"
                   title={
@@ -278,5 +294,22 @@ export function BankCounts({ view }: { view: GameView }) {
         </div>
       )}
     </>
+  );
+}
+
+/** "trade 2, politics 0, science 1" for a tooltip. */
+const improvementText = (ck: KnightsView, playerId: string) =>
+  TRACKS.map(t => `${TRACK_INFO[t].name.toLowerCase()} ${ck.improvements[playerId]?.[t] ?? 0}`).join(', ');
+
+/** Cities & Knights: a seat's three improvement levels, in the tracks' colors. */
+function ImprovementLevels({ ck, playerId }: { ck: KnightsView; playerId: string }) {
+  return (
+    <span className="ck-player-stats" role="img" aria-label={`Improvements: ${improvementText(ck, playerId)}`}>
+      {TRACKS.map(t => (
+        <span key={t} style={{ background: KNIGHTS.trackColors[t].base }}>
+          {ck.improvements[playerId]?.[t] ?? 0}
+        </span>
+      ))}
+    </span>
   );
 }

@@ -11,7 +11,7 @@ import {
   updateTile,
 } from '../../../shared/maps/edit';
 import { setGroupKind } from '../../../shared/maps/fill';
-import { RESOURCES, type Resource } from '../../../shared/types';
+import { TILE_RESOURCES, type TileResource } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import { RESOURCE_LABELS } from '../ResourceHand';
 import { TileIcon } from './BrushPicker';
@@ -36,7 +36,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-const isResource = (kind: string): kind is Resource => RESOURCES.includes(kind as Resource);
+const isResource = (kind: string): kind is TileResource => TILE_RESOURCES.includes(kind as TileResource);
 
 /** A terrain for a tile. On a linked tile a resource (or random) sets the whole group; anything else unlinks it. */
 function pickTerrain(d: BoardDesign, tile: DesignTile, kind: DesignKind): BoardDesign {
@@ -192,9 +192,9 @@ function TilePanel({ design, tile, edit }: { design: BoardDesign; tile: DesignTi
   );
 }
 
-const HARBOR_KINDS: DesignHarbor['kind'][] = ['random', 'any', ...RESOURCES];
+const HARBOR_KINDS: DesignHarbor['kind'][] = ['random', 'any', ...TILE_RESOURCES];
 const harborLabel = (kind: DesignHarbor['kind']) =>
-  kind === 'random' ? 'Random' : kind === 'any' ? '3:1 any' : `2:1 ${RESOURCE_LABELS[kind as Resource]}`;
+  kind === 'random' ? 'Random' : kind === 'any' ? '3:1 any' : `2:1 ${RESOURCE_LABELS[kind as TileResource]}`;
 
 function HarborPanel({
   design,

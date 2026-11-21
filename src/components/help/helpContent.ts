@@ -1,12 +1,14 @@
 import { isLargeGame } from '../../../shared/engine';
 import { setupPieces, specialRules } from '../../../shared/maps/special';
 import type { GameView, Terrain } from '../../../shared/types';
+import { knightsHowTo, knightsRules } from './helpKnights';
 import { ruleSections } from './helpRules';
 
 /** The help dialog's tabs: how to use this site, then the rules of the base game and each expansion. */
 export const HELP_TABS = [
   { id: 'ui', label: 'How to' },
   { id: 'base', label: 'Base' },
+  { id: 'knights', label: 'Knights' },
   { id: 'seafarers', label: 'Seafarers' },
   { id: 'tropics', label: 'Tropics' },
   { id: 'cartographers', label: 'Cartographers' },
@@ -172,6 +174,7 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
       table(v),
       ...seaSections(view, v),
       ...ruleSections(view),
+      ...(view.ck ? knightsRules(view) : []),
     ];
   const now = rightNow(view, v);
   return [
@@ -179,11 +182,12 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
     ...mapRules(view),
     building(view, v),
     trading(view, v),
-    development(v),
+    view.ck ? knightsHowTo(v.tap) : development(v),
     ...seaSections(view, v),
     ...(isLargeGame(view.players.length) ? [specialBuild()] : []),
     table(v),
     ...ruleSections(view),
+    ...(view.ck ? knightsRules(view) : []),
   ];
 }
 

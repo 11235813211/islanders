@@ -14,7 +14,7 @@ import BoardViewport from './BoardViewport';
 import BoardPick, { useBoardLook } from './game/BoardPick';
 import BuildBar from './game/BuildBar';
 import CardFlights from './game/CardFlights';
-import { addDiscard, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
+import { addDiscard, cardsOwed, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DecisionTimer from './game/DecisionTimer';
 import DevelopmentDialog from './game/DevelopmentDialog';
 import DevelopmentHand from './game/DevelopmentHand';
@@ -32,6 +32,9 @@ import TablePanel, { type PanelTab } from './game/TablePanel';
 import TableToolbar from './game/TableToolbar';
 import { useTileTools } from './game/TileTools';
 import { TradeNotice } from './game/TradeNotice';
+import BarbarianTrack from './knights/BarbarianTrack';
+import ProgressHand from './knights/ProgressHand';
+import { useKnights } from './knights/useKnights';
 import NameDialog from './NameDialog';
 import ResourceHand from './ResourceHand';
 import TradeComposer, { addTradeResource, counterDraft, type TradeDraft } from './TradePanel';
@@ -61,6 +64,11 @@ const LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 600px)';
 const PHONE_LAYOUT = '(max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px)';
 
 /** Whole seconds until a deadline (never below 0), or null when there is none. */
+/** Cards you may hold on a 7: the room's limit, plus 2 for each of your city walls (Cities & Knights). */
+const handLimit = (view: GameView) =>
+  view.settings.discardLimit +
+  2 * (view.ck?.walls.filter(v => view.buildings[v]?.playerId === view.selfId).length ?? 0);
+
 const secondsUntil = (deadline: number | null, clock: number) =>
   deadline === null ? null : Math.max(0, Math.ceil((deadline - clock) / 1000));
 
@@ -96,6 +104,10 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
         : 'Moving robber…';
     case 'steal':
       return 'Choosing a player…';
+    case 'gift':
+      return view.ck?.gifts[view.selfId] ? 'Choose your Wedding gift' : 'Wedding gifts…';
+    case 'place-knight':
+      return ownTurn ? 'Place the deserting knight' : 'Placing a knight…';
     case 'discard':
       return view.pendingDiscards[view.selfId]
         ? `Discard${countdown(secondsUntil(view.discardDeadline, clock))}`
@@ -169,7 +181,7 @@ export default function GameTable({
   const self = view.players.find(p => p.id === view.selfId);
   // A 7 would make you discard: the hand's background turns red.
   const overLimit =
-    !!self && handSize(shown, { resources: shown.hand, discoveries: self.discoveries }) > shown.settings.discardLimit;
+    !!self && handSize(shown, { resources: shown.hand, discoveries: self.discoveries }) > handLimit(shown);
   const active = view.players.find(p => p.id === view.activePlayerId);
   const blocked = busy || paused || spectator || !ownTurn;
   // Your seat color marks the table while it waits on you.
@@ -183,6 +195,19 @@ export default function GameTable({
     setMoveFrom(null);
   };
   const tiles = useTileTools(view, mode, setMode, send, busy);
+  const knights = useKnights(view, send, blocked);
+  // A knight or wall pick and a build mode replace each other.
+  const knightButtons = {
+    ...knights.buttons,
+    knight: () => {
+      setMode(null);
+      knights.buttons.knight();
+    },
+    wall: () => {
+      setMode(null);
+      knights.buttons.wall();
+    },
+  };
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(id);
@@ -309,7 +334,7 @@ export default function GameTable({
     if (setup && lastMoment && selected && !blocked) place(selected.kind, selected.id);
   }, [setup, lastMoment, selected, blocked]);
 
-  const discarding = view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0 && !paused;
+  const discarding = cardsOwed(view) > 0 && !paused;
   const choosingGold = view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && !paused;
   const inCorner = (kind: DevelopmentType | null) => kind === 'year-of-plenty' || kind === 'monopoly';
   /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
@@ -330,6 +355,7 @@ export default function GameTable({
     if (discarding)
       return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
     if (tiles.panel) return tiles.panel;
+    if (knights.panel) return knights.panel;
     if (choosingGold)
       return (
         <GoldPanel
@@ -479,7 +505,7 @@ export default function GameTable({
       <CardFlights view={view} />
       <BoardViewport
         view={boardLook.view}
-        mode={view.phase === 'robber' ? 'robber' : mode}
+        mode={view.phase === 'robber' ? 'robber' : (knights.mode ?? mode)}
         disabled={blocked}
         selected={selected}
         moveFrom={moveFrom}
@@ -489,7 +515,9 @@ export default function GameTable({
         corner={cornerPanel()}
         onHex={setHexPick}
         hexPick={hexPick}
-        tiles={busy ? null : tiles.picking}
+        tiles={busy ? null : (knights.tiles ?? tiles.picking)}
+        spots={busy ? null : knights.spots}
+        onKnight={knights.onKnight}
         onChart={tiles.startChart}
         onHexConfirm={confirm => {
           // A fog tile you can peek at is a peek; anything else is where the robber or pirate goes.
@@ -501,6 +529,7 @@ export default function GameTable({
         }}
       >
         <DecisionTimer view={view} now={clock} />
+        <BarbarianTrack view={view} />
         <ProposalNotice view={view} busy={busy} send={send} />
         <SetupOrder view={view} />
         {view.phase === 'eruption' && (
@@ -548,6 +577,7 @@ export default function GameTable({
         >
           <ResourceHand hand={shown.hand} playerName={self?.name} compact onSelect={tapCard} disabled={busy || paused}>
             {view.development.length > 0 && <DevelopmentHand view={view} open={openCard} />}
+            {!!view.ck?.hand.length && <ProgressHand view={view} open={knights.openCard} />}
             {!!self?.discoveries && (
               <button
                 type="button"
@@ -564,7 +594,9 @@ export default function GameTable({
           </ResourceHand>
         </section>
       )}
-      <div className={`table-actions${view.seafaring ? ' sea' : ''}${view.cartographers ? ' cartographers' : ''}`}>
+      <div
+        className={`table-actions${view.seafaring ? ' sea' : ''}${view.cartographers ? ' cartographers' : ''}${view.ck ? ' knights' : ''}`}
+      >
         <BoardPick view={view} busy={busy} send={send} looking={boardLook.board} look={boardLook.look} />
         {!spectator && self && !view.boardPick && (
           <div className="build-buttons">
@@ -579,6 +611,7 @@ export default function GameTable({
                 setTrade(null);
                 setBuying(true);
               }}
+              knights={knightButtons}
             />
           </div>
         )}

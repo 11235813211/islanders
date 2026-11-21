@@ -15,11 +15,12 @@ import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import { pieceEnds } from './game/sharedEdges';
 import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
+import { KnightPieces, KnightWalls, type SpotPicking, SpotTargets } from './knights/KnightPieces';
 import RouteZones from './RouteZones';
 import './Board.css';
 
 export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay';
-export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | 'chart' | 'split' | null;
+export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | 'chart' | 'split' | 'knights' | null;
 /** Pieces that go on an edge. */
 export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city';
 /** A picked spot waiting for confirmation. `choices` lists both pieces when a coastal edge takes either. */
@@ -48,6 +49,10 @@ export interface BoardProps {
   tiles?: TilePicking | null;
   /** With no tool picked: a tap on a tile you can chart starts charting it. */
   onChart?: (hexId: string) => void;
+  /** Cities & Knights: corners and edges a move or card is picking (mode 'knights'). */
+  spots?: SpotPicking | null;
+  /** Cities & Knights: a tap on one of your knights that can act. */
+  onKnight?: (vertexId: string) => void;
 }
 
 /**
@@ -140,6 +145,8 @@ export default function Board({
   onHexConfirm,
   tiles = null,
   onChart,
+  spots = null,
+  onKnight,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
   const picked = hexPick ? view.board.hexes.find(h => h.id === hexPick) : undefined;
@@ -201,7 +208,7 @@ export default function Board({
       : vertices.get(selected.id)
     : null;
   const choices = selected?.choices ?? (selected ? [selected.kind] : []);
-  const pickable = tiles?.hexes.length ?? 0;
+  const pickable = (tiles?.hexes.length ?? 0) + (spots ? spots.vertices.length + spots.edges.length : 0);
   const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + pickable > 0;
   const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected && !tiles?.picked;
   return (
@@ -341,6 +348,7 @@ export default function Board({
               </g>
             );
           })}
+          <KnightWalls view={view} vertices={vertices} color={color} />
           {Object.entries(view.buildings)
             .sort(([a], [b]) => vertices.get(a)!.y - vertices.get(b)!.y)
             .map(([vertexId, building]) => {
@@ -364,7 +372,16 @@ export default function Board({
                 </g>
               );
             })}
+          <KnightPieces
+            view={view}
+            vertices={vertices}
+            color={color}
+            playerName={playerName}
+            onKnight={mode === null ? onKnight : undefined}
+            disabled={disabled}
+          />
           {tiles && <TileTargets view={view} tiles={tiles} />}
+          {spots && !disabled && <SpotTargets spots={spots} vertices={vertices} edgeEnds={edgeEnds} />}
           <BoardEffects view={view} rolled={rolled} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
           {[...vertexTargets].map(vertexId => {
             const vertex = vertices.get(vertexId)!;
@@ -408,7 +425,7 @@ export default function Board({
       {showHint && (
         <div className="board-placement-hint" role="status">
           <span />
-          {hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom)}
+          {spots?.hint ?? hintFor(view, mode, hexTargets.size, edgeTargets.size, moveFrom)}
         </div>
       )}
     </div>

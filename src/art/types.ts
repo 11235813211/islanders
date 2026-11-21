@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
-import type { BaseTerrain, CLASSIC_RESOURCES, PieceStyle, Resource, SeaTerrain } from '../../shared/types';
+import type { Track } from '../../shared/knights';
+import type { BaseTerrain, CLASSIC_RESOURCES, Commodity, PieceStyle, Resource, SeaTerrain } from '../../shared/types';
 
 /** The base game's resources: what every version draws. Lodestone comes from `cartographers`. */
 export type ClassicResource = (typeof CLASSIC_RESOURCES)[number];
@@ -42,6 +43,27 @@ export interface ArtPack {
   cartographers?: CartographersArt;
   /** Sea-map tiles and pieces. Versions before v7 leave this out and borrow v7's. */
   sea?: SeaArt;
+  /** Cities & Knights art. Versions before v18 leave this out and borrow v18's. */
+  knights?: KnightsArt;
+}
+
+/** Cities & Knights: commodities, knights, walls, metropolises, the merchant, and the event die. */
+export interface KnightsArt {
+  cardColors: Record<Commodity, CardColors>;
+  /** Each improvement track's color (the event die's gates use them too). */
+  trackColors: Record<Track, CardColors>;
+  CommodityIcon: (props: { commodity: Commodity; size?: number }) => ReactElement;
+  CommodityArt: (props: { commodity: Commodity }) => ReactElement;
+  /** A knight token centered at the origin. */
+  Knight: (props: { color: string; level: 1 | 2 | 3; active: boolean }) => ReactElement;
+  /** A city wall, drawn under the city at its corner. */
+  CityWall: (props: { color: string }) => ReactElement;
+  /** A metropolis banner, drawn over the city at its corner. */
+  Metropolis: (props: { track: Track }) => ReactElement;
+  /** The merchant, centered on its tile. */
+  Merchant: (props: { color: string }) => ReactElement;
+  BarbarianShip: (props: { size?: number }) => ReactElement;
+  EventFace: (props: { face: 'ship' | Track; size?: number }) => ReactElement;
 }
 
 export interface CardColors {

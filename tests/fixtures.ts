@@ -6,9 +6,11 @@ import {
   createGame,
   getActivePlayerId,
   getView,
+  knightSites,
 } from '../shared/engine';
 import { BASE_POOL, type BoardDesign, type FogMix, setupSequence } from '../shared/maps';
 import { parseGrid } from '../shared/maps/builtin';
+import { boardIndex } from '../shared/seafaring';
 import { type GameAction, type GameState, type Hex, RESOURCES, type ResourceBag, type Terrain } from '../shared/types';
 export const TEST_NOW = 1_800_000_000_000;
 export function seeded(seed = 42) {
@@ -179,4 +181,44 @@ export function cartographersGame(): GameState {
   Object.assign(game, { phase: 'build', turn: 3, turnIndex: 0, setupIndex: 4, rollDeadline: null });
   game.settings.diceMode = 'random';
   return game;
+}
+
+/** A four-seat Cities & Knights table in p0's build phase, with knights, a wall, cards, and commodities. */
+export function knightsTable(): GameState {
+  const g = knightsGame(4);
+  g.testMode = true;
+  g.phase = 'build';
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 120_000;
+  grant(g, 'p0', { wood: 2, brick: 3, sheep: 3, wheat: 3, ore: 3, paper: 3, cloth: 2, coin: 4 });
+  const ck = g.ck!;
+  ck.barbarian = 4;
+  ck.event = 'politics';
+  ck.improvements.p0 = { trade: 1, politics: 2, science: 0 };
+  ck.improvements.p1 = { trade: 0, politics: 0, science: 3 };
+  // One more road for p0, so there is room for another knight.
+  const index = boardIndex(g.board);
+  const open = (end: string) =>
+    index.vertex.get(end)!.edgeIds.find(e => {
+      const edge = index.edge.get(e)!;
+      return !g.roads[e] && !g.buildings[edge.a === end ? edge.b : edge.a];
+    });
+  const end = knightSites(g, 'p0').find(open)!;
+  g.roads[open(end)!] = 'p0';
+  const [a, b] = knightSites(g, 'p0');
+  ck.knights[a!] = { playerId: 'p0', level: 1, active: false, activeTurn: -1, promotedTurn: -1 };
+  ck.knights[b!] = { playerId: 'p0', level: 2, active: true, activeTurn: -1, promotedTurn: -1 };
+  const p1Spot = knightSites(g, 'p1')[0]!;
+  ck.knights[p1Spot] = { playerId: 'p1', level: 3, active: true, activeTurn: -1, promotedTurn: -1 };
+  const city = Object.entries(g.buildings).find(([, x]) => x.playerId === 'p1' && x.kind === 'city')![0];
+  ck.walls.push(city);
+  ck.metropolis.science = city;
+  ck.hands.p0 = [
+    { id: 'c1', kind: 'merchant' },
+    { id: 'c2', kind: 'resource-monopoly' },
+    { id: 'c3', kind: 'warlord' },
+    { id: 'c4', kind: 'master-merchant' },
+  ];
+  ck.hands.p1 = [{ id: 'c5', kind: 'spy' }];
+  return g;
 }

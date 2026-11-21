@@ -1,7 +1,28 @@
-import { Check, Eye, House, Move, Route, Sailboat, SplitSquareHorizontal, TrendingUp, X } from 'lucide-react';
+import {
+  Castle,
+  Check,
+  Eye,
+  House,
+  Landmark,
+  Move,
+  Route,
+  Sailboat,
+  Shield,
+  SplitSquareHorizontal,
+  TrendingUp,
+  X,
+} from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BUILD_COSTS } from '../../../shared/engine';
-import { type GameAction, type GameView, type PublicPlayer, RESOURCES, type Resource } from '../../../shared/types';
+import { BUILD_COSTS, emptyBag } from '../../../shared/engine';
+import { KNIGHTS_COSTS } from '../../../shared/knights';
+import {
+  type GameAction,
+  type GameView,
+  type PublicPlayer,
+  RESOURCES,
+  type Resource,
+  type ResourceBag,
+} from '../../../shared/types';
 import { ResourceIcon } from '../../art';
 import { useDismiss } from '../../hooks/useDismiss';
 import type { BoardMode, PlaceKind } from '../Board';
@@ -9,10 +30,16 @@ import { RESOURCE_LABELS } from '../ResourceHand';
 import { CityIcon, RelayIcon } from './icons';
 
 export type BuildKind = PlaceKind;
-/** Everything with a recipe on the bar: pieces, a development card, and the lodestone tile moves. */
-type ButtonKind = BuildKind | 'development' | 'peek' | 'chart' | 'split';
+/** Everything with a recipe on the bar: pieces, a development card, the lodestone tile moves, and Cities & Knights. */
+type ButtonKind = BuildKind | 'development' | 'peek' | 'chart' | 'split' | 'knight' | 'wall' | 'improve';
+const COSTS: Record<ButtonKind, ResourceBag> = {
+  ...BUILD_COSTS,
+  knight: KNIGHTS_COSTS.knight,
+  wall: KNIGHTS_COSTS.wall,
+  improve: emptyBag(),
+};
 /** A piece's cost as one icon per card (a split's extra card, of the resource it adds, isn't shown). */
-const recipe = (kind: ButtonKind): Resource[] => RESOURCES.flatMap(r => Array<Resource>(BUILD_COSTS[kind][r]).fill(r));
+const recipe = (kind: ButtonKind): Resource[] => RESOURCES.flatMap(r => Array<Resource>(COSTS[kind][r]).fill(r));
 /** Names on the buttons and in their tooltips. */
 const LABELS: Record<ButtonKind, { short: string; long: string }> = {
   road: { short: 'road', long: 'Build road' },
@@ -24,6 +51,9 @@ const LABELS: Record<ButtonKind, { short: string; long: string }> = {
   peek: { short: 'peek', long: 'Peek at a fog tile (only you see it)' },
   chart: { short: 'chart', long: 'Chart a tile: its number steps toward 7. A full tile can score 1 point' },
   split: { short: 'split', long: 'Split a tile: pay 1 of a resource and it pays that too' },
+  knight: { short: 'knight', long: 'Place a basic knight beside your road' },
+  wall: { short: 'wall', long: 'Build a city wall: keep 2 more cards on a 7' },
+  improve: { short: 'improve', long: 'City improvements: pay commodities to raise trade, politics, or science' },
 };
 const ICONS: Record<ButtonKind, ReactNode> = {
   road: <Route size={23} />,
@@ -35,6 +65,9 @@ const ICONS: Record<ButtonKind, ReactNode> = {
   peek: <Eye size={23} />,
   chart: <TrendingUp size={23} />,
   split: <SplitSquareHorizontal size={23} />,
+  knight: <Shield size={23} />,
+  wall: <Castle size={23} />,
+  improve: <Landmark size={23} />,
 };
 
 /** Build button. Press and hold (or hover) shows its recipe. */
@@ -155,6 +188,7 @@ export default function BuildBar({
   setMode,
   send,
   buyWithDiscoveries,
+  knights,
 }: {
   view: GameView;
   self: PublicPlayer;
@@ -164,6 +198,8 @@ export default function BuildBar({
   send: (action: GameAction) => void;
   /** With discoveries in hand, the Dev Card button asks which resources they pay for. */
   buyWithDiscoveries: () => void;
+  /** Cities & Knights: the knight, wall, and improvement buttons (they replace the Dev Card button). */
+  knights?: KnightButtons;
 }) {
   const toggle = (kind: Exclude<BoardMode, null>) => setMode(mode === kind ? null : kind);
   const [confirming, setConfirming] = useState(false);
@@ -248,23 +284,67 @@ export default function BuildBar({
           )}
         </>
       )}
+      {knights && view.ck && <KnightsBuildButtons view={view} blocked={blocked} buttons={knights} />}
+      {!view.ck && (
+        <BuildButton
+          kind="development"
+          remaining={view.developmentRemaining}
+          disabled={blocked || !view.legal.development}
+          // With discoveries, the panel that picks what they pay for is the confirmation.
+          onClick={() => (self.discoveries > 0 ? buyWithDiscoveries() : setConfirming(open => !open))}
+        >
+          {confirming && !blocked && view.legal.development && (
+            <BuyConfirm
+              close={closeConfirm}
+              buy={() => {
+                setConfirming(false);
+                send({ type: 'buy-development' });
+              }}
+            />
+          )}
+        </BuildButton>
+      )}
+    </>
+  );
+}
+
+/** What the Cities & Knights buttons do, and which one is picking on the board. */
+export interface KnightButtons {
+  picking: 'knight' | 'wall' | null;
+  cityOpen: boolean;
+  knight: () => void;
+  wall: () => void;
+  city: () => void;
+}
+
+/** Knight, wall, and city improvements: the first two pick a corner on the board, the last opens a panel. */
+function KnightsBuildButtons({ view, blocked, buttons }: { view: GameView; blocked: boolean; buttons: KnightButtons }) {
+  const ck = view.ck!;
+  const mine = Object.values(ck.knights).filter(k => k.playerId === view.selfId && k.level === 1).length;
+  const walls = ck.walls.filter(v => view.buildings[v]?.playerId === view.selfId).length;
+  return (
+    <>
       <BuildButton
-        kind="development"
-        remaining={view.developmentRemaining}
-        disabled={blocked || !view.legal.development}
-        // With discoveries, the panel that picks what they pay for is the confirmation.
-        onClick={() => (self.discoveries > 0 ? buyWithDiscoveries() : setConfirming(open => !open))}
-      >
-        {confirming && !blocked && view.legal.development && (
-          <BuyConfirm
-            close={closeConfirm}
-            buy={() => {
-              setConfirming(false);
-              send({ type: 'buy-development' });
-            }}
-          />
-        )}
-      </BuildButton>
+        kind="knight"
+        remaining={2 - mine}
+        selected={buttons.picking === 'knight'}
+        disabled={blocked || !ck.legal.build.length}
+        onClick={buttons.knight}
+      />
+      <BuildButton
+        kind="wall"
+        remaining={3 - walls}
+        selected={buttons.picking === 'wall'}
+        disabled={blocked || !ck.legal.walls.length}
+        onClick={buttons.wall}
+      />
+      <BuildButton
+        kind="improve"
+        remaining={null}
+        selected={buttons.cityOpen}
+        disabled={false}
+        onClick={buttons.city}
+      />
     </>
   );
 }

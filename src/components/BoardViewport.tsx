@@ -187,10 +187,11 @@ export default function BoardViewport({
       onConfirm: (kind: Parameters<NonNullable<BoardProps['onConfirm']>>[0]) => latest.current.onConfirm?.(kind),
       onHexConfirm: (confirm: boolean) => latest.current.onHexConfirm?.(confirm),
       onChart: (id: string) => latest.current.onChart?.(id),
+      onKnight: (id: string) => latest.current.onKnight?.(id),
     }),
     [],
   );
-  const { view, mode, disabled, selected, moveFrom, hexPick, tiles } = props;
+  const { view, mode, disabled, selected, moveFrom, hexPick, tiles, spots } = props;
   // biome-ignore lint/correctness/useExhaustiveDependencies: drawn is a ref read at render; commit() keeps the DOM in step.
   const board = useMemo(
     () => (
@@ -202,11 +203,12 @@ export default function BoardViewport({
         moveFrom={moveFrom}
         hexPick={hexPick}
         tiles={tiles}
+        spots={spots}
         camera={drawn.current}
         {...handlers}
       />
     ),
-    [view, mode, disabled, selected, moveFrom, hexPick, tiles, handlers],
+    [view, mode, disabled, selected, moveFrom, hexPick, tiles, spots, handlers],
   );
   const zoom = (factor: number) => {
     const rect = root.current!.getBoundingClientRect();
