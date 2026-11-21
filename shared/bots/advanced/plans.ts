@@ -1,6 +1,6 @@
 import { BUILD_COSTS } from '../../engine/core';
 import { boardIndex } from '../../seafaring';
-import { RESOURCES, type ResourceBag } from '../../types';
+import { type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS, resourceWeights } from '../analysis';
 import type { Economy, Target } from './economy';
 import { distanceFrom, isOpen } from './geometry';
@@ -68,7 +68,7 @@ export function productionPoints(econ: Economy, gain: { production: ResourceBag;
   const { card, rounds } = horizon(econ);
   const weights = weightsOf(econ);
   let cards = gain.choice * 1.3;
-  for (const r of RESOURCES) cards += gain.production[r] * weights[r];
+  for (const r of TILE_RESOURCES) cards += gain.production[r] * weights[r];
   // Pips are 36ths of a roll; every seat rolls once a round.
   return (cards / 36) * econ.view.players.length * rounds * card;
 }
@@ -88,7 +88,7 @@ function raceOdds(econ: Economy, c: number, distance: number, turns: number): nu
 
 function plus(a: ResourceBag, b: ResourceBag, times = 1): ResourceBag {
   const out = { ...a };
-  for (const r of RESOURCES) out[r] += b[r] * times;
+  for (const r of TILE_RESOURCES) out[r] += b[r] * times;
   return out;
 }
 
@@ -205,7 +205,17 @@ function fixedRoadGoal(econ: Economy): Plan[] {
   return [{ kind: 'road', cost: plus(emptyCost(), COSTS.road, gap), payoff: holding ? 1.2 : 1.4 }];
 }
 
-const emptyCost = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 });
+const emptyCost = (): ResourceBag => ({
+  wood: 0,
+  brick: 0,
+  sheep: 0,
+  wheat: 0,
+  ore: 0,
+  lodestone: 0,
+  paper: 0,
+  cloth: 0,
+  coin: 0,
+});
 
 /** A development card: a point, a knight (toward Largest Army, and a robber move), or a progress card. */
 function cardPayoff(econ: Economy): number {
@@ -232,7 +242,10 @@ function explorePlans(econ: Economy, fog: Map<string, Target>): Plan[] {
   const index = boardIndex(view.board);
   const { card } = horizon(econ);
   // A typical new corner: about ten pips, spread over the resources.
-  const average = { production: { wood: 2, brick: 2, sheep: 2, wheat: 2, ore: 2, lodestone: 0 }, choice: 0 };
+  const average = {
+    production: { wood: 2, brick: 2, sheep: 2, wheat: 2, ore: 2, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+    choice: 0,
+  };
   const newSpot = Math.max(0, 1 + productionPoints(econ, average) - 4 * card);
   const plans: Plan[] = [];
   for (const [id, path] of fog) {

@@ -40,6 +40,7 @@ export function pendingBotActor(state: GameState): string | null {
   if (state.phase === 'discard')
     return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0 && isBot(state, id)) ?? null;
   if (state.phase === 'gold') return Object.keys(state.pendingGold).find(id => isBot(state, id)) ?? null;
+  if (state.phase === 'gift') return Object.keys(state.ck?.gifts ?? {}).find(id => isBot(state, id)) ?? null;
   const offers = state.phase === 'build' ? state.tradeOffers : [];
   for (const offer of offers) {
     const responder = offer.to.find(id => isBot(state, id) && !hasAnswered(offer, id));
@@ -166,7 +167,7 @@ function runBotStep(state: GameState, now: number, random: () => number, thinkin
 /** The phase deadline that is running, if any: the roll (or volcano dice), discards, gold picks, or the robber. */
 function phaseDeadline(state: GameState): number | null {
   if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
-  if (state.phase === 'discard') return state.discardDeadline;
+  if (state.phase === 'discard' || state.phase === 'gift') return state.discardDeadline;
   if (state.phase === 'gold') return state.goldDeadline;
   if (state.phase === 'robber') return state.robberDeadline;
   return null;
@@ -194,6 +195,8 @@ const TAKEOVER_TEXT: Partial<Record<GameAction['type'], string>> = {
   'move-robber': 'moved the robber',
   steal: 'picked whom to rob',
   'choose-gold': 'picked gold',
+  'give-cards': 'gave cards',
+  'place-knight': 'placed a knight',
   'build-settlement': 'placed a settlement',
   'build-road': 'placed a road',
   'build-ship': 'placed a ship',
@@ -240,6 +243,8 @@ export function advanceTime(
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll-volcanoes' }, random, now);
     if (next.phase === 'discard' && next.discardDeadline !== null && next.discardDeadline <= now)
       return discardForAll(next, now, random);
+    if (next.phase === 'gift' && next.discardDeadline !== null && next.discardDeadline <= now)
+      return giveForAll(next, now, random);
     if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
       return chooseGoldForAll(next, now, random);
     if (next.phase === 'robber' && next.robberDeadline !== null && next.robberDeadline <= now) {
@@ -299,6 +304,16 @@ function discardForAll(state: GameState, now: number, random: () => number): Gam
   return next;
 }
 
+/** Wedding time ran out: everyone who still owes cards gives what a bot would. */
+function giveForAll(state: GameState, now: number, random: () => number): GameState {
+  let next = state;
+  for (const id of Object.keys(state.ck?.gifts ?? {})) {
+    if (next.phase !== 'gift' || !next.ck?.gifts[id]) continue;
+    next = forced(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
+  }
+  return next;
+}
+
 /**
  * A person ran out of time: only the choices the game can't go on without are made for them
  * (setup placements, the roll, discards, the robber, a steal, gold, volcano dice), as an Advanced
@@ -323,6 +338,7 @@ function forcedChoice(state: GameState, id: string, level: BotLevel, thought?: B
 function nextChooser(state: GameState): string {
   if (state.phase === 'discard') return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0)!;
   if (state.phase === 'gold') return Object.keys(state.pendingGold)[0]!;
+  if (state.phase === 'gift') return Object.keys(state.ck!.gifts)[0]!;
   return getActivePlayerId(state)!;
 }
 

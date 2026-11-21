@@ -1,5 +1,5 @@
 import { emptyBag } from '../../engine/core';
-import { RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { type Resource, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS } from '../analysis';
 import type { Economy } from './economy';
 import { horizon } from './plans';
@@ -38,7 +38,7 @@ export function paceFrom(
 ): Pace {
   const perRound = econ.view.players.length / 36;
   const income = emptyBag();
-  for (const r of RESOURCES) income[r] = production[r] * perRound;
+  for (const r of TILE_RESOURCES) income[r] = production[r] * perRound;
   return { income, wild: choice * perRound, rates };
 }
 
@@ -65,7 +65,7 @@ let marginSlope = 0;
 function affordMargin(hand: ResourceBag, pace: Pace, cost: ResourceBag, t: number): number {
   let margin = pace.wild * t;
   let slope = pace.wild;
-  for (const r of RESOURCES) {
+  for (const r of TILE_RESOURCES) {
     const income = pace.income[r];
     const left = hand[r] + income * t - cost[r];
     if (left >= 0) {
@@ -92,7 +92,7 @@ export function roundsToAfford(hand: ResourceBag, pace: Pace, cost: ResourceBag)
   if (affordMargin(hand, pace, cost, CAP) < 0) return CAP;
   let t = 0;
   short = affordMargin(hand, pace, cost, 0);
-  for (let piece = 0; piece <= RESOURCES.length && short < 0 && marginSlope > 0; piece++) {
+  for (let piece = 0; piece <= TILE_RESOURCES.length && short < 0 && marginSlope > 0; piece++) {
     t = Math.min(CAP, t - short / marginSlope);
     short = affordMargin(hand, pace, cost, t);
   }
@@ -108,7 +108,7 @@ export function pointRate(econ: Economy, pace: Pace): number {
   const cost = emptyBag();
   let points = 0;
   const add = (bag: ResourceBag, times: number) => {
-    for (const r of RESOURCES) cost[r] += bag[r] * times;
+    for (const r of TILE_RESOURCES) cost[r] += bag[r] * times;
   };
   if (self.citiesLeft) {
     add(COSTS.city, 1);
@@ -140,9 +140,9 @@ export function incomeValue(
   const { pace, rate } = basePace(econ);
   const perRound = econ.view.players.length / 36;
   const income = { ...pace.income };
-  for (const r of RESOURCES) income[r] += gain.production[r] * perRound;
+  for (const r of TILE_RESOURCES) income[r] += gain.production[r] * perRound;
   const rates = { ...pace.rates };
-  if (harbor === 'any') for (const r of RESOURCES) rates[r] = Math.min(rates[r], 3);
+  if (harbor === 'any') for (const r of TILE_RESOURCES) rates[r] = Math.min(rates[r], 3);
   else if (harbor && harbor in rates) rates[harbor as Resource] = 2;
   const next = { income, wild: pace.wild + gain.choice * perRound, rates };
   return (pointRate(econ, next) - rate) * Math.max(0, horizon(econ).rounds - after);

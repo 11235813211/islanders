@@ -1,6 +1,6 @@
 import { emptyBag } from '../../engine/core';
 import { longestRoad } from '../../rules';
-import { type DevelopmentCard, type GameAction, RESOURCES, type Resource } from '../../types';
+import { type DevelopmentCard, type GameAction, type Resource, TILE_RESOURCES } from '../../types';
 import { bagValue, COSTS, canPay, linkAction, resourceWeights } from '../analysis';
 import type { TurnOptions } from '../types';
 import { choices, type Economy } from './economy';
@@ -16,7 +16,7 @@ import { nextOffer } from './trade';
 
 const plus = (hand: Record<Resource, number>, bag: Record<Resource, number>) => {
   const out = { ...hand };
-  for (const r of RESOURCES) out[r] += bag[r];
+  for (const r of TILE_RESOURCES) out[r] += bag[r];
   return out;
 };
 
@@ -61,7 +61,7 @@ export function developmentPlay(econ: Economy): GameAction | null {
     const held = (r: Resource) =>
       view.players.filter(p => p.id !== view.selfId).reduce((n, p) => n + econ.handOf(p.id)[r], 0);
     const want = (r: Resource) => held(r) * weights[r] * (goal && view.hand[r] < goal.cost[r] ? 1.5 : 1);
-    const resource = [...RESOURCES].sort((a, b) => want(b) - want(a))[0]!;
+    const resource = [...TILE_RESOURCES].sort((a, b) => want(b) - want(a))[0]!;
     if (held(resource) >= 3) return { type: 'play-monopoly', cardId: monopoly.id, resource };
   }
   const roads = playable(econ, 'road-building');
@@ -77,16 +77,16 @@ export function bankTrade(econ: Economy): GameAction | null {
   const goal = econ.bestGoal();
   if (!goal) return null;
   const cost = goal.cost;
-  const missing = RESOURCES.filter(r => view.hand[r] < cost[r] && econ.bankHas(r));
-  if (!missing.length || missing.length < RESOURCES.filter(r => view.hand[r] < cost[r]).length) return null;
-  const shortfall = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - view.hand[r]), 0);
-  const credits = RESOURCES.reduce(
+  const missing = TILE_RESOURCES.filter(r => view.hand[r] < cost[r] && econ.bankHas(r));
+  if (!missing.length || missing.length < TILE_RESOURCES.filter(r => view.hand[r] < cost[r]).length) return null;
+  const shortfall = TILE_RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - view.hand[r]), 0);
+  const credits = TILE_RESOURCES.reduce(
     (n, r) => n + Math.floor(Math.max(0, view.hand[r] - cost[r]) / view.tradeRates[r]),
     0,
   );
   if (credits < shortfall) return null;
   let best: { give: Resource; receive: Resource; value: number } | null = null;
-  for (const give of RESOURCES) {
+  for (const give of TILE_RESOURCES) {
     if (view.hand[give] - cost[give] < view.tradeRates[give]) continue;
     for (const receive of missing) {
       const hand = { ...view.hand };
@@ -174,7 +174,7 @@ export function buildStep(econ: Economy, options: TurnOptions): GameAction {
   }
   if (view.legal.development) {
     const after = { ...view.hand };
-    for (const r of RESOURCES) after[r] -= COSTS.development[r];
+    for (const r of TILE_RESOURCES) after[r] -= COSTS.development[r];
     const keeps = econ.handValue(after) + knobs.spareDevelopment >= econ.handValue(view.hand);
     if (goal?.goal === 'development' || keeps) return { type: 'buy-development' };
   }

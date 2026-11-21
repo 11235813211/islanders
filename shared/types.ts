@@ -1,7 +1,19 @@
+import type { KnightsState, KnightsView, Track } from './knights';
 import type { BoardDesign, BoardRules, PieceReward } from './maps/types';
-/** Every resource. Lodestone is only in play on Cartographers maps (see cartographersRules). */
-export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore', 'lodestone'] as const;
+/**
+ * Every card kind in a hand. Lodestone is only in play on Cartographers maps (see
+ * cartographersRules); paper, cloth, and coin are Cities & Knights commodities (see knightsRules).
+ */
+export const RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore', 'lodestone', 'paper', 'cloth', 'coin'] as const;
 export type Resource = (typeof RESOURCES)[number];
+/** The resources a tile can be (commodities never are). */
+export const TILE_RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore', 'lodestone'] as const;
+export type TileResource = (typeof TILE_RESOURCES)[number];
+export const isTileResource = (resource: string): resource is TileResource =>
+  TILE_RESOURCES.includes(resource as TileResource);
+/** Cities & Knights: what cities on forest, pasture, and mountains make besides their resource. */
+export const COMMODITIES = ['paper', 'cloth', 'coin'] as const;
+export type Commodity = (typeof COMMODITIES)[number];
 /** The base game's five resources, for code that never meets lodestone (the trained bot's features). */
 export const CLASSIC_RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
 export type ResourceBag = Record<Resource, number>;
@@ -32,7 +44,7 @@ export interface Hex {
   /** Numbers charted onto the tile (Cartographers), after `number`. See hexNumbers. */
   extra?: number[];
   /** Cartographers: a split tile also pays this resource; whoever it pays picks either half. */
-  split?: Resource;
+  split?: TileResource;
   /** Corner vertices in order: lower right, bottom, lower left, upper left, top, upper right. */
   vertexIds: string[];
   /** Land tiles on sea maps: which island (connected land) the tile belongs to. */
@@ -65,7 +77,7 @@ export interface Harbor {
   id: string;
   edgeId: string;
   vertices: [string, string];
-  resource: Resource | 'any';
+  resource: TileResource | 'any';
   x: number;
   y: number;
 }
@@ -165,6 +177,10 @@ export type Phase =
   | 'build'
   /** Five or six players: after each turn, the others may build in order (no trading). */
   | 'special-build'
+  /** Cities & Knights, Wedding: richer players each give the active player cards of their choice. */
+  | 'gift'
+  /** Cities & Knights, Deserter: the active player places the knight they won. */
+  | 'place-knight'
   | 'finished';
 /**
  * Structured record of what a log line describes, for bots, stats, and UI.
@@ -273,6 +289,8 @@ export interface GameSettings {
   routeLinks: 'anywhere' | 'settlement';
   /** Cartographers: gold fields and volcanoes may be charted too. */
   chartSpecial: boolean;
+  /** Cities & Knights: commodities, city improvements, knights, barbarians, and progress cards. */
+  citiesKnights: boolean;
 }
 /** Edge id → player id → the piece that player has there, on top of the edge's `roads`/`ships` owner. */
 export type Crossings = Record<string, Record<string, 'road' | 'ship'>>;
@@ -437,6 +455,8 @@ export interface GameState {
   lastRollTotal: number | null;
   /** Cartographers: edges in `roads` that hold relay stations. */
   relays: string[];
+  /** Cities & Knights (null without it). Decks and progress hands are hidden; see getView. */
+  ck: KnightsState | null;
   /** Ships built this turn (they may not move until next turn). */
   shipsBuilt: string[];
   shipMoved: boolean;
@@ -639,6 +659,8 @@ export interface GameView {
   seafaring: boolean;
   /** Pick-board phase: which drawn board is shown (1-based) of how many. Null in other phases. */
   boardPick: { shown: number; count: number } | null;
+  /** Cities & Knights: the public expansion state, your progress cards, and your moves. */
+  ck: KnightsView | null;
 }
 export type GameAction =
   | { type: 'start' }
@@ -721,6 +743,31 @@ export type GameAction =
   | { type: 'play-monopoly'; cardId: string; resource: Tradable }
   | { type: 'play-plenty'; cardId: string; resources: TradeBag }
   | { type: 'finish-free-roads' }
+  /** Cities & Knights: knights, walls, city improvements, and progress cards (engine/knights-actions.ts). */
+  | { type: 'build-knight'; vertexId: string }
+  | { type: 'activate-knight'; vertexId: string }
+  | { type: 'promote-knight'; vertexId: string }
+  | { type: 'move-knight'; from: string; to: string }
+  | { type: 'chase-robber'; vertexId: string }
+  | { type: 'build-wall'; vertexId: string }
+  | { type: 'improve-city'; track: Track }
+  /** Deserter: place the knight won. */
+  | { type: 'place-knight'; vertexId: string }
+  /** Wedding: the cards you give the player who played it. */
+  | { type: 'give-cards'; resources: TradeBag }
+  /** The fields a card needs: see PROGRESS[kind].target in shared/knights.ts. */
+  | {
+      type: 'play-progress';
+      cardId: string;
+      playerId?: string;
+      hexId?: string;
+      otherHexId?: string;
+      vertexId?: string;
+      edgeId?: string;
+      resource?: Resource;
+      red?: number;
+      yellow?: number;
+    }
   | { type: 'chat'; text: string }
   | { type: 'propose'; kind: Proposal['kind'] }
   | { type: 'vote'; proposalId: string; accept: boolean };

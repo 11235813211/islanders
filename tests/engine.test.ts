@@ -633,6 +633,9 @@ describe('trust boundary and immutability', () => {
       wheat: true,
       ore: true,
       lodestone: false,
+      paper: false,
+      cloth: false,
+      coin: false,
     });
     grant(state, 'p1', { ore: 18 });
     expect(getView(state, 'p0').bank.ore).toBe(false);

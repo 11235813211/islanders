@@ -1,5 +1,5 @@
 import { boardIndex } from '../../seafaring';
-import { CLASSIC_RESOURCES, RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { CLASSIC_RESOURCES, type Resource, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS, paidPips } from '../analysis';
 import type { Economy } from './economy';
 import { cornerPips, distanceFrom, openCorners } from './geometry';
@@ -153,17 +153,17 @@ function seatPosition(econ: Economy, seat: number, open: number[]): Position {
 
 /** Bank rates from the harbors a player has built on. */
 export function harborRates(econ: Economy, playerId: string): Record<Resource, number> {
-  const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4 };
+  const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4, paper: 0, cloth: 0, coin: 0 };
   for (const [vertexId, b] of Object.entries(econ.view.buildings)) {
     if (b.playerId !== playerId) continue;
     const harbor = econ.geo.harbor[econ.geo.indexOf.get(vertexId)!];
-    if (harbor === 'any') for (const r of RESOURCES) rates[r] = Math.min(rates[r], 3);
+    if (harbor === 'any') for (const r of TILE_RESOURCES) rates[r] = Math.min(rates[r], 3);
     else if (harbor) rates[harbor] = 2;
   }
   return rates;
 }
 
-const total = (p: Position) => RESOURCES.reduce((n, r) => n + p.production[r], p.choice);
+const total = (p: Position) => TILE_RESOURCES.reduce((n, r) => n + p.production[r], p.choice);
 
 /**
  * Network inputs for every seat (see SEAT_FEATURES); `positions[0]` is the deciding seat.
@@ -187,7 +187,7 @@ function featuresOf(econ: Economy, pos: Position, k: number, mover: number, [lea
   const { view } = econ;
   const n = view.players.length;
   const target = view.settings.victoryPoints;
-  const cards = RESOURCES.reduce((s, r) => s + pos.hand[r], 0);
+  const cards = TILE_RESOURCES.reduce((s, r) => s + pos.hand[r], 0);
   const turns = (cost: ResourceBag) =>
     Math.min(10, econ.turnsWith(pos.hand, pos.production, pos.choice, cost, pos.rates)) / 10;
   return [
@@ -233,13 +233,23 @@ function featuresOf(econ: Economy, pos: Position, k: number, mover: number, [lea
 /** Pips (robber counted) a building at this corner adds, by resource and choice. */
 export function cornerYield(econ: Economy, vertexId: string): { production: ResourceBag; choice: number } {
   const index = boardIndex(econ.view.board);
-  const production: ResourceBag = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
+  const production: ResourceBag = {
+    wood: 0,
+    brick: 0,
+    sheep: 0,
+    wheat: 0,
+    ore: 0,
+    lodestone: 0,
+    paper: 0,
+    cloth: 0,
+    coin: 0,
+  };
   let choice = 0;
   for (const hexId of index.vertex.get(vertexId)!.hexIds) {
     const hex = index.hex.get(hexId)!;
     const p = paidPips(hex, hex.id === econ.view.robber);
     if (!p) continue;
-    if ((RESOURCES as readonly string[]).includes(hex.terrain)) production[hex.terrain as keyof ResourceBag] += p;
+    if ((TILE_RESOURCES as readonly string[]).includes(hex.terrain)) production[hex.terrain as keyof ResourceBag] += p;
     else if (hex.terrain === 'gold' || (hex.terrain === 'volcano' && econ.view.settings.volcanoGold)) choice += p;
   }
   return { production, choice };
@@ -248,7 +258,7 @@ export function cornerYield(econ: Economy, vertexId: string): { production: Reso
 /** A copy of a position with a corner's yield added and a cost paid. */
 export function withBuild(pos: Position, gain: ReturnType<typeof cornerYield>, cost: ResourceBag): Position {
   const next = { ...pos, production: { ...pos.production }, hand: { ...pos.hand } };
-  for (const r of RESOURCES) {
+  for (const r of TILE_RESOURCES) {
     next.production[r] += gain.production[r];
     next.hand[r] -= cost[r];
   }

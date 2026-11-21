@@ -14,6 +14,8 @@ export {
   ownBoard,
   resourceCount,
 } from './core';
+export { barbarianAttack, knightReach, knightsRules, levelOf } from './knights';
+export { improvementCost, knightSites, openRoads } from './knights-legal';
 export { affordsSplit, chartHexes, splitCost } from './legal';
 export { addPlayer, addSpectator, createGame, peekBoard } from './lobby';
 export { normalizeGame, SCHEMA_VERSION } from './migrations';

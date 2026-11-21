@@ -67,11 +67,11 @@ describe('bot seats', () => {
     let g = inSeatOrder(applyAction(makeLobby(2), 'p0', { type: 'start' }, seeded(), TEST_NOW));
     g.phase = 'gold';
     g.pendingGold = { p0: 3 };
-    g.bank = { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 0 };
+    g.bank = { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 };
     const action = bankGold(g, 'p0');
     expect(action).toEqual({
       type: 'choose-gold',
-      resources: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 0 },
+      resources: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
     });
     g = applyAction(g, 'p0', action, seeded(), TEST_NOW);
     expect(g.pendingGold).toEqual({});

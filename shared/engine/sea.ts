@@ -1,6 +1,6 @@
 import { choiceFits, choiceGroups, choiceLimit } from '../choices';
 import { placePiece, removePiece } from '../crossings';
-import { type GameState, RESOURCES } from '../types';
+import { COMMODITIES, type GameState, RESOURCES } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, pay, requireRule, resourceCount, tally } from './core';
 import { revealFog } from './fog';
 import { legalMoves } from './legal';
@@ -72,6 +72,10 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       const owed = Math.min(next.pendingGold[playerId] ?? 0, choiceLimit(groups, next.bank));
       requireRule(owed > 0, 'You have no resources to choose.');
       requireRule(resourceCount(action.resources) === owed, `Choose exactly ${owed} resource${owed === 1 ? '' : 's'}.`);
+      requireRule(
+        COMMODITIES.every(c => !action.resources[c]),
+        'Gold pays resources, not commodities.',
+      );
       requireRule(
         RESOURCES.every(r => next.bank[r] >= action.resources[r]),
         'The bank does not have those resources.',

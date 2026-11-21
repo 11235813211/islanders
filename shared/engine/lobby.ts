@@ -1,5 +1,6 @@
 import { assignNumbers, generateBoard, seededRandom, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
+import { KNIGHTS_LIMITS } from '../knights';
 import { buildBoard } from '../maps/generate';
 import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
 import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
@@ -23,6 +24,7 @@ import {
   requireRule,
   seaRules,
 } from './core';
+import { startKnights } from './knights';
 import { SCHEMA_VERSION } from './migrations';
 
 /** A fresh board for the room's map: the standard island, or a new draw of the chosen design. */
@@ -120,7 +122,7 @@ function dealTable(next: GameState, random: () => number): void {
   const played = next.design && designFor(next.design, layoutCount(next));
   if (played && next.settings.victoryPoints === next.design!.victoryPoints)
     next.settings.victoryPoints = played.victoryPoints;
-  next.bank = bankFor(players, cartographersRules(next));
+  next.bank = bankFor(players, cartographersRules(next), next.settings.citiesKnights);
   next.developmentDeck = developmentDeck(random, isLargeGame(players));
 }
 
@@ -148,6 +150,7 @@ export function createGame(
     ships: {},
     crossings: {},
     relays: [],
+    ck: null,
     robber,
     pirate,
     stealHex: null,
@@ -331,6 +334,13 @@ export const lobbyHandlers: Pick<
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'change room settings');
     next.settings = { ...next.settings, ...action.settings };
+    // Cities & Knights plays to 13 points: switching it brings the usual goal for each, unless the
+    // host changed the points in the same move.
+    const knightsSwitched = state.settings.citiesKnights !== next.settings.citiesKnights;
+    if (knightsSwitched && next.settings.victoryPoints === state.settings.victoryPoints)
+      next.settings.victoryPoints = next.settings.citiesKnights
+        ? KNIGHTS_LIMITS.victoryPoints
+        : DEFAULT_SETTINGS.victoryPoints;
     // Turning Seafarers on or off redraws the preview (the standard island gains or loses its sea).
     if (state.settings.seafarers !== next.settings.seafarers)
       Object.assign(
@@ -463,6 +473,7 @@ export const lobbyHandlers: Pick<
     next.boardSeeds = [];
     next.boardShown = 0;
     addRoomRewards(next);
+    startKnights(next, random);
     // Seats are drawn at random so the host (or whoever joined first) does not always go first.
     next.players = shuffled(next.players, random);
     const ids = next.players.map(candidate => candidate.id);

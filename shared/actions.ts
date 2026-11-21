@@ -1,5 +1,6 @@
 import { isPlayerColor } from './colors';
 import { GameError, MAX_PLAYERS } from './engine/core';
+import { TRACKS, type Track } from './knights';
 import { cleanName, validSettings } from './settings';
 import {
   BOT_LEVELS,
@@ -19,6 +20,8 @@ import {
  */
 type Field =
   | 'id'
+  | 'track'
+  | 'die'
   | 'resource'
   | 'bag'
   | 'tradeBag'
@@ -48,6 +51,26 @@ const SPEC = {
   'set-name': { name: 'name' },
   'buy-development': { discoveries: 'bag?' },
   'finish-free-roads': {},
+  'build-knight': { vertexId: 'id' },
+  'activate-knight': { vertexId: 'id' },
+  'promote-knight': { vertexId: 'id' },
+  'move-knight': { from: 'id', to: 'id' },
+  'chase-robber': { vertexId: 'id' },
+  'build-wall': { vertexId: 'id' },
+  'improve-city': { track: 'track' },
+  'place-knight': { vertexId: 'id' },
+  'give-cards': { resources: 'tradeBag' },
+  'play-progress': {
+    cardId: 'id',
+    playerId: 'id?',
+    hexId: 'id?',
+    otherHexId: 'id?',
+    vertexId: 'id?',
+    edgeId: 'id?',
+    resource: 'resource?',
+    red: 'die?',
+    yellow: 'die?',
+  },
   leave: {},
   'switch-role': {},
   'play-again': {},
@@ -109,9 +132,12 @@ export function isIdentifier(value: unknown): value is string {
 /** Most of one resource in an action: above any hand, since large banks let a seat hold over 19. */
 const MAX_BAG_COUNT = 99;
 
+/** Card kinds an older client may leave out of a bag (they came later); parseAction fills them in as 0. */
+const LATER_KINDS: readonly Resource[] = ['lodestone', 'paper', 'cloth', 'coin'];
+
 /**
- * Every resource a whole number from 0 to MAX_BAG_COUNT. Lodestone may be left out (a bag from before
- * Cartographers, or an old client); parseAction fills it in as 0.
+ * Every resource a whole number from 0 to MAX_BAG_COUNT. Lodestone and the commodities may be left
+ * out (a bag from an older client); parseAction fills them in as 0.
  */
 export function isResourceBag(value: unknown): value is ResourceBag {
   if (!record(value)) return false;
@@ -120,15 +146,15 @@ export function isResourceBag(value: unknown): value is ResourceBag {
     keys.every(key => RESOURCES.includes(key as Resource)) &&
     RESOURCES.every(
       r =>
-        (r === 'lodestone' && value[r] === undefined) ||
+        (LATER_KINDS.includes(r) && value[r] === undefined) ||
         (Number.isInteger(value[r]) && (value[r] as number) >= 0 && (value[r] as number) <= MAX_BAG_COUNT),
     )
   );
 }
 
-/** A bag that passed isResourceBag, with any missing lodestone set to 0. */
-function withLodestone(value: unknown): unknown {
-  return record(value) && 'wood' in value ? { lodestone: 0, ...value } : value;
+/** A bag that passed isResourceBag, with any missing later card kinds set to 0. */
+function withLaterKinds(value: unknown): unknown {
+  return record(value) && 'wood' in value ? { lodestone: 0, paper: 0, cloth: 0, coin: 0, ...value } : value;
 }
 
 /** A resource bag that may also carry jungle discoveries (whether they may move is a room rule). */
@@ -156,6 +182,12 @@ function checkField(type: string, key: string, field: Field, value: unknown): vo
   switch (field) {
     case 'id':
       if (!isIdentifier(value)) fail('Invalid action selection.');
+      return;
+    case 'track':
+      if (!TRACKS.includes(value as Track)) fail('Choose a city improvement.');
+      return;
+    case 'die':
+      if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 6) fail('Choose a die from 1 to 6.');
       return;
     case 'resource':
       if (!RESOURCES.includes(value as Resource)) fail('Choose valid resources.');
@@ -221,7 +253,7 @@ export function parseAction(value: unknown, { strict = true } = {}): GameAction 
     if (optional && value[key] === undefined) continue;
     checkField(type, key, fieldSpec.replace('?', '') as Field, value[key]);
     const copied = record(value[key]) || Array.isArray(value[key]) ? structuredClone(value[key]) : value[key];
-    action[key] = ['bag', 'tradeBag'].includes(fieldSpec.replace('?', '')) ? withLodestone(copied) : copied;
+    action[key] = ['bag', 'tradeBag'].includes(fieldSpec.replace('?', '')) ? withLaterKinds(copied) : copied;
   }
   return action as GameAction;
 }

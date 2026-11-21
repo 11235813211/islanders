@@ -13,9 +13,12 @@ const bag = (cards: Partial<ResourceBag>): ResourceBag => ({
   wheat: 0,
   ore: 0,
   lodestone: 0,
+  paper: 0,
+  cloth: 0,
+  coin: 0,
   ...cards,
 });
-const plenty = { wood: 19, brick: 19, sheep: 19, wheat: 19, ore: 19, lodestone: 19 };
+const plenty = { wood: 19, brick: 19, sheep: 19, wheat: 19, ore: 19, lodestone: 19, paper: 0, cloth: 0, coin: 0 };
 /** p0 rolls this total with random dice (each die is floor(v * 6) + 1). */
 function roll(g: GameState, a: number, b: number): GameState {
   return act({ ...g, phase: 'roll' }, 'p0', { type: 'roll' }, sequence((a - 1) / 6 + 0.01, (b - 1) / 6 + 0.01));
@@ -42,7 +45,7 @@ describe('choices from gold and split tiles', () => {
       { options: ['wood', 'brick'], count: 1 },
       { options: ['wheat', 'wood'], count: 6 },
     ]);
-    const stock = bag({ wood: 2, brick: 1, sheep: 13, ore: 16, lodestone: 24 });
+    const stock = bag({ wood: 2, brick: 1, sheep: 13, ore: 16, lodestone: 24, paper: 0, cloth: 0, coin: 0 });
     const woodFirst = (options: readonly Resource[]) =>
       [...options].sort((a, b) => Number(b === 'wood') - Number(a === 'wood'));
     const picked = fillChoice(groups, stock, woodFirst);
@@ -57,7 +60,7 @@ describe('charting on your turn', () => {
     const g = cartographersGame();
     const lode = hexOf(g, 'lodestone');
     expect(getView(g, 'p0').legal.chartHexes).toEqual([]);
-    grant(g, 'p0', { lodestone: 4 });
+    grant(g, 'p0', { lodestone: 4, paper: 0, cloth: 0, coin: 0 });
     expect(getView(g, 'p0').legal.chartHexes).toContain(lode.id);
     const once = act(g, 'p0', { type: 'chart-hex', hexId: lode.id });
     expect(hexNumbers(once.board.hexes.find(h => h.id === lode.id)!)).toEqual([6]);
@@ -72,9 +75,9 @@ describe('charting on your turn', () => {
 
   it('is only in your own build phase', () => {
     const g = cartographersGame();
-    grant(g, 'p1', { lodestone: 2 });
+    grant(g, 'p1', { lodestone: 2, paper: 0, cloth: 0, coin: 0 });
     expect(() => act(g, 'p1', { type: 'chart-hex', hexId: hexOf(g, 'wood').id })).toThrow(/turn/);
-    grant(g, 'p0', { lodestone: 2 });
+    grant(g, 'p0', { lodestone: 2, paper: 0, cloth: 0, coin: 0 });
     expect(() => act({ ...g, phase: 'roll' }, 'p0', { type: 'chart-hex', hexId: hexOf(g, 'wood').id })).toThrow();
   });
 });

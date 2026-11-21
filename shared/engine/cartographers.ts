@@ -1,6 +1,6 @@
 import { chartedNumbers, chartScorer, fullyCharted, hexNumbers } from '../rules';
 import { boardIndex, terrainResource } from '../seafaring';
-import type { GameState, Player } from '../types';
+import { type GameState, isTileResource, type Player } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, ownBoard, pay, requireRule, tally } from './core';
 import { revealFog } from './fog';
 import { chartHexes, legalMoves, peekHexes, splitCost, splitHexes } from './legal';
@@ -53,10 +53,12 @@ export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'peek-fog' | 
     requireRule(splitHexes(next).includes(action.hexId), 'Choose a resource tile with a number that isn’t split.');
     const own = terrainResource(boardIndex(next.board).hex.get(action.hexId)!.terrain);
     requireRule(action.resource !== own, 'Choose a different resource from the one the tile pays.');
-    requireRule(action.resource !== 'lodestone', 'A split can’t add lodestone.');
-    pay(next, player, splitCost(action.resource));
+    const added = action.resource;
+    requireRule(added !== 'lodestone', 'A split can’t add lodestone.');
+    requireRule(isTileResource(added), 'A split adds a resource a tile can pay.');
+    pay(next, player, splitCost(added));
     ownBoard(next);
-    boardIndex(next.board).hex.get(action.hexId)!.split = action.resource;
+    boardIndex(next.board).hex.get(action.hexId)!.split = added;
     addLog(next, `${player.name} split a tile: it pays ${own} or ${action.resource}.`, {
       kind: 'split',
       playerId,

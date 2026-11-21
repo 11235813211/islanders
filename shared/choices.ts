@@ -1,4 +1,4 @@
-import { RESOURCES, type Resource, type ResourceBag, type SplitChoice } from './types';
+import { RESOURCES, type Resource, type ResourceBag, type SplitChoice, TILE_RESOURCES } from './types';
 
 /**
  * Cards a player picks after a roll: gold fields and volcanoes pay any resource, and split tiles
@@ -14,11 +14,13 @@ export interface ChoiceGroup {
 export function choiceGroups(total: number, splits: readonly SplitChoice[] = []): ChoiceGroup[] {
   const limited = splits.reduce((n, s) => n + s.count, 0);
   const free = Math.max(0, total - limited);
-  return [...splits.filter(s => s.count > 0), ...(free ? [{ options: RESOURCES, count: free }] : [])];
+  return [...splits.filter(s => s.count > 0), ...(free ? [{ options: TILE_RESOURCES, count: free }] : [])];
 }
 
-/** Every set of resources, as bit masks over RESOURCES (64 of them). */
-const SUBSETS = Array.from({ length: 1 << RESOURCES.length }, (_, mask) => RESOURCES.filter((_, i) => mask & (1 << i)));
+/** Every set of tile resources (gold never pays a commodity), as bit masks over TILE_RESOURCES (64 of them). */
+const SUBSETS: Resource[][] = Array.from({ length: 1 << TILE_RESOURCES.length }, (_, mask) =>
+  TILE_RESOURCES.filter((_, i) => mask & (1 << i)),
+);
 
 /**
  * The most cards these groups can take from `stock` (how many of each resource are there). A

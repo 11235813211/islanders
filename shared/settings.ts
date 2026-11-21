@@ -129,7 +129,8 @@ export function validSettings(
     (s.volcanoStart === undefined || typeof s.volcanoStart === 'boolean') &&
     (s.volcanoDice === undefined || ['random', 'balanced'].includes(s.volcanoDice as string)) &&
     (s.routeLinks === undefined || ['anywhere', 'settlement'].includes(s.routeLinks as string)) &&
-    (s.chartSpecial === undefined || typeof s.chartSpecial === 'boolean')
+    (s.chartSpecial === undefined || typeof s.chartSpecial === 'boolean') &&
+    (s.citiesKnights === undefined || typeof s.citiesKnights === 'boolean')
   );
 }
 

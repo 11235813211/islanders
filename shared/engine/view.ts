@@ -1,4 +1,5 @@
 import { copyData } from '../copy';
+import { type KnightsView, TRACKS } from '../knights';
 import { fogLandShare, fogMayErupt } from '../maps/fog';
 import { routeFinished } from '../maps/special';
 import { boardExpansions, type Pool } from '../maps/types';
@@ -18,6 +19,7 @@ import {
   seaRules,
   undoEndsTurn,
 } from './core';
+import { knightMoves } from './knights-legal';
 import { legalMoves } from './legal';
 
 /**
@@ -203,7 +205,21 @@ export function getView(state: GameState, selfId: string): GameView {
     map: state.map,
     seafaring: seaRules(state),
     boardPick: state.phase === 'pick-board' ? { shown: state.boardShown + 1, count: state.boardSeeds.length } : null,
+    ck: knightsView(state, selfId),
   } satisfies GameView);
   view.board = freezeBoard(state.board);
   return view;
+}
+
+/** Cities & Knights as one seat sees it: decks and other hands only as counts. */
+function knightsView(state: GameState, selfId: string): KnightsView | null {
+  if (!state.ck) return null;
+  const { decks, hands, sabotage: _sabotage, bishop: _bishop, ...board } = state.ck;
+  return {
+    ...board,
+    deckCounts: Object.fromEntries(TRACKS.map(t => [t, decks[t].length])) as KnightsView['deckCounts'],
+    handCounts: Object.fromEntries(Object.entries(hands).map(([id, cards]) => [id, cards.length])),
+    hand: hands[selfId] ?? [],
+    legal: knightMoves(state, selfId),
+  };
 }

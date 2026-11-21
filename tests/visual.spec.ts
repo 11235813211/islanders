@@ -98,8 +98,8 @@ test('trade offers read from each side, with answers in seat colors', async ({ p
     {
       id: 'trade-visual',
       fromId: 'p0',
-      give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
-      want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0 },
+      give: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+      want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
       to: ['p1', 'p2', 'p3'],
       acceptedBy: ['p1'],
       declinedBy: ['p2'],
@@ -149,7 +149,17 @@ test('phone tour: landscape sea map', async ({ page }) => {
 test('table cues and lobby map proposals', async ({ page }) => {
   const game = richGame();
   const now = Date.now();
-  const bag = (wood: number, ore: number, sheep = 0) => ({ wood, brick: 0, sheep, wheat: 0, ore, lodestone: 0 });
+  const bag = (wood: number, ore: number, sheep = 0) => ({
+    wood,
+    brick: 0,
+    sheep,
+    wheat: 0,
+    ore,
+    lodestone: 0,
+    paper: 0,
+    cloth: 0,
+    coin: 0,
+  });
   const offer = (id: string, fromId: string, give: ReturnType<typeof bag>, want: ReturnType<typeof bag>) => ({
     id,
     fromId,
@@ -181,7 +191,17 @@ test('table cues and lobby map proposals', async ({ page }) => {
   done.phase = 'finished';
   done.winnerId = 'p0';
   done.players.forEach((p, i) => {
-    done.stats[p.id]!.produced = { wood: 4 + i, brick: 3, sheep: 6 - i, wheat: 2 * i, ore: 5, lodestone: 0 };
+    done.stats[p.id]!.produced = {
+      wood: 4 + i,
+      brick: 3,
+      sheep: 6 - i,
+      wheat: 2 * i,
+      ore: 5,
+      lodestone: 0,
+      paper: 0,
+      cloth: 0,
+      coin: 0,
+    };
   });
   await mountGame(page, done);
   await page.getByRole('tab', { name: 'Production' }).click();

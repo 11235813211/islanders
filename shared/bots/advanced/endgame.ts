@@ -1,5 +1,5 @@
 import { BUILD_COSTS } from '../../engine/core';
-import { type GameAction, RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { type GameAction, type Resource, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS, canPay, linkAction, roadPaths, routeGoalAt } from '../analysis';
 import type { Economy } from './economy';
 import { isOpen } from './geometry';
@@ -31,8 +31,8 @@ const MAX_PIECES = 4;
 const MAX_ROADS = 2;
 
 const sum = (items: Score[]): ResourceBag => {
-  const out = Object.fromEntries(RESOURCES.map(r => [r, 0])) as ResourceBag;
-  for (const item of items) for (const r of RESOURCES) out[r] += item.cost[r];
+  const out = Object.fromEntries(TILE_RESOURCES.map(r => [r, 0])) as ResourceBag;
+  for (const item of items) for (const r of TILE_RESOURCES) out[r] += item.cost[r];
   return out;
 };
 
@@ -40,7 +40,7 @@ const sum = (items: Score[]): ResourceBag => {
 function payable(econ: Economy, hand: ResourceBag, cost: ResourceBag, rates: Record<Resource, number>, wild: number) {
   let missing = 0;
   let credit = 0;
-  for (const r of RESOURCES) {
+  for (const r of TILE_RESOURCES) {
     const gap = cost[r] - hand[r];
     if (gap > 0) {
       if (!econ.bankHas(r, gap)) return false;
@@ -65,7 +65,7 @@ function ownScores(econ: Economy): Score[] {
       const c = econ.geo.indexOf.get(vertexId)!;
       const piece = path.firstKind === 'ship' ? BUILD_COSTS.ship : COSTS.road;
       const cost = { ...COSTS.settlement };
-      for (const r of RESOURCES) cost[r] += piece[r] * path.distance;
+      for (const r of TILE_RESOURCES) cost[r] += piece[r] * path.distance;
       const goal = view.board.rules?.routeGoal;
       const points = 1 + econ.islandBonus(c) + (goal && routeGoalAt(view, vertexId) ? goal.points : 0);
       const start: GameAction | null = path.distance
@@ -112,7 +112,7 @@ function bestPlan(
     if (points >= need) {
       const cost = sum(plan);
       if (!payable(econ, hand, cost, rates, wild)) return;
-      const cards = RESOURCES.reduce((n, r) => n + cost[r], 0);
+      const cards = TILE_RESOURCES.reduce((n, r) => n + cost[r], 0);
       if (!best || cards < best.cards) best = { plan: [...plan], cards };
       return;
     }
@@ -180,7 +180,7 @@ export function winningGold(econ: Economy, picks: ResourceBag[]): ResourceBag | 
   // One check with every owed card free first: most of the time nothing wins and this is all it costs.
   if (!bestPlan(econ, scores, need, view.hand, view.tradeRates, wild + Math.min(owed, 4))) return null;
   for (const bag of picks) {
-    const hand = Object.fromEntries(RESOURCES.map(r => [r, view.hand[r] + bag[r]])) as ResourceBag;
+    const hand = Object.fromEntries(TILE_RESOURCES.map(r => [r, view.hand[r] + bag[r]])) as ResourceBag;
     if (bestPlan(econ, scores, need, hand, view.tradeRates, wild)) return bag;
   }
   return null;
@@ -195,23 +195,23 @@ function startCost(item: Score): ResourceBag {
 /** A bank or harbor trade of spare cards for one the plan is missing. */
 function tradeToward(econ: Economy, cost: ResourceBag): GameAction | null {
   const { view } = econ;
-  const want = RESOURCES.find(r => view.hand[r] < cost[r] && econ.bankHas(r));
+  const want = TILE_RESOURCES.find(r => view.hand[r] < cost[r] && econ.bankHas(r));
   if (!want) return null;
   const spare = (r: Resource) => view.hand[r] - cost[r] - view.tradeRates[r];
-  const give = RESOURCES.filter(r => r !== want && spare(r) >= 0).sort((a, b) => spare(b) - spare(a))[0];
+  const give = TILE_RESOURCES.filter(r => r !== want && spare(r) >= 0).sort((a, b) => spare(b) - spare(a))[0];
   return give ? { type: 'trade', give, receive: want } : null;
 }
 
 /** Two picks for Year of Plenty: what the plan is still short of. */
 function missingPicks(econ: Economy, cost: ResourceBag): ResourceBag {
-  const picks = Object.fromEntries(RESOURCES.map(r => [r, 0])) as ResourceBag;
+  const picks = Object.fromEntries(TILE_RESOURCES.map(r => [r, 0])) as ResourceBag;
   let left = 2;
-  for (const r of RESOURCES)
+  for (const r of TILE_RESOURCES)
     while (left && econ.view.hand[r] + picks[r] < cost[r] && econ.bankHas(r, picks[r] + 1)) {
       picks[r]++;
       left--;
     }
-  const fill = RESOURCES.find(r => econ.bankHas(r, picks[r] + 1)) ?? 'wheat';
+  const fill = TILE_RESOURCES.find(r => econ.bankHas(r, picks[r] + 1)) ?? 'wheat';
   picks[fill] += left;
   return picks;
 }

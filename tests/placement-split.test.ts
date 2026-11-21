@@ -6,7 +6,7 @@ import { makeParams, TRAINED } from '../shared/bots/advanced/params';
 import type { BotThought } from '../shared/bots/types';
 import { advanceTime, applyAction, type BotThinking, botDueAt, getView, thinkAhead } from '../shared/engine';
 import { emptyBag } from '../shared/engine/core';
-import { type GameState, RESOURCES } from '../shared/types';
+import { type GameState, TILE_RESOURCES } from '../shared/types';
 import { playBotGame } from './bot-harness';
 import { inSeatOrder, makeLobby, seeded, TEST_NOW } from './fixtures';
 
@@ -23,7 +23,7 @@ function bisected(hand: Pace['income'], pace: Pace, cost: Pace['income']): numbe
   const covered = (t: number) => {
     let credit = pace.wild * t;
     let need = 0;
-    for (const r of RESOURCES) {
+    for (const r of TILE_RESOURCES) {
       const left = hand[r] + pace.income[r] * t - cost[r];
       if (left >= 0) credit += left / pace.rates[r];
       else need -= left;
@@ -65,12 +65,12 @@ describe('placement in pieces', () => {
     const random = seeded(11);
     const bag = (most: number) => {
       const out = emptyBag();
-      for (const r of RESOURCES) out[r] = random() < 0.3 ? 0 : random() * most;
+      for (const r of TILE_RESOURCES) out[r] = random() < 0.3 ? 0 : random() * most;
       return out;
     };
     for (let i = 0; i < 3000; i++) {
-      const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4 };
-      for (const r of RESOURCES) if (random() < 0.3) rates[r] = random() < 0.5 ? 2 : 3;
+      const rates = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4, paper: 0, cloth: 0, coin: 0 };
+      for (const r of TILE_RESOURCES) if (random() < 0.3) rates[r] = random() < 0.5 ? 2 : 3;
       const pace: Pace = { income: bag(1), wild: random() < 0.8 ? 0 : random() / 2, rates };
       const [hand, cost] = [bag(4), bag(4)];
       expect(roundsToAfford(hand, pace, cost)).toBe(bisected(hand, pace, cost));

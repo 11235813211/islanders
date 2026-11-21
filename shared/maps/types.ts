@@ -1,4 +1,4 @@
-import type { Resource, Terrain } from '../types';
+import type { Terrain, TileResource } from '../types';
 
 /**
  * A board as an editor saves it. `buildBoard` (generate.ts) turns a design into a playable
@@ -72,7 +72,7 @@ export interface DesignHarbor {
   q: number;
   r: number;
   side: number;
-  kind: Resource | 'any' | 'random';
+  kind: TileResource | 'any' | 'random';
   /** Same resource as the tiles with this letter. Only random harbors are linked. */
   link?: string;
   /** Any resource but the one linked to this letter. */
@@ -166,7 +166,7 @@ export interface BoardDesign {
    */
   pool: Partial<Record<FillKind, number>>;
   /** Kinds random harbors never become (the editor shows the rest as what they can give). */
-  harborExclude: (Resource | 'any')[];
+  harborExclude: (TileResource | 'any')[];
   /**
    * Each game, numbers swap with their equal-odds partner (2↔12, 3↔11, 4↔10, 5↔9, 6↔8), half
    * each way, so a board with set numbers plays differently with the same odds.

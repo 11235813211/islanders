@@ -1,5 +1,5 @@
 import { BUILD_COSTS } from '../../engine/core';
-import { type GameAction, RESOURCES, type ResourceBag } from '../../types';
+import { type GameAction, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS } from '../analysis';
 import type { TurnOptions } from '../types';
 import type { Economy } from './economy';
@@ -22,7 +22,10 @@ export interface Candidate {
 }
 
 const SHIP = BUILD_COSTS.ship;
-const NOTHING = { production: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 }, choice: 0 };
+const NOTHING = {
+  production: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  choice: 0,
+};
 
 /** The seats with ours replaced, and an award moved from its holder when we take it. */
 function after(base: Position[], self: Position, award?: 'roadAward' | 'armyAward'): Position[] {
@@ -93,10 +96,10 @@ function candidates(econ: Economy): Candidate[] {
     const p = withBuild(me, NOTHING, COSTS.development);
     out.push({ action: { type: 'buy-development' }, seats: after(base, { ...p, developments: p.developments + 1 }) });
   }
-  for (const give of RESOURCES) {
+  for (const give of TILE_RESOURCES) {
     const rate = view.tradeRates[give];
     if (view.hand[give] < rate) continue;
-    for (const receive of RESOURCES) {
+    for (const receive of TILE_RESOURCES) {
       if (receive === give || !econ.bankHas(receive)) continue;
       const hand = { ...me.hand };
       hand[give] -= rate;

@@ -1,6 +1,6 @@
 import { emptyBag } from '../../engine/core';
 import { boardIndex, terrainResource } from '../../seafaring';
-import { CLASSIC_RESOURCES, type GameView, RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { CLASSIC_RESOURCES, type GameView, type Resource, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { type ForecastStart, forecast } from './forecast';
 import type { Geometry } from './geometry';
 import type { Knobs } from './params';
@@ -40,7 +40,17 @@ export function setupStart(view: GameView, geo: Geometry, owners: Int8Array, kno
     const corners: number[] = [];
     for (let c = 0; c < owners.length; c++) if (owners[c] === seat) corners.push(c);
     const income = emptyBag();
-    const rates: Record<Resource, number> = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4, lodestone: 4 };
+    const rates: Record<Resource, number> = {
+      wood: 4,
+      brick: 4,
+      sheep: 4,
+      wheat: 4,
+      ore: 4,
+      lodestone: 4,
+      paper: 0,
+      cloth: 0,
+      coin: 0,
+    };
     let wild = 0;
     for (const c of corners) {
       CLASSIC_RESOURCES.forEach((r, i) => {
@@ -49,7 +59,7 @@ export function setupStart(view: GameView, geo: Geometry, owners: Int8Array, kno
       income.lodestone += geo.lodestone[c]! * perRound;
       wild += geo.gold[c]! * perRound;
       const harbor = geo.harbor[c];
-      if (harbor === 'any') for (const r of RESOURCES) rates[r] = Math.min(rates[r], 3);
+      if (harbor === 'any') for (const r of TILE_RESOURCES) rates[r] = Math.min(rates[r], 3);
       else if (harbor) rates[harbor] = 2;
     }
     const added = corners.length - placedNow[seat]!;

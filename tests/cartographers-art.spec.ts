@@ -28,6 +28,9 @@ const LABELS: Record<Resource, string> = {
   wheat: 'Grain',
   ore: 'Ore',
   lodestone: 'Lodestone',
+  paper: 'Paper',
+  cloth: 'Cloth',
+  coin: 'Coin',
 };
 /** Tiles with their numbers: the first is the tile's own, the rest were charted. */
 const TILES: [Terrain, number[]][] = [

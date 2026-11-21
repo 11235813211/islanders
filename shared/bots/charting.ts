@@ -3,7 +3,7 @@ import { BUILD_COSTS } from '../engine/core';
 import { affordsSplit, chartHexes, splitHexes } from '../engine/legal';
 import { chartedNumbers, chartsLeft, hexNumbers, onlyPlayerBeside, payingNumbers } from '../rules';
 import { boardIndex, isLandVertex, terrainResource } from '../seafaring';
-import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
+import { type GameAction, type GameView, type Hex, type Resource, type ResourceBag, TILE_RESOURCES } from '../types';
 import { Board, roadPaths } from './analysis';
 
 /**
@@ -94,7 +94,7 @@ function netShare(view: GameView, hex: Hex, tuning: TileTuning): number {
 
 /** This seat's dots per resource (what its tiles pay), for preferring what it lacks. */
 function income(view: GameView): ResourceBag {
-  const bag = Object.fromEntries(RESOURCES.map(r => [r, 0])) as ResourceBag;
+  const bag = Object.fromEntries(TILE_RESOURCES.map(r => [r, 0])) as ResourceBag;
   for (const hex of view.board.hexes) {
     const resource = terrainResource(hex.terrain);
     if (resource) bag[resource] += tileDots(payingNumbers(hex, hex.id === view.robber)) * share(view, hex);
@@ -157,7 +157,7 @@ export function splitMove(view: GameView, tuning = SIMPLE_TILES): GameAction | n
     .sort((a, b) => b.value - a.value)[0];
   if (!tile || tile.value < 5) return null;
   const own = terrainResource(tile.hex.terrain);
-  const options = RESOURCES.filter(r => r !== own && r !== 'lodestone').sort((a, b) => earns[a] - earns[b]);
+  const options = TILE_RESOURCES.filter(r => r !== own && r !== 'lodestone').sort((a, b) => earns[a] - earns[b]);
   const split = (resource: Resource): GameAction => ({ type: 'split-hex', hexId: tile.hex.id, resource });
   if (tuning.splitTrade) {
     const need = options.find(r => view.bank[r]);
@@ -178,7 +178,7 @@ export function splitMove(view: GameView, tuning = SIMPLE_TILES): GameAction | n
 export function bankTradeFor(view: GameView, want: Resource, keep: ResourceBag): GameAction | null {
   if (!view.bank[want]) return null;
   const spare = (r: Resource) => view.hand[r] - keep[r] - view.tradeRates[r];
-  const give = RESOURCES.filter(r => r !== 'lodestone' && r !== want && spare(r) >= 0).sort(
+  const give = TILE_RESOURCES.filter(r => r !== 'lodestone' && r !== want && spare(r) >= 0).sort(
     (a, b) => spare(b) - spare(a),
   );
   return give[0] ? { type: 'trade', give: give[0], receive: want } : null;
@@ -192,25 +192,25 @@ export function splitGoldChoice(view: GameView, free: (view: GameView) => GameAc
   const pending = view.pendingGold[view.selfId] ?? 0;
   const splits = view.pendingSplit[view.selfId] ?? [];
   const stock = Object.fromEntries(
-    RESOURCES.map(r => [r, view.bankCounts?.[r] ?? (view.bank[r] ? pending : 0)]),
+    TILE_RESOURCES.map(r => [r, view.bankCounts?.[r] ?? (view.bank[r] ? pending : 0)]),
   ) as Record<Resource, number>;
   const groups = choiceGroups(pending, splits);
   // The bank may pay fewer than are owed (the engine asks for exactly what it can pay).
   const owed = Math.min(pending, choiceLimit(groups, stock));
-  const limited: ChoiceGroup[] = groups.filter(g => g.options.length < RESOURCES.length);
+  const limited: ChoiceGroup[] = groups.filter(g => g.options.length < TILE_RESOURCES.length);
   const bag = fillChoice(
     limited,
     stock,
     (options, picked) => [...options].sort((a, b) => view.hand[a] + picked[a] - (view.hand[b] + picked[b])),
     owed,
   );
-  const rest = owed - RESOURCES.reduce((n, r) => n + bag[r], 0);
+  const rest = owed - TILE_RESOURCES.reduce((n, r) => n + bag[r], 0);
   if (rest <= 0) return { type: 'choose-gold', resources: bag };
   const hand = { ...view.hand };
-  for (const r of RESOURCES) hand[r] += bag[r];
+  for (const r of TILE_RESOURCES) hand[r] += bag[r];
   const pick = free({ ...view, hand, pendingGold: { ...view.pendingGold, [view.selfId]: rest }, pendingSplit: {} });
   if (pick.type !== 'choose-gold') return { type: 'choose-gold', resources: bag };
   const resources = { ...bag };
-  for (const r of RESOURCES) resources[r] += pick.resources[r];
+  for (const r of TILE_RESOURCES) resources[r] += pick.resources[r];
   return { type: 'choose-gold', resources };
 }

@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { ORDERED_NUMBERS, spiralHexes } from '../shared/board';
 import type { GameView, ServerMessage } from '../shared/types';
-import { RESOURCES } from '../shared/types';
+import { TILE_RESOURCES } from '../shared/types';
 import { expectNoSpill, startGame } from './ui-harness';
 
 function observe(page: Page) {
@@ -103,8 +103,8 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await page.getByLabel('Play as', { exact: true }).selectOption(host);
   await expect(page.getByRole('button', { name: 'End turn' })).toBeEnabled();
   const labels = { wood: 'Lumber', brick: 'Brick', sheep: 'Wool', wheat: 'Grain', ore: 'Ore', lodestone: 'Lodestone' };
-  const give = RESOURCES.find(resource => game.state()!.hand[resource] > 0)!;
-  const want = RESOURCES.find(resource => resource !== give)!;
+  const give = TILE_RESOURCES.find(resource => game.state()!.hand[resource] > 0)!;
+  const want = TILE_RESOURCES.find(resource => resource !== give)!;
   await page.getByRole('button', { name: new RegExp(`^Trade ${labels[give]}`) }).click();
   await page.getByRole('button', { name: `Request one more ${labels[want]}` }).click();
   await page.getByRole('button', { name: 'Offer to players' }).click();

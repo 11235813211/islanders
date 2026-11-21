@@ -1,4 +1,4 @@
-import { RESOURCES, type Resource } from '../types';
+import { TILE_RESOURCES, type TileResource } from '../types';
 import { balancedNumbers, randomNumber } from './balance';
 import { isLand, takesNumber, tidy } from './edit';
 import { buildBoard, drawHarborKinds } from './generate';
@@ -94,15 +94,15 @@ export function unfillHarbors(design: BoardDesign): BoardDesign {
 export const clearHarbors = (design: BoardDesign): BoardDesign => ({ ...design, harbors: [] });
 
 /** The resource a link group is set to, or null while it is random. */
-export function groupKind(design: BoardDesign, letter: string): Resource | null {
-  const tile = design.tiles.find(t => t.link === letter && RESOURCES.includes(t.kind as Resource));
-  if (tile) return tile.kind as Resource;
-  const harbor = design.harbors.find(h => h.link === letter && RESOURCES.includes(h.kind as Resource));
-  return harbor ? (harbor.kind as Resource) : null;
+export function groupKind(design: BoardDesign, letter: string): TileResource | null {
+  const tile = design.tiles.find(t => t.link === letter && TILE_RESOURCES.includes(t.kind as TileResource));
+  if (tile) return tile.kind as TileResource;
+  const harbor = design.harbors.find(h => h.link === letter && TILE_RESOURCES.includes(h.kind as TileResource));
+  return harbor ? (harbor.kind as TileResource) : null;
 }
 
 /** Set a whole link group to one resource (tiles get its terrain, harbors trade it 2:1), or make it random (null). */
-export function setGroupKind(design: BoardDesign, letter: string, resource: Resource | null): BoardDesign {
+export function setGroupKind(design: BoardDesign, letter: string, resource: TileResource | null): BoardDesign {
   return tidy({
     ...design,
     tiles: design.tiles.map(t => (t.link === letter ? { ...t, kind: resource ?? 'land' } : t)),

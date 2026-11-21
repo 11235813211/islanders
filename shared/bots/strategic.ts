@@ -3,9 +3,9 @@ import {
   type DevelopmentCard,
   type GameAction,
   type GameView,
-  RESOURCES,
   type Resource,
   type ResourceBag,
+  TILE_RESOURCES,
   type TradeBag,
   type TradeOffer,
 } from '../types';
@@ -146,7 +146,7 @@ class Planner {
       const player = this.view.players.find(p => p.id === id)!;
       let value = player.resourceCount + player.publicPoints * 0.5;
       const hand = estimateHand(this.board, id);
-      value += RESOURCES.reduce((n, r) => n + (this.view.hand[r] < need[r] ? hand[r] : 0), 0) * 1.5;
+      value += TILE_RESOURCES.reduce((n, r) => n + (this.view.hand[r] < need[r] ? hand[r] : 0), 0) * 1.5;
       return value;
     };
     return [...this.view.legal.stealTargets].sort((a, b) => score(b) - score(a))[0]!;
@@ -178,10 +178,10 @@ class Planner {
     const { goal } = this.goal();
     const plenty = this.playable('year-of-plenty');
     if (plenty) {
-      const missing = RESOURCES.flatMap(r =>
+      const missing = TILE_RESOURCES.flatMap(r =>
         Array<Resource>(Math.max(0, COSTS[goal][r] - this.view.hand[r])).fill(r),
       ).filter(r => this.view.bank[r]);
-      const picks = [...missing, ...RESOURCES.filter(r => this.view.bank[r])].slice(0, 2);
+      const picks = [...missing, ...TILE_RESOURCES.filter(r => this.view.bank[r])].slice(0, 2);
       if (missing.length && missing.length <= 2 && picks.length) {
         const resources = emptyBag();
         for (const r of picks) resources[r]++;
@@ -192,7 +192,7 @@ class Planner {
     if (monopoly) {
       const others = this.view.players.filter(p => p.id !== this.view.selfId);
       const held = (r: Resource) => others.reduce((n, p) => n + estimateHand(this.board, p.id)[r], 0);
-      const resource = [...RESOURCES].sort((a, b) => held(b) * this.weights[b] - held(a) * this.weights[a])[0]!;
+      const resource = [...TILE_RESOURCES].sort((a, b) => held(b) * this.weights[b] - held(a) * this.weights[a])[0]!;
       if (held(resource) >= 3) return { type: 'play-monopoly', cardId: monopoly.id, resource };
     }
     const roadBuilding = this.playable('road-building');
@@ -227,15 +227,15 @@ class Planner {
   /** A bank trade that brings the goal within reach, never giving away goal resources. */
   bankTrade(goal: Goal): GameAction | null {
     const cost = COSTS[goal];
-    const missing = RESOURCES.filter(r => this.view.hand[r] < cost[r] && this.view.bank[r]);
+    const missing = TILE_RESOURCES.filter(r => this.view.hand[r] < cost[r] && this.view.bank[r]);
     if (!missing.length) return null;
-    const shortfall = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - this.view.hand[r]), 0);
-    const credits = RESOURCES.reduce(
+    const shortfall = TILE_RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - this.view.hand[r]), 0);
+    const credits = TILE_RESOURCES.reduce(
       (n, r) => n + Math.floor(Math.max(0, this.view.hand[r] - cost[r]) / this.view.tradeRates[r]),
       0,
     );
     if (credits < shortfall) return null;
-    const give = [...RESOURCES]
+    const give = [...TILE_RESOURCES]
       .filter(r => this.view.hand[r] - cost[r] >= this.view.tradeRates[r])
       .sort((a, b) => this.weights[a] - this.weights[b])[0];
     const receive = [...missing].sort((a, b) => this.weights[b] - this.weights[a])[0]!;
@@ -250,14 +250,14 @@ class Planner {
   playerOffer(goal: Goal): GameAction | null {
     if (eventsThisTurn(this.view, ['offer'])) return null;
     const cost = COSTS[goal];
-    const want = RESOURCES.filter(r => this.view.hand[r] < cost[r]).sort(
+    const want = TILE_RESOURCES.filter(r => this.view.hand[r] < cost[r]).sort(
       (a, b) => this.weights[b] - this.weights[a],
     )[0];
-    const give = RESOURCES.filter(r => this.view.hand[r] > cost[r]).sort(
+    const give = TILE_RESOURCES.filter(r => this.view.hand[r] > cost[r]).sort(
       (a, b) => this.weights[a] - this.weights[b],
     )[0];
     if (!want || !give) return null;
-    const short = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - this.view.hand[r]), 0);
+    const short = TILE_RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - this.view.hand[r]), 0);
     const askPeople =
       short === 1 &&
       !recentOffer(this.view, 3, (_, __, people) => people) &&
@@ -311,7 +311,7 @@ class Planner {
     if (!canPay(this.view.hand, give)) return false;
     const { goal } = this.goal();
     const hand = { ...this.view.hand };
-    for (const r of RESOURCES) hand[r] += get[r] - give[r];
+    for (const r of TILE_RESOURCES) hand[r] += get[r] - give[r];
     const before = turnsToAfford(this.view, this.production, COSTS[goal]);
     const after = turnsToAfford({ ...this.view, hand }, this.production, COSTS[goal]);
     return bagValue(get, this.weights) >= bagValue(give, this.weights) * 0.95 && after <= before;
@@ -380,8 +380,8 @@ function makeBrain(profile: Profile): Brain {
       const bag = emptyBag();
       for (let i = 0; i < (view.pendingDiscards[view.selfId] ?? 0); i++) {
         // Drop surplus over the goal first, cheapest-valued first; then the most-held card.
-        const surplus = RESOURCES.filter(r => hand[r] > keep[r]).sort((a, b) => p.weights[a] - p.weights[b]);
-        const resource = surplus[0] ?? [...RESOURCES].sort((a, b) => hand[b] - hand[a])[0]!;
+        const surplus = TILE_RESOURCES.filter(r => hand[r] > keep[r]).sort((a, b) => p.weights[a] - p.weights[b]);
+        const resource = surplus[0] ?? [...TILE_RESOURCES].sort((a, b) => hand[b] - hand[a])[0]!;
         hand[resource]--;
         bag[resource]++;
       }

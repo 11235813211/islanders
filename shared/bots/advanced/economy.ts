@@ -1,7 +1,7 @@
 import { ownEdges } from '../../crossings';
 import { emptyBag } from '../../engine/core';
 import { boardIndex, terrainResource } from '../../seafaring';
-import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { type GameAction, type GameView, type Hex, type Resource, type ResourceBag, TILE_RESOURCES } from '../../types';
 import {
   addTileYield,
   Board,
@@ -196,7 +196,7 @@ export class Economy {
     let value = this.geo.gold[c]! * k.goldSpot + this.geo.jungle[c]! * 0.5;
     if (this.view.settings.volcanoGold) value += this.geo.volcano[c]! * k.goldSpot * 0.75;
     for (let r = 0; r < 5; r++) {
-      const have = production[RESOURCES[r]!];
+      const have = production[TILE_RESOURCES[r]!];
       value += this.geo.pips[c * 5 + r]! * (1.6 - Math.min(1, have / 10));
     }
     // Lodestone pays for charts and relay stations, worth less once the bot already earns plenty.
@@ -346,7 +346,7 @@ export class Economy {
     let shortfall = 0;
     let credit = 0;
     const missing: Resource[] = [];
-    for (const r of RESOURCES) {
+    for (const r of TILE_RESOURCES) {
       const gap = cost[r] - hand[r];
       if (gap <= 0) credit += Math.floor(-gap / rates[r]);
       else {
@@ -379,7 +379,7 @@ export class Economy {
       else if (v > second) second = v;
     }
     best += this.knobs.secondGoal * second;
-    const cards = RESOURCES.reduce((n, r) => n + hand[r], 0);
+    const cards = TILE_RESOURCES.reduce((n, r) => n + hand[r], 0);
     const over = Math.max(0, cards - this.view.settings.discardLimit);
     return best + cards * 0.02 - over * 0.06;
   }
@@ -401,12 +401,22 @@ export class Economy {
   }
 }
 
-const unitWeights: ResourceBag = { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 1, lodestone: 1 };
+const unitWeights: ResourceBag = {
+  wood: 1,
+  brick: 1,
+  sheep: 1,
+  wheat: 1,
+  ore: 1,
+  lodestone: 1,
+  paper: 0,
+  cloth: 0,
+  coin: 0,
+};
 
 /** Every way to pick `n` resources (as bags), only from what the bank has. */
 export function choices(econ: Economy, n: number): ResourceBag[] {
   const out: ResourceBag[] = [];
-  const available = RESOURCES.filter(r => econ.bankHas(r));
+  const available = TILE_RESOURCES.filter(r => econ.bankHas(r));
   const walk = (from: number, left: number, bag: ResourceBag) => {
     if (!left) {
       out.push({ ...bag });
@@ -425,7 +435,7 @@ export function choices(econ: Economy, n: number): ResourceBag[] {
 
 const plus = (a: ResourceBag, b: ResourceBag): ResourceBag => {
   const out = { ...a };
-  for (const r of RESOURCES) out[r] += b[r];
+  for (const r of TILE_RESOURCES) out[r] += b[r];
   return out;
 };
 
@@ -451,7 +461,7 @@ function finishGold(econ: Economy, owed: number, best: ResourceBag): GameAction 
   const { view } = econ;
   for (let left = owed - Math.min(owed, 4); left > 0; left--) {
     const hand = plus(view.hand, best);
-    const r = [...RESOURCES]
+    const r = [...TILE_RESOURCES]
       .filter(x => econ.bankHas(x, best[x] + 1))
       .sort((a, b) => econ.handValue(plus(hand, one(b))) - econ.handValue(plus(hand, one(a))))[0];
     if (!r) break;
@@ -468,7 +478,7 @@ export function discard(view: GameView, knobs: Knobs): GameAction {
   const hand = { ...view.hand };
   const bag = emptyBag();
   for (let i = 0; i < (view.pendingDiscards[view.selfId] ?? 0); i++) {
-    const r = RESOURCES.filter(x => hand[x] > 0).sort((a, b) => {
+    const r = TILE_RESOURCES.filter(x => hand[x] > 0).sort((a, b) => {
       hand[a]--;
       const va = econ.handValue(hand);
       hand[a]++;

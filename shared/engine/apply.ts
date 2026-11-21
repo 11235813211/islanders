@@ -17,8 +17,10 @@ import {
 import { developmentHandlers } from './development';
 import { routeMet, updatePeaks } from './goals';
 import { trackHands } from './hands';
+import { knightHandlers } from './knights-actions';
 import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
+import { progressHandlers } from './progress';
 import { mapProposalHandlers, pruneMapProposals } from './proposals';
 import { seaHandlers } from './sea';
 import { seatHandlers } from './seats';
@@ -33,6 +35,8 @@ const HANDLERS: Handlers = {
   ...tradeHandlers,
   ...developmentHandlers,
   ...cartographersHandlers,
+  ...knightHandlers,
+  ...progressHandlers,
   ...seatHandlers,
   ...mapProposalHandlers,
 } as Handlers;
@@ -60,6 +64,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'set-board-players',
   'discard',
   'choose-gold',
+  'give-cards',
   'request-special-build',
   'cancel-special-build',
   'give-time',
@@ -90,6 +95,12 @@ const REVERSIBLE = new Set<GameAction['type']>([
   'confirm-trade',
   'accept-counter',
   'end-turn',
+  'build-knight',
+  'activate-knight',
+  'promote-knight',
+  'move-knight',
+  'build-wall',
+  'improve-city',
 ]);
 /** Moves that neither create nor clear undo history. */
 const PASSIVE = new Set<GameAction['type']>([
@@ -126,6 +137,13 @@ const TIME_BONUS = new Set<GameAction['type']>([
   'buy-development',
   'play-knight',
   'play-road-building',
+  'build-knight',
+  'activate-knight',
+  'promote-knight',
+  'move-knight',
+  'build-wall',
+  'improve-city',
+  'play-progress',
   'play-monopoly',
   'play-plenty',
 ]);
@@ -182,7 +200,7 @@ function earnsTime(state: GameState, next: GameState, action: GameAction): boole
 }
 
 /** Phases where others may be the ones choosing, on their own short clock. */
-const HELD_PHASES: readonly GameState['phase'][] = ['discard', 'gold'];
+const HELD_PHASES: readonly GameState['phase'][] = ['discard', 'gold', 'gift'];
 
 /**
  * The turn clock stops while players discard or pick gold, so their choices never use up the
@@ -240,8 +258,10 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   else if (next.phase !== 'gold') next.goldDeadline = null;
   if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + decision;
   else if (next.phase !== 'robber') next.robberDeadline = null;
-  if (next.phase === 'discard' && state.phase !== 'discard') next.discardDeadline = now + decision;
-  else if (next.phase !== 'discard') next.discardDeadline = null;
+  // Wedding gifts are picked like discards, on the same clock.
+  const picking = (phase: GameState['phase']) => phase === 'discard' || phase === 'gift';
+  if (picking(next.phase) && next.phase !== state.phase) next.discardDeadline = now + decision;
+  else if (!picking(next.phase)) next.discardDeadline = null;
   if (next.phase !== 'roll') next.rollHeldMs = null;
   holdTurnClock(next, now);
   const newSeat =

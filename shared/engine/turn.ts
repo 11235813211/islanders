@@ -3,7 +3,7 @@ import { TUNING } from '../default-settings';
 import { setupPieces } from '../maps/special';
 import { canGiveTime } from '../rules';
 import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
-import { type GameState, RESOURCES, type Tradable } from '../types';
+import { type GameState, type Player, RESOURCES, type Tradable } from '../types';
 import {
   addBag,
   addLog,
@@ -28,6 +28,7 @@ import {
 import { rollDice } from './dice';
 import { revealFog } from './fog';
 import { noteRoute } from './goals';
+import { afterDiscards, aqueduct, discardLimit, endKnightsTurn, resolveEventDie } from './knights';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { drift, eruptingVolcanoes, produce } from './production';
 
@@ -38,7 +39,13 @@ const ROLL_RESUME_MS = 3000;
  * Take one weighted-random card (or, where the room allows it, a discovery) from the victim, then
  * return to the phase the robber interrupted.
  */
-export function stealResource(state: GameState, actorId: string, victimId: string, random: () => number): void {
+export function stealResource(
+  state: GameState,
+  actorId: string,
+  victimId: string,
+  random: () => number,
+  finish = true,
+): void {
   const player = state.players.find(p => p.id === actorId)!;
   const victim = state.players.find(p => p.id === victimId)!;
   const pool: Tradable[] = discoveryRule(state).stealable ? [...RESOURCES, 'discovery'] : [...RESOURCES];
@@ -60,7 +67,7 @@ export function stealResource(state: GameState, actorId: string, victimId: strin
     }
     index -= holding(victim, resource);
   }
-  afterRobber(state);
+  if (finish) afterRobber(state);
 }
 
 /** The robber (or pirate) is done: back to what the 7 or knight interrupted. */
@@ -139,6 +146,41 @@ export function finishSetupLink(next: GameState): void {
   } else next.phase = 'setup-settlement';
 }
 
+/**
+ * Roll the dice (or, for an Alchemist, use the dice chosen) and pay out. With Cities & Knights the
+ * event die goes first: the barbarians may land, or progress cards are drawn (`dice[0]` is the red die).
+ */
+export function performRoll(next: GameState, player: Player, random: () => number, chosen?: [number, number]): void {
+  const playerId = player.id;
+  const dice = chosen ?? rollDice(next, random);
+  next.dice = dice;
+  const total = dice[0] + dice[1];
+  next.rollDeadline = null;
+  next.diceCounts[total]++;
+  tally(next, playerId, 'rolls', total);
+  addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains: {} });
+  const rolled = next.log.at(-1)!;
+  if (next.ck) resolveEventDie(next, dice[0], playerId, random);
+  if (total === 7) {
+    next.pendingDiscards = {};
+    next.stealHex = null;
+    for (const candidate of next.players) {
+      const count = handSize(next, candidate);
+      if (count > discardLimit(next, candidate.id)) next.pendingDiscards[candidate.id] = Math.floor(count / 2);
+    }
+    next.phase = Object.keys(next.pendingDiscards).length ? 'discard' : afterDiscards(next);
+    return;
+  }
+  const gains = produce(next, total);
+  // The roll's log entry carries what it paid, for the cards flying out and the bots' hand counts.
+  next.log[next.log.indexOf(rolled)] = { ...rolled, event: { kind: 'roll', playerId, dice, gains } };
+  if (next.ck) aqueduct(next, gains);
+  drift(next, total, random);
+  const volcanoes = eruptingVolcanoes(next, total);
+  next.eruption = volcanoes.length ? volcanoes : null;
+  next.phase = afterProduction(next);
+}
+
 export const turnHandlers: Pick<
   Handlers,
   | 'request-special-build'
@@ -200,31 +242,9 @@ export const turnHandlers: Pick<
     finishSetupLink(next);
   },
 
-  roll({ next, player, playerId, random }) {
+  roll({ next, player, random }) {
     needPhase(next, 'roll');
-    const dice = rollDice(next, random);
-    next.dice = dice;
-    const total = dice[0] + dice[1];
-    next.rollDeadline = null;
-    next.diceCounts[total]++;
-    tally(next, playerId, 'rolls', total);
-    if (total === 7) {
-      next.pendingDiscards = {};
-      next.stealHex = null;
-      for (const candidate of next.players) {
-        const count = handSize(next, candidate);
-        if (count > next.settings.discardLimit) next.pendingDiscards[candidate.id] = Math.floor(count / 2);
-      }
-      next.phase = Object.keys(next.pendingDiscards).length ? 'discard' : 'robber';
-      addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains: {} });
-    } else {
-      const gains = produce(next, total);
-      addLog(next, `${player.name} rolled ${total}.`, { kind: 'roll', playerId, dice, gains });
-      drift(next, total, random);
-      const volcanoes = eruptingVolcanoes(next, total);
-      next.eruption = volcanoes.length ? volcanoes : null;
-      next.phase = afterProduction(next);
-    }
+    performRoll(next, player, random);
   },
 
   discard({ next, player, playerId }, action) {
@@ -241,7 +261,7 @@ export const turnHandlers: Pick<
     for (const r of RESOURCES) next.bank[r] += action.resources[r];
     delete next.pendingDiscards[playerId];
     tally(next, playerId, 'cardsOut', 'discard', amount);
-    if (!Object.keys(next.pendingDiscards).length) next.phase = 'robber';
+    if (!Object.keys(next.pendingDiscards).length) next.phase = afterDiscards(next);
     addLog(next, `${player.name} discarded ${amount} resources.`, {
       kind: 'discard',
       playerId,
@@ -257,6 +277,13 @@ export const turnHandlers: Pick<
     if (pirate) next.pirate = action.hexId;
     else next.robber = action.hexId;
     next.stealHex = action.hexId;
+    if (next.ck?.bishop && !pirate) {
+      next.ck.bishop = false;
+      addLog(next, `${player.name} moved the robber.`);
+      for (const victim of stealTargets(next, playerId)) stealResource(next, playerId, victim, random, false);
+      afterRobber(next);
+      return;
+    }
     const victims = stealTargets(next, playerId);
     if (victims.length) next.phase = 'steal';
     else afterRobber(next);
@@ -397,6 +424,7 @@ export const turnHandlers: Pick<
     next.dice = null;
     next.phase = 'roll';
     next.developmentPlayed = false;
+    endKnightsTurn(next);
     next.shipsBuilt = [];
     next.shipMoved = false;
   },

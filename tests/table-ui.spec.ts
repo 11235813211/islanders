@@ -437,7 +437,17 @@ test('an off-turn offer to five players shows every answer, the counter, and the
   game.turnDeadline = Date.now() + 120_000;
   grant(game, 'p2', { wood: 3 });
   grant(game, 'p3', { ore: 2 });
-  const bag = (wood: number, ore: number) => ({ wood, brick: 0, sheep: 0, wheat: 0, ore, lodestone: 0 });
+  const bag = (wood: number, ore: number) => ({
+    wood,
+    brick: 0,
+    sheep: 0,
+    wheat: 0,
+    ore,
+    lodestone: 0,
+    paper: 0,
+    cloth: 0,
+    coin: 0,
+  });
   game.tradeOffers = [
     {
       id: 'trade-wide',
@@ -472,7 +482,17 @@ test('the hand turns red once a 7 would make you discard', async ({ page }) => {
   const g = richGame();
   // Browser tests use the live defaults; pin the limit so 8 cards is over it.
   g.settings.discardLimit = 7;
-  g.players[0]!.resources = { wood: 2, brick: 2, sheep: 2, wheat: 1, ore: 0, lodestone: 0 };
+  g.players[0]!.resources = {
+    wood: 2,
+    brick: 2,
+    sheep: 2,
+    wheat: 1,
+    ore: 0,
+    lodestone: 0,
+    paper: 0,
+    cloth: 0,
+    coin: 0,
+  };
   const game = await mountGame(page, g);
   const hand = page.locator('.table-hand');
   await expect(hand).not.toHaveClass(/over-limit/);

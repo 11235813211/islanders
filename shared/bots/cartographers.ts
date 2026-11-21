@@ -2,7 +2,7 @@ import { BUILD_COSTS } from '../engine/core';
 import { relaySpots } from '../engine/legal';
 import { hexNumbers } from '../rules';
 import { boardIndex } from '../seafaring';
-import { type GameAction, type GameView, RESOURCES, type TradeOffer } from '../types';
+import { type GameAction, type GameView, TILE_RESOURCES, type TradeOffer } from '../types';
 import {
   bankTradeFor,
   chartMove,
@@ -66,7 +66,7 @@ function givesLodestone(action: GameAction): boolean {
 /** With the lodestone in hand, a bank trade for the one other card a piece still needs, paid with spares. */
 function tradeToward(view: GameView, piece: 'chart' | 'relay'): GameAction | null {
   const cost = BUILD_COSTS[piece];
-  const missing = RESOURCES.filter(r => view.hand[r] < cost[r]);
+  const missing = TILE_RESOURCES.filter(r => view.hand[r] < cost[r]);
   const [want] = missing;
   if (missing.length !== 1 || !want || want === 'lodestone') return null;
   return bankTradeFor(view, want, cost);

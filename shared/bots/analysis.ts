@@ -11,7 +11,7 @@ import {
   terrainResource,
   vertexIsland,
 } from '../seafaring';
-import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, type ResourceBag } from '../types';
+import { type GameAction, type GameView, type Hex, type Resource, type ResourceBag, TILE_RESOURCES } from '../types';
 
 /**
  * Read-only helpers bots use to judge a position. Everything here works from a
@@ -19,10 +19,10 @@ import { type GameAction, type GameView, type Hex, RESOURCES, type Resource, typ
  */
 
 export const COSTS = {
-  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
-  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0 },
-  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
-  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
+  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
 } satisfies Record<string, ResourceBag>;
 export type Goal = keyof typeof COSTS;
 
@@ -49,7 +49,7 @@ export function addTileYield(bag: ResourceBag, hex: Hex, amount: number): void {
     bag[resource] += amount / 2;
     bag[hex.split] += amount / 2;
   } else if (resource) bag[resource] += amount;
-  else if (hex.terrain === 'gold' || hex.terrain === 'volcano') for (const r of RESOURCES) bag[r] += amount / 4;
+  else if (hex.terrain === 'gold' || hex.terrain === 'volcano') for (const r of TILE_RESOURCES) bag[r] += amount / 4;
 }
 
 export class Board {
@@ -82,7 +82,7 @@ export class Board {
     for (const [vertexId, building] of Object.entries(this.view.buildings)) {
       if (building.playerId !== playerId) continue;
       const y = this.yieldAt(vertexId);
-      for (const r of RESOURCES) bag[r] += y[r] * (building.kind === 'city' ? 2 : 1);
+      for (const r of TILE_RESOURCES) bag[r] += y[r] * (building.kind === 'city' ? 2 : 1);
     }
     return bag;
   }
@@ -107,9 +107,19 @@ export class Board {
 /** How much this bot wants each resource: more for what it produces least. */
 export function resourceWeights(board: Board, selfId: string): ResourceBag {
   const production = board.production(selfId);
-  const base: ResourceBag = { wood: 1, brick: 1, sheep: 0.85, wheat: 1.1, ore: 1.05, lodestone: 1 };
+  const base: ResourceBag = {
+    wood: 1,
+    brick: 1,
+    sheep: 0.85,
+    wheat: 1.1,
+    ore: 1.05,
+    lodestone: 1,
+    paper: 0,
+    cloth: 0,
+    coin: 0,
+  };
   const weights = emptyBag();
-  for (const r of RESOURCES) weights[r] = base[r] * (1.6 - Math.min(1, production[r] / 10));
+  for (const r of TILE_RESOURCES) weights[r] = base[r] * (1.6 - Math.min(1, production[r] / 10));
   return weights;
 }
 
@@ -123,8 +133,8 @@ export const DEFAULT_SPOT_TUNING: SpotTuning = { variety: 1.2, harbor: 1 };
 /** Value of settling a corner, given what the bot already produces. */
 export function spotValue(board: Board, vertexId: string, weights: ResourceBag, tuning = DEFAULT_SPOT_TUNING): number {
   const y = board.yieldAt(vertexId);
-  const kinds = RESOURCES.filter(r => y[r] > 0).length;
-  let value = RESOURCES.reduce((sum, r) => sum + y[r] * weights[r], 0) + kinds * tuning.variety;
+  const kinds = TILE_RESOURCES.filter(r => y[r] > 0).length;
+  let value = TILE_RESOURCES.reduce((sum, r) => sum + y[r] * weights[r], 0) + kinds * tuning.variety;
   const harbor = board.harborAt(vertexId);
   const production = board.production(board.view.selfId);
   if (harbor === 'any') value += 1.5 * tuning.harbor;
@@ -307,7 +317,7 @@ export function turnsToAfford(view: GameView, production: ResourceBag, cost: Res
   let shortfall = 0;
   let surplusCredit = 0;
   let turns = 0;
-  for (const r of RESOURCES) {
+  for (const r of TILE_RESOURCES) {
     const missing = cost[r] - view.hand[r];
     if (missing <= 0) surplusCredit += Math.floor(-missing / view.tradeRates[r]);
     else {
@@ -324,17 +334,17 @@ export function turnsToAfford(view: GameView, production: ResourceBag, cost: Res
 export function estimateHand(board: Board, playerId: string): ResourceBag {
   const player = board.view.players.find(p => p.id === playerId)!;
   const production = board.production(playerId);
-  const total = RESOURCES.reduce((sum, r) => sum + production[r] + 1, 0);
+  const total = TILE_RESOURCES.reduce((sum, r) => sum + production[r] + 1, 0);
   const bag = emptyBag();
-  for (const r of RESOURCES) bag[r] = (player.resourceCount * (production[r] + 1)) / total;
+  for (const r of TILE_RESOURCES) bag[r] = (player.resourceCount * (production[r] + 1)) / total;
   return bag;
 }
 
 export const missingFor = (hand: ResourceBag, cost: ResourceBag): Resource[] =>
-  RESOURCES.filter(r => hand[r] < cost[r]);
-export const canPay = (hand: ResourceBag, cost: ResourceBag) => RESOURCES.every(r => hand[r] >= cost[r]);
+  TILE_RESOURCES.filter(r => hand[r] < cost[r]);
+export const canPay = (hand: ResourceBag, cost: ResourceBag) => TILE_RESOURCES.every(r => hand[r] >= cost[r]);
 export const bagValue = (bag: ResourceBag, weights: ResourceBag) =>
-  RESOURCES.reduce((sum, r) => sum + bag[r] * weights[r], 0);
+  TILE_RESOURCES.reduce((sum, r) => sum + bag[r] * weights[r], 0);
 
 /** Number of this bot's log entries in the current turn that match `kinds` (e.g. offers made). */
 export function eventsThisTurn(view: GameView, kinds: string[]): number {
@@ -368,7 +378,9 @@ export function goldChoice(view: GameView): GameAction {
   const owed = view.pendingGold[view.selfId] ?? 0;
   const need = (r: Resource) =>
     Math.max(0, COSTS.city[r] - view.hand[r]) + Math.max(0, COSTS.settlement[r] - view.hand[r]) * 1.2;
-  const ranked = RESOURCES.filter(r => view.bank[r]).sort((a, b) => need(b) - need(a) || view.hand[a] - view.hand[b]);
+  const ranked = TILE_RESOURCES.filter(r => view.bank[r]).sort(
+    (a, b) => need(b) - need(a) || view.hand[a] - view.hand[b],
+  );
   const resources = emptyBag();
   for (let i = 0; i < owed && ranked.length; i++) resources[ranked[i % ranked.length]!]++;
   return { type: 'choose-gold', resources };

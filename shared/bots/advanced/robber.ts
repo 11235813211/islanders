@@ -1,6 +1,6 @@
 import { allPieces } from '../../crossings';
 import { boardIndex } from '../../seafaring';
-import { type GameView, RESOURCES } from '../../types';
+import { type GameView, TILE_RESOURCES } from '../../types';
 import { blockedPips } from '../analysis';
 import type { Economy } from './economy';
 import { couldWinNext } from './endgame';
@@ -33,7 +33,7 @@ function stealWorth(econ: Economy, playerId: string): number {
   const goal = econ.bestGoal();
   if (!goal) return 1;
   const hand = econ.handOf(playerId);
-  const useful = RESOURCES.reduce((n, r) => n + (econ.view.hand[r] < goal.cost[r] ? hand[r] : 0), 0);
+  const useful = TILE_RESOURCES.reduce((n, r) => n + (econ.view.hand[r] < goal.cost[r] ? hand[r] : 0), 0);
   return 0.6 + Math.min(1, useful / player.resourceCount);
 }
 

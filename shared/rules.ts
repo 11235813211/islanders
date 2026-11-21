@@ -1,8 +1,10 @@
 import { shuffled } from './board';
 import { crosses, ownEdges, pieceOn } from './crossings';
+import { type KnightsBoard, knightsPoints } from './knights';
 import { routeFinished } from './maps/special';
-import { boardIndex } from './seafaring';
+import { boardIndex, terrainResource } from './seafaring';
 import {
+  COMMODITIES,
   type DevelopmentCard,
   type DevelopmentType,
   type Edge,
@@ -72,12 +74,30 @@ export function tradeRates(state: GameState, playerId: string): Record<Resource,
       port.vertices.some(id => state.buildings[id]?.playerId === playerId) ||
       relayCorners.has([...port.vertices].sort().join(':')),
   );
-  return Object.fromEntries(
+  const rates = Object.fromEntries(
     RESOURCES.map(resource => [
       resource,
       owned.some(p => p.resource === resource) ? 2 : owned.some(p => p.resource === 'any') ? 3 : 4,
     ]),
   ) as Record<Resource, number>;
+  return state.ck ? knightsRates(state, playerId, rates) : rates;
+}
+
+/**
+ * Cities & Knights trades 2:1: commodities with a trading house (trade level 3), the merchant's
+ * tile resource for whoever placed it, and the Merchant Fleet's card kind this turn.
+ */
+function knightsRates(state: GameState, playerId: string, rates: Record<Resource, number>): Record<Resource, number> {
+  const ck = state.ck!;
+  if ((ck.improvements[playerId]?.trade ?? 0) >= 3) for (const c of COMMODITIES) rates[c] = 2;
+  if (ck.merchant?.playerId === playerId) {
+    const hex = boardIndex(state.board).hex.get(ck.merchant.hexId);
+    const resource = hex && terrainResource(hex.terrain);
+    if (resource) rates[resource] = 2;
+  }
+  const active = state.players[state.turnIndex]?.id;
+  if (ck.fleet && active === playerId) rates[ck.fleet] = 2;
+  return rates;
 }
 
 /**
@@ -111,9 +131,10 @@ export const linksAnywhere = (state: { settings: Pick<GameSettings, 'routeLinks'
 /** A player's longest route. Takes a view too (bots try out roads with it). */
 export function longestRoad(
   state: Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'> &
-    Partial<Pick<GameState, 'crossings' | 'routeOf'>>,
+    Partial<Pick<GameState, 'crossings' | 'routeOf'>> & { ck?: { knights: KnightsBoard['knights'] } | null },
   playerId: string,
 ): number {
+  const knights = state.ck?.knights;
   const own = (id: string) => pieceOn(state, playerId, id);
   // Only this player's routes, found by id: scanning every edge for every player after every move
   // was one of the largest costs of a turn.
@@ -133,6 +154,9 @@ export function longestRoad(
     const building = state.buildings[vertex];
     if (used.size && building && building.playerId !== playerId && !crosses(state, playerId, building.playerId))
       return 0;
+    // Cities & Knights: another player's knight breaks a route like a building.
+    const knight = knights?.[vertex];
+    if (used.size && knight && knight.playerId !== playerId) return 0;
     let best = 0;
     for (const edge of incident.get(vertex) ?? []) {
       if (used.has(edge.id)) continue;
@@ -157,7 +181,10 @@ export function updateAwards(state: GameState): void {
     return tied.some(p => p.id === holder) ? holder : tied.length === 1 ? tied[0].id : null;
   };
   state.longestRoadId = award(state.longestRoadId, 5, id => longestRoad(state, id));
-  state.largestArmyId = award(state.largestArmyId, 3, id => state.players.find(p => p.id === id)!.knights);
+  // Cities & Knights has no development cards, so no Largest Army.
+  state.largestArmyId = state.ck
+    ? null
+    : award(state.largestArmyId, 3, id => state.players.find(p => p.id === id)!.knights);
 }
 
 export function victoryPoints(state: GameState, playerId: string, hidden = true): number {
@@ -169,7 +196,15 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
     : 0;
   const awards = (state.longestRoadId === playerId ? 2 : 0) + (state.largestArmyId === playerId ? 2 : 0);
   const bonus = state.bonusPoints?.[playerId] ?? 0;
-  return structures + cards + awards + bonus + chartPoints(state, playerId) + routePoints(state, playerId);
+  return (
+    structures +
+    cards +
+    awards +
+    bonus +
+    chartPoints(state, playerId) +
+    routePoints(state, playerId) +
+    knightsPoints({ buildings: state.buildings, ck: state.ck ?? null }, playerId)
+  );
 }
 
 /** Points for building in your route's finish area, on maps that give them. */

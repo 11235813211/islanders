@@ -1,6 +1,6 @@
 import { BUILD_COSTS, emptyBag } from '../../engine/core';
 import { isRoadEdge, isShipEdge } from '../../seafaring';
-import { type Board, type GameView, RESOURCES, type ResourceBag } from '../../types';
+import { type Board, type GameView, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS } from '../analysis';
 import type { Economy } from './economy';
 import type { Geometry } from './geometry';
@@ -199,7 +199,7 @@ function pathCost(graph: Graph, path: number[]): ResourceBag {
   const cost = emptyBag();
   for (const edge of path) {
     const piece = graph.ship[edge] ? BUILD_COSTS.ship : COSTS.road;
-    for (const r of RESOURCES) cost[r] += piece[r];
+    for (const r of TILE_RESOURCES) cost[r] += piece[r];
   }
   return cost;
 }

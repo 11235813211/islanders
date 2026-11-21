@@ -2,9 +2,9 @@ import { emptyBag } from '../../engine/core';
 import {
   type GameAction,
   type GameView,
-  RESOURCES,
   type Resource,
   type ResourceBag,
+  TILE_RESOURCES,
   type TradeBag,
   type TradeOffer,
 } from '../../types';
@@ -20,13 +20,13 @@ import { threat } from './robber';
 
 const apply = (hand: ResourceBag, get: TradeBag, give: TradeBag): ResourceBag => {
   const out = { ...hand };
-  for (const r of RESOURCES) out[r] += (get[r] ?? 0) - (give[r] ?? 0);
+  for (const r of TILE_RESOURCES) out[r] += (get[r] ?? 0) - (give[r] ?? 0);
   return out;
 };
 
 const bag = (r: Resource, n: number): ResourceBag => ({ ...emptyBag(), [r]: n });
 
-const count = (bag: TradeBag) => RESOURCES.reduce((n, r) => n + (bag[r] ?? 0), 0);
+const count = (bag: TradeBag) => TILE_RESOURCES.reduce((n, r) => n + (bag[r] ?? 0), 0);
 
 /** Net worth to us of getting `get` for `give` with this partner, or -Infinity if we can't or won't. */
 export function tradeGain(econ: Economy, partnerId: string, get: TradeBag, give: TradeBag): number {
@@ -36,7 +36,7 @@ export function tradeGain(econ: Economy, partnerId: string, get: TradeBag, give:
   // Never hand the cards for a win to someone who could win next turn.
   if (couldWinNext(econ, partnerId)) return -Infinity;
   const after = apply(view.hand, get, give);
-  if (RESOURCES.some(r => after[r] < 0)) return -Infinity;
+  if (TILE_RESOURCES.some(r => after[r] < 0)) return -Infinity;
   const ours = econ.handValue(after) - econ.handValue(view.hand);
   // Assume the partner gains about what a card is worth to a player saving for something.
   const theirs = 0.12 * Math.max(0, count(give) - count(get) + 1);
@@ -54,14 +54,14 @@ export function respond(econ: Economy, offer: TradeOffer): GameAction {
   const goal = econ.bestGoal();
   if (knobs.counters >= 0.5 && goal && !counteredLately(econ, offer.fromId)) {
     let best: { want: ResourceBag; gain: number } | null = null;
-    for (const r of RESOURCES) {
+    for (const r of TILE_RESOURCES) {
       if (view.hand[r] >= goal.cost[r] || (offer.want[r] ?? 0) > 0) continue;
       const want = bag(r, 1);
       const gain = tradeGain(econ, offer.fromId, want, offer.want);
       if (gain > knobs.tradeMargin && (!best || gain > best.gain)) best = { want, gain };
     }
     if (best) {
-      const give = Object.fromEntries(RESOURCES.map(r => [r, offer.want[r] ?? 0])) as ResourceBag;
+      const give = Object.fromEntries(TILE_RESOURCES.map(r => [r, offer.want[r] ?? 0])) as ResourceBag;
       return { type: 'counter-trade', offerId: offer.id, give, want: best.want };
     }
   }
@@ -112,13 +112,13 @@ function candidates(econ: Economy): Candidate[] {
   const { view, knobs } = econ;
   const goal = econ.bestGoal();
   if (!goal) return [];
-  const wants = RESOURCES.filter(r => view.hand[r] < goal.cost[r]);
-  const spares = RESOURCES.filter(r => view.hand[r] > goal.cost[r]);
+  const wants = TILE_RESOURCES.filter(r => view.hand[r] < goal.cost[r]);
+  const spares = TILE_RESOURCES.filter(r => view.hand[r] > goal.cost[r]);
   const base = econ.handValue(view.hand);
   const out: Candidate[] = [];
   const consider = (give: ResourceBag, want: ResourceBag, fair: boolean) => {
     const after = apply(view.hand, want, give);
-    if (RESOURCES.some(r => after[r] < 0)) return;
+    if (TILE_RESOURCES.some(r => after[r] < 0)) return;
     const gain = econ.handValue(after) - base;
     if (gain > knobs.tradeMargin) out.push({ give, want, gain, fair });
   };
@@ -139,7 +139,7 @@ function offersThisTurn(view: GameView): { give: TradeBag; want: TradeBag }[] {
     .map(e => e.event as { give: TradeBag; want: TradeBag });
 }
 
-const same = (a: TradeBag, b: TradeBag) => RESOURCES.every(r => (a[r] ?? 0) === (b[r] ?? 0));
+const same = (a: TradeBag, b: TradeBag) => TILE_RESOURCES.every(r => (a[r] ?? 0) === (b[r] ?? 0));
 
 /** Did this seat make an offer to a person within its last `turns` turns? */
 function recentlyAskedPeople(view: GameView, turns: number): boolean {
@@ -161,7 +161,7 @@ export const PEOPLE_TABLE_OFFERS = 1;
 function mayHold(econ: Economy, playerId: string, want: TradeBag): boolean {
   if (!econ.view.likelyHands) return true;
   const hand = econ.handOf(playerId);
-  return RESOURCES.every(r => !want[r] || hand[r] >= want[r] * MAY_HOLD);
+  return TILE_RESOURCES.every(r => !want[r] || hand[r] >= want[r] * MAY_HOLD);
 }
 
 /** How much of the wanted cards the count must show (a steal spreads one card over a hand). */
@@ -177,7 +177,7 @@ export function nextOffer(econ: Economy): GameAction | null {
   const people = view.players.some(p => !p.bot);
   if (made.length >= Math.min(knobs.offersPerTurn, people ? PEOPLE_TABLE_OFFERS : 3)) return null;
   const goal = econ.bestGoal();
-  const short = goal ? RESOURCES.reduce((n, r) => n + Math.max(0, goal.cost[r] - view.hand[r]), 0) : 0;
+  const short = goal ? TILE_RESOURCES.reduce((n, r) => n + Math.max(0, goal.cost[r] - view.hand[r]), 0) : 0;
   const askPeople = short === 1 && !recentlyAskedPeople(view, 3);
   for (const c of candidates(econ)) {
     if (made.some(m => same(m.give, c.give) && same(m.want, c.want))) continue;

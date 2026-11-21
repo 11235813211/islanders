@@ -1,10 +1,11 @@
 import { hasAnswered } from '../rules';
-import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, RESOURCES } from '../types';
+import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, TILE_RESOURCES } from '../types';
 import { advanced } from './advanced';
 import { goldChoice, keepRoutePiece, specialBuild } from './analysis';
 import { beginner } from './beginner';
 import { cartographersTurn, keepsLodestone } from './cartographers';
 import { splitGoldChoice } from './charting';
+import { declinesCommodities, knightsAct } from './knights';
 import { intermediate } from './strategic';
 import type { BotOptions, BotThought, Brain, TurnOptions } from './types';
 
@@ -34,10 +35,12 @@ export function botThink(view: GameView, level: BotLevel, done?: BotThought): Bo
 /** The same, for any brain (training plays candidate brains this way). */
 export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}): GameAction {
   const view = keepRoutePiece(given);
+  const knights = knightsAct(view, () => cartographersTurn(view, brain.turn(view, options), brain.tiles));
+  if (knights) return knights;
   if (view.phase === 'discard') {
     // Where discoveries count toward the limit, a bot gives them up only once its cards run out.
     const owed = view.pendingDiscards[view.selfId] ?? 0;
-    const cards = RESOURCES.reduce((n, r) => n + view.hand[r], 0);
+    const cards = TILE_RESOURCES.reduce((n, r) => n + view.hand[r], 0);
     if (owed > cards) return { type: 'discard', resources: { ...view.hand, discovery: owed - cards } };
     return brain.discard(view);
   }
@@ -52,7 +55,10 @@ export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}
     const incoming = view.tradeOffers.find(o => o.to.includes(view.selfId) && !hasAnswered(o, view.selfId));
     if (incoming)
       // Bots don't value discoveries, so they pass on offers that include them.
-      return incoming.give.discovery || incoming.want.discovery || keepsLodestone(view, incoming)
+      return incoming.give.discovery ||
+        incoming.want.discovery ||
+        keepsLodestone(view, incoming) ||
+        declinesCommodities(view, incoming)
         ? { type: 'decline-trade', offerId: incoming.id }
         : brain.respond(view, incoming);
     const own = view.tradeOffers.find(o => o.fromId === view.selfId);

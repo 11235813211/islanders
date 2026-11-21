@@ -189,11 +189,14 @@ describe('gold, volcanoes, and jungles', () => {
     expect(g.pendingGold).toEqual({ p1: 2 });
     expect(getView(g, 'p1').pendingGold.p1).toBe(2);
     expect(() =>
-      act(g, 'p1', { type: 'choose-gold', resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0 } }),
+      act(g, 'p1', {
+        type: 'choose-gold',
+        resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+      }),
     ).toThrow(/exactly 2/);
     g = act(g, 'p1', {
       type: 'choose-gold',
-      resources: { wood: 0, brick: 0, sheep: 0, wheat: 1, ore: 1, lodestone: 0 },
+      resources: { wood: 0, brick: 0, sheep: 0, wheat: 1, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
     });
     expect(g.phase).toBe('build');
     expect(g.players[1]!.resources).toMatchObject({ wheat: 1, ore: 1 });
@@ -214,7 +217,7 @@ describe('gold, volcanoes, and jungles', () => {
     expect(g.eruption).toEqual([hexOf(g, 'volcano').id]);
     g = act(g, 'p1', {
       type: 'choose-gold',
-      resources: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
+      resources: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
     });
     expect(g.phase).toBe('eruption');
     expect(() => act(g, 'p0', { type: 'end-turn' })).toThrow();

@@ -235,14 +235,14 @@ describe('ships and discoveries', () => {
     });
     const bought = act(g, 'p0', {
       type: 'buy-development',
-      discoveries: { wood: 0, brick: 0, sheep: 1, wheat: 0, ore: 1, lodestone: 0 },
+      discoveries: { wood: 0, brick: 0, sheep: 1, wheat: 0, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
     });
     expect(bought.players[0]!.discoveries).toBe(0);
     expect(bought.players[0]!.resources).toMatchObject({ sheep: 1, wheat: 0, ore: 0 });
     expect(() =>
       act(g, 'p0', {
         type: 'buy-development',
-        discoveries: { wood: 1, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0 },
+        discoveries: { wood: 1, brick: 0, sheep: 0, wheat: 0, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
       }),
     ).toThrow();
   });

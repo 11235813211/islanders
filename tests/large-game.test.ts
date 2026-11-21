@@ -16,8 +16,9 @@ function sixAtBuild(): GameState {
   g.phase = 'build';
   g.turnIndex = 0;
   g.rollDeadline = null;
-  for (const p of g.players) p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
-  g.bank = { wood: 24, brick: 24, sheep: 24, wheat: 24, ore: 24, lodestone: 0 };
+  for (const p of g.players)
+    p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 };
+  g.bank = { wood: 24, brick: 24, sheep: 24, wheat: 24, ore: 24, lodestone: 0, paper: 0, cloth: 0, coin: 0 };
   return g;
 }
 
@@ -176,8 +177,18 @@ describe('special build phase', () => {
     const g = inSeatOrder(applyAction(makeLobby(6), 'p0', { type: 'start' }, seeded(), TEST_NOW));
     g.phase = 'discard';
     g.pendingDiscards = { p0: 21 };
-    g.players[0]!.resources = { wood: 24, brick: 6, sheep: 5, wheat: 5, ore: 0, lodestone: 3 };
-    const resources = { wood: 21, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 };
+    g.players[0]!.resources = {
+      wood: 24,
+      brick: 6,
+      sheep: 5,
+      wheat: 5,
+      ore: 0,
+      lodestone: 3,
+      paper: 0,
+      cloth: 0,
+      coin: 0,
+    };
+    const resources = { wood: 21, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 };
     const next = applyAction(g, 'p0', { type: 'discard', resources }, seeded(), TEST_NOW);
     expect(next.players[0]!.resources.wood).toBe(3);
     expect(next.phase).toBe('robber');

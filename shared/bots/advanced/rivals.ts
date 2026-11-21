@@ -1,5 +1,5 @@
 import { BUILD_COSTS } from '../../engine/core';
-import { RESOURCES, type ResourceBag } from '../../types';
+import { type ResourceBag, TILE_RESOURCES } from '../../types';
 import { maySettle } from '../analysis';
 import type { Economy } from './economy';
 import { distanceFrom, isOpen } from './geometry';
@@ -119,6 +119,6 @@ export function races(econ: Economy): Races {
 /** A settlement plus `d` roads' worth of cards (ships cost about the same in cards). */
 function routeCost(d: number): ResourceBag {
   const cost = { ...BUILD_COSTS.settlement };
-  for (const r of RESOURCES) cost[r] += d * BUILD_COSTS.road[r];
+  for (const r of TILE_RESOURCES) cost[r] += d * BUILD_COSTS.road[r];
   return cost;
 }

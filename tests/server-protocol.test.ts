@@ -94,13 +94,13 @@ describe('public protocol boundary', () => {
   });
 
   it('requires complete bounded integer discard bags', () => {
-    const resources = { wood: 2, brick: 0, sheep: 3, wheat: 1, ore: 0, lodestone: 1 };
+    const resources = { wood: 2, brick: 0, sheep: 3, wheat: 1, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 };
     expect(validateAction({ type: 'discard', resources })).toEqual({ type: 'discard', resources });
     // A bag from before lodestone (an old client) still parses, with no lodestone.
     const { lodestone: _, ...classic } = resources;
     expect(validateAction({ type: 'discard', resources: classic })).toEqual({
       type: 'discard',
-      resources: { ...classic, lodestone: 0 },
+      resources: { ...classic, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
     });
     for (const invalid of [
       { ...resources, wood: -1 },

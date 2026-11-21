@@ -34,8 +34,8 @@ export function makeLobby(count = 3) {
   for (let i = 0; i < count; i++) game = addPlayer(game, { id: `p${i}`, name: `Player ${i}` });
   return game;
 }
-export function settled(count = 3) {
-  let game = inSeatOrder(applyAction(makeLobby(count), 'p0', { type: 'start' }, seeded(), TEST_NOW));
+export function settled(count = 3, lobby = makeLobby(count)) {
+  let game = inSeatOrder(applyAction(lobby, 'p0', { type: 'start' }, seeded(), TEST_NOW));
   while (game.phase.startsWith('setup')) {
     const id = getActivePlayerId(game)!,
       legal = getView(game, id).legal;
@@ -51,6 +51,13 @@ export function settled(count = 3) {
   }
   return game;
 }
+/** A Cities & Knights game after setup (each player has a settlement and a city), p0 to roll. */
+export function knightsGame(count = 3): GameState {
+  const lobby = makeLobby(count);
+  lobby.settings.citiesKnights = true;
+  lobby.settings.victoryPoints = 13;
+  return settled(count, lobby);
+}
 export function grant(game: GameState, id: string, bag: Partial<ResourceBag>) {
   const p = game.players.find(p => p.id === id)!;
   for (const r of RESOURCES) {
@@ -65,7 +72,7 @@ export function conserved(game: GameState) {
       game.bank[r] >= 0 &&
       game.players.every(p => p.resources[r] >= 0) &&
       game.bank[r] + game.players.reduce((n, p) => n + p.resources[r], 0) ===
-        bankFor(game.players.length, cartographersRules(game))[r],
+        bankFor(game.players.length, cartographersRules(game), !!game.ck)[r],
   );
 }
 

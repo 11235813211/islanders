@@ -1,5 +1,5 @@
 import { VICTORY_POINT_RANGE, validReward } from '../settings';
-import { RESOURCES, type Resource, SEA_TERRAINS, type Terrain } from '../types';
+import { SEA_TERRAINS, type Terrain, TILE_RESOURCES, type TileResource } from '../types';
 import { NUMBER_LEVELS } from './balance';
 import { DEFAULT_SETUP, PIECE_LIMITS, SPECIAL_LIMITS, SUPPLY_LIMITS, type SupplyKind } from './special';
 import {
@@ -32,9 +32,9 @@ export const ICEBERG_MAX_PERCENT = 50;
 export const DESIGN_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const LINK_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-const KINDS: DesignKind[] = [...RESOURCES, 'desert', ...SEA_TERRAINS, 'land'];
-const FILL_KINDS: FillKind[] = [...RESOURCES, 'desert', 'gold', 'jungle', 'volcano', 'iceberg'];
-const FOG_KINDS: FogKind[] = ['sea', ...RESOURCES, 'desert', 'gold', 'jungle', 'volcano'];
+const KINDS: DesignKind[] = [...TILE_RESOURCES, 'desert', ...SEA_TERRAINS, 'land'];
+const FILL_KINDS: FillKind[] = [...TILE_RESOURCES, 'desert', 'gold', 'jungle', 'volcano', 'iceberg'];
+const FOG_KINDS: FogKind[] = ['sea', ...TILE_RESOURCES, 'desert', 'gold', 'jungle', 'volcano'];
 /** Fog contents in the order the editor lists them. */
 export const FOG_POOL_KINDS = FOG_KINDS;
 
@@ -138,7 +138,7 @@ function parseHarbor(v: unknown): DesignHarbor {
   const c = DESIGN_LIMITS.coordinate;
   if (!record(v) || !int(v.q, -c, c) || !int(v.r, -c, c) || !int(v.side, 0, 5)) fail('A harbor is not on a tile edge.');
   const h = v as Record<string, unknown>;
-  if (h.kind !== 'any' && h.kind !== 'random' && !RESOURCES.includes(h.kind as Resource))
+  if (h.kind !== 'any' && h.kind !== 'random' && !TILE_RESOURCES.includes(h.kind as TileResource))
     fail('A harbor has an unknown kind.');
   const harbor: DesignHarbor = {
     q: h.q as number,
@@ -186,7 +186,7 @@ export function parseDesign(value: unknown, categoryIds: string[]): BoardDesign 
     }
   }
   const exclude = value.harborExclude;
-  if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || RESOURCES.includes(r)))
+  if (!Array.isArray(exclude) || !exclude.every(r => r === 'any' || TILE_RESOURCES.includes(r)))
     fail('Invalid harbor exclusions.');
   if (value.swapNumbers !== undefined && typeof value.swapNumbers !== 'boolean') fail('Invalid number swap setting.');
   if (value.noTwoTwelve !== undefined && typeof value.noTwoTwelve !== 'boolean') fail('Invalid 2 and 12 setting.');

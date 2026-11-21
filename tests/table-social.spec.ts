@@ -21,6 +21,9 @@ const bag = (cards: Partial<TradeBag>): TradeBag => ({
   wheat: 0,
   ore: 0,
   lodestone: 0,
+  paper: 0,
+  cloth: 0,
+  coin: 0,
   ...cards,
 });
 

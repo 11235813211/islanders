@@ -5,7 +5,7 @@ import { TRAINED } from '../shared/bots/advanced/params';
 import { horizon, planScore } from '../shared/bots/advanced/plans';
 import { cornerYield } from '../shared/bots/advanced/value';
 import { getView } from '../shared/engine';
-import { RESOURCES } from '../shared/types';
+import { TILE_RESOURCES } from '../shared/types';
 import { drawScenario, type ScenarioFilter } from './scenarios';
 import { playGame } from './sim';
 
@@ -14,7 +14,7 @@ function yieldOf(econ: Economy, vertexId: string | undefined): string {
   if (!vertexId) return '';
   const y = cornerYield(econ, vertexId);
   const letters = { wood: 'w', brick: 'b', sheep: 's', wheat: 'h', ore: 'o', lodestone: 'l' } as const;
-  const parts = RESOURCES.filter(r => y.production[r]).map(r => `${letters[r]}${y.production[r]}`);
+  const parts = TILE_RESOURCES.filter(r => y.production[r]).map(r => `${letters[r]}${y.production[r]}`);
   if (y.choice) parts.push(`g${y.choice}`);
   return parts.join(' ');
 }
@@ -39,7 +39,7 @@ export function goalReport(seed: number, turn: number, seat: number, filter?: Sc
       console.log(
         `${scenario.name}, turn ${state.turn}, p${seat}: ${econ.self.points} points, hand ${JSON.stringify(view.hand)}`,
       );
-      console.log(`pips ${RESOURCES.map(r => `${r} ${econ.production[r]}`).join(', ')}, gold ${econ.choicePips}`);
+      console.log(`pips ${TILE_RESOURCES.map(r => `${r} ${econ.production[r]}`).join(', ')}, gold ${econ.choicePips}`);
       console.log(
         `pace ${rate.toFixed(3)} points/round, rates ${JSON.stringify(pace.rates)}, rounds left ${horizon(econ).rounds.toFixed(1)}`,
       );

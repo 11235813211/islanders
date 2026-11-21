@@ -17,7 +17,7 @@ function almostFull() {
   hex.number = 6;
   hex.extra = [5, 3];
   g.buildings[hex.vertexIds[0]!] = { playerId: 'p0', kind: 'settlement' };
-  grant(g, 'p0', { lodestone: 1 });
+  grant(g, 'p0', { lodestone: 1, paper: 0, cloth: 0, coin: 0 });
   return { g, hex };
 }
 
@@ -76,7 +76,7 @@ describe('finished charts', () => {
 
   it('score for the player alone beside the tile, even when a rival made the last chart', () => {
     const { g, hex } = almostFull();
-    grant(g, 'p1', { lodestone: 1 });
+    grant(g, 'p1', { lodestone: 1, paper: 0, cloth: 0, coin: 0 });
     g.turnIndex = 1;
     const next = finish(g, hex, 'p1');
     expect([chartPoints(next, 'p0'), chartPoints(next, 'p1')]).toEqual([1, 0]);

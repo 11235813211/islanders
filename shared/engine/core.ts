@@ -31,7 +31,17 @@ export function requireRule(condition: unknown, message: string): asserts condit
   if (!condition) throw new GameError(message);
 }
 
-export const emptyBag = (): ResourceBag => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0 });
+export const emptyBag = (): ResourceBag => ({
+  wood: 0,
+  brick: 0,
+  sheep: 0,
+  wheat: 0,
+  ore: 0,
+  lodestone: 0,
+  paper: 0,
+  cloth: 0,
+  coin: 0,
+});
 export const resourceCount = (bag: ResourceBag): number => RESOURCES.reduce((sum, resource) => sum + bag[resource], 0);
 /** Cards plus discoveries in a trade or discard bag. */
 export const bagCount = (bag: TradeBag): number => resourceCount(bag) + (bag.discovery ?? 0);
@@ -79,10 +89,24 @@ export const isLargeGame = (players: number): boolean => players >= 5;
 /** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
 export const SPECIAL_BUILD_SECONDS = 20;
 
-/** Resource cards of each kind in the bank: 19, or 24 with five or six players. Lodestone only on Cartographers maps. */
-export function bankFor(players: number, cartographers = false): ResourceBag {
+/**
+ * Cards of each kind in the bank: 19 resources, or 24 with five or six players. Lodestone only on
+ * Cartographers maps; 12 of each commodity (15 with five or six) only with Cities & Knights.
+ */
+export function bankFor(players: number, cartographers = false, knights = false): ResourceBag {
   const n = isLargeGame(players) ? 24 : 19;
-  return { wood: n, brick: n, sheep: n, wheat: n, ore: n, lodestone: cartographers ? n : 0 };
+  const c = knights ? (isLargeGame(players) ? 15 : 12) : 0;
+  return {
+    wood: n,
+    brick: n,
+    sheep: n,
+    wheat: n,
+    ore: n,
+    lodestone: cartographers ? n : 0,
+    paper: c,
+    cloth: c,
+    coin: c,
+  };
 }
 /**
  * Jungle discoveries in the supply at the start: 12, grown for 5–6 players by the same share as the
@@ -99,18 +123,18 @@ export const BUILD_COSTS: Record<
   'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'peek' | 'chart' | 'split',
   ResourceBag
 > = {
-  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0 },
-  ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0, lodestone: 0 },
-  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0 },
-  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0 },
-  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0 },
-  relay: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 1 },
+  road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  ship: { wood: 1, brick: 0, sheep: 1, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  city: { wood: 0, brick: 0, sheep: 0, wheat: 2, ore: 3, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  development: { wood: 0, brick: 0, sheep: 1, wheat: 1, ore: 1, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
+  relay: { wood: 1, brick: 0, sheep: 0, wheat: 1, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 },
   /** Cartographers: a look under one fog tile, for your eyes only. */
-  peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
+  peek: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 },
   /** Cartographers: one step toward 7 on any tile. */
-  chart: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
+  chart: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 },
   /** Cartographers: the lodestone for a split; one card of the resource being added is paid too. */
-  split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1 },
+  split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 },
 };
 
 /** A player's supply: the map's (or the usual) pieces plus any its rewards gave them. */

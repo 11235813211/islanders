@@ -1,5 +1,5 @@
 import { BUILD_COSTS } from '../../engine/core';
-import { type GameAction, RESOURCES, type ResourceBag } from '../../types';
+import { type GameAction, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS, linkAction } from '../analysis';
 import type { TurnOptions } from '../types';
 import type { Economy } from './economy';
@@ -56,13 +56,13 @@ export function planStep(econ: Economy, { builds = 0, allowOffers = true }: Turn
  */
 export function overLimitTrade(econ: Economy): GameAction | null {
   const { view } = econ;
-  const cards = RESOURCES.reduce((n, r) => n + view.hand[r], 0);
+  const cards = TILE_RESOURCES.reduce((n, r) => n + view.hand[r], 0);
   if (cards <= view.settings.discardLimit) return null;
   let best: GameAction | null = null;
   let top = -Infinity;
-  for (const give of RESOURCES) {
+  for (const give of TILE_RESOURCES) {
     if (view.hand[give] < view.tradeRates[give]) continue;
-    for (const receive of RESOURCES) {
+    for (const receive of TILE_RESOURCES) {
       if (receive === give || !econ.bankHas(receive)) continue;
       const hand = { ...view.hand };
       hand[give] -= view.tradeRates[give];
@@ -125,7 +125,7 @@ function nextStep(econ: Economy, plan: Plan): { action: GameAction; cost: Resour
 /** Whether spending `cost` now pushes the best plan back. */
 function delays(econ: Economy, best: Plan, cost: ResourceBag): boolean {
   const hand = { ...econ.view.hand };
-  for (const r of RESOURCES) hand[r] -= cost[r];
-  if (RESOURCES.some(r => hand[r] < 0)) return true;
+  for (const r of TILE_RESOURCES) hand[r] -= cost[r];
+  if (TILE_RESOURCES.some(r => hand[r] < 0)) return true;
   return econ.turnsToAfford(hand, best.cost) > econ.turnsToAfford(econ.view.hand, best.cost) + 0.75;
 }

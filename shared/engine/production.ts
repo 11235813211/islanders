@@ -1,6 +1,7 @@
 import { shuffled } from '../board';
 import { choiceGroups, choiceLimit } from '../choices';
 import { crosses, edgeOwners, ownEdges, pieceOn, placePiece, removePiece } from '../crossings';
+import { COMMODITY_OF } from '../knights';
 import { hexNumbers, linksAnywhere, payingNumbers } from '../rules';
 import { boardIndex, ERUPTION_CORNER, paysChoice, terrainResource } from '../seafaring';
 import { type GameState, RESOURCES, type Resource, type ResourceBag, type SplitChoice } from '../types';
@@ -39,14 +40,19 @@ export function produce(state: GameState, total: number): Record<string, Resourc
     // Without the gold variant a volcano only erupts.
     if (hex.terrain === 'volcano' && state.settings.volcanoGold === false) continue;
     const resource = terrainResource(hex.terrain);
-    const owed: [string, number][] = [
+    const owed: [string, number, boolean][] = [
       ...hex.vertexIds.flatMap(id => buildingShare(state, id, paid)),
       // Each relay station on the tile's sides earns one, like a settlement, robber or not.
-      ...(relays.get(hex.id) ?? []).map(owner => [owner, all] as [string, number]),
+      ...(relays.get(hex.id) ?? []).map(owner => [owner, all, false] as [string, number, boolean]),
     ];
-    for (const [playerId, amount] of owed) {
+    for (const [playerId, amount, city] of owed) {
       if (!amount) continue;
-      if (resource && hex.split) {
+      // Cities & Knights: a city on forest, pasture, or mountains makes one resource and one commodity.
+      const commodity = state.ck && city && resource && !hex.split ? COMMODITY_OF[resource] : undefined;
+      if (commodity) {
+        demand.get(playerId)![resource!] += amount / 2;
+        demand.get(playerId)![commodity] += amount / 2;
+      } else if (resource && hex.split) {
         choices[playerId] = (choices[playerId] ?? 0) + amount;
         splits[playerId] = addSplit(splits[playerId] ?? [], [resource, hex.split], amount);
       } else if (resource) demand.get(playerId)![resource] += amount;
@@ -96,10 +102,11 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   return gains;
 }
 
-/** What a settlement (1 a number) or city (2) on this corner earns from `times` paying numbers, and for whom. */
-function buildingShare(state: GameState, vertexId: string, times: number): [string, number][] {
+/** What a settlement (1 a number) or city (2) on this corner earns from `times` paying numbers, for whom, and whether it is a city. */
+function buildingShare(state: GameState, vertexId: string, times: number): [string, number, boolean][] {
   const building = state.buildings[vertexId];
-  return building ? [[building.playerId, (building.kind === 'city' ? 2 : 1) * times]] : [];
+  const city = building?.kind === 'city';
+  return building ? [[building.playerId, (city ? 2 : 1) * times, city]] : [];
 }
 
 /** Count more cards from a split tile, merged with others from a tile that pays the same two. */

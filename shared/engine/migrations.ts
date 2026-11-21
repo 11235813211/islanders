@@ -251,6 +251,11 @@ const MIGRATIONS: Migration[] = [
     s.rollHeldMs ??= null;
     delete s.timeGivenBy;
   },
+  // 31 → 32: Cities & Knights. Every card bag gains the three commodities; older games play without it.
+  s => {
+    addCommodities(s);
+    s.ck ??= null;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */
@@ -259,6 +264,18 @@ function addLodestone(value: unknown): void {
   const record = value as Record<string, unknown>;
   if (typeof record.wood === 'number' && typeof record.ore === 'number') record.lodestone ??= 0;
   for (const child of Object.values(record)) addLodestone(child);
+}
+
+/** Give every resource bag found under `value` zero paper, cloth, and coin. */
+function addCommodities(value: unknown): void {
+  if (!value || typeof value !== 'object') return;
+  const record = value as Record<string, unknown>;
+  if (typeof record.wood === 'number' && typeof record.ore === 'number') {
+    record.paper ??= 0;
+    record.cloth ??= 0;
+    record.coin ??= 0;
+  }
+  for (const child of Object.values(record)) addCommodities(child);
 }
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -1,5 +1,5 @@
 import { emptyBag } from '../../engine/core';
-import { RESOURCES, type Resource, type ResourceBag } from '../../types';
+import { type Resource, type ResourceBag, TILE_RESOURCES } from '../../types';
 import { COSTS } from '../analysis';
 import { type Geometry, isOpen } from './geometry';
 import { type Pace, roundsToAfford } from './goals';
@@ -119,7 +119,7 @@ interface Step {
 
 function bagOf(parts: [ResourceBag, number][]): ResourceBag {
   const cost = emptyBag();
-  for (const [bag, times] of parts) for (const r of RESOURCES) cost[r] += bag[r] * times;
+  for (const [bag, times] of parts) for (const r of TILE_RESOURCES) cost[r] += bag[r] * times;
   return cost;
 }
 
@@ -154,7 +154,7 @@ function costOf(goal: FirstGoal, distance: number): ResourceBag {
 function cornerIncome(geo: Geometry, c: number, players: number): CornerIncome {
   const perRound = players / 36;
   const cards = emptyBag();
-  RESOURCES.slice(0, 5).forEach((r, i) => {
+  TILE_RESOURCES.slice(0, 5).forEach((r, i) => {
     cards[r] = geo.pips[c * 5 + i]! * perRound;
   });
   cards.lodestone = geo.lodestone[c]! * perRound;
@@ -162,7 +162,7 @@ function cornerIncome(geo: Geometry, c: number, players: number): CornerIncome {
 }
 
 function totalIncome(seat: Sim): number {
-  return RESOURCES.reduce((n, r) => n + seat.income[r], seat.wild);
+  return TILE_RESOURCES.reduce((n, r) => n + seat.income[r], seat.wild);
 }
 
 /** Lowers `distance` to what a new starting corner makes it. */
@@ -189,7 +189,7 @@ class Run {
   private readonly routeWaits: Float64Array;
   private readonly routeRoads: Float64Array;
   /** What a card of each resource is worth to the seat choosing. */
-  private readonly cardWorth = new Float64Array(RESOURCES.length);
+  private readonly cardWorth = new Float64Array(TILE_RESOURCES.length);
 
   constructor(readonly start: ForecastStart) {
     this.players = start.seats.length;
@@ -255,7 +255,7 @@ class Run {
   private cornerWorth(c: number, rounds: number): number {
     const gain = this.incomeAt(c);
     let value = gain.wild * 1.3;
-    for (let r = 0; r < RESOURCES.length; r++) value += gain.cards[RESOURCES[r]!] * this.cardWorth[r]!;
+    for (let r = 0; r < TILE_RESOURCES.length; r++) value += gain.cards[TILE_RESOURCES[r]!] * this.cardWorth[r]!;
     return value * rounds * this.start.pointPerCard;
   }
 
@@ -290,7 +290,7 @@ class Run {
   private choose(index: number): Step | null {
     const seat = this.sims[index]!;
     const rounds = this.roundsLeft();
-    RESOURCES.forEach((r, i) => {
+    TILE_RESOURCES.forEach((r, i) => {
       this.cardWorth[i] = 1.6 - Math.min(1, ((seat.income[r] * 36) / this.players) * 0.1);
     });
     let best: Step | null = null;
@@ -343,7 +343,7 @@ class Run {
   private pay(seat: Sim, at: number, cost: ResourceBag): void {
     const dt = at - seat.clock;
     let need = 0;
-    for (const r of RESOURCES) {
+    for (const r of TILE_RESOURCES) {
       seat.hand[r] += seat.income[r] * dt - cost[r];
       if (seat.hand[r] < 0) {
         need -= seat.hand[r];
@@ -351,7 +351,7 @@ class Run {
       }
     }
     need = Math.max(0, need - seat.wild * dt);
-    for (const r of RESOURCES) {
+    for (const r of TILE_RESOURCES) {
       if (need <= 0) break;
       const traded = Math.min(need, seat.hand[r] / seat.rates[r]);
       seat.hand[r] -= traded * seat.rates[r];
@@ -372,7 +372,7 @@ class Run {
 
   private addCorner(seat: Sim, c: number, times: number): void {
     const gain = this.incomeAt(c);
-    for (const r of RESOURCES) seat.income[r] += gain.cards[r] * times;
+    for (const r of TILE_RESOURCES) seat.income[r] += gain.cards[r] * times;
     seat.wild += gain.wild * times;
   }
 
@@ -409,7 +409,7 @@ class Run {
       this.occupied[c] = 1;
       this.addCorner(seat, c, 1);
       const harbor = geo.harbor[c];
-      if (harbor === 'any') for (const r of RESOURCES) seat.rates[r] = Math.min(seat.rates[r], 3);
+      if (harbor === 'any') for (const r of TILE_RESOURCES) seat.rates[r] = Math.min(seat.rates[r], 3);
       else if (harbor) seat.rates[harbor] = 2;
       this.awardRoad(index);
       // Anyone heading for this spot, or one next to it, picks again.

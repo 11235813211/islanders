@@ -24,4 +24,5 @@ Object.assign(DEFAULT_SETTINGS, {
   volcanoDice: 'balanced',
   routeLinks: 'anywhere',
   chartSpecial: false,
+  citiesKnights: false,
 } satisfies typeof DEFAULT_SETTINGS);

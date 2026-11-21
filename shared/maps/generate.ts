@@ -5,9 +5,9 @@ import {
   CLASSIC_RESOURCES,
   type GameState,
   type Harbor,
-  RESOURCES,
-  type Resource,
   type Terrain,
+  TILE_RESOURCES,
+  type TileResource,
 } from '../types';
 import {
   apportion,
@@ -46,16 +46,16 @@ const HARBOR_OFFSET = 38;
  * Base game harbor mix: four 3:1 harbors and one 2:1 per resource the map produces, from a tile
  * or from fog that may hide one (lodestone also only on Cartographers maps).
  */
-function harborWeights(design: BoardDesign, terrains: Map<string, Terrain>): [Resource | 'any', number][] {
+function harborWeights(design: BoardDesign, terrains: Map<string, Terrain>): [TileResource | 'any', number][] {
   const fog = fogIslandsOf(design).flatMap(island => fogKinds(fogMixOf(island)).map(([k]) => k));
   const produced = new Set([...terrains.values(), ...fog].map(terrainResource));
   const kinds = mapResources(design).filter(r => produced.has(r));
-  return [['any', 4], ...kinds.map(r => [r, 1] as [Resource, number])];
+  return [['any', 4], ...kinds.map(r => [r, 1] as [TileResource, number])];
 }
 
 /** The resources a design's random harbors and links may draw: lodestone only on Cartographers maps. */
-function mapResources(design: BoardDesign): readonly Resource[] {
-  return boardExpansions(design).includes('cartographers') ? RESOURCES : CLASSIC_RESOURCES;
+function mapResources(design: BoardDesign): readonly TileResource[] {
+  return boardExpansions(design).includes('cartographers') ? TILE_RESOURCES : CLASSIC_RESOURCES;
 }
 
 interface LinkGroup {
@@ -82,7 +82,7 @@ function linkGroups(design: BoardDesign): Map<string, LinkGroup> {
     if (!harbor.link) continue;
     const g = group(harbor.link);
     g.harbor = true;
-    if (RESOURCES.includes(harbor.kind as Resource)) g.fixed ??= harbor.kind as Resource;
+    if (TILE_RESOURCES.includes(harbor.kind as TileResource)) g.fixed ??= harbor.kind as TileResource;
   }
   // A letter named only by "not A" marks or a rule still gets a terrain, so "not A" means something
   // even when no tile carries A itself ("A in mountains" with only "not A" tiles: none are mountains).
@@ -159,7 +159,7 @@ function chooseLinks(
     const drawn = [...counts.get(first)!.keys()].filter(inEvery);
     const shared = drawn.length ? drawn : [...pools.get(first)!.keys()].filter(inEvery);
     const fits = (k: FillKind) =>
-      !g.harbor || (RESOURCES.includes(k as Resource) && !design.harborExclude.includes(k as Resource));
+      !g.harbor || (TILE_RESOURCES.includes(k as TileResource) && !design.harborExclude.includes(k as TileResource));
     let allowed = (shared.length ? shared : [...pools.get(first)!.keys()]).filter(fits);
     for (const rule of rules)
       if (rule.kind === 'in' && rule.links.includes(link)) {
@@ -362,7 +362,7 @@ function weightedPick<K>(items: K[], weight: (item: K) => number, random: () => 
   return items.at(-1);
 }
 
-type DrawnHarbor = { q: number; r: number; side: number; resource: Resource | 'any'; drawn: boolean };
+type DrawnHarbor = { q: number; r: number; side: number; resource: TileResource | 'any'; drawn: boolean };
 
 /**
  * "Not A" harbors: swap a drawn harbor holding A's resource with one that may take it and whose
@@ -373,7 +373,7 @@ function keepHarborNotLinks(
   valid: DesignHarbor[],
   drawn: DrawnHarbor[],
   links: Map<string, Terrain>,
-  weights: Map<Resource | 'any', number>,
+  weights: Map<TileResource | 'any', number>,
   random: () => number,
 ): void {
   const banned = (i: number) => (valid[i]!.notLink ? links.get(valid[i]!.notLink!) : undefined);
@@ -387,7 +387,7 @@ function keepHarborNotLinks(
     const partner = drawn[partners[Math.floor(random() * partners.length)]!]!;
     [harbor.resource, partner.resource] = [partner.resource, harbor.resource];
   });
-  const held = new Map<Resource | 'any', number>();
+  const held = new Map<TileResource | 'any', number>();
   for (const [i, h] of drawn.entries()) if (!clashes(i)) held.set(h.resource, (held.get(h.resource) ?? 0) + 1);
   drawn.forEach((harbor, i) => {
     if (!clashes(i)) return;
@@ -403,7 +403,7 @@ function resolveHarbors(
   terrains: Map<string, Terrain>,
   links: Map<string, Terrain>,
   random: () => number,
-): { q: number; r: number; side: number; resource: Resource | 'any' }[] {
+): { q: number; r: number; side: number; resource: TileResource | 'any' }[] {
   const seen = new Set<string>();
   const valid = design.harbors.filter(h => {
     const land = terrains.get(tileKey(h.q, h.r));
@@ -418,15 +418,19 @@ function resolveHarbors(
   });
   const resolved = valid.map(h => {
     const linked = h.link ? links.get(h.link) : undefined;
-    const resource: Resource | 'any' | null =
-      h.kind !== 'random' ? h.kind : linked && RESOURCES.includes(linked as Resource) ? (linked as Resource) : null;
+    const resource: TileResource | 'any' | null =
+      h.kind !== 'random'
+        ? h.kind
+        : linked && TILE_RESOURCES.includes(linked as TileResource)
+          ? (linked as TileResource)
+          : null;
     return { q: h.q, r: h.r, side: h.side, resource };
   });
   const kinds = harborWeights(design, terrains);
   const allowed = kinds.filter(([k]) => !design.harborExclude.includes(k));
   // With every kind excluded, random harbors fall back to 3:1.
   const weights = new Map(allowed.length ? allowed : kinds.slice(0, 1));
-  const fixed = new Map<Resource | 'any', number>();
+  const fixed = new Map<TileResource | 'any', number>();
   for (const h of resolved) if (h.resource) fixed.set(h.resource, (fixed.get(h.resource) ?? 0) + 1);
   const draw = shuffled(apportion(resolved.filter(h => !h.resource).length, weights, fixed, random), random);
   const drawn = resolved.map(h => ({ ...h, resource: h.resource ?? draw.pop() ?? 'any', drawn: !h.resource }));
@@ -438,7 +442,7 @@ function resolveHarbors(
 export function drawHarborKinds(
   design: BoardDesign,
   random: () => number = Math.random,
-): Map<string, Resource | 'any'> {
+): Map<string, TileResource | 'any'> {
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
   const unique = { ...design, tiles };
   const { terrains, links } = resolveTerrains(unique, random);

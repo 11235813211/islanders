@@ -46,6 +46,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
   volcanoDice: 'balanced',
   // Cartographers: gold fields and volcanoes may be charted too: true or false.
   chartSpecial: true,
+  // Cities & Knights: true or false. Turning it on in the lobby also sets points to win to 13.
+  citiesKnights: false,
 };
 
 /**

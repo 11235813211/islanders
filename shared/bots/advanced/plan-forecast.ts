@@ -1,4 +1,4 @@
-import { RESOURCES } from '../../types';
+import { TILE_RESOURCES } from '../../types';
 import type { Economy } from './economy';
 import { type CornerIncome, type FirstGoal, type ForecastSeat, type ForecastStart, forecast } from './forecast';
 import { paceFrom } from './goals';
@@ -71,7 +71,7 @@ function incomeReader(econ: Economy): (corner: number) => CornerIncome {
     if (!income) {
       const { production, choice } = cornerYield(econ, econ.geo.ids[corner]!);
       const cards = { ...production };
-      for (const r of RESOURCES) cards[r] *= perRound;
+      for (const r of TILE_RESOURCES) cards[r] *= perRound;
       income = { cards, wild: choice * perRound };
       known.set(corner, income);
     }

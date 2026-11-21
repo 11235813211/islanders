@@ -1,6 +1,6 @@
 import { advanceTime, applyAction, botDueAt } from '../shared/engine';
 import type { BoardDesign } from '../shared/maps';
-import type { BotLevel, GameState } from '../shared/types';
+import type { BotLevel, GameSettings, GameState } from '../shared/types';
 import { conserved, inSeatOrder, makeLobby, seaLobby, seeded, TEST_NOW } from './fixtures';
 
 /**
@@ -14,9 +14,11 @@ export function playBotGame(
   maxSteps = 6000,
   design?: BoardDesign,
   onStep?: (state: GameState) => void,
+  settings: Partial<GameSettings> = {},
 ): GameState {
   const random = seeded(seed);
   let g = design ? seaLobby(design, levels.length, seed) : makeLobby(levels.length);
+  Object.assign(g.settings, settings);
   g.players.forEach((p, i) => {
     p.bot = levels[i];
   });

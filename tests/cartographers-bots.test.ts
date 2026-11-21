@@ -8,7 +8,7 @@ import { getView } from '../shared/engine';
 import { chartHexes } from '../shared/engine/legal';
 import { produce } from '../shared/engine/production';
 import { boardIndex } from '../shared/seafaring';
-import { type GameState, RESOURCES, type Resource, type ResourceBag } from '../shared/types';
+import { type GameState, RESOURCES, type Resource, type ResourceBag, type TileResource } from '../shared/types';
 import { act, cartographersGame } from './fixtures';
 
 /** A Cartographers game with the board cleared and p0 to build, holding `hand`. */
@@ -53,7 +53,7 @@ describe('Cartographers tiles for the Advanced bot', () => {
   });
 
   it("doesn't chart a tile a rival's road is about to reach", () => {
-    const { g, hex, index } = emptyBoard({ lodestone: 1 });
+    const { g, hex, index } = emptyBoard({ lodestone: 1, paper: 0, cloth: 0, coin: 0 });
     g.buildings[hex.vertexIds[0]!] = { playerId: 'p0', kind: 'city' };
     // p1's road ends at the far corner of the tile, from a settlement just off it.
     const far = hex.vertexIds[3]!;
@@ -84,7 +84,7 @@ function enginePayout(g: GameState): ResourceBag {
 
 describe('Advanced income on Cartographers maps', () => {
   /** p0: a city on a tile charted to 6 and 5 (split into `split`), and a relay station on one of its sides. */
-  function chartedCity(split?: Resource) {
+  function chartedCity(split?: TileResource) {
     const { g, hex, index } = emptyBoard({});
     g.board = structuredClone(g.board);
     const tile = g.board.hexes.find(h => h.id === hex.id)!;

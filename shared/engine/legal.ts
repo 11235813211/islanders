@@ -1,4 +1,5 @@
 import { allPieces, crosses, edgeOpen, edgeOwners, ownEdges, pieceOn } from '../crossings';
+import type { KnightsBoard } from '../knights';
 import { chartedNumbers, hexNumbers, linksAnywhere, victoryPoints } from '../rules';
 import {
   boardIndex,
@@ -32,7 +33,8 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
   const index = boardIndex(state.board);
   return state.board.vertices
     .filter(vertex => {
-      if (state.buildings[vertex.id] || !isLandVertex(state.board, vertex.id)) return false;
+      if (state.buildings[vertex.id] || state.ck?.knights[vertex.id] || !isLandVertex(state.board, vertex.id))
+        return false;
       if (vertex.edgeIds.some(id => state.buildings[otherEnd(index.edge.get(id)!, vertex.id)])) return false;
       // No settlement at either end of a relay station.
       if (vertex.edgeIds.some(id => state.relays.includes(id))) return false;
@@ -49,7 +51,9 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
 
 /** What placing a route piece looks at: a game state, or a bot's view of one. */
 type RouteState = Pick<GameState, 'board' | 'roads' | 'ships' | 'buildings' | 'settings'> &
-  Partial<Pick<GameState, 'lastSettlement' | 'crossings' | 'routeOf' | 'relays'>>;
+  Partial<Pick<GameState, 'lastSettlement' | 'crossings' | 'routeOf' | 'relays'>> & {
+    ck?: { knights: KnightsBoard['knights'] } | null;
+  };
 
 /**
  * Can a route of `kind` continue from this corner? Through your own building, or along your own
@@ -60,6 +64,9 @@ function reaches(state: RouteState, playerId: string, vertexId: string, kind: 'r
   const building = state.buildings[vertexId];
   if (building?.playerId === playerId) return true;
   if (building && !crosses(state, playerId, building.playerId)) return false;
+  // Cities & Knights: another player's knight blocks a road, like a building.
+  const knight = state.ck?.knights[vertexId];
+  if (knight && knight.playerId !== playerId) return false;
   // Called for both ends of every edge on every legal-move check, so no allocations here.
   const either = linksAnywhere(state);
   for (const id of boardIndex(state.board).vertex.get(vertexId)!.edgeIds) {
@@ -237,7 +244,7 @@ export function peekHexes(state: GameState, player: Player): string[] {
 
 /** Enough cards for a development card, with jungle discoveries standing in for missing ones. */
 export function affordsDevelopment(state: GameState, player: Player): boolean {
-  if (!state.developmentDeck.length) return false;
+  if (!state.developmentDeck.length || state.ck) return false;
   const cost = BUILD_COSTS.development;
   const missing = RESOURCES.reduce((n, r) => n + Math.max(0, cost[r] - player.resources[r]), 0);
   return missing <= player.discoveries;

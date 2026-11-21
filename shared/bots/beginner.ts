@@ -1,5 +1,5 @@
 import { emptyBag } from '../engine/core';
-import { type GameAction, type GameView, RESOURCES, type ResourceBag, type TradeOffer } from '../types';
+import { type GameAction, type GameView, type ResourceBag, TILE_RESOURCES, type TradeOffer } from '../types';
 import { Board, COSTS, canPay, linkAction, pips, roadPaths, routeGoalAt } from './analysis';
 import type { Brain, TurnOptions } from './types';
 
@@ -95,8 +95,8 @@ export const beginner: Brain = {
     if (self.settlementsLeft) plans.push(COSTS.settlement);
     if (view.developmentRemaining) plans.push(COSTS.development);
     for (const cost of plans) {
-      const missing = RESOURCES.filter(r => view.hand[r] < cost[r]);
-      const credits = RESOURCES.reduce(
+      const missing = TILE_RESOURCES.filter(r => view.hand[r] < cost[r]);
+      const credits = TILE_RESOURCES.reduce(
         (n, r) => n + Math.floor(Math.max(0, view.hand[r] - cost[r]) / view.tradeRates[r]),
         0,
       );
@@ -105,7 +105,7 @@ export const beginner: Brain = {
         missing.every(r => view.bank[r]) &&
         missing.reduce((n, r) => n + cost[r] - view.hand[r], 0) <= credits
       ) {
-        const give = RESOURCES.find(r => view.hand[r] - cost[r] >= view.tradeRates[r])!;
+        const give = TILE_RESOURCES.find(r => view.hand[r] - cost[r] >= view.tradeRates[r])!;
         return { type: 'trade', give, receive: missing[0]! };
       }
     }
@@ -119,7 +119,7 @@ export const beginner: Brain = {
     const hand = { ...view.hand };
     const bag = emptyBag();
     for (let i = 0; i < (view.pendingDiscards[view.selfId] ?? 0); i++) {
-      const resource = [...RESOURCES].sort((a, b) => hand[b] - hand[a])[0]!;
+      const resource = [...TILE_RESOURCES].sort((a, b) => hand[b] - hand[a])[0]!;
       hand[resource]--;
       bag[resource]++;
     }
@@ -128,8 +128,8 @@ export const beginner: Brain = {
 
   respond(view: GameView, offer: TradeOffer): GameAction {
     const after = { ...view.hand };
-    for (const r of RESOURCES) after[r] += offer.give[r] - offer.want[r];
-    const affordable = RESOURCES.every(r => after[r] >= 0);
+    for (const r of TILE_RESOURCES) after[r] += offer.give[r] - offer.want[r];
+    const affordable = TILE_RESOURCES.every(r => after[r] >= 0);
     return affordable && enablesPurchase(view.hand, after)
       ? { type: 'accept-trade', offerId: offer.id }
       : { type: 'decline-trade', offerId: offer.id };
@@ -140,8 +140,8 @@ export const beginner: Brain = {
     if (partner) return { type: 'confirm-trade', offerId: offer.id, playerId: partner };
     const good = offer.counters.find(counter => {
       const after = { ...view.hand };
-      for (const r of RESOURCES) after[r] += counter.give[r] - counter.want[r];
-      return RESOURCES.every(r => after[r] >= 0) && enablesPurchase(view.hand, after);
+      for (const r of TILE_RESOURCES) after[r] += counter.give[r] - counter.want[r];
+      return TILE_RESOURCES.every(r => after[r] >= 0) && enablesPurchase(view.hand, after);
     });
     return good
       ? { type: 'accept-counter', offerId: offer.id, counterId: good.id }
