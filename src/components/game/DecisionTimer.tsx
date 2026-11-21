@@ -3,11 +3,13 @@ import type { CSSProperties } from 'react';
 import type { GameView } from '../../../shared/types';
 import './decision-timer.css';
 
-/** The short-choice clock the viewer is on, if any: placing the robber or picking gold. */
+/** The short-choice clock the viewer is on, if any: placing the robber, discarding, or picking gold. */
 function decisionDeadline(view: GameView): { deadline: number; label: string } | null {
   if (view.role !== 'player' || view.pausedAt !== null) return null;
   if (view.phase === 'robber' && view.activePlayerId === view.selfId && view.robberDeadline !== null)
     return { deadline: view.robberDeadline, label: view.seafaring ? 'Robber or pirate' : 'Robber' };
+  if (view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0 && view.discardDeadline !== null)
+    return { deadline: view.discardDeadline, label: 'Discard' };
   if (view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && view.goldDeadline !== null)
     return { deadline: view.goldDeadline, label: 'Gold' };
   return null;

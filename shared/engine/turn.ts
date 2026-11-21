@@ -31,6 +31,9 @@ import { noteRoute } from './goals';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { drift, eruptingVolcanoes, produce } from './production';
 
+/** The least auto-roll wait left after a held roll restarts, so the roller can still tap Roll. */
+const ROLL_RESUME_MS = 3000;
+
 /**
  * Take one weighted-random card (or, where the room allows it, a discovery) from the victim, then
  * return to the phase the robber interrupted.
@@ -141,6 +144,7 @@ export const turnHandlers: Pick<
   | 'request-special-build'
   | 'cancel-special-build'
   | 'give-time'
+  | 'hold-roll'
   | 'place-settlement'
   | 'place-road'
   | 'roll'
@@ -355,9 +359,23 @@ export const turnHandlers: Pick<
     const added = TUNING.giveTimeSeconds * 1000;
     next.turnDeadline! += added;
     if (next.robberDeadline !== null) next.robberDeadline += added;
-    next.timeGivenBy.push(playerId);
     const active = next.players.find(p => p.id === activeId)!;
     addLog(next, `${player.name} gave ${active.name} ${TUNING.giveTimeSeconds} seconds.`);
+  },
+
+  /**
+   * The roller stops the auto-roll while deciding whether to play a card first, and starts it again
+   * (with what was left, but never under a few seconds) after deciding not to.
+   */
+  'hold-roll'({ next, now }, action) {
+    needPhase(next, 'roll');
+    if (action.held && next.rollDeadline !== null) {
+      next.rollHeldMs = Math.max(0, next.rollDeadline - now);
+      next.rollDeadline = null;
+    } else if (!action.held && next.rollHeldMs !== null) {
+      next.rollDeadline = now + Math.max(next.rollHeldMs, ROLL_RESUME_MS);
+      next.rollHeldMs = null;
+    }
   },
 
   /** Ends a turn, or one player's part of the special build phase. */

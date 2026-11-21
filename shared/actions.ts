@@ -44,6 +44,7 @@ const SPEC = {
   'request-special-build': {},
   'cancel-special-build': {},
   'give-time': {},
+  'hold-roll': { held: 'bool' },
   'set-name': { name: 'name' },
   'buy-development': { discoveries: 'bag?' },
   'finish-free-roads': {},

@@ -24,7 +24,7 @@ const bag = (cards: Partial<TradeBag>): TradeBag => ({
   ...cards,
 });
 
-test('another player can give the person moving more time, once', async ({ page }) => {
+test('another player can give the person moving more time, again and again', async ({ page }) => {
   const g = othersTurn();
   const game = await mountGame(page, g);
   const give = page.getByRole('button', { name: `Give Player 1 ${TUNING.giveTimeSeconds} seconds` });
@@ -41,7 +41,8 @@ test('another player can give the person moving more time, once', async ({ page 
   }
   await give.click();
   await expect.poll(() => game.state().turnDeadline).toBe(g.turnDeadline! + TUNING.giveTimeSeconds * 1000);
-  await expect(give).toHaveCount(0);
+  await give.click();
+  await expect.poll(() => game.state().turnDeadline).toBe(g.turnDeadline! + 2 * TUNING.giveTimeSeconds * 1000);
   expect(game.errors).toEqual([]);
 });
 

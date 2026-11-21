@@ -26,9 +26,9 @@ const GIVE_TIME_PHASES: readonly GameState['phase'][] = [
   'special-build',
 ];
 
-/** Whether `giverId` may add time to the clock of the person moving now: once each, never to a bot or themselves. */
+/** Whether `giverId` may add time to the clock of the person moving now: never to a bot or themselves. */
 export function canGiveTime(
-  game: Pick<GameState, 'phase' | 'pausedAt' | 'turnDeadline' | 'timeGivenBy'> & {
+  game: Pick<GameState, 'phase' | 'pausedAt' | 'turnDeadline' | 'turnHeldAt'> & {
     players: readonly { id: string; bot?: unknown }[];
   },
   activeId: string | null,
@@ -43,7 +43,7 @@ export function canGiveTime(
     GIVE_TIME_PHASES.includes(game.phase) &&
     game.pausedAt === null &&
     game.turnDeadline !== null &&
-    !game.timeGivenBy.includes(giverId)
+    game.turnHeldAt === null
   );
 }
 

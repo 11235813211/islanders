@@ -163,9 +163,10 @@ function runBotStep(state: GameState, now: number, random: () => number, thinkin
   return next;
 }
 
-/** The phase deadline that is running, if any: the roll (or volcano dice), gold picks, or the robber. */
+/** The phase deadline that is running, if any: the roll (or volcano dice), discards, gold picks, or the robber. */
 function phaseDeadline(state: GameState): number | null {
   if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
+  if (state.phase === 'discard') return state.discardDeadline;
   if (state.phase === 'gold') return state.goldDeadline;
   if (state.phase === 'robber') return state.robberDeadline;
   return null;
@@ -179,7 +180,7 @@ export function nextDueAt(state: GameState): number | null {
   const times: (number | null)[] = [state.proposal?.expiresAt ?? null];
   if (state.pausedAt === null) {
     times.push(...state.tradeOffers.map(o => o.expiresAt), phaseDeadline(state), botDueAt(state));
-    if (playing(state)) times.push(state.turnDeadline);
+    if (playing(state) && state.turnHeldAt === null) times.push(state.turnDeadline);
   }
   const due = times.filter((time): time is number => time !== null);
   return due.length ? Math.min(...due) : null;
@@ -231,12 +232,14 @@ export function advanceTime(
       next.updatedAt = now;
       changed = true;
     }
-    if (next.turnDeadline !== null && next.turnDeadline <= now && playing(next))
+    if (next.turnDeadline !== null && next.turnDeadline <= now && next.turnHeldAt === null && playing(next))
       return finishTimedTurn(next, now, random, thinking);
     if (next.phase === 'roll' && next.rollDeadline !== null && next.rollDeadline <= now)
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll' }, random, now);
     if (next.phase === 'eruption' && next.rollDeadline !== null && next.rollDeadline <= now)
       return applyAction(next, getActivePlayerId(next)!, { type: 'roll-volcanoes' }, random, now);
+    if (next.phase === 'discard' && next.discardDeadline !== null && next.discardDeadline <= now)
+      return discardForAll(next, now, random);
     if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
       return chooseGoldForAll(next, now, random);
     if (next.phase === 'robber' && next.robberDeadline !== null && next.robberDeadline <= now) {
@@ -274,6 +277,23 @@ function chooseGoldForAll(state: GameState, now: number, random: () => number): 
     } catch (error) {
       if (!(error instanceof GameError)) throw error;
       next = forced(next, id, bankGold(next, id), random, now);
+    }
+  }
+  return next;
+}
+
+/** Discard time ran out: discard for everyone still choosing, as an Advanced bot would. */
+function discardForAll(state: GameState, now: number, random: () => number): GameState {
+  let next = state;
+  for (const id of Object.keys(state.pendingDiscards)) {
+    if (next.phase !== 'discard' || !next.pendingDiscards[id]) continue;
+    for (const level of [DEFAULT_BOT_LEVEL, 'beginner'] as const) {
+      try {
+        next = forced(next, id, chooseBotAction(getView(next, id), { level }), random, now);
+        break;
+      } catch (error) {
+        if (!(error instanceof GameError)) throw error;
+      }
     }
   }
   return next;

@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../shared/default-settings';
-import { addSpectator, applyAction, createGame, DEFAULT_SETTINGS, getView, normalizeGame } from '../shared/engine';
+import {
+  addSpectator,
+  advanceTime,
+  applyAction,
+  createGame,
+  DEFAULT_SETTINGS,
+  emptyBag,
+  getView,
+  nextDueAt,
+  normalizeGame,
+} from '../shared/engine';
 import { toStep } from '../shared/replay';
 import type { GameAction, GameState } from '../shared/types';
-import { grant, makeLobby, seeded, settled, TEST_NOW } from './fixtures';
+import { grant, makeLobby, seeded, sequence, settled, TEST_NOW } from './fixtures';
 
 const act = (g: GameState, id: string, action: GameAction, now = TEST_NOW) => applyAction(g, id, action, seeded(), now);
+/** Rolls a 3 and a 4. */
+const rollSeven = (g: GameState) => applyAction(g, 'p0', { type: 'roll' }, sequence(0.4, 0.5), TEST_NOW);
+const sixWood = { ...emptyBag(), wood: 6 };
 const bonus = TUNING.actionBonusSeconds * 1000;
 const given = TUNING.giveTimeSeconds * 1000;
 
@@ -46,14 +59,14 @@ describe('time for placing roads', () => {
 });
 
 describe('giving time', () => {
-  it('any other player adds time once per turn, and the next turn starts fresh', () => {
+  it('any other player adds time, as often as they like', () => {
     let g = act(building(), 'p1', { type: 'give-time' });
     expect(g.turnDeadline).toBe(TEST_NOW + 30_000 + given);
-    expect(() => act(g, 'p1', { type: 'give-time' })).toThrow(/give time/);
-    g = act(g, 'p2', { type: 'give-time' });
+    g = act(g, 'p1', { type: 'give-time' });
     expect(g.turnDeadline).toBe(TEST_NOW + 30_000 + 2 * given);
+    g = act(g, 'p2', { type: 'give-time' });
+    expect(g.turnDeadline).toBe(TEST_NOW + 30_000 + 3 * given);
     expect(g.log.at(-1)!.text).toBe(`Player 2 gave Player 0 ${TUNING.giveTimeSeconds} seconds.`);
-    expect(act(g, 'p0', { type: 'end-turn' }).timeGivenBy).toEqual([]);
   });
 
   it('works during setup and extends the robber clock', () => {
@@ -83,11 +96,82 @@ describe('giving time', () => {
     expect(act(traded, 'p1', { type: 'give-time' }).undo).not.toBeNull();
   });
 
-  it('older stored rooms get the new field', () => {
-    const old = structuredClone(building()) as Partial<GameState>;
-    delete old.timeGivenBy;
-    old.schemaVersion = 25;
-    expect(normalizeGame(old as GameState).timeGivenBy).toEqual([]);
+  it('older stored rooms drop the once-per-turn list', () => {
+    const old = structuredClone(building()) as GameState & { timeGivenBy?: string[] };
+    old.timeGivenBy = ['p1'];
+    old.schemaVersion = 30;
+    const migrated = normalizeGame(old) as GameState & { timeGivenBy?: string[] };
+    expect(migrated.timeGivenBy).toBeUndefined();
+    expect(migrated.turnHeldAt).toBeNull();
+  });
+});
+
+/** p0 about to roll a 7 with p1 holding 12 cards, and 30 seconds on p0's clock. */
+function sevenComing(): GameState {
+  const g = settled();
+  g.phase = 'roll';
+  g.turnDeadline = TEST_NOW + 30_000;
+  grant(g, 'p1', { wood: 6, brick: 6 });
+  return g;
+}
+
+describe('others choosing never use up the turn clock', () => {
+  it('the turn clock holds during discards and starts again with the same time left', () => {
+    const rolled = rollSeven(sevenComing());
+    expect(rolled.phase).toBe('discard');
+    expect(rolled.turnHeldAt).toBe(TEST_NOW);
+    expect(rolled.discardDeadline).toBe(TEST_NOW + rolled.settings.decisionSeconds * 1000);
+    // Long past the turn clock, but it is held: nothing happens until the discard clock.
+    expect(nextDueAt(rolled)).toBe(rolled.discardDeadline);
+    expect(advanceTime(rolled, TEST_NOW + 29_000, seeded())).toBe(rolled);
+    const later = TEST_NOW + 20_000;
+    const done = act(rolled, 'p1', { type: 'discard', resources: sixWood }, later);
+    expect(done.phase).toBe('robber');
+    expect(done.turnHeldAt).toBeNull();
+    expect(done.turnDeadline).toBe(TEST_NOW + 30_000 + 20_000);
+  });
+
+  it('a discard nobody makes is made for them when its clock runs out', () => {
+    const rolled = rollSeven(sevenComing());
+    const next = advanceTime(rolled, rolled.discardDeadline!, seeded());
+    expect(next.phase).toBe('robber');
+    expect(next.log.some(e => e.text === 'A bot discarded for Player 1.')).toBe(true);
+  });
+
+  it('a pause while held is not counted twice', () => {
+    const rolled = rollSeven(sevenComing());
+    const paused = { ...rolled, pausedAt: TEST_NOW + 5_000 };
+    let g = act(paused, 'p0', { type: 'propose', kind: 'resume' }, TEST_NOW + 15_000);
+    if (g.pausedAt !== null)
+      g = act(g, 'p1', { type: 'vote', proposalId: g.proposal!.id, accept: true }, TEST_NOW + 15_000);
+    expect(g.pausedAt).toBeNull();
+    const done = act(g, 'p1', { type: 'discard', resources: sixWood }, TEST_NOW + 20_000);
+    expect(done.turnDeadline).toBe(TEST_NOW + 30_000 + 20_000);
+  });
+});
+
+describe('holding the auto-roll', () => {
+  it('stops while the roller looks at a card, and restarts with what was left', () => {
+    const g = settled();
+    g.phase = 'roll';
+    g.rollDeadline = TEST_NOW + 6_000;
+    const held = act(g, 'p0', { type: 'hold-roll', held: true });
+    expect(held.rollDeadline).toBeNull();
+    expect(held.rollHeldMs).toBe(6_000);
+    expect(advanceTime(held, TEST_NOW + 60_000 - 1, seeded()).phase).toBe('roll');
+    const later = TEST_NOW + 40_000;
+    const resumed = act(held, 'p0', { type: 'hold-roll', held: false }, later);
+    expect(resumed.rollDeadline).toBe(later + 6_000);
+    expect(resumed.rollHeldMs).toBeNull();
+    expect(() => act(g, 'p1', { type: 'hold-roll', held: true })).toThrow(/turn/);
+  });
+
+  it('a hold ends with the roll phase', () => {
+    const g = settled();
+    g.phase = 'roll';
+    g.rollDeadline = TEST_NOW + 6_000;
+    const held = act(g, 'p0', { type: 'hold-roll', held: true });
+    expect(act(held, 'p0', { type: 'roll' }).rollHeldMs).toBeNull();
   });
 });
 

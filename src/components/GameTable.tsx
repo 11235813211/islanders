@@ -97,7 +97,9 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     case 'steal':
       return 'Choosing a player…';
     case 'discard':
-      return 'Discarding resources…';
+      return view.pendingDiscards[view.selfId]
+        ? `Discard${countdown(secondsUntil(view.discardDeadline, clock))}`
+        : 'Discarding resources…';
     case 'gold':
       return view.pendingGold[view.selfId]
         ? `Choose your gold${countdown(secondsUntil(view.goldDeadline, clock))}`
@@ -254,7 +256,9 @@ export default function GameTable({
   }, [selected]);
 
   const clock = view.pausedAt ?? now;
-  const remaining = view.turnDeadline === null ? 0 : Math.max(0, Math.ceil((view.turnDeadline - clock) / 1000));
+  // While others discard or pick gold the turn clock holds, so it shows the time left when it stopped.
+  const turnClock = view.turnHeldAt ?? clock;
+  const remaining = view.turnDeadline === null ? 0 : Math.max(0, Math.ceil((view.turnDeadline - turnClock) / 1000));
 
   function place(kind: PlaceKind, id: string) {
     if (blocked) return;

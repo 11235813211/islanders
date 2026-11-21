@@ -414,6 +414,15 @@ export interface GameState {
   goldDeadline: number | null;
   /** When the robber (or pirate) is placed for a player who hasn't moved it. */
   robberDeadline: number | null;
+  /** When discards are made for whoever hasn't discarded. */
+  discardDeadline: number | null;
+  /**
+   * While others discard or pick gold, the turn clock holds: this is when it stopped (turnDeadline
+   * moves on by the held time when it starts again), or null when it is running.
+   */
+  turnHeldAt: number | null;
+  /** The auto-roll wait left while the roller looks at a card before rolling, or null. */
+  rollHeldMs: number | null;
   /** Volcano hexes about to erupt (the eruption phase), or null. */
   eruption: string[] | null;
   /** Fog hex id → what it will turn out to be. Hidden, like the deck, until revealed. */
@@ -462,8 +471,6 @@ export interface GameState {
   specialQueue: string[];
   /** Who asked to build this turn (each player may ask once). */
   specialAsked: string[];
-  /** Who already gave the player now moving more time (once each, per turn or setup placement). */
-  timeGivenBy: string[];
   resumePhase: 'roll' | 'build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
@@ -595,10 +602,11 @@ export interface GameView {
   pendingSplit: Record<string, SplitChoice[]>;
   goldDeadline: number | null;
   robberDeadline: number | null;
+  discardDeadline: number | null;
+  turnHeldAt: number | null;
   eruption: string[] | null;
   specialQueue: string[];
   specialAsked: string[];
-  timeGivenBy: string[];
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
   features: { sea: boolean; volcano: boolean; fogLand: number };
   winnerId: string | null;
@@ -699,6 +707,8 @@ export type GameAction =
   | { type: 'cancel-special-build' }
   /** Add time to the clock of the person now moving (see canGiveTime in rules.ts). */
   | { type: 'give-time' }
+  /** Before rolling: stop (or restart) the auto-roll while deciding whether to play a card. */
+  | { type: 'hold-roll'; held: boolean }
   /** Change your own name in this room. */
   | { type: 'set-name'; name: string }
   | { type: 'discard'; resources: TradeBag }

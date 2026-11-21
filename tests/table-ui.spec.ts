@@ -334,6 +334,27 @@ test('cards from a roll fly into the hand without first popping in and out', asy
   expect(seen.spent).toBe(0);
 });
 
+test('a knight considered before rolling holds the auto-roll, and the robber flies to its new tile', async ({
+  page,
+}) => {
+  const g = richGame();
+  g.phase = 'roll';
+  g.rollDeadline = Date.now() + 60_000;
+  const game = await mountGame(page, g);
+  const knight = page.getByRole('button', { name: 'Knight (1), ready to play' });
+  await knight.click();
+  await expect.poll(() => game.state().rollDeadline).toBeNull();
+  await page.getByRole('dialog', { name: 'Knight' }).getByRole('button', { name: 'Cancel' }).click();
+  await expect.poll(() => game.state().rollDeadline).not.toBeNull();
+  const robber = page.locator('.flying-piece');
+  await expect(robber).toHaveCount(1);
+  game.update(next => {
+    next.robber = next.board.hexes.find(h => h.terrain !== 'desert' && h.id !== next.robber)!.id;
+  });
+  await expect.poll(() => robber.evaluate(el => el.getAnimations().length)).toBeGreaterThan(0);
+  expect(game.errors).toEqual([]);
+});
+
 test('without Seafarers the robber hint names only the robber', async ({ page }) => {
   const g = richGame();
   g.phase = 'robber';

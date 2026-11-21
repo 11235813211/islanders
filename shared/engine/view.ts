@@ -149,10 +149,11 @@ export function getView(state: GameState, selfId: string): GameView {
     pendingSplit: state.pendingSplit,
     goldDeadline: state.goldDeadline,
     robberDeadline: state.robberDeadline,
+    discardDeadline: state.discardDeadline,
+    turnHeldAt: state.turnHeldAt,
     eruption: state.eruption,
     specialQueue: state.specialQueue,
     specialAsked: state.specialAsked,
-    timeGivenBy: state.timeGivenBy,
     features: mapFeatures(state),
     winnerId: state.winnerId,
     // Only the thief and the victim learn which card was stolen.

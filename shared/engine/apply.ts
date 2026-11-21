@@ -102,6 +102,8 @@ const PASSIVE = new Set<GameAction['type']>([
   'request-special-build',
   'cancel-special-build',
   'give-time',
+  // Thinking about a card before rolling isn't a move either.
+  'hold-roll',
   'leave',
   'transfer-host',
 ]);
@@ -179,6 +181,22 @@ function earnsTime(state: GameState, next: GameState, action: GameAction): boole
   return (next.phase === 'build' || next.phase === 'free-roads') && TIME_BONUS.has(action.type);
 }
 
+/** Phases where others may be the ones choosing, on their own short clock. */
+const HELD_PHASES: readonly GameState['phase'][] = ['discard', 'gold'];
+
+/**
+ * The turn clock stops while players discard or pick gold, so their choices never use up the
+ * mover's turn; it starts again, with the same time left, when the choosing is done.
+ */
+function holdTurnClock(next: GameState, now: number): void {
+  const held = HELD_PHASES.includes(next.phase);
+  if (held && next.turnHeldAt === null && next.turnDeadline !== null) next.turnHeldAt = now;
+  else if (!held && next.turnHeldAt !== null) {
+    if (next.turnDeadline !== null) next.turnDeadline += now - next.turnHeldAt;
+    next.turnHeldAt = null;
+  }
+}
+
 /** Bookkeeping shared by every move: awards, winning, trade validity, clocks, and undo history. */
 function afterAction(state: GameState, next: GameState, playerId: string, action: GameAction, now: number): void {
   if (next.phase === 'robber' && !legalMoves(next, getActivePlayerId(next)!).robberHexes.length) {
@@ -222,6 +240,10 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   else if (next.phase !== 'gold') next.goldDeadline = null;
   if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + decision;
   else if (next.phase !== 'robber') next.robberDeadline = null;
+  if (next.phase === 'discard' && state.phase !== 'discard') next.discardDeadline = now + decision;
+  else if (next.phase !== 'discard') next.discardDeadline = null;
+  if (next.phase !== 'roll') next.rollHeldMs = null;
+  holdTurnClock(next, now);
   const newSeat =
     action.type === 'start' ||
     next.setupIndex !== state.setupIndex ||
@@ -233,8 +255,8 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
         ? Math.min(SPECIAL_BUILD_SECONDS, next.settings.turnSeconds)
         : next.settings.turnSeconds;
     next.turnDeadline = now + seconds * 1000;
+    next.turnHeldAt = HELD_PHASES.includes(next.phase) ? now : null;
     next.turnExpired = false;
-    next.timeGivenBy = [];
   } else if (playing && next.turnDeadline !== null && earnsTime(state, next, action)) {
     // Time other players gave can put the clock above a full turn; a bonus never takes it away.
     next.turnDeadline = Math.max(
@@ -244,6 +266,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   }
   if (!playing) {
     next.turnDeadline = null;
+    next.turnHeldAt = null;
     next.rollDeadline = null;
     next.undo = null;
     next.undoHistory = [];

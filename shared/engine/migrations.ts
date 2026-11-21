@@ -243,6 +243,14 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.crossings ??= {};
   },
+  // 30 → 31: the turn clock holds while others discard or pick gold (discards get their own
+  // clock), the auto-roll can wait while a card is considered, and giving time has no limit.
+  s => {
+    s.discardDeadline ??= null;
+    s.turnHeldAt ??= null;
+    s.rollHeldMs ??= null;
+    delete s.timeGivenBy;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */
@@ -286,7 +294,7 @@ function repair(next: GameState, now: number): void {
     }),
   );
   updateAwards(next);
-  if (next.phase !== 'roll' || !next.settings.autoRollSeconds) next.rollDeadline = null;
+  if (next.phase !== 'roll' || !next.settings.autoRollSeconds || next.rollHeldMs !== null) next.rollDeadline = null;
   else if (!Number.isFinite(next.rollDeadline) || next.rollDeadline === undefined)
     next.rollDeadline = now + next.settings.autoRollSeconds * 1000;
 }

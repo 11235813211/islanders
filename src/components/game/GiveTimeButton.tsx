@@ -3,7 +3,7 @@ import { canGiveTime } from '../../../shared/rules';
 import type { GameAction, GameView } from '../../../shared/types';
 import './give-time.css';
 
-/** Beside the turn clock: gives the person moving more time. Each player can press it once per turn. */
+/** Beside the turn clock: gives the person moving more time. Anyone may press it, as often as they like. */
 export default function GiveTimeButton({
   view,
   busy,

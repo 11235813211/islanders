@@ -14,6 +14,7 @@ import {
   Tile,
 } from '../art';
 import { hexPoints } from '../lib/geometry';
+import FlyingPiece from './FlyingPiece';
 import IslandRims, { rimTiles } from './IslandRims';
 
 /** An iceberg's last drift, for its slide-in (see icebergDrifts in Board.tsx). `from` = `to` when it was blocked. */
@@ -118,6 +119,8 @@ export default function BoardScene({
   const land = board.hexes.filter(h => isLandTerrain(h.terrain));
   // Water and unexplored fog fill the whole hex; land sits on the island's shore.
   const water = board.hexes.filter(h => !isLandTerrain(h.terrain));
+  const robberHex = land.find(h => h.id === robber);
+  const pirateHex = pirate ? board.hexes.find(h => h.id === pirate) : undefined;
   return (
     <>
       <SeaBackdrop uid={uid} hexes={seaMap ? [] : board.hexes} frame={frame} />
@@ -166,14 +169,14 @@ export default function BoardScene({
               </g>
             )}
             {!!hex.bonus && <SEA.BonusChip points={hex.bonus} />}
-            {robber === hex.id && (
-              <g className="piece-drop">
-                <Robber />
-              </g>
-            )}
           </g>
         </g>
       ))}
+      {robberHex && (
+        <FlyingPiece x={robberHex.x} y={robberHex.y}>
+          <Robber />
+        </FlyingPiece>
+      )}
       {rumbles.map(rumble => {
         const hex = board.hexes.find(h => h.id === rumble.hexId);
         if (!hex) return null;
@@ -187,16 +190,11 @@ export default function BoardScene({
       {showClosed && seaMap && (
         <IslandRims tiles={rimTiles(board.hexes.map(h => ({ ...h, land: isLandTerrain(h.terrain) })))} />
       )}
-      {pirate &&
-        board.hexes
-          .filter(hex => hex.id === pirate)
-          .map(hex => (
-            <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
-              <g className="piece-drop">
-                <SEA.Pirate />
-              </g>
-            </g>
-          ))}
+      {pirateHex && (
+        <FlyingPiece x={pirateHex.x} y={pirateHex.y}>
+          <SEA.Pirate />
+        </FlyingPiece>
+      )}
       {board.harbors.map(port => (
         <g
           key={port.id}

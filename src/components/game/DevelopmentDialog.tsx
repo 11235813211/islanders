@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { GameAction, GameView } from '../../../shared/types';
 import { useDismiss } from '../../hooks/useDismiss';
@@ -7,6 +7,32 @@ import { blockedReason, cardToPlay, DEV_CARDS } from './DevelopmentHand';
 
 /** Cards played from a confirm popup. Year of Plenty and Monopoly use corner panels (CornerPanels.tsx). */
 export type DialogCard = 'knight' | 'road-building' | 'victory-point';
+
+/** True when the dice are about to roll themselves for the viewer. */
+const autoRollRunning = (view: GameView) =>
+  view.phase === 'roll' && view.activePlayerId === view.selfId && view.rollDeadline !== null;
+
+/**
+ * Holds the auto-roll while a card to play before rolling is open, and lets it run again if the
+ * card is closed without playing it.
+ */
+function useRollHold(view: GameView, kind: DialogCard, send: (a: GameAction) => void) {
+  const latest = useRef(view);
+  latest.current = view;
+  const played = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: decided once, when the card opens.
+  useEffect(() => {
+    if (kind === 'victory-point' || !autoRollRunning(view)) return;
+    played.current = false;
+    send({ type: 'hold-roll', held: true });
+    return () => {
+      if (!played.current && latest.current.phase === 'roll') send({ type: 'hold-roll', held: false });
+    };
+  }, []);
+  return () => {
+    played.current = true;
+  };
+}
 
 /** Knight and Road Building ask to confirm, just above the card; a Victory Point card just explains itself. */
 export default function DevelopmentDialog({
@@ -25,7 +51,9 @@ export default function DevelopmentDialog({
   const card = DEV_CARDS[kind];
   const reason = kind === 'victory-point' ? null : blockedReason(view, kind);
   const cardId = cardToPlay(view, kind);
+  const markPlayed = useRollHold(view, kind, send);
   const play = (action: GameAction) => {
+    markPlayed();
     send(action);
     close();
   };
