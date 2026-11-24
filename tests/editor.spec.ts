@@ -541,16 +541,25 @@ test('a new base board left unchanged is not added to the library; changed, it s
 test('a tile can be made split: the Split chips fit the panel and the canvas draws both halves', async ({ page }) => {
   await signIn(page);
   await page.goto('/#editor');
-  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Fire and Ice' }).click();
-  const board = BUILTIN_BOARDS.find(b => b.id === 'fire-and-ice')!;
-  const tile = board.tiles.find(t => t.kind === 'land')!;
-  // Above the number token, so the click selects the tile.
-  const spot = await cellPoint(page, tile.q, tile.r, 0, -28);
-  await page.mouse.click(spot.x, spot.y);
-  const split = page.getByRole('radiogroup', { name: 'Second side' });
+  // A new unsaved board: a library board may be held read-only by another worker's test.
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'New blank board' }).first().click();
+  await expect(page.getByLabel('Board name')).toHaveValue('New board');
+  await drag(
+    page,
+    [
+      [0, 0],
+      [1, 0],
+    ],
+    'Shift',
+  );
+  const settings = page.getByRole('complementary', { name: 'Settings' });
+  const center = await cellPoint(page, 0, 0, 0, -32);
+  await page.mouse.click(center.x, center.y);
+  await settings.getByRole('button', { name: 'Fields', exact: true }).click();
+  const split = settings.getByRole('radiogroup', { name: 'Second side' });
   await split.getByRole('radio', { name: 'Ore' }).click();
   await expect(split.getByRole('radio', { name: 'Ore' })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('[aria-label="Split tile: land or ore"]')).toHaveCount(1);
+  await expect(page.locator('[aria-label="Split tile: wheat or ore"]')).toHaveCount(1);
   for (const width of [1600, 1280, 1024, 820, 390]) {
     await page.setViewportSize({ width, height: 900 });
     if (await split.isVisible()) await expectNoSpill(split);
