@@ -1,13 +1,14 @@
 import { BUILD_COSTS } from '../engine/core';
 import { relaySpots } from '../engine/legal';
-import { hexNumbers } from '../rules';
+import { hexNumbers, megacitySpots } from '../rules';
 import { boardIndex } from '../seafaring';
 import { type GameAction, type GameView, TILE_RESOURCES, type TradeOffer } from '../types';
 import {
   bankTradeFor,
   chartMove,
-  finishMove,
-  finishTarget,
+  megacityChartMove,
+  megacityMove,
+  megacityTarget,
   SIMPLE_TILES,
   settleable,
   splitMove,
@@ -15,8 +16,8 @@ import {
 } from './charting';
 
 /**
- * Cartographers for every bot level, kept simple and cheap: chart toward a finished tile it alone
- * stands beside (a point), lodestone kept for that or a good relay spot, splits and charts on its
+ * Cartographers for every bot level, kept simple and cheap: a megacity when it can, charts toward
+ * one beside its own city, lodestone kept for those or a good relay spot, splits and charts on its
  * own tiles with the lodestone left over, and a relay station (or the trade that completes one)
  * before ending a turn. The trained Advanced bot's own plans don't know these moves.
  */
@@ -45,13 +46,14 @@ export function relayMove(view: GameView): GameAction | null {
 }
 
 /**
- * What this seat would spend lodestone on, cards aside: a tile it can finish alone, else a relay
- * station on a spot that pays well. Null when it has no use for lodestone.
+ * What this seat would spend lodestone on, cards aside: a megacity on a city that may have one, a
+ * chart toward one, else a relay station on a spot that pays well. Null when it has no use for lodestone.
  */
-function lodestoneUse(view: GameView): 'chart' | 'relay' | null {
+function lodestoneUse(view: GameView): 'megacity' | 'chart' | 'relay' | null {
   const self = view.players.find(p => p.id === view.selfId);
   if (!self) return null;
-  if (finishTarget(view)) return 'chart';
+  if (megacitySpots(view, view.selfId).length) return 'megacity';
+  if (megacityTarget(view)) return 'chart';
   if (self.relaysLeft && bestRelay(view, relaySpots(view, view.selfId))) return 'relay';
   return null;
 }
@@ -64,7 +66,7 @@ function givesLodestone(action: GameAction): boolean {
 }
 
 /** With the lodestone in hand, a bank trade for the one other card a piece still needs, paid with spares. */
-function tradeToward(view: GameView, piece: 'chart' | 'relay'): GameAction | null {
+function tradeToward(view: GameView, piece: 'megacity' | 'chart' | 'relay'): GameAction | null {
   const cost = BUILD_COSTS[piece];
   const missing = TILE_RESOURCES.filter(r => view.hand[r] < cost[r]);
   const [want] = missing;
@@ -73,13 +75,13 @@ function tradeToward(view: GameView, piece: 'chart' | 'relay'): GameAction | nul
 }
 
 /**
- * Cartographers on a bot's own turn: a chart toward a tile it can finish alone first, else a split
+ * Cartographers on a bot's own turn: a megacity, or a chart toward one, first, else a split
  * or chart on its tiles with lodestone it doesn't need for a relay station, judged by the level's
  * `tuning`; and before ending the turn, a relay station or the trade that completes one.
  */
 export function cartographersTurn(view: GameView, planned: GameAction, tuning = SIMPLE_TILES): GameAction {
   if (!view.cartographers || view.phase !== 'build' || view.activePlayerId !== view.selfId) return planned;
-  const finishing = finishMove(view);
+  const finishing = megacityMove(view) ?? megacityChartMove(view);
   if (finishing) return finishing;
   const use = lodestoneUse(view);
   // Charts and splits are cheap, so only lodestone beyond the planned piece's goes on tiles.

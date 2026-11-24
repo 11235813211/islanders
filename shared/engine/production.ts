@@ -129,10 +129,12 @@ export function collectStart(state: GameState, playerId: string, vertexId: strin
   state.pendingSplit = splits.length ? { [playerId]: splits } : {};
 }
 
-/** What a settlement (1 a number) or city (2) on this corner earns from `times` paying numbers, for whom, and whether it is a city. */
+/** What a settlement (1 a number), city (2), or megacity (3) on this corner earns from `times` paying numbers, for whom, and whether it is a city. */
 function buildingShare(state: GameState, vertexId: string, times: number): [string, number, boolean][] {
   const building = state.buildings[vertexId];
   const city = building?.kind === 'city';
+  // A megacity (Cartographers) collects 3 resources a number; with Cities & Knights, no commodity.
+  if (city && state.megacities.includes(vertexId)) return [[building.playerId, 3 * times, false]];
   return building ? [[building.playerId, (city ? 2 : 1) * times, city]] : [];
 }
 
@@ -199,7 +201,12 @@ export function eruptAt(state: GameState, hexId: string, die: number): void {
   let damage: 'none' | 'city' | 'settlement' = 'none';
   let text = `The volcano erupted toward corner ${die}. Nothing was there.`;
   const stockLeft = owner && pieceCounts(state, owner.id).settlements < pieceLimits(state, owner.id).settlements;
-  if (building?.kind === 'city' && stockLeft) {
+  if (state.megacities.includes(vertexId)) {
+    // A megacity loses its megacity and stays a city.
+    state.megacities = state.megacities.filter(id => id !== vertexId);
+    damage = 'city';
+    text = `The volcano erupted toward corner ${die}: ${owner!.name}'s megacity was reduced to a city.`;
+  } else if (building?.kind === 'city' && stockLeft) {
     building.kind = 'settlement';
     damage = 'city';
     text = `The volcano erupted toward corner ${die}: ${owner!.name}'s city was reduced to a settlement.`;

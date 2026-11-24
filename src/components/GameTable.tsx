@@ -262,6 +262,7 @@ export default function GameTable({
       city: view.legal.cities,
       settlement: view.legal.settlements,
       relay: view.legal.relays,
+      megacity: view.legal.megacities,
     };
     if (!(selected.choices ?? [selected.kind]).some(kind => legal[kind].includes(selected.id))) setSelected(null);
   }, [view.legal, selected]);
@@ -292,6 +293,7 @@ export default function GameTable({
     if (kind === 'road') send({ type: setup ? 'place-road' : 'build-road', edgeId: id });
     else if (kind === 'ship') send({ type: setup ? 'place-ship' : 'build-ship', edgeId: id });
     else if (kind === 'relay') send({ type: 'build-relay', edgeId: id });
+    else if (kind === 'megacity') send({ type: 'build-megacity', vertexId: id });
     else
       send({
         type:
@@ -301,7 +303,11 @@ export default function GameTable({
     setMode(null);
   }
   function pickVertex(id: string) {
-    const kind = view.legal.cities.includes(id) ? 'city' : 'settlement';
+    const kind = view.legal.megacities.includes(id)
+      ? 'megacity'
+      : view.legal.cities.includes(id)
+        ? 'city'
+        : 'settlement';
     if (mode) place(kind, id);
     else setSelected({ kind, id });
   }

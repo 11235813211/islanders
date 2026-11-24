@@ -3,7 +3,7 @@
 import { Check } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { affordsSplit, BUILD_COSTS } from '../../../shared/engine';
-import { chartedNumbers, chartsLeft, hexNumbers, onlyPlayerBeside } from '../../../shared/rules';
+import { chartedNumbers, hexNumbers, MEGACITY_NUMBERS, megacityTile } from '../../../shared/rules';
 import { terrainResource } from '../../../shared/seafaring';
 import {
   type GameAction,
@@ -39,15 +39,12 @@ function tileName(view: GameView, hex: Hex): string {
   return `${fog}${numbers.length ? `${name} ${numbers.join(', ')}` : name}`;
 }
 
-/** What a chart does to a tile: "5 → 6", "6 → 6, 2", and whether the last chart scores. */
-function chartPreview(view: GameView, hex: Hex): string {
+/** What a chart does to a tile: "5 → 6", "6 → 6, 2", and whether it opens megacities beside it. */
+function chartPreview(hex: Hex): string {
   const now = hexNumbers(hex);
-  const change = `${now.join(', ')} → ${(chartedNumbers(now) ?? now).join(', ')}`;
-  if (chartsLeft(now) !== 1) return change;
-  const scorer = onlyPlayerBeside(view, hex);
-  if (!scorer) return `${change}: no point`;
-  if (scorer === view.selfId) return `${change}: +1 point`;
-  return `${change}: +1 ${view.players.find(p => p.id === scorer)!.name}`;
+  const next = chartedNumbers(now) ?? now;
+  const change = `${now.join(', ')} → ${next.join(', ')}`;
+  return !megacityTile(hex) && next.length >= MEGACITY_NUMBERS ? `${change}: megacities` : change;
 }
 
 const TITLES: Record<TileTool, string> = { chart: 'Chart a tile', split: 'Split a tile' };
@@ -140,7 +137,7 @@ function chartConfirm(
 ): NonNullable<TilePicking['confirm']> {
   const hex = view.board.hexes.find(h => h.id === hexId)!;
   return {
-    text: chartPreview(view, hex),
+    text: chartPreview(hex),
     onConfirm: yes => {
       if (yes) send({ type: 'chart-hex', hexId });
       setMode(null);

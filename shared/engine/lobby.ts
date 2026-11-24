@@ -150,6 +150,7 @@ export function createGame(
     ships: {},
     crossings: {},
     relays: [],
+    megacities: [],
     ck: null,
     robber,
     pirate,

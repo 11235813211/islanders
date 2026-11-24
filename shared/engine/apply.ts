@@ -90,6 +90,7 @@ const REVERSIBLE = new Set<GameAction['type']>([
   'build-settlement',
   'build-city',
   'build-relay',
+  'build-megacity',
   'trade',
   'bank-trade',
   'confirm-trade',
@@ -134,6 +135,7 @@ const TIME_BONUS = new Set<GameAction['type']>([
   'build-settlement',
   'build-city',
   'build-relay',
+  'build-megacity',
   'buy-development',
   'play-knight',
   'play-road-building',
@@ -222,6 +224,8 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     addLog(next, 'No legal robber destination is available.');
   }
   pruneMapProposals(next);
+  // A megacity's mark goes with its city (barbarians, eruptions, and cards can take the city away).
+  next.megacities = next.megacities.filter(id => next.buildings[id]?.kind === 'city');
   updateAwards(next);
   updatePeaks(next);
   trackHands(next);

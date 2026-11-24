@@ -10,6 +10,12 @@ _Nothing running._
 
 ## Finished
 
+### Check after replacing finished charts with megacities
+
+- **Why:** Cartographers swapped the finished-chart point for megacities, and every bot level got a simple megacity move (build one when legal, chart toward one beside its city); confirm Advanced still beats Intermediate.
+- **Result (2026-11-24, `eval --games 2000`, about 20 minutes):** Advanced won **57.0% ±1.1%** against a fair 29.7% (×1.92), no unfinished games, 571 ms per game. Same as before (56.8%).
+  Megacities were rare across the full map mix: 0.04 per Advanced seat per game, 0.05 per Intermediate seat. Not a test of whether the move helps.
+
 ### Check after adding Cities & Knights
 
 - **Why:** commodities joined `RESOURCES`, so the bots now reason over `TILE_RESOURCES`; confirm the base-game bots play as before.

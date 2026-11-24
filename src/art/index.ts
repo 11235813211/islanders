@@ -9,6 +9,7 @@ import { cartographers as fallbackCartographers } from './v14/cartographers';
 import { cartographers as splitCartographers } from './v16/cartographers';
 import { knights as fallbackKnights } from './v18/knights';
 import { art } from './v19';
+import { MegacityPiece as fallbackMegacity } from './v19/pieces';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
@@ -20,6 +21,8 @@ export const CARTOGRAPHERS: CartographersArt =
 /** Split seams and peek veils: the active version's, or v16's for versions made before them. */
 export const SplitSeam = CARTOGRAPHERS.SplitSeam ?? splitCartographers.SplitSeam!;
 export const PeekVeil = CARTOGRAPHERS.PeekVeil ?? splitCartographers.PeekVeil!;
+/** Megacities: the active version's, or v19's for versions made before them. */
+export const MegacityPiece = (art as { MegacityPiece?: typeof fallbackMegacity }).MegacityPiece ?? fallbackMegacity;
 /** Cities & Knights art: the active version's, or v18's for versions made before it. */
 export const KNIGHTS: KnightsArt = (art as { knights?: KnightsArt }).knights ?? fallbackKnights;
 export const CARD_COLORS: Record<Resource, CardColors> = {

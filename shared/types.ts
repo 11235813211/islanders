@@ -136,7 +136,7 @@ export type CardSource = (typeof CARD_SOURCES)[number];
 /** Where a player's cards went. */
 export const CARD_LOSSES = ['build', 'discard', 'steal', 'monopoly', 'bank', 'trade'] as const;
 export type CardLoss = (typeof CARD_LOSSES)[number];
-export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay';
+export type BuiltPiece = 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'megacity';
 /** Public per-player totals for the whole game, shown on the end-of-game screen. */
 export interface PlayerStats {
   cardsIn: Partial<Record<CardSource, number>>;
@@ -193,7 +193,7 @@ export type GameEvent =
   | {
       kind: 'build';
       playerId: string;
-      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay';
+      piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'megacity';
       paid?: ResourceBag;
     }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
@@ -456,6 +456,8 @@ export interface GameState {
   lastRollTotal: number | null;
   /** Cartographers: edges in `roads` that hold relay stations. */
   relays: string[];
+  /** Cartographers: corners whose city is a megacity (3 cards a number, 3 points). */
+  megacities: string[];
   /** Cities & Knights (null without it). Decks and progress hands are hidden; see getView. */
   ck: KnightsState | null;
   /** Ships built this turn (they may not move until next turn). */
@@ -519,8 +521,8 @@ export interface PublicPlayer {
   roadsLeft: number;
   shipsLeft: number;
   relaysLeft: number;
-  /** Cartographers: points from finished charts that count right now. */
-  chartPoints: number;
+  /** Cartographers: megacities this player has. */
+  megacities: number;
   settlementsLeft: number;
   citiesLeft: number;
   developmentCount: number;
@@ -548,6 +550,8 @@ export interface LegalMoves {
   relays: string[];
   chartHexes: string[];
   splitHexes: string[];
+  /** Cartographers: your cities that can become megacities now. */
+  megacities: string[];
   /** Fog tiles you may pay a lodestone to peek at. */
   peekHexes: string[];
   /** Ship edge → edges it may move to this turn. */
@@ -593,6 +597,7 @@ export interface GameView {
   /** Maps with routes: each player's route (see GameState.routeOf). */
   routeOf: Record<string, number>;
   relays: string[];
+  megacities: string[];
   /** Cartographers rules are in play: lodestone, relay stations, charts, and splits. */
   cartographers: boolean;
   /** Fog tiles you peeked at, and what each hides. Only ever your own (all of them once the game ends). */
@@ -713,6 +718,7 @@ export type GameAction =
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
   | { type: 'build-relay'; edgeId: string }
+  | { type: 'build-megacity'; vertexId: string }
   /** Cartographers: pay a lodestone to see what a fog tile hides (only you see it). */
   | { type: 'peek-fog'; hexId: string }
   /** Cartographers: pay lodestone to step a tile's number toward 7. */

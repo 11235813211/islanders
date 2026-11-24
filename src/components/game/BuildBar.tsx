@@ -1,4 +1,5 @@
 import {
+  Building2,
   Castle,
   Check,
   Eye,
@@ -47,9 +48,13 @@ const LABELS: Record<ButtonKind, { short: string; long: string }> = {
   settlement: { short: 'settlement', long: 'Build settlement' },
   city: { short: 'city', long: 'Build city' },
   relay: { short: 'relay', long: 'Build relay station' },
+  megacity: { short: 'mega', long: 'Megacity: a city beside a tile with 2+ numbers. 3 points, 3 cards a number' },
   development: { short: 'Dev Card', long: 'Buy development card' },
   peek: { short: 'peek', long: 'Peek at a fog tile (only you see it)' },
-  chart: { short: 'chart', long: 'Chart a tile: its number steps toward 7. A full tile can score 1 point' },
+  chart: {
+    short: 'chart',
+    long: 'Chart a tile: its number steps toward 7. At 2 numbers, cities beside it can become megacities',
+  },
   split: { short: 'split', long: 'Split a tile: pay 1 of a resource and it pays that too' },
   knight: { short: 'knight', long: 'Place a basic knight beside your road' },
   wall: { short: 'wall', long: 'Build a city wall: keep 2 more cards on a 7' },
@@ -61,6 +66,7 @@ const ICONS: Record<ButtonKind, ReactNode> = {
   settlement: <House size={23} />,
   city: <CityIcon size={23} />,
   relay: <RelayIcon size={23} />,
+  megacity: <Building2 size={23} />,
   development: <span className="development-icon">✦</span>,
   peek: <Eye size={23} />,
   chart: <TrendingUp size={23} />,
@@ -258,6 +264,13 @@ export default function BuildBar({
             selected={mode === 'relay'}
             disabled={blocked || !view.legal.relays.length}
             onClick={() => toggle('relay')}
+          />
+          <BuildButton
+            kind="megacity"
+            remaining={null}
+            selected={mode === 'megacity'}
+            disabled={blocked || !view.legal.megacities.length}
+            onClick={() => toggle('megacity')}
           />
           <BuildButton
             kind="chart"

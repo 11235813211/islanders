@@ -113,9 +113,9 @@ export const STAT_CATEGORIES: StatCategory[] = [
       { icon: Sailboat, label: 'Islands', title: 'Island bonus points', value: p => p.bonusPoints, optional: true },
       {
         icon: Compass,
-        label: 'Charts',
-        title: 'Finished charts that scored (1 each)',
-        value: p => p.chartPoints,
+        label: 'Megacities',
+        title: 'Extra point for each megacity (1 each, on top of its city)',
+        value: p => p.megacities,
         optional: true,
       },
       { label: 'Total', title: 'Victory points', value: p => p.points, total: true },

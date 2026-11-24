@@ -2,7 +2,7 @@ import type { Brain } from '../shared/bots';
 import { Economy } from '../shared/bots/advanced/economy';
 import type { Knobs } from '../shared/bots/advanced/params';
 import { getView } from '../shared/engine';
-import { chartPoints } from '../shared/rules';
+import { megacityCount } from '../shared/rules';
 import { boardIndex } from '../shared/seafaring';
 import type { GameState } from '../shared/types';
 
@@ -37,10 +37,10 @@ export function endDiagnostics(g: GameState): Record<string, number>[] {
       'award: won with army': g.winnerId === p.id && g.largestArmyId === p.id ? 1 : 0,
     };
     if (g.bank.lodestone || g.stats[p.id]?.produced.lodestone) {
-      // Cartographers: lodestone earned, and finished charts scoring at the end (a point each).
+      // Cartographers: lodestone earned, and megacities standing at the end.
       out['end: lodestone produced'] = g.stats[p.id]?.produced.lodestone ?? 0;
-      out['end: chart points'] = chartPoints(g, p.id);
-      out['end: won with chart points'] = g.winnerId === p.id ? out['end: chart points'] : 0;
+      out['end: megacities'] = megacityCount(g, p.id);
+      out['end: won with megacities'] = g.winnerId === p.id ? out['end: megacities'] : 0;
     }
     return out;
   });

@@ -1,3 +1,0 @@
-I want to change the official cartographers rules: instead of a fully charted hex let's do this: you can build a Megacity (vp = 3, collects 3 resources of each) on a hex for a price (3 lodestone, 1 brick, 1 wheat). But you can only build a megacity on a city that is bordering a hex that has been charted to have at least 2 numbers. So you can't build it on a 6 that you've charted from 2, but you can build it on a 6-2 or a 8-12 or a 3-5-6 etc. Make the art for a megacity - it should have 3 buildings. Propose the art first before making all other changes so that i can review it.
-
-(Art proposal is in src/art/v19/pieces/megacity.ts; review with `npx playwright test tests/art-compare.spec.ts`. Rules not started yet.)

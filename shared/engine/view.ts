@@ -3,7 +3,7 @@ import { type KnightsView, TRACKS } from '../knights';
 import { fogLandShare, fogMayErupt } from '../maps/fog';
 import { routeFinished } from '../maps/special';
 import { boardExpansions, type Pool } from '../maps/types';
-import { chartPoints, longestRoad, tradeRates, victoryPoints } from '../rules';
+import { longestRoad, megacityCount, tradeRates, victoryPoints } from '../rules';
 import { bankShown } from '../settings';
 import { type GameState, type GameView, type PlayerStats, RESOURCES, type Resource } from '../types';
 import {
@@ -102,7 +102,7 @@ export function getView(state: GameState, selfId: string): GameView {
         roadsLeft: limits.roads - pieces.roads,
         shipsLeft: limits.ships - pieces.ships,
         relaysLeft: limits.relays - pieces.relays,
-        chartPoints: chartPoints(state, candidate.id),
+        megacities: megacityCount(state, candidate.id),
         settlementsLeft: limits.settlements - pieces.settlements,
         citiesLeft: limits.cities - pieces.cities,
         stats: publicStats(state, candidate.id),
@@ -115,6 +115,7 @@ export function getView(state: GameState, selfId: string): GameView {
     crossings: state.crossings,
     routeOf: state.routeOf,
     relays: state.relays,
+    megacities: state.megacities,
     cartographers: cartographersRules(state),
     // Once the game is over, every fog tile shows what it hid.
     fogPeeks: Object.fromEntries(

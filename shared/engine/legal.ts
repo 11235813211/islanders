@@ -1,6 +1,6 @@
 import { allPieces, crosses, edgeOpen, edgeOwners, ownEdges, pieceOn } from '../crossings';
 import type { KnightsBoard } from '../knights';
-import { chartedNumbers, hexNumbers, linksAnywhere, victoryPoints } from '../rules';
+import { chartedNumbers, hexNumbers, linksAnywhere, megacitySpots, victoryPoints } from '../rules';
 import {
   boardIndex,
   isLandTerrain,
@@ -262,6 +262,7 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
     relays: [],
     chartHexes: [],
     splitHexes: [],
+    megacities: [],
     peekHexes: [],
     shipMoves: {},
     development: false,
@@ -297,6 +298,8 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
         .map(([vertexId]) => vertexId);
     }
     if (pieces.relays < limits.relays && canAfford(player, BUILD_COSTS.relay)) legal.relays = relaySites(state, selfId);
+    if (cartographersRules(state) && canAfford(player, BUILD_COSTS.megacity))
+      legal.megacities = megacitySpots(state, selfId);
     if (state.phase === 'build') {
       legal.shipMoves = shipMoves(state, selfId);
       legal.peekHexes = peekHexes(state, player);

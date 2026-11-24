@@ -256,6 +256,10 @@ const MIGRATIONS: Migration[] = [
     addCommodities(s);
     s.ck ??= null;
   },
+  // 32 → 33: Cartographers megacities replace the point for a fully charted tile.
+  s => {
+    s.megacities ??= [];
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

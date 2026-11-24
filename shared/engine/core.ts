@@ -120,7 +120,7 @@ export function discoveriesLeft(state: Pick<GameState, 'players'>): number {
   return Math.max(0, discoverySupply(state.players.length) - state.players.reduce((n, p) => n + p.discoveries, 0));
 }
 export const BUILD_COSTS: Record<
-  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'peek' | 'chart' | 'split',
+  'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'peek' | 'chart' | 'split' | 'megacity',
   ResourceBag
 > = {
   road: { wood: 1, brick: 1, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 },
@@ -135,6 +135,8 @@ export const BUILD_COSTS: Record<
   chart: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 },
   /** Cartographers: the lodestone for a split; one card of the resource being added is paid too. */
   split: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 1, paper: 0, cloth: 0, coin: 0 },
+  /** Cartographers: a city beside a tile with two or more numbers becomes a megacity. */
+  megacity: { wood: 0, brick: 1, sheep: 0, wheat: 1, ore: 0, lodestone: 3, paper: 0, cloth: 0, coin: 0 },
 };
 
 /** A player's supply: the map's (or the usual) pieces plus any its rewards gave them. */

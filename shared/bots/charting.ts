@@ -1,27 +1,27 @@
 import { type ChoiceGroup, choiceGroups, choiceLimit, fillChoice } from '../choices';
 import { BUILD_COSTS } from '../engine/core';
 import { affordsSplit, chartHexes, splitHexes } from '../engine/legal';
-import { chartedNumbers, chartsLeft, hexNumbers, onlyPlayerBeside, payingNumbers } from '../rules';
+import { chartedNumbers, hexNumbers, MEGACITY_NUMBERS, megacityTile, payingNumbers } from '../rules';
 import { boardIndex, isLandVertex, terrainResource } from '../seafaring';
 import { type GameAction, type GameView, type Hex, type Resource, type ResourceBag, TILE_RESOURCES } from '../types';
 import { Board, roadPaths } from './analysis';
 
 /**
  * Cartographers tile moves for every bot level, kept cheap: chart or split the tile that pays the
- * bot most, work toward a finished chart, and pick from split tiles by need.
+ * bot most, chart toward a megacity, and pick from split tiles by need.
  */
 
 /** Dots on a number token: how many of the 36 rolls hit it. */
 const dots = (n: number) => 6 - Math.abs(7 - n);
 export const tileDots = (numbers: number[]) => numbers.reduce((sum, n) => sum + dots(n), 0);
 
-/** How much of a tile's payout goes to a seat (this one by default): 1 per settlement or relay station, 2 per city. */
+/** How much of a tile's payout goes to a seat (this one by default): 1 per settlement or relay station, 2 per city, 3 per megacity. */
 export function share(view: GameView, hex: Hex, playerId = view.selfId): number {
   const index = boardIndex(view.board);
   let owned = 0;
   for (const id of hex.vertexIds) {
     const building = view.buildings[id];
-    if (building?.playerId === playerId) owned += building.kind === 'city' ? 2 : 1;
+    if (building?.playerId === playerId) owned += view.megacities.includes(id) ? 3 : building.kind === 'city' ? 2 : 1;
   }
   for (const id of view.relays)
     if (view.roads[id] === playerId && index.edgeHexes.get(id)!.some(h => h.id === hex.id)) owned++;
@@ -120,26 +120,51 @@ export function chartMove(view: GameView, tuning = SIMPLE_TILES): GameAction | n
   return best ? { type: 'chart-hex', hexId: best.hexId } : null;
 }
 
+/** Charts a tile needs before it has two numbers (a 6 needs one, a 5 two). */
+function chartsToMegacity(numbers: readonly number[]): number {
+  let left = 0;
+  for (let now = numbers; now.length < MEGACITY_NUMBERS; left++) {
+    const next = chartedNumbers(now);
+    if (!next) return Infinity;
+    now = next;
+  }
+  return left;
+}
+
 /**
- * The chartable tile this seat alone stands beside that is closest to full, if any. A placeholder
- * for real planning: it ignores rivals who could still build there or take the last chart.
+ * The chartable tile beside one of this seat's cities (not yet a megacity) that is fewest charts
+ * from two numbers, so that city can become a megacity; ties go to the better-paying tile.
  */
-export function finishTarget(view: GameView): string | null {
+export function megacityTarget(view: GameView): string | null {
   const index = boardIndex(view.board);
-  let best: { hexId: string; left: number } | null = null;
+  const cities = Object.entries(view.buildings)
+    .filter(([id, b]) => b.playerId === view.selfId && b.kind === 'city' && !view.megacities.includes(id))
+    .map(([id]) => id);
+  const beside = new Set(cities.flatMap(id => index.vertex.get(id)!.hexIds));
+  let best: { hexId: string; left: number; dots: number } | null = null;
   for (const hexId of chartHexes(view)) {
     const hex = index.hex.get(hexId)!;
-    if (onlyPlayerBeside(view, hex) !== view.selfId) continue;
-    const left = chartsLeft(hexNumbers(hex));
-    if (!best || left < best.left) best = { hexId, left };
+    if (!beside.has(hexId) || megacityTile(hex)) continue;
+    const left = chartsToMegacity(hexNumbers(hex));
+    const dots = tileDots(hexNumbers(hex));
+    if (!best || left < best.left || (left === best.left && dots > best.dots)) best = { hexId, left, dots };
   }
   return best?.hexId ?? null;
 }
 
-/** The next chart on that tile, when this seat can pay for one now. */
-export function finishMove(view: GameView): GameAction | null {
-  const hexId = finishTarget(view);
+/** The next chart toward a megacity, when this seat can pay for one now. */
+export function megacityChartMove(view: GameView): GameAction | null {
+  const hexId = megacityTarget(view);
   return hexId && view.legal.chartHexes.includes(hexId) ? { type: 'chart-hex', hexId } : null;
+}
+
+/** A megacity on the legal city whose tiles pay most. */
+export function megacityMove(view: GameView): GameAction | null {
+  const index = boardIndex(view.board);
+  const value = (id: string) =>
+    index.vertex.get(id)!.hexIds.reduce((n, h) => n + tileDots(payingNumbers(index.hex.get(h)!, h === view.robber)), 0);
+  const [best] = [...view.legal.megacities].sort((a, b) => value(b) - value(a));
+  return best ? { type: 'build-megacity', vertexId: best } : null;
 }
 
 /**

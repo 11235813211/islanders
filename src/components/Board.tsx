@@ -2,7 +2,17 @@ import { type CSSProperties, useId } from 'react';
 import { playerColor } from '../../shared/colors';
 import { allPieces } from '../../shared/crossings';
 import type { GameLog, GameView } from '../../shared/types';
-import { ArtDefs, BuildingPiece, CARTOGRAPHERS, ROAD_INSET, Road, SEA, SeaDecorations, TERRAIN } from '../art';
+import {
+  ArtDefs,
+  BuildingPiece,
+  CARTOGRAPHERS,
+  MegacityPiece,
+  ROAD_INSET,
+  Road,
+  SEA,
+  SeaDecorations,
+  TERRAIN,
+} from '../art';
 import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
@@ -10,7 +20,6 @@ import BoardScene, { type Drift } from './BoardScene';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
-import FinishedCharts from './game/FinishedCharts';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import { pieceEnds } from './game/sharedEdges';
@@ -19,10 +28,10 @@ import { KnightPieces, KnightWalls, type SpotPicking, SpotTargets } from './knig
 import RouteZones from './RouteZones';
 import './Board.css';
 
-export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay';
+export type PlaceKind = 'road' | 'ship' | 'settlement' | 'city' | 'relay' | 'megacity';
 export type BoardMode = PlaceKind | 'robber' | 'move-ship' | 'peek' | 'chart' | 'split' | 'knights' | null;
 /** Pieces that go on an edge. */
-export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city';
+export const isEdgeKind = (kind: PlaceKind) => kind !== 'settlement' && kind !== 'city' && kind !== 'megacity';
 /** A picked spot waiting for confirmation. `choices` lists both pieces when a coastal edge takes either. */
 export interface Selection {
   kind: PlaceKind;
@@ -112,6 +121,12 @@ function edgeTargetsFor(view: GameView, mode: BoardMode, moveFrom: string | null
   return [];
 }
 
+/** What a tap on a corner target builds, for its label. */
+function vertexAction(view: GameView, vertexId: string): string {
+  if (view.legal.megacities.includes(vertexId)) return 'Build megacity';
+  return view.legal.cities.includes(vertexId) ? 'Upgrade to city' : 'Build settlement';
+}
+
 function hintFor(
   view: GameView,
   mode: BoardMode,
@@ -126,6 +141,7 @@ function hintFor(
   if (mode === 'move-ship') return moveFrom ? 'Choose where the ship goes' : 'Choose a ship to move';
   if (mode === 'relay') return 'Place your relay station';
   if (edges) return mode === 'ship' ? 'Place your ship' : 'Place your road';
+  if (mode === 'megacity') return 'Choose a city to make a megacity';
   return mode === 'city' ? 'Choose a settlement to upgrade' : 'Choose a highlighted corner';
 }
 
@@ -166,6 +182,7 @@ export default function Board({
   const rising = risingSettlements(rolled);
   const vertices = new Map(view.board.vertices.map(vertex => [vertex.id, vertex]));
   const edges = new Map(view.board.edges.map(edge => [edge.id, edge]));
+  const mega = (vertexId: string) => view.megacities.includes(vertexId);
   const playerName = (id: string) => view.players.find(player => player.id === id)?.name;
   const color = (playerId: string) => playerColor(view.players.find(player => player.id === playerId)?.color).fill;
   const selfColor = view.players.find(player => player.id === view.selfId)?.color;
@@ -178,12 +195,14 @@ export default function Board({
     disabled
       ? []
       : direct
-        ? [...view.legal.cities, ...view.legal.settlements]
+        ? [...view.legal.cities, ...view.legal.settlements, ...view.legal.megacities]
         : mode === 'city'
           ? view.legal.cities
-          : settlementMode
-            ? view.legal.settlements
-            : [],
+          : mode === 'megacity'
+            ? view.legal.megacities
+            : settlementMode
+              ? view.legal.settlements
+              : [],
   );
   const edgeTargets = new Set(disabled ? [] : edgeTargetsFor(view, mode, moveFrom));
   const hexTargets = new Set(disabled ? [] : peeking ? view.legal.peekHexes : robberMode ? view.legal.robberHexes : []);
@@ -257,7 +276,6 @@ export default function Board({
               </g>
             );
           })}
-          <FinishedCharts view={view} color={color} playerName={playerName} />
           {direct && !disabled && onChart && <ChartTaps view={view} onChart={onChart} />}
           <ShipPieces
             view={view}
@@ -362,13 +380,17 @@ export default function Board({
                   style={rise === undefined ? undefined : { animationDelay: `${rise}s` }}
                 >
                   <title>
-                    {playerName(building.playerId)}&apos;s {building.kind}
+                    {playerName(building.playerId)}&apos;s {mega(vertexId) ? 'megacity' : building.kind}
                   </title>
-                  <BuildingPiece
-                    color={color(building.playerId)}
-                    city={building.kind === 'city'}
-                    style={view.settings.pieceStyle}
-                  />
+                  {mega(vertexId) ? (
+                    <MegacityPiece color={color(building.playerId)} style={view.settings.pieceStyle} />
+                  ) : (
+                    <BuildingPiece
+                      color={color(building.playerId)}
+                      city={building.kind === 'city'}
+                      style={view.settings.pieceStyle}
+                    />
+                  )}
                 </g>
               );
             })}
@@ -391,14 +413,14 @@ export default function Board({
                 className={`board-target board-vertex-target${selected?.id === vertexId ? ' board-target-selected' : ''}`}
                 role="button"
                 tabIndex={0}
-                aria-label={`${view.legal.cities.includes(vertexId) ? 'Upgrade to city' : 'Build settlement'} at ${vertexId}`}
+                aria-label={`${vertexAction(view, vertexId)} at ${vertexId}`}
                 onClick={() => onVertex(vertexId)}
                 onKeyDown={event => keyboardActivate(event, () => onVertex(vertexId))}
                 transform={`translate(${vertex.x} ${vertex.y})`}
               >
                 <circle r="17" fill="transparent" className="board-hit-area" />
-                {/* Settlements that can become cities stay clickable but unmarked: the piece itself is the target. */}
-                {!view.legal.cities.includes(vertexId) && <CornerMark />}
+                {/* Pieces that can be upgraded stay clickable but unmarked: the piece itself is the target. */}
+                {!view.buildings[vertexId] && <CornerMark />}
               </g>
             );
           })}

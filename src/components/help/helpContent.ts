@@ -151,7 +151,7 @@ function seaSections(view: GameView, v: Verbs): HelpSection[] {
   if (view.jungle) lines.push('With discoveries in hand, Dev Card asks which resources they cover.');
   if (view.features.volcano) lines.push('When a volcano’s number rolls, the roller presses Roll volcanoes.');
   if (view.cartographers) {
-    lines.push(`Relay, Chart, and Split are on the build bar. ${v.hold} one to see its cost.`);
+    lines.push(`Relay, Mega, Chart, and Split are on the build bar. ${v.hold} one to see its cost.`);
     lines.push(`Chart and Split: ${v.tap.toLowerCase()} a tile, then confirm in the panel.`);
     if (hasTerrain(view, 'fog'))
       lines.push(`Peek, then ${v.tap.toLowerCase()} a fog tile, spends a lodestone to see under it.`);

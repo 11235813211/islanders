@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { getView } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps';
-import { hexNumbers, onlyPlayerBeside } from '../shared/rules';
+import { hexNumbers } from '../shared/rules';
 import type { GameState } from '../shared/types';
 import { grant, seaSettled } from './fixtures';
 import { expectNoSpill, mountGame } from './ui-harness';
@@ -33,29 +33,36 @@ test('a relay station is built from the bar and drawn on its road', async ({ pag
   expect(room.errors).toEqual([]);
 });
 
-test('the last chart on a tile says what it scores and leaves a marker', async ({ page }) => {
+test('a city beside a tile with two numbers becomes a megacity from the build bar', async ({ page }) => {
   const initial = game();
-  const view = getView(initial, 'p0');
   initial.board = structuredClone(initial.board);
-  const hex = initial.board.hexes.find(
-    h => view.legal.chartHexes.includes(h.id) && onlyPlayerBeside(initial, h) === 'p0',
-  )!;
+  // p0's first settlement becomes a city beside a tile charted to 6, 2.
+  const [corner] = Object.entries(initial.buildings).find(([, b]) => b.playerId === 'p0')!;
+  initial.buildings[corner] = { playerId: 'p0', kind: 'city' };
+  const hex = initial.board.hexes.find(h => h.vertexIds.includes(corner) && h.number !== null)!;
   hex.number = 6;
-  hex.extra = [5, 3];
+  hex.extra = [2];
+  grant(initial, 'p0', { brick: 1, wheat: 1 });
+  const before = getView(initial, 'p0').players[0]!.points;
   const room = await mountGame(page, initial);
-  await page.getByRole('button', { name: `Chart the tile ${hex.id}` }).click();
-  await expect(page.locator('.map-confirm')).toContainText('6, 5, 3 → 6, 5, 4: +1 point');
-  await page.getByRole('button', { name: 'Confirm chart' }).click();
-  await expect(page.locator('.finished-chart-scores')).toHaveCount(1);
-  expect(getView(room.state(), 'p0').players[0]!.chartPoints).toBe(1);
-  await page.screenshot({ path: 'test-results/cartographers-finished-chart.png' });
-  // Someone else building beside the tile takes the point away.
-  room.update(g => {
-    const corner = hex.vertexIds.find(v => !g.buildings[v])!;
-    g.buildings[corner] = { playerId: 'p1', kind: 'settlement' };
-  });
-  await expect(page.locator('.finished-chart-scores')).toHaveCount(0);
-  await expect(page.locator('.finished-chart')).toHaveCount(1);
+  await page.getByRole('button', { name: /^Megacity/ }).click();
+  await page.getByRole('button', { name: `Build megacity at ${corner}` }).click();
+  await expect.poll(() => room.state().megacities).toEqual([corner]);
+  await expect(page.locator('title', { hasText: /megacity$/ })).toHaveCount(1);
+  expect(getView(room.state(), 'p0').players[0]!.points).toBe(before + 1);
+  await page.screenshot({ path: 'test-results/cartographers-megacity.png' });
+  // The build bar, now with Mega, still fits at every width.
+  for (const [width, height] of [
+    [1600, 900],
+    [1280, 800],
+    [1024, 768],
+    [820, 1100],
+    [390, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await expectNoSpill(page.locator('.table-actions'));
+    await page.screenshot({ path: `test-results/cartographers-bar-${width}.png` });
+  }
   expect(room.errors).toEqual([]);
 });
 

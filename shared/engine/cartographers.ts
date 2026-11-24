@@ -1,12 +1,33 @@
-import { chartedNumbers, chartScorer, fullyCharted, hexNumbers } from '../rules';
+import { chartedNumbers, hexNumbers, megacityTile } from '../rules';
 import { boardIndex, terrainResource } from '../seafaring';
 import { type GameState, isTileResource, type Player } from '../types';
 import { addLog, BUILD_COSTS, type Handlers, needPhase, ownBoard, pay, requireRule, tally } from './core';
 import { revealFog } from './fog';
 import { chartHexes, legalMoves, peekHexes, splitCost, splitHexes } from './legal';
 
-/** Relay stations, peeks, charts, and splits. */
-export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'peek-fog' | 'chart-hex' | 'split-hex'> = {
+/** Relay stations, peeks, charts, splits, and megacities. */
+export const cartographersHandlers: Pick<
+  Handlers,
+  'build-relay' | 'peek-fog' | 'chart-hex' | 'split-hex' | 'build-megacity'
+> = {
+  /** A city beside a tile with two or more numbers becomes a megacity: 3 cards a number, 3 points. */
+  'build-megacity'({ next, player, playerId }, action) {
+    needPhase(next, 'build', 'special-build');
+    requireRule(
+      legalMoves(next, playerId).megacities.includes(action.vertexId),
+      'Choose your city beside a tile charted to two or more numbers.',
+    );
+    pay(next, player, BUILD_COSTS.megacity);
+    next.megacities.push(action.vertexId);
+    tally(next, playerId, 'built', 'megacity');
+    addLog(next, `${player.name} built a megacity.`, {
+      kind: 'build',
+      playerId,
+      piece: 'megacity',
+      paid: BUILD_COSTS.megacity,
+    });
+  },
+
   'build-relay'({ next, player, playerId }, action) {
     needPhase(next, 'build', 'special-build');
     requireRule(
@@ -68,19 +89,20 @@ export const cartographersHandlers: Pick<Handlers, 'build-relay' | 'peek-fog' | 
   },
 };
 
-/** One chart step on a tile, logged for everyone, saying who a full tile now scores for. */
+/** One chart step on a tile, logged for everyone, saying when its cities may now become megacities. */
 function chartHex(next: GameState, player: Player, hexId: string): void {
   ownBoard(next);
   const hex = boardIndex(next.board).hex.get(hexId)!;
+  const opened = !megacityTile(hex);
   const [first, ...extra] = chartedNumbers(hexNumbers(hex))!;
   hex.number = first!;
   hex.extra = extra.length ? extra : undefined;
   const numbers = hexNumbers(hex).join(', ');
-  let text = `${player.name} charted a tile: it now pays on ${numbers}.`;
-  if (fullyCharted(hex)) {
-    const scorer = next.players.find(p => p.id === chartScorer(next, hex));
-    const result = scorer ? `${scorer.name} scores 1 point.` : 'No one scores it yet.';
-    text = `${player.name} finished charting a tile: it now pays on ${numbers}. ${result}`;
-  }
-  addLog(next, text, { kind: 'chart', playerId: player.id, hexId, numbers: hexNumbers(hex) });
+  const megacity = opened && megacityTile(hex) ? ' Cities beside it can now become megacities.' : '';
+  addLog(next, `${player.name} charted a tile: it now pays on ${numbers}.${megacity}`, {
+    kind: 'chart',
+    playerId: player.id,
+    hexId,
+    numbers: hexNumbers(hex),
+  });
 }

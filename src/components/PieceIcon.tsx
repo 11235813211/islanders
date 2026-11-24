@@ -1,6 +1,6 @@
 import { playerColor } from '../../shared/colors';
 import type { PieceStyle, PlayerColor } from '../../shared/types';
-import { BuildingPiece, CARTOGRAPHERS, ROAD_INSET, Road, SEA } from '../art';
+import { BuildingPiece, CARTOGRAPHERS, MegacityPiece, ROAD_INSET, Road, SEA } from '../art';
 import type { PlaceKind } from './Board';
 
 /** A piece as the board draws it, small, centered a little left of the origin (the confirm card's check sits right). */
@@ -14,6 +14,12 @@ export function PieceArt({ kind, color, style }: { kind: PlaceKind; color: strin
         <SEA.Ship from={{ x: -18, y: 8 }} to={{ x: 18, y: 8 }} color={color} />
       </g>
     );
+  if (kind === 'megacity')
+    return (
+      <g transform="translate(-11 -1) scale(.6)">
+        <MegacityPiece color={color} style={style} />
+      </g>
+    );
   return (
     <g transform="translate(-11 -1) scale(.75)">
       <BuildingPiece color={color} city={kind === 'city'} style={style} />
@@ -25,6 +31,7 @@ export function PieceArt({ kind, color, style }: { kind: PlaceKind; color: strin
 const FRAMES: Record<PlaceKind, string> = {
   settlement: '-25 -20 28 28',
   city: '-27 -22 32 32',
+  megacity: '-30 -24 38 38',
   road: '-30 -18 38 32',
   relay: '-31 -16 40 30',
   ship: '-24 -12 28 28',

@@ -201,7 +201,8 @@ export function victoryPoints(state: GameState, playerId: string, hidden = true)
     cards +
     awards +
     bonus +
-    chartPoints(state, playerId) +
+    // A megacity is a city worth one point more.
+    megacityCount(state, playerId) +
     routePoints(state, playerId) +
     knightsPoints({ buildings: state.buildings, ck: state.ck ?? null }, playerId)
   );
@@ -256,45 +257,30 @@ export function chartsLeft(numbers: readonly number[]): number {
   return left;
 }
 
-/** Has this tile been charted as far as it goes (6, 5, 4 or 8, 9, 10)? */
-export function fullyCharted(hex: Pick<Hex, 'number' | 'extra'>): boolean {
-  const numbers = hexNumbers(hex);
-  return numbers.length === MAX_HEX_NUMBERS && chartsLeft(numbers) === 0;
-}
+/** Fewest numbers a tile beside a city needs before that city may become a megacity. */
+export const MEGACITY_NUMBERS = 2;
 
-type ChartBoard = Pick<GameState, 'board' | 'buildings' | 'roads' | 'relays'>;
-
-/** Everyone with a settlement, city, or relay station beside this tile. */
-export function playersBesideTile(state: ChartBoard, hex: Pick<Hex, 'id' | 'vertexIds'>): Set<string> {
-  const players = new Set<string>();
-  for (const vertexId of hex.vertexIds) {
-    const building = state.buildings[vertexId];
-    if (building) players.add(building.playerId);
-  }
-  const index = boardIndex(state.board);
-  for (const edgeId of state.relays)
-    if (index.edgeHexes.get(edgeId)!.some(h => h.id === hex.id)) players.add(state.roads[edgeId]!);
-  return players;
-}
-
-/** The one player beside this tile, or null when there are none or several. */
-export function onlyPlayerBeside(state: ChartBoard, hex: Pick<Hex, 'id' | 'vertexIds'>): string | null {
-  const players = playersBesideTile(state, hex);
-  return players.size === 1 ? [...players][0]! : null;
-}
+/** A tile charted to at least two numbers (6-2, 8-12, 3-5-6 …): cities beside it may become megacities. */
+export const megacityTile = (hex: Pick<Hex, 'number' | 'extra'>) => hexNumbers(hex).length >= MEGACITY_NUMBERS;
 
 /**
- * Who a fully charted tile scores for right now: the only player beside it, whoever charted it.
- * Checked live, so the point goes when anyone else builds there.
+ * Corners where this player's city may become a megacity: not one already, and beside a tile with
+ * two or more numbers (Cartographers).
  */
-export function chartScorer(state: ChartBoard, hex: Hex): string | null {
-  return fullyCharted(hex) ? onlyPlayerBeside(state, hex) : null;
+export function megacitySpots(
+  state: Pick<GameState, 'board' | 'buildings' | 'megacities'>,
+  playerId: string,
+): string[] {
+  const index = boardIndex(state.board);
+  return Object.entries(state.buildings)
+    .filter(([vertexId, b]) => b.playerId === playerId && b.kind === 'city' && !state.megacities.includes(vertexId))
+    .filter(([vertexId]) => index.vertex.get(vertexId)!.hexIds.some(id => megacityTile(index.hex.get(id)!)))
+    .map(([vertexId]) => vertexId);
 }
 
-/** Points from fully charted tiles that count for this player right now (Cartographers). */
-export function chartPoints(state: ChartBoard, playerId: string): number {
-  return state.board.hexes.filter(hex => chartScorer(state, hex) === playerId).length;
-}
+/** This player's megacities. */
+export const megacityCount = (state: Pick<GameState, 'buildings' | 'megacities'>, playerId: string) =>
+  (state.megacities ?? []).filter(id => state.buildings[id]?.playerId === playerId).length;
 
 /** Has this recipient answered the offer (yes, no, or a counter)? */
 export function hasAnswered(offer: TradeOffer, playerId: string): boolean {

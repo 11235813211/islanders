@@ -158,10 +158,11 @@ function cartographers(view: GameView): HelpSection[] {
     },
     {
       tab: 'cartographers',
-      title: 'Finished charts',
+      title: 'Megacities',
       lines: [
-        'A fully charted tile (6, 5, 4 or 8, 9, 10) is worth 1 point to the only player with a settlement, city, or relay station beside it. It doesn’t matter who charted it.',
-        'If anyone else builds beside it, the point is lost. A marker on the tile shows 1 in the scorer’s color, or 0 when no one scores it.',
+        'Cost: 3 lodestone, 1 brick, 1 grain. It replaces one of your cities: 3 points, and 3 cards each time a tile beside it rolls.',
+        'Only a city beside a tile charted to two or more numbers (6, 2 or 8, 12 or 3, 5, 6 …) can become one. A tile with one number, even a charted 6, isn’t enough.',
+        'A volcano erupting toward a megacity makes it a city again.',
       ],
     },
     {
