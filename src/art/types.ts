@@ -33,6 +33,8 @@ export interface ArtPack {
   roadInset?: number;
   /** A settlement or city. Versions before v5 draw one style and ignore `style`. */
   BuildingPiece: (props: { color: string; city: boolean; style?: PieceStyle }) => ReactElement;
+  /** A megacity: three buildings. Versions before v19 leave this out and borrow v19's. */
+  MegacityPiece?: (props: { color: string; style?: PieceStyle }) => ReactElement;
   Robber: () => ReactElement;
   /** Compass, boat, and gulls drawn over the sea, near the corners of `frame`. */
   SeaDecorations: (props: { frame?: Frame }) => ReactElement;

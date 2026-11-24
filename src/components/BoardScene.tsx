@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
-import type { Board, GameView, Hex, TileResource } from '../../shared/types';
+import type { Board, GameView, Hex, Terrain } from '../../shared/types';
 import {
   CARTOGRAPHERS,
   type Frame,
@@ -51,15 +51,15 @@ function PeekedFog({ uid, hex, peek }: { uid: string; hex: Hex; peek: GameView['
   );
 }
 
-/** A split tile (Cartographers): its own terrain on the left half, the added resource's on the right. */
-function SplitTile({ uid, hex, split }: { uid: string; hex: Hex; split: TileResource }) {
+/** A split tile: its own terrain on the left half, the other side's on the right ('land' draws a random tile). */
+export function SplitTile({ uid, left, right }: { uid: string; left: Terrain | 'land'; right: Terrain | 'land' }) {
   return (
-    <g aria-label={`Split tile: ${hex.terrain} or ${split}`}>
+    <g aria-label={`Split tile: ${left} or ${right}`}>
       <g clipPath={`url(#${uid}-half-left)`}>
-        <Tile uid={uid} terrain={hex.terrain} />
+        <Tile uid={uid} terrain={left} />
       </g>
       <g clipPath={`url(#${uid}-half-right)`}>
-        <Tile uid={uid} terrain={split} />
+        <Tile uid={uid} terrain={right} />
       </g>
       <SplitSeam />
     </g>
@@ -67,7 +67,7 @@ function SplitTile({ uid, hex, split }: { uid: string; hex: Hex; split: TileReso
 }
 
 /** Clip paths for split tiles' halves, in each tile's own coordinates. */
-function HalfClips({ uid }: { uid: string }) {
+export function HalfClips({ uid }: { uid: string }) {
   return (
     <defs>
       <clipPath id={`${uid}-half-left`}>
@@ -161,7 +161,11 @@ export default function BoardScene({
       {land.map(hex => (
         <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
           <g {...rumbleProps(rumbles.find(r => r.hexId === hex.id))}>
-            {hex.split ? <SplitTile uid={uid} hex={hex} split={hex.split} /> : <Tile uid={uid} terrain={hex.terrain} />}
+            {hex.split ? (
+              <SplitTile uid={uid} left={hex.terrain} right={hex.split} />
+            ) : (
+              <Tile uid={uid} terrain={hex.terrain} />
+            )}
             {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
             {!!hex.extra?.length && (
               <g transform="translate(0 8)">

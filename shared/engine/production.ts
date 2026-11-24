@@ -102,6 +102,33 @@ export function produce(state: GameState, total: number): Record<string, Resourc
   return gains;
 }
 
+/**
+ * A last setup piece collects one card from each tile beside it. Gold fields, volcanoes (when they
+ * pay), and split tiles leave the player a pick, made before their setup road (state.pendingGold).
+ */
+export function collectStart(state: GameState, playerId: string, vertexId: string): void {
+  const player = state.players.find(p => p.id === playerId)!;
+  const index = boardIndex(state.board);
+  let picks = 0;
+  const splits: SplitChoice[] = [];
+  for (const hexId of index.vertex.get(vertexId)!.hexIds) {
+    const hex = index.hex.get(hexId)!;
+    const resource = terrainResource(hex.terrain);
+    if (resource && hex.split) {
+      picks++;
+      addSplit(splits, [resource, hex.split], 1);
+    } else if (resource && state.bank[resource] > 0) {
+      state.bank[resource]--;
+      player.resources[resource]++;
+      tally(state, playerId, 'cardsIn', 'setup');
+    } else if (paysChoice(hex.terrain) && !(hex.terrain === 'volcano' && state.settings.volcanoGold === false)) picks++;
+  }
+  const owed = Math.min(picks, choiceLimit(choiceGroups(picks, splits), state.bank));
+  if (owed <= 0) return;
+  state.pendingGold = { [playerId]: owed };
+  state.pendingSplit = splits.length ? { [playerId]: splits } : {};
+}
+
 /** What a settlement (1 a number) or city (2) on this corner earns from `times` paying numbers, for whom, and whether it is a city. */
 function buildingShare(state: GameState, vertexId: string, times: number): [string, number, boolean][] {
   const building = state.buildings[vertexId];

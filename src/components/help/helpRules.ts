@@ -15,7 +15,7 @@ function base(view: GameView): HelpSection[] {
       title: 'Setup',
       lines: [
         'Turn order is drawn at random. Each player places a settlement and a road, then again in reverse order.',
-        'Your second settlement pays one card from each tile beside it.',
+        'Your second settlement pays one card from each tile beside it. Gold, a volcano that pays, or a split tile lets you pick that card before placing the road.',
       ],
     },
     {

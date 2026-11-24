@@ -1,3 +1,4 @@
+import { picksNow } from '../choices';
 import { hasAnswered } from '../rules';
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, TILE_RESOURCES } from '../types';
 import { advanced } from './advanced';
@@ -44,7 +45,7 @@ export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}
     if (owed > cards) return { type: 'discard', resources: { ...view.hand, discovery: owed - cards } };
     return brain.discard(view);
   }
-  if (view.phase === 'gold') {
+  if (picksNow(view, view.selfId)) {
     const gold = brain.gold ?? goldChoice;
     return view.pendingSplit[view.selfId]?.length ? splitGoldChoice(view, gold) : gold(view);
   }

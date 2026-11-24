@@ -45,6 +45,8 @@ function rightNow(view: GameView, v: Verbs): string | null {
   if (view.pausedAt !== null) return 'The game is paused. Press the play button at the top to ask to resume.';
   if (view.phase === 'discard' && (view.pendingDiscards[view.selfId] ?? 0) > 0)
     return `A 7 was rolled and you hold too many cards. ${v.tap} cards in your hand to discard the number shown, then confirm in the panel.`;
+  if (view.phase === 'setup-road' && (view.pendingGold[view.selfId] ?? 0) > 0)
+    return 'Your starting piece touches a gold, volcano, or split tile: choose what it pays in the panel on the board, then place the road.';
   if (view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0)
     return view.pendingSplit[view.selfId]?.length
       ? 'Choose the resources your gold or split tiles pay in the panel on the board.'
@@ -144,6 +146,8 @@ function seaSections(view: GameView, v: Verbs): HelpSection[] {
   }
   if (hasTerrain(view, 'gold') || view.features.fogLand > 0)
     lines.push('Gold pays what you pick in the panel on the board.');
+  if (!view.cartographers && view.board.hexes.some(h => h.split))
+    lines.push('A split tile pays either of its two resources: pick which in the panel on the board, like gold.');
   if (view.jungle) lines.push('With discoveries in hand, Dev Card asks which resources they cover.');
   if (view.features.volcano) lines.push('When a volcano’s number rolls, the roller presses Roll volcanoes.');
   if (view.cartographers) {

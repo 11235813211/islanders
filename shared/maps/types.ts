@@ -1,4 +1,4 @@
-import type { Terrain, TileResource } from '../types';
+import type { ClassicResource, Terrain, TileResource } from '../types';
 
 /**
  * A board as an editor saves it. `buildBoard` (generate.ts) turns a design into a playable
@@ -35,6 +35,8 @@ export interface DesignTile {
   fogMix?: FogMix;
   /** The mix this tile's island draws its random land from (see shared/maps/land-mix.ts). Every tile of the island carries the same. */
   landMix?: LandMix;
+  /** A split tile: it also pays this resource (random: one unlike its own each game). See shared/maps/split.ts. */
+  split?: ClassicResource | 'random';
 }
 
 /** An island's own random-land mix: shares of each terrain, with `exact` terrains as exact counts. */

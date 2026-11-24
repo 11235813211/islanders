@@ -4,6 +4,7 @@ import type { Terrain } from '../types';
 import { neighborKeys } from './balance';
 import { fogMayBeSea, fogWarnings } from './fog';
 import { autoHarbors } from './harbors';
+import { keptSplit } from './split';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -93,12 +94,23 @@ export function tidy(design: BoardDesign): BoardDesign {
       const { fogMix: _f, ...cleared } = withMix;
       const t = withMix.kind === 'fog' || !withMix.fogMix ? withMix : cleared;
       if (isLand(t.kind)) {
+        const split = keptSplit(t);
         // "Not A" only means something on random land without a link of its own.
-        if (!t.notLink || (t.kind === 'land' && !t.link)) return t;
-        const { notLink: _n, ...kept } = t;
+        if (!split.notLink || (split.kind === 'land' && !split.link)) return split;
+        const { notLink: _n, ...kept } = split;
         return kept;
       }
-      const { link: _l, notLink: _x, number: _n, noSetup: _s, bonus: _b, pips: _p, landMix: _m, ...rest } = t;
+      const {
+        link: _l,
+        notLink: _x,
+        number: _n,
+        noSetup: _s,
+        bonus: _b,
+        pips: _p,
+        landMix: _m,
+        split: _t,
+        ...rest
+      } = t;
       return t.kind === 'iceberg' && t.number ? { ...rest, number: t.number } : rest;
     }),
     harbors: harbors.map(h => {

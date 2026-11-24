@@ -272,7 +272,8 @@ export function legalMoves(state: GameState, selfId: string): LegalMoves {
   const limits = pieceLimits(state, selfId);
   if (state.phase === 'setup-settlement')
     legal.settlements = routeSetupSites(state, selfId, settlementSites(state, selfId, true));
-  if (state.phase === 'setup-road') {
+  // Starting picks from gold, volcano, or split tiles come before the setup road.
+  if (state.phase === 'setup-road' && !state.pendingGold[selfId]) {
     legal.roads = roadSites(state, selfId, true);
     legal.ships = shipSites(state, selfId, true);
   }

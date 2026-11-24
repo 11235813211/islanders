@@ -1,7 +1,15 @@
 import { VICTORY_POINT_RANGE, validReward } from '../settings';
-import { SEA_TERRAINS, type Terrain, TILE_RESOURCES, type TileResource } from '../types';
+import {
+  CLASSIC_RESOURCES,
+  type ClassicResource,
+  SEA_TERRAINS,
+  type Terrain,
+  TILE_RESOURCES,
+  type TileResource,
+} from '../types';
 import { NUMBER_LEVELS } from './balance';
 import { DEFAULT_SETUP, PIECE_LIMITS, SPECIAL_LIMITS, SUPPLY_LIMITS, type SupplyKind } from './special';
+import { keptSplit } from './split';
 import {
   type BoardCategory,
   type BoardDesign,
@@ -131,7 +139,12 @@ function parseTile(v: unknown): DesignTile {
   }
   if (t.fogMix !== undefined && tile.kind === 'fog') tile.fogMix = parseFogMix(t.fogMix);
   if (t.landMix !== undefined && isLandKind(tile.kind)) tile.landMix = parseLandMix(t.landMix);
-  return tile;
+  if (t.split !== undefined) {
+    if (t.split !== 'random' && !CLASSIC_RESOURCES.includes(t.split as ClassicResource))
+      fail('A split tile’s second side is random or a base resource.');
+    tile.split = t.split as DesignTile['split'];
+  }
+  return keptSplit(tile);
 }
 
 function parseHarbor(v: unknown): DesignHarbor {

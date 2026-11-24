@@ -33,6 +33,7 @@ import from `src/art` and never draw art themselves.
   Classic and chalet look the same as v16. It adds the Korean style (`korean.ts`), built from palettes of named
   materials, `roofs.ts` (curved roofs from a few numbers), and `timber.ts` (platforms and halls). A design's
   settlement and city share one camera.
+  `v19/` adds the megacity (`pieces/megacity.ts`): three buildings in each piece style. Not yet used in play.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Review Cartographers art: `npx playwright test tests/cartographers-art.spec.ts` writes

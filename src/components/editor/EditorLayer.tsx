@@ -5,7 +5,7 @@ import { neighborKeys } from '../../../shared/maps/balance';
 import { closedTiles, isLand, noStartPoints, takesNumber } from '../../../shared/maps/edit';
 import { Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
-import { tileVariant } from '../BoardScene';
+import { HalfClips, SplitTile, tileVariant } from '../BoardScene';
 import IslandRims from '../IslandRims';
 import { oddsLabel } from '../maps/numberOdds';
 import RouteZones, { allZones } from '../RouteZones';
@@ -220,9 +220,14 @@ export default function EditorLayer({
         </g>
       ))}
       <SEA.IslandBase uid={uid} hexes={land.map(t => hexCenter(t.q, t.r))} />
+      {land.some(t => t.split) && <HalfClips uid={uid} />}
       {land.map(tile => (
         <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
-          <Tile uid={uid} terrain={tile.kind} />
+          {tile.split ? (
+            <SplitTile uid={uid} left={tile.kind} right={tile.split === 'random' ? 'land' : tile.split} />
+          ) : (
+            <Tile uid={uid} terrain={tile.kind} />
+          )}
           <LinkRim piece={tile}>
             {color => (
               <polygon

@@ -537,3 +537,24 @@ test('a new base board left unchanged is not added to the library; changed, it s
   expect(kept).toHaveLength(1);
   await page.request.delete(`${server}/api/boards/${kept[0]!.id}`, { headers });
 });
+
+test('a tile can be made split: the Split chips fit the panel and the canvas draws both halves', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Fire and Ice' }).click();
+  const board = BUILTIN_BOARDS.find(b => b.id === 'fire-and-ice')!;
+  const tile = board.tiles.find(t => t.kind === 'land')!;
+  // Above the number token, so the click selects the tile.
+  const spot = await cellPoint(page, tile.q, tile.r, 0, -28);
+  await page.mouse.click(spot.x, spot.y);
+  const split = page.getByRole('radiogroup', { name: 'Second side' });
+  await split.getByRole('radio', { name: 'Ore' }).click();
+  await expect(split.getByRole('radio', { name: 'Ore' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('[aria-label="Split tile: land or ore"]')).toHaveCount(1);
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (await split.isVisible()) await expectNoSpill(split);
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await split.screenshot({ path: 'test-results/editor-split.png' });
+});

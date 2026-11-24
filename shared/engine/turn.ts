@@ -2,7 +2,7 @@ import { placePiece } from '../crossings';
 import { TUNING } from '../default-settings';
 import { setupPieces } from '../maps/special';
 import { canGiveTime } from '../rules';
-import { boardIndex, islandBonus, terrainResource, vertexIsland } from '../seafaring';
+import { boardIndex, islandBonus, vertexIsland } from '../seafaring';
 import { type GameState, type Player, RESOURCES, type Tradable } from '../types';
 import {
   addBag,
@@ -30,7 +30,7 @@ import { revealFog } from './fog';
 import { noteRoute } from './goals';
 import { afterDiscards, aqueduct, discardLimit, endKnightsTurn, resolveEventDie } from './knights';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
-import { drift, eruptingVolcanoes, produce } from './production';
+import { collectStart, drift, eruptingVolcanoes, produce } from './production';
 
 /** The least auto-roll wait left after a held roll restarts, so the roller can still tap Roll. */
 const ROLL_RESUME_MS = 3000;
@@ -214,23 +214,14 @@ export const turnHandlers: Pick<
     visitIsland(next, playerId, action.vertexId, true);
     noteRoute(next, playerId);
     // The last setup round's piece collects one of each adjacent resource.
-    if (round === pieces.length - 1) {
-      const index = boardIndex(next.board);
-      for (const hexId of index.vertex.get(action.vertexId)!.hexIds) {
-        const resource = terrainResource(index.hex.get(hexId)!.terrain);
-        if (resource && next.bank[resource] > 0) {
-          next.bank[resource]--;
-          player.resources[resource]++;
-          tally(next, playerId, 'cardsIn', 'setup');
-        }
-      }
-    }
+    if (round === pieces.length - 1) collectStart(next, playerId, action.vertexId);
     next.phase = 'setup-road';
     addLog(next, `${player.name} founded a ${kind}.`, { kind: 'build', playerId, piece: kind });
   },
 
   'place-road'({ next, player, playerId }, action) {
     needPhase(next, 'setup-road');
+    requireRule(!next.pendingGold[playerId], 'Choose your starting resources first.');
     requireRule(
       legalMoves(next, playerId).roads.includes(action.edgeId),
       'Connect this road to the settlement you just placed.',

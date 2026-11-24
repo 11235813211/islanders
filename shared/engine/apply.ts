@@ -297,7 +297,9 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
     next.proposal = null;
     // Revealing fog shows hidden tiles, so that move can't be taken back.
     const revealed = next.board.hexes.some((h, i) => state.board.hexes[i]?.terrain === 'fog' && h.terrain !== 'fog');
-    if (REVERSIBLE.has(action.type) && next.phase !== 'finished' && !revealed) {
+    // A starting pick is part of placing the settlement, so it can be taken back with it.
+    const startPick = action.type === 'choose-gold' && state.phase === 'setup-road';
+    if ((REVERSIBLE.has(action.type) || startPick) && next.phase !== 'finished' && !revealed) {
       const {
         undo: _undo,
         undoHistory: _history,

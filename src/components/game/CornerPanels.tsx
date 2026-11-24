@@ -301,6 +301,12 @@ export function MonopolyPanel({
   );
 }
 
+/** The pick panel's title: a starting pick in setup, a split tile's choice, or gold. */
+function goldTitle(view: GameView, split: boolean): string {
+  if (view.phase === 'setup-road') return 'Starting resources';
+  return split ? 'Choose resources' : 'Gold';
+}
+
 /** Gold fields and volcanoes: pick the resources you are owed (everyone owed picks at once). */
 export function GoldPanel({
   view,
@@ -328,7 +334,7 @@ export function GoldPanel({
   const fits = (r: Resource) => choiceFits(withItem(bag, r, 1), groups);
   return (
     <Panel
-      title={splits.length ? 'Choose resources' : 'Gold'}
+      title={goldTitle(view, splits.length > 0)}
       status={`${picked} / ${owed} chosen${secondsLeft === null ? '' : ` · ${secondsLeft}s`}`}
       action={
         <button

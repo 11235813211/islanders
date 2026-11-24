@@ -16,6 +16,7 @@ export const COMMODITIES = ['paper', 'cloth', 'coin'] as const;
 export type Commodity = (typeof COMMODITIES)[number];
 /** The base game's five resources, for code that never meets lodestone (the trained bot's features). */
 export const CLASSIC_RESOURCES = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
+export type ClassicResource = (typeof CLASSIC_RESOURCES)[number];
 export type ResourceBag = Record<Resource, number>;
 /** Jungle discoveries, when room rules let them move like cards (see DISCOVERY_RULES). */
 export type Tradable = Resource | 'discovery';
@@ -43,7 +44,7 @@ export interface Hex {
   number: number | null;
   /** Numbers charted onto the tile (Cartographers), after `number`. See hexNumbers. */
   extra?: number[];
-  /** Cartographers: a split tile also pays this resource; whoever it pays picks either half. */
+  /** A split tile (the map's, or a Cartographers split) also pays this resource; whoever it pays picks either half. */
   split?: TileResource;
   /** Corner vertices in order: lower right, bottom, lower left, upper left, top, upper right. */
   vertexIds: string[];

@@ -56,7 +56,7 @@ test('the Cities & Knights table fits at every width: build bar, hand, scoreboar
   page,
 }) => {
   const game = await mountGame(page, knightsTable());
-  for (const selector of ['.table-actions', '.player-table tbody', '.ck-barbarians'])
+  for (const selector of ['.table-actions', '.player-table tbody', '.bank-counts', '.ck-barbarians'])
     await checkAt(page, selector, selector.replace(/\W/g, ''));
   // Progress card names fit their cards.
   const names = await page

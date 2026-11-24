@@ -342,3 +342,13 @@
     display: none;
   }
 }
+
+/* Phones have the scoreboard's full width (or no height to spare): the bank stays one row. */
+@media (max-width: 720px) and (orientation: portrait), (orientation: landscape) and (max-height: 600px) {
+  .bank-counts.two-rows {
+    display: flex;
+  }
+  .bank-counts.two-rows .bank-break {
+    display: none;
+  }
+}

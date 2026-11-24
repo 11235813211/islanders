@@ -7,8 +7,8 @@ import { sea as fallbackSea } from './v7/sea';
 import { FogTile as FallbackFogTile } from './v12/sea/fog';
 import { cartographers as fallbackCartographers } from './v14/cartographers';
 import { cartographers as splitCartographers } from './v16/cartographers';
-import { art } from './v18';
 import { knights as fallbackKnights } from './v18/knights';
+import { art } from './v19';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;

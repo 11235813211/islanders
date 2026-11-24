@@ -165,6 +165,12 @@
 .bank-label-spacer {
   visibility: hidden;
 }
+/* Cities & Knights: commodities on a second row, lined up under the resource chips. */
+.bank-counts.two-rows {
+  display: grid;
+  grid-template-columns: auto repeat(var(--bank-columns), minmax(0, 1fr));
+  row-gap: 3px;
+}
 .bank-count {
   flex: 1 1 0;
   min-width: 0;

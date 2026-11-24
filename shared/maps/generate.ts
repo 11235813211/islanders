@@ -24,6 +24,7 @@ import { autoHarbors, harborTarget } from './harbors';
 import { landMixOf } from './land-mix';
 import { islandLevels, islandsOf, numberLeanings } from './numbers';
 import { rulesOf } from './special';
+import { resolveSplits } from './split';
 import {
   BASE_POOL,
   type BoardDesign,
@@ -446,6 +447,7 @@ export function drawHarborKinds(
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
   const unique = { ...design, tiles };
   const { terrains, links } = resolveTerrains(unique, random);
+  resolveSplits(tiles, terrains, random);
   return new Map(resolveHarbors(unique, terrains, links, random).map(h => [`${h.q},${h.r},${h.side}`, h.resource]));
 }
 
@@ -531,6 +533,7 @@ export function buildBoard(
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
   const unique = { ...design, tiles };
   const { terrains, links } = resolveTerrains(unique, random);
+  const splits = resolveSplits(tiles, terrains, random);
   const harbors = design.harbors.length ? design.harbors : autoHarbors(tiles, harborTarget(unique), [], random);
   const resolvedHarbors = resolveHarbors({ ...unique, harbors }, terrains, links, random);
   placeIcebergs(unique, terrains, harbors, random);
@@ -561,6 +564,10 @@ export function buildBoard(
       return { q: t.q, r: t.r, terrain: terrains.get(k)!, number: numbers.get(k) ?? null };
     }),
   );
+  for (const hex of board.hexes) {
+    const split = splits.get(tileKey(hex.q, hex.r));
+    if (split) hex.split = split;
+  }
   markIslands(board);
   const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));
   const closedIslands = new Set<number>();

@@ -11,7 +11,8 @@ import {
   updateTile,
 } from '../../../shared/maps/edit';
 import { setGroupKind } from '../../../shared/maps/fill';
-import { TILE_RESOURCES, type TileResource } from '../../../shared/types';
+import { canSplit } from '../../../shared/maps/split';
+import { CLASSIC_RESOURCES, TILE_RESOURCES, type TileResource } from '../../../shared/types';
 import { TERRAIN } from '../../art';
 import { RESOURCE_LABELS } from '../ResourceHand';
 import { TileIcon } from './BrushPicker';
@@ -83,6 +84,32 @@ function DotLimit({ tile, edit }: { tile: DesignTile; edit: Edit }) {
   );
 }
 
+const SPLIT_CHOICES: (DesignTile['split'] | undefined)[] = [undefined, 'random', ...CLASSIC_RESOURCES];
+const splitLabel = (split: DesignTile['split'] | undefined) =>
+  split === undefined ? 'No' : split === 'random' ? 'Random' : RESOURCE_LABELS[split];
+
+/** Make a tile split: it also pays a second resource, random (never its own) or set. */
+function SplitPicker({ tile, edit }: { tile: DesignTile; edit: Edit }) {
+  return (
+    <Field label="Split">
+      <div className="chip-row wrap" role="radiogroup" aria-label="Second side">
+        {SPLIT_CHOICES.filter(split => split !== tile.kind).map(split => (
+          <button
+            key={split ?? 'none'}
+            type="button"
+            role="radio"
+            aria-checked={tile.split === split}
+            onClick={() => edit(d => updateTile(d, tile.q, tile.r, { split }))}
+          >
+            {splitLabel(split)}
+          </button>
+        ))}
+      </div>
+      <p className="inspector-hint">A split tile pays either of its two resources; each player picks card by card.</p>
+    </Field>
+  );
+}
+
 function TilePanel({ design, tile, edit }: { design: BoardDesign; tile: DesignTile; edit: Edit }) {
   const { q, r } = tile;
   const land = tile.kind !== 'sea' && tile.kind !== 'iceberg' && tile.kind !== 'fog';
@@ -136,6 +163,7 @@ function TilePanel({ design, tile, edit }: { design: BoardDesign; tile: DesignTi
           {tile.kind !== 'iceberg' && <DotLimit tile={tile} edit={edit} />}
         </Field>
       )}
+      {canSplit(tile.kind) && <SplitPicker tile={tile} edit={edit} />}
       {land && (
         <Field label="Same resource as">
           <LinkPicker

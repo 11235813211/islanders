@@ -3,7 +3,7 @@ import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { activeStrength, type KnightsView, TRACK_INFO, TRACKS } from '../../../shared/knights';
 import { DISCOVERY_RULES } from '../../../shared/settings';
-import type { GameView } from '../../../shared/types';
+import { COMMODITIES, type Commodity, type GameView, type Resource } from '../../../shared/types';
 import { KNIGHTS, ResourceIcon, SEA } from '../../art';
 import { cardStyle, RESOURCE_LABELS } from '../ResourceHand';
 import { CardCount, KnightIcon } from './icons';
@@ -255,25 +255,52 @@ function FoldedScores({ view }: { view: GameView }) {
   );
 }
 
-/** Cards left in the bank, under the scoreboard for everyone, when the room shows them. */
+const isCommodity = (r: Resource): r is Commodity => COMMODITIES.includes(r as Commodity);
+
+/** One bank chip: a resource's icon and how many are left. */
+function BankChip({ resource, count }: { resource: Resource; count: number }) {
+  return (
+    <span
+      className="bank-count"
+      style={cardStyle(resource)}
+      role="img"
+      aria-label={`${count} ${RESOURCE_LABELS[resource]}`}
+    >
+      <ResourceIcon resource={resource} size={18} />
+      {count}
+    </span>
+  );
+}
+
+/**
+ * Cards left in the bank, under the scoreboard for everyone, when the room shows them. With
+ * Cities & Knights, commodities take a second row (phone.css keeps one row on phones).
+ */
 export function BankCounts({ view }: { view: GameView }) {
   const counts = view.bankCounts;
   if (!counts) return null;
+  const shown = resourcesIn(view);
+  const tiles = shown.filter(r => !isCommodity(r));
+  const goods = shown.filter(isCommodity);
   return (
     <>
-      <div className="bank-counts" role="group" aria-label="Cards left in the bank">
+      <div
+        className={`bank-counts${goods.length ? ' two-rows' : ''}`}
+        style={{ '--bank-columns': tiles.length } as CSSProperties}
+        role="group"
+        aria-label="Cards left in the bank"
+      >
         <span>Bank</span>
-        {resourcesIn(view).map(r => (
-          <span
-            key={r}
-            className="bank-count"
-            style={cardStyle(r)}
-            role="img"
-            aria-label={`${counts[r]} ${RESOURCE_LABELS[r]}`}
-          >
-            <ResourceIcon resource={r} size={18} />
-            {counts[r]}
+        {tiles.map(r => (
+          <BankChip key={r} resource={r} count={counts[r]} />
+        ))}
+        {goods.length > 0 && (
+          <span aria-hidden="true" className="bank-label-spacer bank-break">
+            Bank
           </span>
+        )}
+        {goods.map(r => (
+          <BankChip key={r} resource={r} count={counts[r]} />
         ))}
       </div>
       {view.discoveryBank !== null && (

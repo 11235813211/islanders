@@ -24,6 +24,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
 
     'place-ship'({ next, player, playerId }, action) {
       needPhase(next, 'setup-road');
+      requireRule(!next.pendingGold[playerId], 'Choose your starting resources first.');
       requireRule(
         legalMoves(next, playerId).ships.includes(action.edgeId),
         'Connect this ship to the settlement you just placed.',
@@ -65,9 +66,9 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       revealFog(next, action.to, playerId);
     },
 
-    /** Off-turn too: everyone owed a gold, volcano, or split-tile pick chooses at the same time. */
+    /** Off-turn too: everyone owed a gold, volcano, or split-tile pick chooses at the same time (in setup, before the road). */
     'choose-gold'({ next, player, playerId }, action) {
-      needPhase(next, 'gold');
+      needPhase(next, 'gold', 'setup-road');
       const groups = owedGroups(next, playerId);
       const owed = Math.min(next.pendingGold[playerId] ?? 0, choiceLimit(groups, next.bank));
       requireRule(owed > 0, 'You have no resources to choose.');
@@ -100,6 +101,6 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
         playerId,
         resources: action.resources,
       });
-      if (!Object.keys(next.pendingGold).length) next.phase = afterProduction(next);
+      if (next.phase === 'gold' && !Object.keys(next.pendingGold).length) next.phase = afterProduction(next);
     },
   };

@@ -1,5 +1,6 @@
 import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2, X } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
+import { picksNow } from '../../shared/choices';
 import { playerVars } from '../../shared/colors';
 import { emptyBag, handSize, isLargeGame } from '../../shared/engine';
 import { setupPieces } from '../../shared/maps/special';
@@ -93,7 +94,7 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     case 'setup-settlement':
       return `Placing ${setupPieceNow(view)}…`;
     case 'setup-road':
-      return 'Placing road…';
+      return view.pendingGold[view.selfId] ? 'Choose your starting resources' : 'Placing road…';
     case 'free-roads':
       return view.seafaring ? 'Placing free roads or ships…' : 'Placing free roads…';
     case 'roll':
@@ -335,7 +336,7 @@ export default function GameTable({
   }, [setup, lastMoment, selected, blocked]);
 
   const discarding = cardsOwed(view) > 0 && !paused;
-  const choosingGold = view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && !paused;
+  const choosingGold = picksNow(view, view.selfId) && !paused;
   const inCorner = (kind: DevelopmentType | null) => kind === 'year-of-plenty' || kind === 'monopoly';
   /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
   function tapCard(resource: Tradable) {

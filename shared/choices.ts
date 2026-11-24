@@ -10,6 +10,11 @@ export interface ChoiceGroup {
   count: number;
 }
 
+/** Is this player picking now: after a roll, or in setup for their last piece (before its road)? */
+export function picksNow(state: { phase: string; pendingGold: Record<string, number> }, id: string): boolean {
+  return (state.phase === 'gold' || state.phase === 'setup-road') && (state.pendingGold[id] ?? 0) > 0;
+}
+
 /** The owed picks as groups: split tiles first (they are the tighter ones), then any free picks. */
 export function choiceGroups(total: number, splits: readonly SplitChoice[] = []): ChoiceGroup[] {
   const limited = splits.reduce((n, s) => n + s.count, 0);
