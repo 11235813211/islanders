@@ -260,6 +260,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.megacities ??= [];
   },
+  // 33 → 34: seven and eight players, who get one bank trade between turns in the special build phase.
+  s => {
+    s.specialTraded ??= [];
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

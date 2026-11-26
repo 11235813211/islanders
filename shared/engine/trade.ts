@@ -20,9 +20,11 @@ import {
   emptyBag,
   getActivePlayerId,
   type Handlers,
+  isHugeGame,
   needPhase,
   requireRule,
   resourceCount,
+  specialTradeOpen,
   tally,
 } from './core';
 
@@ -182,7 +184,11 @@ export function pruneTradeOffers(next: GameState, now: number): void {
 
 /** Trade with the bank at the player's harbor rates (see bankTradeSize). */
 function bankExchange({ next, player, playerId }: ActionContext, give: ResourceBag, receive: ResourceBag): void {
-  needPhase(next, 'build');
+  if (next.phase === 'special-build') {
+    requireRule(isHugeGame(next.players.length), 'No trading while others build.');
+    requireRule(specialTradeOpen(next, next.specialBuilder, playerId), 'You already traded once since your turn.');
+    next.specialTraded.push(playerId);
+  } else needPhase(next, 'build');
   requireRule(
     bankTradeSize(give, receive, tradeRates(next, playerId)) !== null,
     'Give each resource in a multiple of its trade rate, one card for each.',

@@ -150,8 +150,8 @@ describe('room membership', () => {
     let g = makeLobby(4);
     expect(boardPlayerCount(getView(g, 'p1'))).toBe(4);
     expect(() => act(g, 'p1', { type: 'set-board-players', players: 5 })).toThrow(/host/);
-    expect(() => act(g, 'p0', { type: 'set-board-players', players: 1 })).toThrow(/2 to 6/);
-    expect(() => act(g, 'p0', { type: 'set-board-players', players: 7 })).toThrow(/2 to 6/);
+    expect(() => act(g, 'p0', { type: 'set-board-players', players: 1 })).toThrow(/2 to 8/);
+    expect(() => act(g, 'p0', { type: 'set-board-players', players: 9 })).toThrow(/2 to 8/);
     g = act(g, 'p0', { type: 'set-board-players', players: 5 });
     expect(g.players).toHaveLength(4);
     expect(boardPlayerCount(getView(g, 'p1'))).toBe(5);

@@ -58,7 +58,7 @@ export const seatHandlers: Pick<Handlers, 'seat-to-bot' | 'seat-spectator'> = {
     next.spectators = next.spectators.filter(s => s.id !== watcher.id);
     if (!action.playerId) {
       requireRule(next.phase === 'lobby', 'Choose a seat to take over.');
-      requireRule(next.players.length < MAX_PLAYERS, 'This island already has six players.');
+      requireRule(next.players.length < MAX_PLAYERS, 'This island already has eight players.');
       next.players.push(newSeat(next, watcher.id, watcher.name));
       next.stats[watcher.id] = emptyStats();
       addLog(next, `${watcher.name} took a seat.`);

@@ -9,10 +9,12 @@ export {
   GameError,
   getActivePlayerId,
   handSize,
+  isHugeGame,
   isLargeGame,
   MAX_PLAYERS,
   ownBoard,
   resourceCount,
+  specialTradeOpen,
 } from './core';
 export { barbarianAttack, knightReach, knightsRules, levelOf } from './knights';
 export { improvementCost, knightSites, openRoads } from './knights-legal';

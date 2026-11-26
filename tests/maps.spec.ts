@@ -60,7 +60,7 @@ test('back to the base game resets the points target', async ({ page }) => {
   // The base game is a card of its own, first in its category, in the roll button's yellow.
   await page.getByRole('button', { name: 'Choose map' }).click();
   const card = picker.locator('.map-card.base-game');
-  await expect(card).toContainText('2–6 players');
+  await expect(card).toContainText('2–8 players');
   await expect(card).toHaveCSS('background-color', 'rgb(255, 191, 66)');
   await picker.getByRole('button', { name: 'Use Base game' }).click();
   await expect(page.locator('.mode-card h3')).toHaveText('Standard island');

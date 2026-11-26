@@ -107,7 +107,8 @@ export function visitIsland(next: GameState, playerId: string, vertexId: string,
 }
 
 /**
- * With five or six players, others may ask to build after a turn (no trading or cards). They go in
+ * With five or more players, others may ask to build after a turn (no cards; no trading, except one
+ * bank trade between turns with seven or eight). They go in
  * the order they asked; bots that could build a city or settlement join when the turn ends.
  * Returns who builds next, or null when nobody is waiting.
  */
@@ -347,9 +348,9 @@ export const turnHandlers: Pick<
     addLog(next, `${player.name} finished Road Building.`);
   },
 
-  /** Off-turn, five or six players: ask to build once this turn ends. Each player may ask once per turn. */
+  /** Off-turn, five or more players: ask to build once this turn ends. Each player may ask once per turn. */
   'request-special-build'({ next, player, playerId }) {
-    requireRule(isLargeGame(next.players.length), 'Special building is for five or six players.');
+    requireRule(isLargeGame(next.players.length), 'Special building is for five or more players.');
     requireRule(
       !['lobby', 'finished', 'setup-settlement', 'setup-road'].includes(next.phase),
       'That action is not available right now.',
@@ -411,6 +412,9 @@ export const turnHandlers: Pick<
     next.specialQueue = [];
     next.specialAsked = [];
     next.turnIndex = (next.turnIndex + 1) % next.players.length;
+    // A new turn of your own gives back the special-build trade.
+    const starting = next.players[next.turnIndex]!.id;
+    next.specialTraded = next.specialTraded.filter(id => id !== starting);
     next.turn++;
     next.dice = null;
     next.phase = 'roll';

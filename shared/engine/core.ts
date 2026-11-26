@@ -1,3 +1,4 @@
+import { type IslandSize, islandSize } from '../board';
 import { copyData } from '../copy';
 import { ownEdges } from '../crossings';
 import { PIECE_LIMITS, rewardTotals } from '../maps/special';
@@ -77,25 +78,51 @@ export const emptyStats = (): PlayerStats => ({
 export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
 
-export const MAX_PLAYERS = 6;
+export const MAX_PLAYERS = 8;
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
 export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
   state.settings.seafarers !== false && boardIndex(state.board).seafaring;
 /** Cartographers rules (lodestone, relay stations, charts, splits): the map asks for them. */
 export const cartographersRules = (state: Pick<GameState, 'design'>): boolean =>
   !!state.design && boardExpansions(state.design).includes('cartographers');
-/** Five and six players get the larger island, a bigger bank and deck, and a special build phase. */
+/** Five or more players get a larger island, a bigger bank and deck, and a special build phase. */
 export const isLargeGame = (players: number): boolean => players >= 5;
+/** Seven and eight players: the huge island, and one bank trade between turns in the special build phase. */
+export const isHugeGame = (players: number): boolean => players >= 7;
+/**
+ * Seven or eight players: whether the one building now may still make their one bank trade between
+ * their own turns. Works on a state (builder = specialBuilder) or a view (builder = activePlayerId).
+ */
+export function specialTradeOpen(
+  game: { phase: GameState['phase']; players: unknown[]; specialTraded: string[] },
+  builderId: string | null,
+  playerId: string,
+): boolean {
+  return (
+    game.phase === 'special-build' &&
+    isHugeGame(game.players.length) &&
+    builderId === playerId &&
+    !game.specialTraded.includes(playerId)
+  );
+}
 /** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
 export const SPECIAL_BUILD_SECONDS = 20;
 
+/** Bank cards of each resource, commodity, and jungle discovery, by island. */
+const SUPPLY: Record<IslandSize, { resource: number; commodity: number; discovery: number }> = {
+  standard: { resource: 19, commodity: 12, discovery: 12 },
+  large: { resource: 24, commodity: 15, discovery: 15 },
+  huge: { resource: 30, commodity: 18, discovery: 18 },
+};
+
 /**
- * Cards of each kind in the bank: 19 resources, or 24 with five or six players. Lodestone only on
- * Cartographers maps; 12 of each commodity (15 with five or six) only with Cities & Knights.
+ * Cards of each kind in the bank: 19 resources, 24 with five or six players, 30 with seven or eight.
+ * Lodestone only on Cartographers maps; commodities (12 / 15 / 18) only with Cities & Knights.
  */
 export function bankFor(players: number, cartographers = false, knights = false): ResourceBag {
-  const n = isLargeGame(players) ? 24 : 19;
-  const c = knights ? (isLargeGame(players) ? 15 : 12) : 0;
+  const supply = SUPPLY[islandSize(players)];
+  const n = supply.resource;
+  const c = knights ? supply.commodity : 0;
   return {
     wood: n,
     brick: n,
@@ -109,11 +136,11 @@ export function bankFor(players: number, cartographers = false, knights = false)
   };
 }
 /**
- * Jungle discoveries in the supply at the start: 12, grown for 5–6 players by the same share as the
- * resource bank (19 → 24), so 15.
+ * Jungle discoveries in the supply at the start: 12, grown with the table by about the same share as
+ * the resource bank (15 for 5–6 players, 18 for 7–8).
  */
 export function discoverySupply(players: number): number {
-  return isLargeGame(players) ? 15 : 12;
+  return SUPPLY[islandSize(players)].discovery;
 }
 /** Discoveries still in the supply: the total less what players hold (spent ones come back). */
 export function discoveriesLeft(state: Pick<GameState, 'players'>): number {

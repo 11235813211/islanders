@@ -64,7 +64,7 @@ export const mapProposalHandlers: Pick<Handlers, 'propose-map' | 'decline-map' |
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'set the player count for maps');
     const { players } = action;
-    requireRule(players === undefined || (players >= 2 && players <= MAX_PLAYERS), 'Choose 2 to 6 players.');
+    requireRule(players === undefined || (players >= 2 && players <= MAX_PLAYERS), 'Choose 2 to 8 players.');
     next.boardPlayers = players ?? null;
   },
 };

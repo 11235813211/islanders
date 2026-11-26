@@ -83,7 +83,12 @@ export function buildGraph(cells: { q: number; r: number; terrain: Terrain; numb
   return board;
 }
 
-/** The standard island's tiles, numbers, and harbors; `large` is the 5–6 player island. */
+/** The huge island's spiral order (35 numbers), checked to keep 6s and 8s apart wherever the deserts fall. */
+const HUGE_ORDERED = [
+  6, 5, 3, 10, 6, 11, 8, 4, 10, 8, 4, 6, 4, 8, 9, 4, 5, 12, 5, 10, 3, 5, 2, 9, 11, 3, 9, 3, 2, 6, 11, 8, 10, 9, 12,
+];
+
+/** The standard island's tiles, numbers, and harbors; `large` is for 5–6 players, `huge` for 7–8. */
 const ISLANDS = {
   standard: {
     rows: [3, 4, 5, 4, 3],
@@ -97,16 +102,29 @@ const ISLANDS = {
     harbors: ['any', 'any', 'any', 'any', 'any', 'wood', 'brick', 'sheep', 'sheep', 'wheat', 'ore'],
     ordered: [2, 5, 4, 6, 3, 9, 8, 11, 11, 10, 6, 3, 8, 4, 8, 10, 11, 12, 10, 5, 4, 9, 5, 9, 12, 3, 2, 6],
   },
+  huge: {
+    rows: [4, 5, 6, 7, 6, 5, 4],
+    terrains: { wood: 8, sheep: 8, wheat: 7, brick: 6, ore: 6, desert: 2 },
+    harbors: ['any', 'any', 'any', 'any', 'any', 'any', 'wood', 'brick', 'sheep', 'sheep', 'wheat', 'wheat', 'ore'],
+    ordered: HUGE_ORDERED,
+  },
 } satisfies Record<
   string,
   { rows: number[]; terrains: Partial<Record<Terrain, number>>; harbors: Harbor['resource'][]; ordered: number[] }
 >;
 type Island = (typeof ISLANDS)[keyof typeof ISLANDS];
-/** Row widths of the standard and 5–6 player islands, for previews. */
-export const ISLAND_ROWS = { standard: ISLANDS.standard.rows, large: ISLANDS.large.rows };
+/** Which base island a table plays: 2–4 players the standard one, 5–6 the large, 7–8 the huge. */
+export type IslandSize = keyof typeof ISLANDS;
+/** Row widths of each base island, for previews. */
+export const ISLAND_ROWS: Record<IslandSize, number[]> = {
+  standard: ISLANDS.standard.rows,
+  large: ISLANDS.large.rows,
+  huge: ISLANDS.huge.rows,
+};
 
-/** The island for a player count: five and six players use the larger one. */
-const islandFor = (large: boolean): Island => (large ? ISLANDS.large : ISLANDS.standard);
+/** The base island for a player count. */
+export const islandSize = (players: number): IslandSize =>
+  players >= 7 ? 'huge' : players >= 5 ? 'large' : 'standard';
 
 /**
  * Axial cells for rows of the given widths, centered on the middle row. The standard island
@@ -125,14 +143,14 @@ export function islandCells(rows: number[]): { q: number; r: number }[] {
   return cells;
 }
 
-/** The standard island (19 tiles, nine harbors), or the 5–6 player island (30 tiles, eleven harbors). */
+/** A base island: standard (19 tiles, 9 harbors), large (30 tiles, 11 harbors), or huge (37 tiles, 13 harbors). */
 export function generateBoard(
   random: () => number = Math.random,
   layout: 'random' | 'ordered' = 'random',
-  large = false,
+  size: IslandSize = 'standard',
   sea = false,
 ): Board {
-  const island = islandFor(large);
+  const island = ISLANDS[size];
   const terrains = shuffled(
     Object.entries(island.terrains).flatMap(([terrain, count]) => Array<Terrain>(count).fill(terrain as Terrain)),
     random,
@@ -164,8 +182,15 @@ const AXIAL_NEIGHBORS = [
   [-1, 1],
 ] as const;
 const landHexes = (board: Board) => board.hexes.filter(h => h.terrain !== 'sea');
-/** The 5–6 player island has more than the standard 19 land tiles. */
-const isLarge = (board: Board) => landHexes(board).length > 19;
+/** The base island a board was drawn from, by its land tile count. */
+const islandOf = (board: Board): Island => {
+  const land = landHexes(board).length;
+  return land > ISLANDS.large.rows.reduce((a, b) => a + b)
+    ? ISLANDS.huge
+    : land > 19
+      ? ISLANDS.large
+      : ISLANDS.standard;
+};
 
 export const ORDERED_NUMBERS = ISLANDS.standard.ordered;
 
@@ -193,7 +218,7 @@ export function spiralHexes(board: Board): Hex[] {
 /** The base island's number tokens: its ordered spiral, or a random draw with no two red numbers touching. */
 export function assignNumbers(board: Board, layout: 'random' | 'ordered', random: () => number = Math.random): void {
   for (const hex of board.hexes) hex.number = null;
-  const ordered = islandFor(isLarge(board)).ordered;
+  const ordered = islandOf(board).ordered;
   if (layout === 'ordered') {
     spiralHexes(board)
       .filter(hex => hex.terrain !== 'desert')
@@ -235,7 +260,7 @@ export function assignNumbers(board: Board, layout: 'random' | 'ordered', random
     });
 }
 
-/** Evenly spaced coastal harbors: nine on the standard island, eleven on the large one. */
+/** Evenly spaced coastal harbors: 9 on the standard island, 11 on the large one, 13 on the huge one. */
 export function generateHarbors(board: Board, random: () => number = () => 0.5): Board['harbors'] {
   const vertices = new Map(board.vertices.map(v => [v.id, v]));
   const land = landHexes(board);
@@ -253,7 +278,7 @@ export function generateHarbors(board: Board, random: () => number = () => 0.5):
     y: (vertices.get(edge.a)!.y + vertices.get(edge.b)!.y) / 2 - cy,
   });
   coast.sort((a, b) => Math.atan2(middle(a).y, middle(a).x) - Math.atan2(middle(b).y, middle(b).x));
-  const kinds = shuffled<Harbor['resource']>(islandFor(isLarge(board)).harbors, random);
+  const kinds = shuffled<Harbor['resource']>(islandOf(board).harbors, random);
   return kinds.map((resource, i) => {
     const edge = coast[Math.floor((i * coast.length) / kinds.length)]!;
     const { x, y } = middle(edge);

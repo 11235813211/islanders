@@ -280,7 +280,7 @@ test('the host sets the player count for maps, and maps open for that count', as
   await row.getByRole('button', { name: 'More players for maps' }).click();
   await expect(row.locator('output')).toHaveText('5');
   await expect(row.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('.setup-players .subtle-badge')).toHaveText('4 / 6');
+  await expect(page.locator('.setup-players .subtle-badge')).toHaveText('4 / 8');
   await expect(page.locator('.map-choice .mode-card h3')).toHaveText('Large island');
   for (const width of [1600, 1280, 1024, 820, 390]) {
     await page.setViewportSize({ width, height: 900 });

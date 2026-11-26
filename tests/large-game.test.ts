@@ -24,7 +24,7 @@ function sixAtBuild(): GameState {
 
 describe('the 5–6 player island', () => {
   it('has 30 tiles in rows of 3-4-5-6-5-4-3, two deserts, 28 numbers, and 11 harbors', () => {
-    const board = generateBoard(seeded(), 'random', true);
+    const board = generateBoard(seeded(), 'random', 'large');
     expect(board.hexes).toHaveLength(30);
     const rows = [-3, -2, -1, 0, 1, 2, 3].map(r => board.hexes.filter(h => h.r === r).length);
     expect(rows).toEqual([3, 4, 5, 6, 5, 4, 3]);
@@ -39,7 +39,7 @@ describe('the 5–6 player island', () => {
   it('never puts red numbers side by side, in either layout', () => {
     for (const layout of ['random', 'ordered'] as const)
       for (let seed = 1; seed < 30; seed++) {
-        const red = generateBoard(seeded(seed), layout, true).hexes.filter(h => h.number === 6 || h.number === 8);
+        const red = generateBoard(seeded(seed), layout, 'large').hexes.filter(h => h.number === 6 || h.number === 8);
         for (const a of red) for (const b of red) expect(neighbours(a, b)).toBe(false);
       }
   });

@@ -352,3 +352,17 @@ test('Cities & Knights fits a phone: build bar, knight menu, and city panel, all
   await page.screenshot({ path: 'test-results/phone-knights.png' });
   expect(game.errors).toEqual([]);
 });
+
+test('eight players fit a phone: the scoreboard and turn controls', async ({ page }) => {
+  const g = settled(8);
+  g.phase = 'build';
+  g.rollDeadline = null;
+  g.turnDeadline = Date.now() + 60_000;
+  const game = await mountGame(page, g);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await expectNoSpill(page.locator('.table-turn'));
+  await expectNoSpill(page.locator('.table-actions'));
+  await page.screenshot({ path: 'test-results/phone-eight-players.png' });
+  expect(game.errors).toEqual([]);
+});

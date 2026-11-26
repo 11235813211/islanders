@@ -61,3 +61,38 @@ test('six players: others ask for a special build during a turn', async ({ page 
   await expect(page.getByRole('button', { name: 'Special build' })).toBeVisible();
   expect(game.errors).toEqual([]);
 });
+
+/** Eight players, just after p0 ended a turn: p7 asked to build and holds four wool. */
+function eightSpecialBuild() {
+  let g = settled(8);
+  g.testMode = true;
+  g.phase = 'build';
+  g.rollDeadline = null;
+  for (const p of g.players)
+    p.resources = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, lodestone: 0, paper: 0, cloth: 0, coin: 0 };
+  g.bank = { wood: 30, brick: 30, sheep: 30, wheat: 30, ore: 30, lodestone: 0, paper: 0, cloth: 0, coin: 0 };
+  grant(g, 'p7', { sheep: 4 });
+  g.board = { ...g.board, harbors: [] }; // 4:1, whatever seat p7 got
+  g = applyAction(g, 'p7', { type: 'request-special-build' }, seeded(), TEST_NOW);
+  g = applyAction(g, 'p0', { type: 'end-turn' }, seeded(), TEST_NOW);
+  g.turnDeadline = Date.now() + 60_000;
+  return g;
+}
+
+test('eight players: the huge island, eight seats, and one bank trade while special building', async ({ page }) => {
+  const game = await mountGame(page, eightSpecialBuild());
+  await page.getByLabel('Follow current turn').uncheck();
+  await page.getByLabel('Play as', { exact: true }).selectOption('p7');
+  await expect(page.locator('tr[data-player-id]')).toHaveCount(8);
+  await expect(page.getByText('Special build: one bank trade')).toBeVisible();
+  await page.screenshot({ path: 'test-results/eight-players.png' });
+  await page.getByRole('button', { name: /^Trade Wool/ }).click();
+  const trade = page.getByRole('dialog', { name: 'Trade resources' });
+  await expect(trade.getByRole('button', { name: 'Offer to players' })).toHaveCount(0);
+  await trade.getByRole('button', { name: 'Request one more Ore' }).click();
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: /^Trade Wool/ }).click();
+  await trade.getByRole('button', { name: 'Bank' }).click();
+  await expect.poll(() => game.state().players[7]!.resources.ore).toBe(1);
+  await expect(page.getByText('Special build', { exact: true })).toBeVisible();
+  expect(game.errors).toEqual([]);
+});

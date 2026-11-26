@@ -1,4 +1,4 @@
-import { shuffled } from './board';
+import { type IslandSize, shuffled } from './board';
 import { crosses, ownEdges, pieceOn } from './crossings';
 import { type KnightsBoard, knightsPoints } from './knights';
 import { routeFinished } from './maps/special';
@@ -49,14 +49,22 @@ export function canGiveTime(
   );
 }
 
-/** The shuffled development deck: 25 cards, or 34 for five and six players. */
-export function developmentDeck(random: () => number, large = false): DevelopmentCard[] {
+/** Development cards by island: 25 for 2–4 players, 34 for 5–6, 43 for 7–8. */
+const DECKS: Record<IslandSize, { knight: number; progress: number; points: number }> = {
+  standard: { knight: 14, progress: 2, points: 5 },
+  large: { knight: 20, progress: 3, points: 5 },
+  huge: { knight: 26, progress: 4, points: 5 },
+};
+
+/** The shuffled development deck for the table's island. */
+export function developmentDeck(random: () => number, size: IslandSize = 'standard'): DevelopmentCard[] {
+  const deck = DECKS[size];
   const kinds: DevelopmentType[] = [
-    ...Array<DevelopmentType>(large ? 20 : 14).fill('knight'),
-    ...Array<DevelopmentType>(5).fill('victory-point'),
-    ...Array<DevelopmentType>(large ? 3 : 2).fill('road-building'),
-    ...Array<DevelopmentType>(large ? 3 : 2).fill('year-of-plenty'),
-    ...Array<DevelopmentType>(large ? 3 : 2).fill('monopoly'),
+    ...Array<DevelopmentType>(deck.knight).fill('knight'),
+    ...Array<DevelopmentType>(deck.points).fill('victory-point'),
+    ...Array<DevelopmentType>(deck.progress).fill('road-building'),
+    ...Array<DevelopmentType>(deck.progress).fill('year-of-plenty'),
+    ...Array<DevelopmentType>(deck.progress).fill('monopoly'),
   ];
   return shuffled(kinds, random).map((kind, i) => ({ id: `dev-${i}`, kind, boughtTurn: -1 }));
 }

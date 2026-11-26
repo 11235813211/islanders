@@ -102,7 +102,18 @@ export interface DevelopmentCard {
   boughtTurn: number;
 }
 /** Seat colors players can pick in the lobby. Display values live in shared/colors.ts. */
-export const PLAYER_COLOR_IDS = ['white', 'orange', 'red', 'blue', 'green', 'brown', 'black', 'purple'] as const;
+export const PLAYER_COLOR_IDS = [
+  'white',
+  'orange',
+  'red',
+  'blue',
+  'green',
+  'brown',
+  'black',
+  'purple',
+  'pink',
+  'teal',
+] as const;
 export type PlayerColor = (typeof PLAYER_COLOR_IDS)[number];
 /** Bot strength. Advanced is the default, and also plays turns that time out. */
 export const BOT_LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
@@ -494,6 +505,8 @@ export interface GameState {
   specialQueue: string[];
   /** Who asked to build this turn (each player may ask once). */
   specialAsked: string[];
+  /** Seven or eight players: who made their one special-build bank trade since their own last turn. */
+  specialTraded: string[];
   resumePhase: 'roll' | 'build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
@@ -633,6 +646,7 @@ export interface GameView {
   eruption: string[] | null;
   specialQueue: string[];
   specialAsked: string[];
+  specialTraded: string[];
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
   features: { sea: boolean; volcano: boolean; fogLand: number };
   winnerId: string | null;

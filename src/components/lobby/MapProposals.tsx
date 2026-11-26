@@ -2,11 +2,11 @@ import { Check, Eye, Undo2, X } from 'lucide-react';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { TUNING } from '../../../shared/default-settings';
-import { boardPlayerCount, isLargeGame, proposalsBy } from '../../../shared/engine';
+import { boardPlayerCount, proposalsBy } from '../../../shared/engine';
 import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView, MapProposal } from '../../../shared/types';
 import MapThumbnail from '../maps/MapThumbnail';
-import { BASE_MAP_ID, LARGE_ISLAND, STANDARD_ISLAND } from '../maps/mapInfo';
+import { BASE_MAP_ID, baseIslandFor } from '../maps/mapInfo';
 import './map-proposals.css';
 
 /** How long a proposal this person just withdrew stays, grayed, with Undo. */
@@ -14,7 +14,7 @@ const UNDO_MS = 3000;
 
 /** The map a proposal names: the base island for the table's size, or a library map (once loaded). */
 function proposalDesign(proposal: MapProposal, boards: BoardDesign[] | undefined, players: number) {
-  if (proposal.mapId === BASE_MAP_ID) return isLargeGame(players) ? LARGE_ISLAND : STANDARD_ISLAND;
+  if (proposal.mapId === BASE_MAP_ID) return baseIslandFor(players);
   return boards?.find(b => b.id === proposal.mapId);
 }
 

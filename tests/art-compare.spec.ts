@@ -13,7 +13,7 @@ const PACKS: [string, ArtPack, PieceStyle][] = [
   ['v19 mountain chalet', v19, 'chalet'],
   ['v19 Korean', v19, 'korean'],
 ];
-const TERRAINS: Terrain[] = ['wood', 'wheat', 'sheep', 'ore', 'brick', 'desert', 'wood', 'wheat'];
+const TERRAINS: Terrain[] = ['wood', 'wheat', 'sheep', 'ore', 'brick', 'desert', 'wood', 'wheat', 'sheep', 'ore'];
 const CELL = 120;
 
 /** The pack's megacity, if it draws one. */
@@ -36,7 +36,7 @@ function row(pack: ArtPack, style: PieceStyle, uid: string): ReactElement {
       return h(
         'g',
         { key: color.label },
-        h('g', { transform: `translate(${x} 0)` }, h(pack.HexTile, { uid, terrain: TERRAINS[i]! })),
+        h('g', { transform: `translate(${x} 0)` }, h(pack.HexTile, { uid, terrain: TERRAINS[i % TERRAINS.length]! })),
         h(pack.Road, { from: { x: x - 30, y: 38 }, to: { x: x + 30, y: 38 }, color: color.fill }),
         h(
           'g',

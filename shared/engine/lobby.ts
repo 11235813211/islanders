@@ -1,4 +1,4 @@
-import { assignNumbers, generateBoard, seededRandom, shuffled } from '../board';
+import { assignNumbers, generateBoard, islandSize, seededRandom, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
 import { KNIGHTS_LIMITS } from '../knights';
 import { buildBoard } from '../maps/generate';
@@ -17,7 +17,6 @@ import {
   emptyStats,
   type Handlers,
   humanPlayers,
-  isLargeGame,
   MAX_PLAYERS,
   needPhase,
   ownBoard,
@@ -41,7 +40,7 @@ export function boardFor(
     const built = buildBoard(designFor(design, layoutFor ?? players), random);
     return seafarers ? built : { ...built, pirate: null };
   }
-  const board = generateBoard(random, layout, isLargeGame(players), seafarers);
+  const board = generateBoard(random, layout, islandSize(players), seafarers);
   return {
     board,
     robber: board.hexes.find(hex => hex.terrain === 'desert')!.id,
@@ -113,7 +112,7 @@ function addRoomRewards(next: GameState): void {
   next.board.rules = { ...next.board.rules, rewards };
 }
 
-/** The board, bank, and development deck for the seats at the table (five or six get more of each). */
+/** The board, bank, and development deck for the seats at the table (bigger tables get more of each). */
 function dealTable(next: GameState, random: () => number): void {
   const players = next.players.length;
   next.boardSeeds = [];
@@ -123,7 +122,7 @@ function dealTable(next: GameState, random: () => number): void {
   if (played && next.settings.victoryPoints === next.design!.victoryPoints)
     next.settings.victoryPoints = played.victoryPoints;
   next.bank = bankFor(players, cartographersRules(next), next.settings.citiesKnights);
-  next.developmentDeck = developmentDeck(random, isLargeGame(players));
+  next.developmentDeck = developmentDeck(random, islandSize(players));
 }
 
 export function createGame(
@@ -201,6 +200,7 @@ export function createGame(
     specialBuilder: null,
     specialQueue: [],
     specialAsked: [],
+    specialTraded: [],
     resumePhase: null,
     longestRoadId: null,
     largestArmyId: null,
@@ -233,7 +233,7 @@ export function newSeat(state: GameState, id: string, name: string): Player {
 
 export function addPlayer(state: GameState, input: { id: string; name: string }): GameState {
   requireRule(state.phase === 'lobby', 'This game has already started.');
-  requireRule(state.players.length < MAX_PLAYERS, 'This island already has six players.');
+  requireRule(state.players.length < MAX_PLAYERS, 'This island already has eight players.');
   requireRule(
     typeof input?.id === 'string' &&
       /^[\w-]{1,128}$/.test(input.id) &&
@@ -530,7 +530,7 @@ export const lobbyHandlers: Pick<
   'add-bot'({ next, playerId, random }, action) {
     needPhase(next, 'lobby');
     requireHost(next, playerId, 'add bots');
-    requireRule(next.players.length < MAX_PLAYERS, 'This island already has six players.');
+    requireRule(next.players.length < MAX_PLAYERS, 'This island already has eight players.');
     let id: string;
     do id = `bot-${Math.floor(random() * 2 ** 32).toString(36)}`;
     while (next.players.some(p => p.id === id));

@@ -1,4 +1,4 @@
-import { isLargeGame } from '../../../shared/engine';
+import { isHugeGame, isLargeGame } from '../../../shared/engine';
 import { setupPieces, specialRules } from '../../../shared/maps/special';
 import type { GameView, Terrain } from '../../../shared/types';
 import { knightsHowTo, knightsRules } from './helpKnights';
@@ -75,7 +75,9 @@ function rightNow(view: GameView, v: Verbs): string | null {
     case 'eruption':
       return 'Press Roll volcanoes.';
     case 'special-build':
-      return 'Build or buy cards (no trading), then press Done building.';
+      return isHugeGame(view.players.length)
+        ? 'Build or buy cards (one bank trade until your turn), then press Done building.'
+        : 'Build or buy cards (no trading), then press Done building.';
     case 'free-roads':
       return `Place your free ${view.seafaring ? 'roads or ships' : 'roads'} on glowing edges. Finish roads stops early.`;
     case 'build':
@@ -107,7 +109,9 @@ function trading(view: GameView, v: Verbs): HelpSection {
     'You can offer off turn. A deal with the player whose turn it is happens at once; one between two others comes back at the start of the next turn of either.',
     'Bank trades, on your own turn, use your rates (4:1, 3:1, or 2:1 harbors), several at once: give each kind in a multiple of its rate, one card for each.',
   ];
-  if (view.phase === 'special-build' || isLargeGame(view.players.length))
+  if (isHugeGame(view.players.length))
+    lines.push('In the special build phase, you get one bank trade between your turns.');
+  else if (view.phase === 'special-build' || isLargeGame(view.players.length))
     lines.push('There is no trading during the special build phase.');
   return { title: 'Trading', lines };
 }
@@ -159,12 +163,15 @@ function seaSections(view: GameView, v: Verbs): HelpSection[] {
   return lines.length ? [{ title: 'This map', lines }] : [];
 }
 
-function specialBuild(): HelpSection {
+function specialBuild(view: GameView): HelpSection {
+  const huge = isHugeGame(view.players.length);
   return {
-    title: 'Special build (5–6 players)',
+    title: huge ? 'Special build (7–8 players)' : 'Special build (5–6 players)',
     lines: [
       'During someone else’s turn, press Special build to build or buy cards after it ends. Press it again to cancel.',
-      'No trading, playing cards, or moving ships then. Press Done building when finished.',
+      huge
+        ? 'One bank trade between your turns, however many times you special build. No offers to players, playing cards, or moving ships.'
+        : 'No trading, playing cards, or moving ships then. Press Done building when finished.',
     ],
   };
 }
@@ -188,7 +195,7 @@ export function gameHelp(view: GameView, touch: boolean): HelpSection[] {
     trading(view, v),
     view.ck ? knightsHowTo(v.tap) : development(v),
     ...seaSections(view, v),
-    ...(isLargeGame(view.players.length) ? [specialBuild()] : []),
+    ...(isLargeGame(view.players.length) ? [specialBuild(view)] : []),
     table(v),
     ...ruleSections(view),
     ...(view.ck ? knightsRules(view) : []),

@@ -33,7 +33,7 @@ describe('lobby setup', () => {
     game = applyAction(game, 'p1', { type: 'choose-color', color: 'purple' }, seeded(), now);
     expect(game.players.find(p => p.id === 'p1')!.color).toBe('purple');
     expect(() => applyAction(game, 'p2', { type: 'choose-color', color: 'purple' }, seeded(), now)).toThrow(GameError);
-    expect(() => applyAction(game, 'p2', { type: 'choose-color', color: 'teal' as never }, seeded(), now)).toThrow(
+    expect(() => applyAction(game, 'p2', { type: 'choose-color', color: 'cyan' as never }, seeded(), now)).toThrow(
       GameError,
     );
     // A newcomer skips colors already chosen.

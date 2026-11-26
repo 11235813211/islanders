@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, Check, Landmark, Users, X } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { playerVars } from '../../shared/colors';
-import { emptyBag, MAX_OPEN_OFFERS } from '../../shared/engine';
+import { emptyBag, MAX_OPEN_OFFERS, specialTradeOpen } from '../../shared/engine';
 import { bankTradeSize } from '../../shared/rules';
 import {
   type GameAction,
@@ -133,9 +133,11 @@ export default function TradeComposer({
   const offer = view.tradeOffers.find(o => o.id === counterOf);
   const countering = !!counterOf;
   const ownTurn = view.activePlayerId === view.selfId;
-  const trading = view.phase === 'build' && view.pausedAt === null;
+  // Seven or eight players: one bank trade (no offers) while special building, until your next turn.
+  const specialBank = specialTradeOpen(view, view.activePlayerId, view.selfId);
+  const trading = (view.phase === 'build' || specialBank) && view.pausedAt === null;
   const full = view.tradeOffers.filter(o => o.fromId === view.selfId).length >= MAX_OPEN_OFFERS;
-  const active = countering ? !!offer && trading : trading && !full;
+  const active = countering ? !!offer && trading : trading && !full && !specialBank;
   const valid =
     bagTotal(give) > 0 &&
     bagTotal(want) > 0 &&
@@ -157,19 +159,22 @@ export default function TradeComposer({
     send({ type: 'bank-trade', give: bank.give, receive: bank.receive });
     close();
   }
-  const status = !active
-    ? countering
-      ? 'This offer has closed'
-      : trading
-        ? `Up to ${MAX_OPEN_OFFERS} offers at once`
-        : 'Trade after the roll'
-    : countering
-      ? `Counter to ${view.players.find(p => p.id === offer?.fromId)?.name ?? 'the offer'}`
-      : bank
-        ? `Bank: ${ratesUsed(bank.give, view)}`
-        : draft.to
-          ? `Offer to ${recipients.length} of ${others.length}`
-          : 'Offer to all players';
+  const status =
+    !active && !specialBank
+      ? countering
+        ? 'This offer has closed'
+        : trading
+          ? `Up to ${MAX_OPEN_OFFERS} offers at once`
+          : 'Trade after the roll'
+      : countering
+        ? `Counter to ${view.players.find(p => p.id === offer?.fromId)?.name ?? 'the offer'}`
+        : bank
+          ? `Bank: ${ratesUsed(bank.give, view)}`
+          : specialBank
+            ? 'One bank trade until your turn'
+            : draft.to
+              ? `Offer to ${recipients.length} of ${others.length}`
+              : 'Offer to all players';
   const activeName = view.players.find(p => p.id === view.activePlayerId)?.name;
   return (
     <section
@@ -186,7 +191,7 @@ export default function TradeComposer({
           <X size={18} />
         </button>
       </header>
-      {!countering && others.length > 1 && (
+      {!countering && !specialBank && others.length > 1 && (
         <div className="trade-recipients" role="group" aria-label="Send offer to">
           {others.map(p => (
             <button
@@ -262,16 +267,18 @@ export default function TradeComposer({
             Bank
           </button>
         )}
-        <button
-          className="button primary tip-end"
-          disabled={busy || !active || !valid || (!countering && !recipients.length)}
-          aria-label={countering ? 'Send counter' : 'Offer to players'}
-          data-tip={countering ? 'Send these terms back' : 'Offer this trade to the chosen players'}
-          onClick={offerToPlayers}
-        >
-          {countering ? <Check size={18} /> : <Users size={17} />}
-          {countering ? 'Send counter' : 'Players'}
-        </button>
+        {!specialBank && (
+          <button
+            className="button primary tip-end"
+            disabled={busy || !active || !valid || (!countering && !recipients.length)}
+            aria-label={countering ? 'Send counter' : 'Offer to players'}
+            data-tip={countering ? 'Send these terms back' : 'Offer this trade to the chosen players'}
+            onClick={offerToPlayers}
+          >
+            {countering ? <Check size={18} /> : <Users size={17} />}
+            {countering ? 'Send counter' : 'Players'}
+          </button>
+        )}
       </footer>
     </section>
   );

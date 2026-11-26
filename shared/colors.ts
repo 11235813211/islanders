@@ -15,6 +15,8 @@ export const PLAYER_COLORS: Record<PlayerColor, { label: string; fill: string; i
   brown: { label: 'Brown', fill: '#7a4822', ink: '#ffffff', accent: '#7a4822' },
   black: { label: 'Black', fill: '#353941', ink: '#ffffff', accent: '#24272d' },
   purple: { label: 'Purple', fill: '#8a3cd8', ink: '#ffffff', accent: '#8a3cd8' },
+  pink: { label: 'Pink', fill: '#ee5ea6', ink: '#2e0619', accent: '#d23f8a' },
+  teal: { label: 'Teal', fill: '#17b4c6', ink: '#03252b', accent: '#0e8f9e' },
 };
 
 /** CSS variables for a seat: --player-color, --player-ink, --player-accent. */
@@ -31,6 +33,8 @@ export const DEFAULT_COLOR_ORDER: readonly PlayerColor[] = [
   'orange',
   'green',
   'purple',
+  'pink',
+  'teal',
   'brown',
   'black',
 ];

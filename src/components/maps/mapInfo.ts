@@ -1,4 +1,4 @@
-import { ISLAND_ROWS, islandCells } from '../../../shared/board';
+import { ISLAND_ROWS, type IslandSize, islandCells, islandSize } from '../../../shared/board';
 import type { BoardDesign, BoardLibrary } from '../../../shared/maps';
 import { BASE_POOL, playerRange, playerRanges } from '../../../shared/maps';
 import type { MapInfo } from '../../../shared/types';
@@ -39,16 +39,22 @@ export function roomMapWarning(map: MapInfo, players: number): string | null {
     : `${map.name} is made for ${roomMapPlayers(map)} players. This room has ${players}.`;
 }
 
+const ISLAND_INFO: Record<IslandSize, { name: string; players: { min: number; max: number } }> = {
+  standard: { name: 'Standard island', players: { min: 2, max: 4 } },
+  large: { name: 'Large island', players: { min: 5, max: 6 } },
+  huge: { name: 'Huge island', players: { min: 7, max: 8 } },
+};
+
 /** A preview of the base game's island, as plain land (the layout is drawn at the start). */
-function baseIsland(large: boolean): BoardDesign {
+function baseIsland(size: IslandSize): BoardDesign {
   return {
     id: 'base',
-    name: large ? 'Large island' : 'Standard island',
+    name: ISLAND_INFO[size].name,
     categoryId: '',
     description: '',
-    players: large ? { min: 5, max: 6 } : { min: 2, max: 4 },
+    players: ISLAND_INFO[size].players,
     victoryPoints: 10,
-    tiles: islandCells(large ? ISLAND_ROWS.large : ISLAND_ROWS.standard).map(c => ({ ...c, kind: 'land' as const })),
+    tiles: islandCells(ISLAND_ROWS[size]).map(c => ({ ...c, kind: 'land' as const })),
     harbors: [],
     robber: null,
     pirate: null,
@@ -58,25 +64,27 @@ function baseIsland(large: boolean): BoardDesign {
     updatedAt: 0,
   };
 }
-export const STANDARD_ISLAND = baseIsland(false);
-/** The 5–6 player island. */
-export const LARGE_ISLAND = baseIsland(true);
+const BASE_ISLANDS: Record<IslandSize, BoardDesign> = {
+  standard: baseIsland('standard'),
+  large: baseIsland('large'),
+  huge: baseIsland('huge'),
+};
+/** The base island a table of `players` plays, as a preview. */
+export const baseIslandFor = (players: number): BoardDesign => BASE_ISLANDS[islandSize(players)];
 
-/** The base game as a map card: the standard island, with the large one for 5–6 players. Never edited. */
+/** The base game as a map card: the standard island, with larger ones for 5–6 and 7–8 players. Never edited. */
 export const BASE_GAME: BoardDesign = {
-  ...STANDARD_ISLAND,
+  ...BASE_ISLANDS.standard,
   name: 'Base game',
   description: 'The usual island, drawn at random each game.',
-  versions: [
-    {
-      players: LARGE_ISLAND.players,
-      victoryPoints: LARGE_ISLAND.victoryPoints,
-      tiles: LARGE_ISLAND.tiles,
-      harbors: [],
-      robber: null,
-      pirate: null,
-    },
-  ],
+  versions: [BASE_ISLANDS.large, BASE_ISLANDS.huge].map(island => ({
+    players: island.players,
+    victoryPoints: island.victoryPoints,
+    tiles: island.tiles,
+    harbors: [],
+    robber: null,
+    pirate: null,
+  })),
 };
 /** The base game's map id in choose-map and propose-map. */
 export const BASE_MAP_ID = 'base';

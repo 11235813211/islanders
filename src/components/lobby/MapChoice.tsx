@@ -1,20 +1,13 @@
 import { AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useState } from 'react';
 import { TUNING } from '../../../shared/default-settings';
-import { boardPlayerCount, isLargeGame, proposalsBy } from '../../../shared/engine';
+import { boardPlayerCount, proposalsBy } from '../../../shared/engine';
 import { type BoardDesign, designFor } from '../../../shared/maps';
 import type { GameAction, GameView } from '../../../shared/types';
 import { useBoardLibrary } from '../../hooks/useBoardLibrary';
 import MapBrowser from '../maps/MapBrowser';
 import MapThumbnail from '../maps/MapThumbnail';
-import {
-  BASE_MAP_ID,
-  LARGE_ISLAND,
-  playerRange,
-  roomMapPlayers,
-  roomMapWarning,
-  STANDARD_ISLAND,
-} from '../maps/mapInfo';
+import { BASE_MAP_ID, baseIslandFor, playerRange, roomMapPlayers, roomMapWarning } from '../maps/mapInfo';
 import type { Proposing } from '../maps/ProposeButton';
 import BoardPlayers from './BoardPlayers';
 import MapProposals from './MapProposals';
@@ -49,7 +42,7 @@ export default function MapChoice({
   const map = view.map;
   // What people browse and propose for; the warning below is about who is actually seated.
   const players = boardPlayerCount(view);
-  const base = isLargeGame(players) ? LARGE_ISLAND : STANDARD_ISLAND;
+  const base = baseIslandFor(players);
   const found = map && library?.boards.find(b => b.id === map.id);
   // The thumbnail shows the layout that will be played.
   const design = map ? found && designFor(found, map.layout?.min ?? players) : base;

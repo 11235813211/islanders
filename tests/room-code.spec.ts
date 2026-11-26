@@ -38,8 +38,8 @@ test('typing the old code after a code change puts the person in the room', asyn
   const guest = await visitor(browser);
   await joinByTyping(guest, first);
   await inRoom(guest, code);
-  await expect(guest.locator('.setup-players .subtle-badge')).toHaveText('2 / 6');
-  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('2 / 6');
+  await expect(guest.locator('.setup-players .subtle-badge')).toHaveText('2 / 8');
+  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('2 / 8');
 });
 
 test('the address follows a new code, and old links and the new code all reach the same room', async ({ browser }) => {
@@ -51,7 +51,7 @@ test('the address follows a new code, and old links and the new code all reach t
   const linked = await visitor(browser, `/#room=${first}`);
   await inRoom(linked, code);
   await expect(linked).toHaveURL(new RegExp(`#room=${code}$`));
-  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('2 / 6');
+  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('2 / 8');
   const again = await linked.context().newPage();
   await again.goto(`/#room=${first}`);
   await inRoom(again, code);
@@ -60,13 +60,13 @@ test('the address follows a new code, and old links and the new code all reach t
   // Reloading on the new address keeps the seat instead of taking another.
   await linked.reload();
   await inRoom(linked, code);
-  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('2 / 6');
+  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('2 / 8');
 
   const typed = await visitor(browser);
   await joinByTyping(typed, code);
   await inRoom(typed, code);
   await expect(typed).toHaveURL(new RegExp(`#room=${code}$`));
-  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('3 / 6');
+  await expect(host.locator('.setup-players .subtle-badge')).toHaveText('3 / 8');
 });
 
 test('someone in the room when the code changes moves to the new address', async ({ browser }) => {

@@ -2,7 +2,7 @@ import { ArrowRight, Clock3, Dices, Flame, Hammer, Trophy, Undo2, X } from 'luci
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { picksNow } from '../../shared/choices';
 import { playerVars } from '../../shared/colors';
-import { emptyBag, handSize, isLargeGame } from '../../shared/engine';
+import { emptyBag, handSize, isHugeGame, isLargeGame, specialTradeOpen } from '../../shared/engine';
 import { setupPieces } from '../../shared/maps/special';
 import { isBotGame } from '../../shared/settings';
 import type { DevelopmentType, GameView, Tradable, TradeBag } from '../../shared/types';
@@ -56,6 +56,12 @@ function specialBuildState(view: GameView): 'ask' | 'waiting' | null {
   if (view.specialQueue.includes(view.selfId)) return 'waiting';
   return view.specialAsked.includes(view.selfId) ? null : 'ask';
 }
+
+/** The special build button's tip: with seven or eight, one bank trade is allowed until your turn. */
+const specialBuildTip = (view: GameView) =>
+  isHugeGame(view.players.length)
+    ? "Build after this turn, with one bank trade until your next turn. You don't have to build."
+    : "Build (no trading) after this turn. You don't have to build.";
 
 /** The phone layouts (see phone.css): portrait phones, and landscape screens with little height. */
 /** Landscape phones: the turn button moves into the turn line so the build bar keeps its room. */
@@ -120,7 +126,11 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     case 'eruption':
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
     case 'special-build':
-      return ownTurn ? 'Special build: no trading' : `${active?.name} is building…`;
+      if (!ownTurn) return `${active?.name} is building…`;
+      if (!isHugeGame(view.players.length)) return 'Special build: no trading';
+      return specialTradeOpen(view, view.activePlayerId, view.selfId)
+        ? 'Special build: one bank trade'
+        : 'Special build';
     default:
       return ownTurn ? (routeReminder(view) ?? 'Build or trade') : `${active?.name}’s turn`;
   }
@@ -347,7 +357,8 @@ export default function GameTable({
   /** A card in your hand: set aside for a discard on a 7, otherwise added to a trade. */
   function tapCard(resource: Tradable) {
     if (discarding) return setDiscard(bag => addDiscard(bag, resource, view));
-    if (view.phase === 'special-build') return; // building only: no trades
+    // Building only, except one bank trade between turns with seven or eight players.
+    if (view.phase === 'special-build' && !specialTradeOpen(view, view.activePlayerId, view.selfId)) return;
     setDevKind(kind => (inCorner(kind) ? null : kind));
     setTrade(previous => addTradeResource(previous, resource, view));
   }
@@ -441,14 +452,14 @@ export default function GameTable({
         Finish roads
       </button>
     );
-  // Five or six players: during someone else's turn, ask to build when it ends (once per turn).
+  // Five or more players: during someone else's turn, ask to build when it ends (once per turn).
   const special = specialBuildState(view);
   if (!ownTurn && special === 'ask')
     turnAction = (
       <button
         className="button secondary turn-action"
         disabled={busy || paused}
-        data-tip="Build (no trading) after this turn. You don't have to build."
+        data-tip={specialBuildTip(view)}
         onClick={() => send({ type: 'request-special-build' })}
       >
         <Hammer size={18} />
