@@ -139,6 +139,27 @@ export function validSettings(
   );
 }
 
+/**
+ * The Christmas look, Christmas pieces, and the North Pole go together by default: switching the
+ * look on brings the pieces and the North Pole (off takes them away), and picking Christmas pieces
+ * brings the look. Anything the host set in the same change is kept, and afterwards each can be
+ * changed on its own.
+ */
+export function linkChristmas(before: GameSettings, after: GameSettings): GameSettings {
+  const next = { ...after };
+  const changed = (key: keyof GameSettings) => before[key] !== after[key];
+  if (changed('pieceStyle') && after.pieceStyle === 'gingerbread' && !changed('christmas')) next.christmas = true;
+  if (next.christmas === before.christmas) return next;
+  if (!changed('pieceStyle'))
+    next.pieceStyle = next.christmas
+      ? 'gingerbread'
+      : after.pieceStyle === 'gingerbread'
+        ? 'classic'
+        : after.pieceStyle;
+  if (!changed('northPole')) next.northPole = next.christmas;
+  return next;
+}
+
 /** A player name made tidy, or null if it can't be used: 1–24 characters, no markup or control characters. */
 export function cleanName(value: unknown): string | null {
   if (typeof value !== 'string') return null;

@@ -30,10 +30,10 @@ export const DEFAULT_SETTINGS: GameSettings = {
   numberLayout: 'ordered',
   // Show the bank's card counts: 'auto' (3+ players), 'always', or 'never'.
   showBank: 'auto',
-  // Piece look: 'classic', 'chalet', 'korean', or 'gingerbread'.
+  // Piece look: 'classic', 'chalet', 'korean', or 'gingerbread' (shown as Christmas).
   pieceStyle: 'classic',
   // The Christmas look (winter tiles, festive cards and colors): true or false.
-  // Turning it on in the lobby also picks gingerbread pieces.
+  // Turning it on in the lobby also picks Christmas pieces and the North Pole (see linkChristmas).
   christmas: false,
   // Santa's North Pole on a desert, with its own number (with or without the Christmas look): true or false.
   northPole: false,

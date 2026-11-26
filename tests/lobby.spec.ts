@@ -366,13 +366,13 @@ test('less used settings stay folded in their categories until anyone presses Al
   await expect(page.getByText('Host controls')).toBeVisible();
   const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
   await expect(rules.getByText('Discard limit')).toBeHidden();
-  await expect(page.getByText('North Pole')).toBeHidden();
+  await expect(rules.getByText('North Pole', { exact: true })).toBeHidden();
   const all = page.getByRole('button', { name: /All settings/ });
   // The discard limit (and the test lobby's unfriendly robber) differ from a new room's.
   await expect(all).toContainText(/\d changed/);
   await all.click();
   await expect(rules.getByText('Discard limit')).toBeVisible();
-  await expect(rules.getByText('North Pole')).toBeVisible();
+  await expect(rules.getByText('North Pole', { exact: true })).toBeVisible();
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expectNoSpill(page.locator('.setup-settings .section-heading'));

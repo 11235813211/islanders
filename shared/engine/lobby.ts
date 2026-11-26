@@ -5,7 +5,7 @@ import { buildBoard } from '../maps/generate';
 import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
 import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
 import { developmentDeck } from '../rules';
-import { DEFAULT_SETTINGS, guestName, pointRewards } from '../settings';
+import { DEFAULT_SETTINGS, guestName, linkChristmas, pointRewards } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
 import {
   addLog,
@@ -348,15 +348,7 @@ export const lobbyHandlers: Pick<
       next.settings.victoryPoints = next.settings.citiesKnights
         ? KNIGHTS_LIMITS.victoryPoints
         : DEFAULT_SETTINGS.victoryPoints;
-    // Christmas brings gingerbread pieces, and leaving it puts classic ones back, unless the host
-    // picked a style in the same move.
-    if (
-      state.settings.christmas !== next.settings.christmas &&
-      next.settings.pieceStyle === state.settings.pieceStyle
-    ) {
-      if (next.settings.christmas) next.settings.pieceStyle = 'gingerbread';
-      else if (next.settings.pieceStyle === 'gingerbread') next.settings.pieceStyle = 'classic';
-    }
+    next.settings = linkChristmas(state.settings, next.settings);
     // Turning Seafarers on or off redraws the preview (the standard island gains or loses its sea).
     if (state.settings.seafarers !== next.settings.seafarers)
       Object.assign(

@@ -112,3 +112,27 @@ describe('the North Pole', () => {
     expect(normalizeGame(g as GameState).northPole).toBeNull();
   });
 });
+
+describe('Christmas settings go together by default', () => {
+  const configure = (g: GameState, settings: Partial<GameState['settings']>) =>
+    applyAction(g, 'p0', { type: 'configure', settings: { ...g.settings, ...settings } }, seeded(), TEST_NOW);
+
+  it('the look brings Christmas pieces and the North Pole, and off takes them away', () => {
+    const on = configure(makeLobby(3), { christmas: true });
+    expect(on.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: true });
+    const off = configure(on, { christmas: false });
+    expect(off.settings).toMatchObject({ christmas: false, pieceStyle: 'classic', northPole: false });
+  });
+
+  it('Christmas pieces bring the look; then pieces and look change on their own', () => {
+    const pieces = configure(makeLobby(3), { pieceStyle: 'gingerbread' });
+    expect(pieces.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: true });
+    const chalet = configure(pieces, { pieceStyle: 'chalet' });
+    expect(chalet.settings).toMatchObject({ christmas: true, pieceStyle: 'chalet' });
+    const noPole = configure(chalet, { northPole: false });
+    expect(noPole.settings.northPole).toBe(false);
+    // Set in the same change, a style is kept.
+    const both = configure(makeLobby(3), { christmas: true, pieceStyle: 'korean' });
+    expect(both.settings).toMatchObject({ christmas: true, pieceStyle: 'korean' });
+  });
+});

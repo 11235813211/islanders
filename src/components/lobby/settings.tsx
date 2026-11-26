@@ -217,7 +217,7 @@ export const CATEGORIES: Category[] = [
       {
         key: 'christmas',
         label: 'Christmas',
-        hint: 'Snowy tiles, gingerbread pieces, and festive cards and colors for everyone.',
+        hint: 'Snowy tiles, Christmas pieces, the North Pole, and festive cards and colors for everyone.',
         icon: <Gift size={20} />,
         control: { kind: 'toggle' },
       },
