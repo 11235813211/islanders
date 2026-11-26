@@ -22,6 +22,7 @@ import { legalMoves } from './legal';
 import { lobbyHandlers, switchRole } from './lobby';
 import { progressHandlers } from './progress';
 import { mapProposalHandlers, pruneMapProposals } from './proposals';
+import { santaHandlers } from './santa';
 import { seaHandlers } from './sea';
 import { seatHandlers } from './seats';
 import { socialAction } from './social';
@@ -39,6 +40,7 @@ const HANDLERS: Handlers = {
   ...progressHandlers,
   ...seatHandlers,
   ...mapProposalHandlers,
+  ...santaHandlers,
 } as Handlers;
 
 /** Actions a player may take when it is not their turn. */
@@ -260,8 +262,10 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   const decision = next.settings.decisionSeconds * 1000;
   if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + decision;
   else if (next.phase !== 'gold') next.goldDeadline = null;
-  if (next.phase === 'robber' && state.phase !== 'robber') next.robberDeadline = now + decision;
-  else if (next.phase !== 'robber') next.robberDeadline = null;
+  // Sending Santa is a short choice like the robber's, on the same clock.
+  const aiming = (phase: GameState['phase']) => phase === 'robber' || phase === 'santa';
+  if (aiming(next.phase) && next.phase !== state.phase) next.robberDeadline = now + decision;
+  else if (!aiming(next.phase)) next.robberDeadline = null;
   // Wedding gifts are picked like discards, on the same clock.
   const picking = (phase: GameState['phase']) => phase === 'discard' || phase === 'gift';
   if (picking(next.phase) && next.phase !== state.phase) next.discardDeadline = now + decision;

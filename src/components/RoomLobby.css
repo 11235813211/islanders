@@ -287,7 +287,7 @@
   margin-left: auto;
 }
 
-/* An expansion's settings inside Variations: gold for Cities & Knights, blue for Seafarers, red for volcanoes and jungles, purple for Cartographers. */
+/* An expansion's settings inside Variations: gold for Cities & Knights, blue for Seafarers, red for volcanoes and jungles, purple for Cartographers, red on pine for Christmas. */
 .setting-theme {
   min-width: 0;
   margin: 6px -6px 10px;
@@ -311,6 +311,10 @@
 .setting-theme.theme-tropics {
   --tone: #c2412d;
   --tone-soft: #fcebe6;
+}
+.setting-theme.theme-christmas {
+  --tone: #b3202e;
+  --tone-soft: #eef6ee;
 }
 .setting-theme-title {
   display: inline-block;

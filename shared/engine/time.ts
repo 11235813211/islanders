@@ -169,7 +169,7 @@ function phaseDeadline(state: GameState): number | null {
   if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
   if (state.phase === 'discard' || state.phase === 'gift') return state.discardDeadline;
   if (state.phase === 'gold') return state.goldDeadline;
-  if (state.phase === 'robber') return state.robberDeadline;
+  if (state.phase === 'robber' || state.phase === 'santa') return state.robberDeadline;
   return null;
 }
 
@@ -247,7 +247,11 @@ export function advanceTime(
       return giveForAll(next, now, random);
     if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
       return chooseGoldForAll(next, now, random);
-    if (next.phase === 'robber' && next.robberDeadline !== null && next.robberDeadline <= now) {
+    if (
+      (next.phase === 'robber' || next.phase === 'santa') &&
+      next.robberDeadline !== null &&
+      next.robberDeadline <= now
+    ) {
       const id = getActivePlayerId(next)!;
       return forced(next, id, chooseBotAction(getView(next, id), { level: DEFAULT_BOT_LEVEL }), random, now);
     }

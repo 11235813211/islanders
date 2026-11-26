@@ -31,6 +31,7 @@ import { noteRoute } from './goals';
 import { afterDiscards, aqueduct, discardLimit, endKnightsTurn, resolveEventDie } from './knights';
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { collectStart, drift, eruptingVolcanoes, produce } from './production';
+import { santaComes } from './santa';
 
 /** The least auto-roll wait left after a held roll restarts, so the roller can still tap Roll. */
 const ROLL_RESUME_MS = 3000;
@@ -129,10 +130,17 @@ function nextSpecialBuilder(next: GameState): string | null {
   return next.specialQueue.shift() ?? null;
 }
 
-/** After a roll pays out: gold choices first, then any eruption, then building. */
+/** After a roll pays out: gold choices first, then any eruption, then Santa, then building. */
 export function afterProduction(next: GameState): GameState['phase'] {
   if (Object.keys(next.pendingGold).length) return 'gold';
-  return next.eruption ? 'eruption' : 'build';
+  return next.eruption ? 'eruption' : afterEruption(next);
+}
+
+/** After any eruption: Santa when his number was rolled (and the eruption left someone to visit). */
+export function afterEruption(next: GameState): GameState['phase'] {
+  const roller = next.players[next.turnIndex]!.id;
+  const total = next.dice ? next.dice[0] + next.dice[1] : 0;
+  return santaComes(next, total, roller) ? 'santa' : 'build';
 }
 
 /** End the setup round's road-or-ship placement. */

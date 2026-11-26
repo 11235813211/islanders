@@ -5,7 +5,7 @@ import { addLog, BUILD_COSTS, type Handlers, needPhase, pay, requireRule, resour
 import { revealFog } from './fog';
 import { legalMoves } from './legal';
 import { eruptAt, volcanoDie } from './production';
-import { afterFreePiece, afterProduction, finishSetupLink } from './turn';
+import { afterEruption, afterFreePiece, afterProduction, finishSetupLink } from './turn';
 
 /** What a player still picks: any resource from gold and volcanoes, one of two from split tiles. */
 const owedGroups = (state: GameState, playerId: string) =>
@@ -19,7 +19,7 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       needPhase(next, 'eruption');
       for (const hexId of next.eruption ?? []) eruptAt(next, hexId, volcanoDie(next, hexId, random));
       next.eruption = null;
-      next.phase = 'build';
+      next.phase = afterEruption(next);
     },
 
     'place-ship'({ next, player, playerId }, action) {

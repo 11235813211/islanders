@@ -4,6 +4,7 @@ import {
   Compass,
   Dices,
   Flame,
+  Gift,
   Hash,
   Hourglass,
   Landmark,
@@ -14,6 +15,7 @@ import {
   Route,
   Sailboat,
   Shield,
+  Snowflake,
   Timer,
   Trophy,
 } from 'lucide-react';
@@ -57,13 +59,14 @@ export interface SettingDef {
 export interface SettingPreviewProps {
   view: GameView;
 }
-export type Theme = 'knights' | 'seafarers' | 'tropics' | 'cartographers';
+export type Theme = 'knights' | 'seafarers' | 'tropics' | 'cartographers' | 'christmas';
 /** Titles of the themed boxes, in the order they appear. */
 export const THEMES: Record<Theme, string> = {
   knights: 'Cities & Knights',
   seafarers: 'Seafarers',
   tropics: 'Volcanoes and jungles',
   cartographers: 'Cartographers',
+  christmas: 'Christmas',
 };
 export interface Category {
   id: string;
@@ -201,6 +204,23 @@ export const CATEGORIES: Category[] = [
             { value: 'random', label: 'Random' },
           ],
         },
+      },
+      {
+        key: 'christmas',
+        theme: 'christmas',
+        label: 'Christmas',
+        hint: 'Snowy tiles, gingerbread pieces, and festive cards and colors for everyone.',
+        icon: <Gift size={20} />,
+        control: { kind: 'toggle' },
+      },
+      {
+        key: 'northPole',
+        theme: 'christmas',
+        label: 'North Pole',
+        hint: 'Santa lives on a desert with its own number. Roll it and pick another player’s building: Santa brings them a random resource.',
+        icon: <Snowflake size={20} />,
+        when: view => view.settings.christmas,
+        control: { kind: 'toggle' },
       },
       {
         key: 'pieceStyle',

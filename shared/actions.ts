@@ -59,6 +59,7 @@ const SPEC = {
   'build-wall': { vertexId: 'id' },
   'improve-city': { track: 'track' },
   'place-knight': { vertexId: 'id' },
+  'send-santa': { vertexId: 'id' },
   'give-cards': { resources: 'tradeBag' },
   'play-progress': {
     cardId: 'id',

@@ -43,7 +43,8 @@ export function Road({
 }
 
 /** Classic pieces are drawn a tenth larger than chalets. */
-const DESIGNS: Record<PieceStyle, PieceDesign> = {
+/** Styles added after this version (gingerbread) draw as classic. */
+const DESIGNS: Partial<Record<PieceStyle, PieceDesign>> = {
   classic: { build: classicPiece, settlementScale: 1.15 * 1.1, cityScale: 1.32 * 1.1 },
   chalet: { build: chaletPiece, settlementScale: 1.15, cityScale: 1.32 },
   korean: KOREAN_DESIGN,
@@ -59,5 +60,5 @@ export function BuildingPiece({
   city: boolean;
   style?: PieceStyle;
 }) {
-  return <DesignedPiece design={DESIGNS[style]} color={color} city={city} />;
+  return <DesignedPiece design={DESIGNS[style] ?? DESIGNS.classic!} color={color} city={city} />;
 }

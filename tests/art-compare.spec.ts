@@ -4,14 +4,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PLAYER_COLORS } from '../shared/colors';
 import type { PieceStyle, BaseTerrain as Terrain } from '../shared/types';
 import type { ArtPack } from '../src/art/types';
-import { art as v19 } from '../src/art/v19';
+import { art as v20 } from '../src/art/v20';
 
 // Side-by-side piece art for choosing between versions: writes test-results/art-compare.png.
 // Add or remove packs here to compare others. Run: npx playwright test tests/art-compare.spec.ts
 const PACKS: [string, ArtPack, PieceStyle][] = [
-  ['v19 classic', v19, 'classic'],
-  ['v19 mountain chalet', v19, 'chalet'],
-  ['v19 Korean', v19, 'korean'],
+  ['v20 classic', v20, 'classic'],
+  ['v20 gingerbread', v20, 'gingerbread'],
 ];
 const TERRAINS: Terrain[] = ['wood', 'wheat', 'sheep', 'ore', 'brick', 'desert', 'wood', 'wheat', 'sheep', 'ore'];
 const CELL = 120;

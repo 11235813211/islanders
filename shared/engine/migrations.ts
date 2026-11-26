@@ -264,6 +264,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.specialTraded ??= [];
   },
+  // 34 → 35: Christmas and the North Pole.
+  s => {
+    s.northPole ??= null;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

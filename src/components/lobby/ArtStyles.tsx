@@ -11,6 +11,7 @@ export const ART_STYLE_NAMES: Record<PieceStyle, string> = {
   classic: 'Classic',
   chalet: 'Mountain chalet',
   korean: 'Korean',
+  gingerbread: 'Gingerbread',
 };
 
 const SAMPLE_COLORS: PlayerColor[] = ['red', 'blue'];

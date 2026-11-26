@@ -47,6 +47,24 @@ export interface ArtPack {
   sea?: SeaArt;
   /** Cities & Knights art. Versions before v18 leave this out and borrow v18's. */
   knights?: KnightsArt;
+  /** The Christmas look. Versions before v20 leave this out and borrow v20's. */
+  christmas?: ChristmasArt;
+}
+
+/** The Christmas look: winter tiles, the North Pole, Santa's sleigh, and card decorations. */
+export interface ChristmasArt {
+  /** A base tile in winter, centered at the origin; `seed` varies its motion. */
+  WinterTile: (props: { uid: string; terrain: BaseTerrain; seed?: number }) => ReactElement;
+  /** Santa's home, centered at the origin. */
+  NorthPoleTile: (props: { uid: string }) => ReactElement;
+  /** Drawn under the North Pole's number token, at its origin. */
+  NorthPoleRing: () => ReactElement;
+  /** Santa's sleigh and reindeer, facing right. */
+  Sleigh: () => ReactElement;
+  /** Holly and snow over a resource card's art. */
+  CardDecor: () => ReactElement;
+  /** Seconds to fly to a building, and to stay there before leaving. */
+  sleigh: { flight: number; hold: number };
 }
 
 /** Cities & Knights: commodities, knights, walls, metropolises, the merchant, and the event die. */

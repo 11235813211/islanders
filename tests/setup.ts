@@ -13,6 +13,8 @@ Object.assign(DEFAULT_SETTINGS, {
   victoryPoints: 10,
   pieceRewards: [],
   pieceStyle: 'classic',
+  christmas: false,
+  northPole: true,
   tradeSeconds: 30,
   decisionSeconds: 30,
   showBank: 'auto',

@@ -25,6 +25,7 @@ import {
 } from './core';
 import { startKnights } from './knights';
 import { SCHEMA_VERSION } from './migrations';
+import { placeNorthPole } from './santa';
 
 /** A fresh board for the room's map: the standard island, or a new draw of the chosen design. */
 export function boardFor(
@@ -82,6 +83,8 @@ function drawFrom(state: GameState, seed: number): ReturnType<typeof boardFor> {
 /** Put the board drawn from `seed` on the table. */
 function showDraw(next: GameState, seed: number): void {
   Object.assign(next, drawFrom(next, seed));
+  // Its own stream, so the board drawn from a seed stays the same with or without Santa.
+  next.northPole = placeNorthPole(next, seededRandom(seed ^ 0x5a17a));
 }
 
 /**
@@ -201,6 +204,7 @@ export function createGame(
     specialQueue: [],
     specialAsked: [],
     specialTraded: [],
+    northPole: null,
     resumePhase: null,
     longestRoadId: null,
     largestArmyId: null,
@@ -342,6 +346,15 @@ export const lobbyHandlers: Pick<
       next.settings.victoryPoints = next.settings.citiesKnights
         ? KNIGHTS_LIMITS.victoryPoints
         : DEFAULT_SETTINGS.victoryPoints;
+    // Christmas brings gingerbread pieces, and leaving it puts classic ones back, unless the host
+    // picked a style in the same move.
+    if (
+      state.settings.christmas !== next.settings.christmas &&
+      next.settings.pieceStyle === state.settings.pieceStyle
+    ) {
+      if (next.settings.christmas) next.settings.pieceStyle = 'gingerbread';
+      else if (next.settings.pieceStyle === 'gingerbread') next.settings.pieceStyle = 'classic';
+    }
     // Turning Seafarers on or off redraws the preview (the standard island gains or loses its sea).
     if (state.settings.seafarers !== next.settings.seafarers)
       Object.assign(

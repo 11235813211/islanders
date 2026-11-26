@@ -1,15 +1,16 @@
 // Active art version. To roll back, point this at an older folder (e.g. './v1').
 import type { ReactElement } from 'react';
-import { createElement } from 'react';
+import { createContext, createElement, useContext } from 'react';
 import { type BaseTerrain, COMMODITIES, type Commodity, type Resource, type Terrain } from '../../shared/types';
-import type { CardColors, CartographersArt, KnightsArt, SeaArt, SeaTileKind } from './types';
+import type { CardColors, CartographersArt, ChristmasArt, KnightsArt, SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
 import { FogTile as FallbackFogTile } from './v12/sea/fog';
 import { cartographers as fallbackCartographers } from './v14/cartographers';
 import { cartographers as splitCartographers } from './v16/cartographers';
 import { knights as fallbackKnights } from './v18/knights';
-import { art } from './v19';
 import { MegacityPiece as fallbackMegacity } from './v19/pieces';
+import { art } from './v20';
+import { christmas as fallbackChristmas } from './v20/christmas';
 
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
@@ -23,6 +24,10 @@ export const SplitSeam = CARTOGRAPHERS.SplitSeam ?? splitCartographers.SplitSeam
 export const PeekVeil = CARTOGRAPHERS.PeekVeil ?? splitCartographers.PeekVeil!;
 /** Megacities: the active version's, or v19's for versions made before them. */
 export const MegacityPiece = (art as { MegacityPiece?: typeof fallbackMegacity }).MegacityPiece ?? fallbackMegacity;
+/** The Christmas look: the active version's, or v20's for versions made before it. */
+export const CHRISTMAS: ChristmasArt = (art as { christmas?: ChristmasArt }).christmas ?? fallbackChristmas;
+/** True inside a room with the Christmas look: tiles and cards draw their winter versions. */
+export const ChristmasTheme = createContext(false);
 /** Cities & Knights art: the active version's, or v18's for versions made before it. */
 export const KNIGHTS: KnightsArt = (art as { knights?: KnightsArt }).knights ?? fallbackKnights;
 export const CARD_COLORS: Record<Resource, CardColors> = {
@@ -43,6 +48,11 @@ export function ResourceIcon({ resource, size }: { resource: Resource; size?: nu
 
 /** The large illustration in the middle of a resource card. */
 export function ResourceArt({ resource }: { resource: Resource }): ReactElement {
+  const plain = createElement(PlainResourceArt, { resource });
+  if (!useContext(ChristmasTheme)) return plain;
+  return createElement('span', { className: 'cards-xmas' }, plain, createElement(CHRISTMAS.CardDecor));
+}
+function PlainResourceArt({ resource }: { resource: Resource }): ReactElement {
   if (resource === 'lodestone') return createElement(CARTOGRAPHERS.ResourceArt);
   if (isCommodity(resource)) return createElement(KNIGHTS.CommodityArt, { commodity: resource });
   return createElement(art.ResourceArt, { resource });
@@ -71,7 +81,10 @@ export function Tile({
   terrain: Terrain | 'land';
   variant?: number;
 }): ReactElement {
+  const winter = useContext(ChristmasTheme);
   if (terrain === 'fog') return createElement(FogTile, { uid });
+  if (winter && BASE_TERRAINS.has(terrain))
+    return createElement(CHRISTMAS.WinterTile, { uid, terrain: terrain as BaseTerrain, seed: variant ?? 0 });
   if (terrain === 'lodestone') return createElement(CARTOGRAPHERS.Tile, { uid });
   return BASE_TERRAINS.has(terrain)
     ? createElement(HexTile, { uid, terrain: terrain as BaseTerrain })

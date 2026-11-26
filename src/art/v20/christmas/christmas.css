@@ -1,0 +1,129 @@
+/* Christmas tile motion. Timings come from each element's --fall, --gust, --blow, --twinkle and
+   --delay (see effects.tsx and tuning.ts); this file only says how things move. */
+
+.xmas-flake {
+  animation: xmas-fall var(--fall, 7s) linear var(--delay, 0s) infinite;
+  will-change: transform;
+}
+@keyframes xmas-fall {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.95;
+  }
+  50% {
+    transform: translate(calc(var(--drift, 0px) * -0.5), 62px);
+  }
+  90% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--drift, 0px), 124px);
+    opacity: 0;
+  }
+}
+
+.xmas-gust {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 34 200;
+  opacity: 0.75;
+  animation: xmas-gust var(--gust, 4s) ease-in-out var(--delay, 0s) infinite;
+}
+@keyframes xmas-gust {
+  0% {
+    stroke-dashoffset: 40;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    stroke-dashoffset: -190;
+    opacity: 0;
+  }
+}
+
+.xmas-blown {
+  fill: #ffffff;
+  animation: xmas-blow var(--blow, 3.5s) linear var(--delay, 0s) infinite;
+}
+@keyframes xmas-blow {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.95;
+  }
+  35% {
+    transform: translate(50px, -5px);
+  }
+  65% {
+    transform: translate(95px, 4px);
+  }
+  90% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(140px, -2px);
+    opacity: 0;
+  }
+}
+
+.xmas-bulb {
+  animation: xmas-twinkle var(--twinkle, 2.8s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+@keyframes xmas-twinkle {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: var(--dim, 0.5);
+  }
+}
+
+/* Smoke from the workshop chimney and the North Pole's glow. */
+.xmas-smoke {
+  animation: xmas-smoke 4.5s ease-out var(--delay, 0s) infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes xmas-smoke {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(6px, -22px) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmas-flake,
+  .xmas-gust,
+  .xmas-blown,
+  .xmas-bulb,
+  .xmas-smoke {
+    animation: none;
+  }
+  .xmas-flake {
+    transform: translate(0, var(--rest, 60px));
+  }
+  .xmas-gust,
+  .xmas-blown,
+  .xmas-smoke {
+    opacity: 0;
+  }
+}

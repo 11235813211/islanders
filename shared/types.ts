@@ -142,6 +142,7 @@ export const CARD_SOURCES = [
   'plenty',
   'bank',
   'trade',
+  'santa',
 ] as const;
 export type CardSource = (typeof CARD_SOURCES)[number];
 /** Where a player's cards went. */
@@ -193,6 +194,8 @@ export type Phase =
   | 'gift'
   /** Cities & Knights, Deserter: the active player places the knight they won. */
   | 'place-knight'
+  /** Christmas: the North Pole's number came up; the roller picks another player's building for Santa. */
+  | 'santa'
   | 'finished';
 /**
  * Structured record of what a log line describes, for bots, stats, and UI.
@@ -215,6 +218,8 @@ export type GameEvent =
   | { kind: 'steal'; thiefId: string; victimId: string; resource: Tradable | null }
   | { kind: 'development'; playerId: string; card: DevelopmentType; gains: TradeBag | null }
   | { kind: 'gold'; playerId: string; resources: ResourceBag }
+  /** Santa flew from the North Pole to `vertexId` and gave its owner one card. */
+  | { kind: 'santa'; playerId: string; targetId: string; vertexId: string; resource: ClassicResource }
   | {
       kind: 'eruption';
       hexId: string;
@@ -260,7 +265,7 @@ export interface ChatMessage {
   at: number;
   spectator: boolean;
 }
-export const PIECE_STYLES = ['classic', 'chalet', 'korean'] as const;
+export const PIECE_STYLES = ['classic', 'chalet', 'korean', 'gingerbread'] as const;
 /** How settlements and cities are drawn. Purely visual; the rules are the same. */
 export type PieceStyle = (typeof PIECE_STYLES)[number];
 /**
@@ -268,6 +273,11 @@ export type PieceStyle = (typeof PIECE_STYLES)[number];
  * players, where the counts would reveal the other player's hand by subtraction.
  */
 export type BankDisplay = 'auto' | 'always' | 'never';
+/** Christmas: the tile where Santa lives, and the number that sends him out. */
+export interface NorthPole {
+  hexId: string;
+  number: number;
+}
 export interface GameSettings {
   autoRollSeconds: number;
   trackDice: boolean;
@@ -279,6 +289,10 @@ export interface GameSettings {
   /** Extra pieces at some points (see POINT_REWARDS). Used only on maps without their own. */
   pieceRewards: PieceReward[];
   pieceStyle: PieceStyle;
+  /** The Christmas look: winter tiles, festive cards and colors, for everyone in the room. */
+  christmas: boolean;
+  /** Christmas: Santa's North Pole on a desert, with its own number (see engine/santa.ts). */
+  northPole: boolean;
   /** Seconds a trade offer stays open. */
   tradeSeconds: number;
   /** Seconds for short choices (the robber or pirate, gold, volcano picks) before one is made for you. */
@@ -507,6 +521,8 @@ export interface GameState {
   specialAsked: string[];
   /** Seven or eight players: who made their one special-build bank trade since their own last turn. */
   specialTraded: string[];
+  /** Christmas: Santa's tile and its number, or null without the North Pole. */
+  northPole: NorthPole | null;
   resumePhase: 'roll' | 'build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
@@ -647,6 +663,7 @@ export interface GameView {
   specialQueue: string[];
   specialAsked: string[];
   specialTraded: string[];
+  northPole: NorthPole | null;
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
   features: { sea: boolean; volcano: boolean; fogLand: number };
   winnerId: string | null;
@@ -728,6 +745,7 @@ export type GameAction =
   | { type: 'choose-map'; mapId: string; layoutFor?: number }
   | { type: 'roll' }
   | { type: 'roll-volcanoes' }
+  | { type: 'send-santa'; vertexId: string }
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }
