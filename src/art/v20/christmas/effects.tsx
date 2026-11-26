@@ -1,6 +1,7 @@
-// Animated snow, wind, and twinkling lights for the Christmas tiles. Motion is CSS (christmas.css),
-// so the board does not re-render; each element gets its own timing from a fixed pseudo-random
-// spread, so every tile looks the same on every screen. Reduced motion stops it all.
+// Snowflakes, wind, and lights for the Christmas tiles. Tiles are still; when one pays out on a
+// roll it plays its motion once (inside a `.xmas-active` group: see WinterTile and
+// christmas.css). Each element's timing comes from a fixed pseudo-random spread, so every tile
+// looks the same on every screen. Reduced motion skips the motion.
 import type { CSSProperties } from 'react';
 import { CHRISTMAS } from './tuning';
 
@@ -10,70 +11,93 @@ export function spread(i: number, salt: number): number {
   return v - Math.floor(v);
 }
 const between = ([lo, hi]: readonly [number, number], t: number) => lo + (hi - lo) * t;
-const vars = (values: Record<string, string | number>) =>
-  Object.fromEntries(
-    Object.entries(values).map(([k, v]) => [`--${k}`, typeof v === 'number' ? `${v}s` : v]),
-  ) as CSSProperties;
+const seconds = (values: Record<string, number>) =>
+  Object.fromEntries(Object.entries(values).map(([k, v]) => [`--${k}`, `${v}s`])) as CSSProperties;
 
-type Snow = { flakes: number; fall: number; drift: number; size: readonly [number, number]; color: string };
+/** A six-armed snowflake with little branches and a glint, `size` across, centered at the origin. */
+export function Snowflake({ size, rotate = 0 }: { size: number; rotate?: number }) {
+  const r = size / 2;
+  const arm = `M0 0V${-r}M0 ${-r * 0.55}l${-r * 0.28} ${-r * 0.26}M0 ${-r * 0.55}l${r * 0.28} ${-r * 0.26}`;
+  return (
+    <g transform={`rotate(${rotate})`}>
+      <g stroke={CHRISTMAS.flakes.edge} strokeWidth={r * 0.36} strokeLinecap="round" fill="none" opacity=".55">
+        {[0, 60, 120, 180, 240, 300].map(a => (
+          <path key={a} d={arm} transform={`rotate(${a})`} />
+        ))}
+      </g>
+      <g stroke={CHRISTMAS.flakes.color} strokeWidth={r * 0.2} strokeLinecap="round" fill="none">
+        {[0, 60, 120, 180, 240, 300].map(a => (
+          <path key={a} d={arm} transform={`rotate(${a})`} />
+        ))}
+      </g>
+      <circle r={r * 0.2} fill="#fff" />
+      {/* The glint: a small four-point star that makes the flake look shiny. */}
+      <path
+        d={`M${r * 0.45} ${-r * 0.75}l${r * 0.08} ${r * 0.22} ${r * 0.22} ${r * 0.08}-${r * 0.22} ${r * 0.08}-${r * 0.08} ${r * 0.22}-${r * 0.08}-${r * 0.22}-${r * 0.22}-${r * 0.08} ${r * 0.22}-${r * 0.08}Z`}
+        fill={CHRISTMAS.flakes.glint}
+      />
+    </g>
+  );
+}
 
-/** Flakes falling through the tile from top to bottom, each on its own loop. `seed` varies tiles. */
-export function Snowfall({ snow, seed = 0 }: { snow: Snow; seed?: number }) {
+/** A few still snowflakes scattered over the tile, kept clear of the number token. */
+export function StillFlakes({ count, seed }: { count: number; seed: number }) {
+  const { size } = CHRISTMAS.flakes;
+  const spots: [number, number][] = [];
+  for (let i = 0; spots.length < count && i < count * 8; i++) {
+    const x = -46 + 92 * spread(i, seed + 21);
+    const y = -44 + 80 * spread(i, seed + 22);
+    if (Math.hypot(x, y - 8) > 24) spots.push([x, y]);
+  }
+  return (
+    <g aria-hidden="true">
+      {spots.map(([x, y], i) => (
+        <g key={i} transform={`translate(${x} ${y})`}>
+          <Snowflake size={between(size, spread(i, seed + 23))} rotate={30 * spread(i, seed + 24)} />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/** Snowflakes that fall through the tile once, when it pays out. */
+export function FallingFlakes({ seed }: { seed: number }) {
+  const { fall, falling, size, drift } = CHRISTMAS.flakes;
   return (
     <g className="xmas-snow" aria-hidden="true">
-      {Array.from({ length: snow.flakes }, (_, i) => {
-        const x = -58 + 116 * spread(i, seed + 1);
-        const duration = snow.fall * (0.75 + 0.5 * spread(i, seed + 2));
+      {Array.from({ length: falling }, (_, i) => {
         const style = {
-          ...vars({ fall: duration, delay: -duration * spread(i, seed + 3) }),
-          '--drift': `${(spread(i, seed + 4) - 0.5) * 2 * snow.drift}px`,
-          // Where the flake rests when motion is reduced.
-          '--rest': `${10 + 110 * spread(i, seed + 15)}px`,
+          ...seconds({ fall: fall * (0.8 + 0.4 * spread(i, seed + 2)), delay: 0.9 * spread(i, seed + 3) }),
+          '--drift': `${(spread(i, seed + 4) - 0.5) * 2 * drift}px`,
         } as CSSProperties;
         return (
-          <circle
-            key={i}
-            className="xmas-flake"
-            cx={x}
-            cy={-62}
-            r={between(snow.size, spread(i, seed + 5))}
-            fill={snow.color}
-            style={style}
-          />
+          <g key={i} transform={`translate(${-50 + 100 * spread(i, seed + 1)} -62)`}>
+            <g className="xmas-flake" style={style}>
+              <Snowflake size={between(size, spread(i, seed + 5))} rotate={60 * spread(i, seed + 6)} />
+            </g>
+          </g>
         );
       })}
     </g>
   );
 }
 
-/** Wind over a field: soft streaks sweeping across, and flakes blown sideways. */
+/** White streaks of wind across a field; they sweep across once when the field pays out. */
 export function Wind({ seed = 0 }: { seed?: number }) {
   const wind = CHRISTMAS.fieldWind;
   return (
     <g className="xmas-wind" aria-hidden="true">
       {Array.from({ length: wind.gusts }, (_, i) => {
         const y = -34 + 62 * ((i + 0.5) / wind.gusts) + 8 * (spread(i, seed + 6) - 0.5);
-        const duration = wind.gust * (0.8 + 0.4 * spread(i, seed + 7));
         return (
           <path
-            key={`g${i}`}
+            key={i}
             className="xmas-gust"
             d={`M-80 ${y}q20 -7 40 0t40 0 40 0q10 -4 16 -12`}
-            style={vars({ gust: duration, delay: -duration * spread(i, seed + 8) })}
-          />
-        );
-      })}
-      {Array.from({ length: wind.flakes }, (_, i) => {
-        const y = -50 + 100 * spread(i, seed + 9);
-        const duration = wind.blow * (0.7 + 0.6 * spread(i, seed + 10));
-        return (
-          <circle
-            key={`f${i}`}
-            className="xmas-blown"
-            cx={-70}
-            cy={y}
-            r={between(wind.size, spread(i, seed + 11))}
-            style={vars({ blow: duration, delay: -duration * spread(i, seed + 12) })}
+            style={{
+              ...seconds({ gust: wind.gust * (0.85 + 0.3 * spread(i, seed + 7)), delay: 0.35 * i }),
+              strokeDashoffset: -40 - 60 * spread(i, seed + 8),
+            }}
           />
         );
       })}
@@ -83,7 +107,7 @@ export function Wind({ seed = 0 }: { seed?: number }) {
 
 /**
  * A string of lights tied to `posts`: the wire dips a little (`sag`) between them, and a bulb hangs
- * at each post, the high point of each dip. They twinkle slowly out of step.
+ * at each post, the high point of each dip. They twinkle a few times when the hill pays out.
  */
 export function LightString({ posts, sag, seed = 0 }: { posts: [number, number][]; sag: number; seed?: number }) {
   const lights = CHRISTMAS.hillLights;
@@ -99,7 +123,6 @@ export function LightString({ posts, sag, seed = 0 }: { posts: [number, number][
       <path d={d} fill="none" stroke={lights.wire} strokeWidth="1" strokeLinejoin="round" opacity=".85" />
       {posts.map(([x, y], i) => {
         const color = lights.colors[i % lights.colors.length]!;
-        const duration = lights.twinkle * (0.8 + 0.5 * spread(i, seed + 13));
         return (
           <g key={i} transform={`translate(${x} ${y})`}>
             <rect x="-1.2" y="-0.6" width="2.4" height="2" rx=".4" fill={lights.wire} />
@@ -107,7 +130,7 @@ export function LightString({ posts, sag, seed = 0 }: { posts: [number, number][
               className="xmas-bulb"
               style={
                 {
-                  ...vars({ twinkle: duration, delay: -duration * spread(i, seed + 14) }),
+                  ...seconds({ twinkle: lights.twinkle, delay: 0.25 * spread(i, seed + 14) }),
                   '--dim': lights.dimmest,
                 } as CSSProperties
               }

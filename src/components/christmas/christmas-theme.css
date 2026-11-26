@@ -71,11 +71,6 @@
   background: linear-gradient(180deg, #ffffff, var(--xmas-pine-soft));
   border-color: color-mix(in srgb, var(--xmas-pine) 35%, #ffffff);
 }
-.theme-christmas .board-svg {
-  box-shadow:
-    0 0 0 3px #ffffffb0,
-    0 0 0 5px color-mix(in srgb, var(--xmas-red) 55%, #ffffff);
-}
 
 /* Cards: a cap of snow along the top and holly in the corner (CHRISTMAS.CardDecor). */
 .cards-xmas {

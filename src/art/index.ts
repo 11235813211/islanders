@@ -77,17 +77,26 @@ export function Tile({
   terrain,
   variant,
   grinch,
+  paid,
 }: {
   uid: string;
   terrain: Terrain | 'land';
   variant?: number;
   /** Christmas: the one mountain the Grinch hides behind. */
   grinch?: boolean;
+  /** Christmas: the roll's id when this tile just paid out, to play its motion. */
+  paid?: number;
 }): ReactElement {
   const winter = useContext(ChristmasTheme);
   if (terrain === 'fog') return createElement(FogTile, { uid });
   if (winter && BASE_TERRAINS.has(terrain))
-    return createElement(CHRISTMAS.WinterTile, { uid, terrain: terrain as BaseTerrain, seed: variant ?? 0, grinch });
+    return createElement(CHRISTMAS.WinterTile, {
+      uid,
+      terrain: terrain as BaseTerrain,
+      seed: variant ?? 0,
+      grinch,
+      paid,
+    });
   if (terrain === 'lodestone') return createElement(CARTOGRAPHERS.Tile, { uid });
   return BASE_TERRAINS.has(terrain)
     ? createElement(HexTile, { uid, terrain: terrain as BaseTerrain })

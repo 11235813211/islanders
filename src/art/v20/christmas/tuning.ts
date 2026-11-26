@@ -1,45 +1,39 @@
-// Every number and color of the Christmas look, in one place to tweak. Animation speeds are in
-// seconds; counts are per tile. Set a count to 0 to turn that effect off.
+// Every number and color of the Christmas look, in one place to tweak. Tiles are still; a tile
+// plays its motion once when it pays out on a roll. Times are in seconds; counts are per tile.
 
 export const CHRISTMAS = {
-  /** Snow falling over mountain tiles. */
-  mountainSnow: {
-    flakes: 16,
-    /** Seconds for one flake to fall through the tile (each flake varies around this). */
-    fall: 6.5,
+  /** Snowflakes: still ones on the tiles, and ones that fall on a mountain when it pays out. */
+  flakes: {
+    color: '#ffffff',
+    /** A pale blue edge so flakes show on snow. */
+    edge: '#9cc4dc',
+    glint: '#fffbe0',
+    /** Across, in board units (each flake varies between these). */
+    size: [4, 7] as [number, number],
+    /** Still flakes on each tile kind (fields have none: just wind). */
+    still: { wood: 2, sheep: 2, wheat: 0, brick: 2, ore: 4, desert: 3 },
+    /** Flakes that fall on a mountain that pays out. */
+    falling: 12,
+    /** Seconds for one flake to fall through the tile. */
+    fall: 2.6,
     /** Sideways drift of a falling flake, in board units. */
     drift: 9,
-    size: [1.1, 2.3] as [number, number],
-    color: '#ffffff',
   },
-  /** A light snowfall over other tiles. 0 for none. */
-  lightSnow: {
-    flakes: 4,
-    fall: 9,
-    drift: 6,
-    size: [0.9, 1.6] as [number, number],
-    color: '#ffffff',
-  },
-  /** Wind and blowing snow over fields. */
+  /** Wind over fields: still white streaks that sweep across when the field pays out. */
   fieldWind: {
-    /** White streaks of wind sweeping across. */
     gusts: 3,
     /** Seconds for one gust to cross the tile. */
-    gust: 4.2,
-    /** Snowflakes carried sideways by the wind. */
-    flakes: 10,
-    blow: 3.6,
-    size: [1, 1.9] as [number, number],
+    gust: 2.4,
   },
   /** A string of lights swooping over the hills. */
   hillLights: {
     /** How far the wire dips between bulbs (board units); small keeps it taut. */
     sag: 1,
     colors: ['#ff4d4d', '#ffd23f', '#3fd28b', '#4db8ff', '#ff8adf'],
-    /** Seconds for one slow twinkle; bulbs start at different times. */
-    twinkle: 2.8,
+    /** Seconds for one twinkle when the hill pays out. */
+    twinkle: 0.45,
     /** How dim a bulb gets at the bottom of its twinkle (1 = never dims). */
-    dimmest: 0.62,
+    dimmest: 0.35,
     wire: '#2f3b2c',
   },
   /** Reindeer grazing on pasture tiles. */

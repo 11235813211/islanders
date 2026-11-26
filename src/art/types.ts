@@ -54,7 +54,14 @@ export interface ArtPack {
 /** The Christmas look: winter tiles, the North Pole, Santa's sleigh, and card decorations. */
 export interface ChristmasArt {
   /** A base tile in winter, centered at the origin; `seed` varies its motion. */
-  WinterTile: (props: { uid: string; terrain: BaseTerrain; seed?: number; grinch?: boolean }) => ReactElement;
+  WinterTile: (props: {
+    uid: string;
+    terrain: BaseTerrain;
+    seed?: number;
+    grinch?: boolean;
+    /** The roll's id when this tile just paid out: it plays its motion once. */
+    paid?: number;
+  }) => ReactElement;
   /** Santa's home, centered at the origin. */
   NorthPoleTile: (props: { uid: string }) => ReactElement;
   /** Drawn under the North Pole's number token, at its origin. */

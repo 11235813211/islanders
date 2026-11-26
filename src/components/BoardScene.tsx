@@ -107,8 +107,11 @@ export default function BoardScene({
   rumbles = [],
   peeks = {},
   northPole = null,
+  paid = null,
   children,
 }: {
+  /** Tiles that just paid out on a roll (Christmas tiles play their motion). */
+  paid?: { hexIds: Set<string>; rollId: number } | null;
   /** Christmas: Santa's tile and number (drawn in place of its desert). */
   northPole?: NorthPole | null;
   uid: string;
@@ -184,7 +187,13 @@ export default function BoardScene({
             ) : hex.split ? (
               <SplitTile uid={uid} left={hex.terrain} right={hex.split} />
             ) : (
-              <Tile uid={uid} terrain={hex.terrain} variant={tileVariant(hex)} grinch={hex.id === grinch} />
+              <Tile
+                uid={uid}
+                terrain={hex.terrain}
+                variant={tileVariant(hex)}
+                grinch={hex.id === grinch}
+                paid={paid?.hexIds.has(hex.id) ? paid.rollId : undefined}
+              />
             )}
             {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
             {!!hex.extra?.length && (

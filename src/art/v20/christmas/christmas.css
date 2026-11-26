@@ -1,38 +1,49 @@
-/* Christmas tile motion. Timings come from each element's --fall, --gust, --blow, --twinkle and
-   --delay (see effects.tsx and tuning.ts); this file only says how things move. */
+/* Christmas tile motion. Tiles are still; a tile that pays out on a roll gets `.xmas-active`
+   (WinterTile) and plays its motion once, starting as the dice settle (--start). Timings come from
+   each element's --fall, --gust, --twinkle and --delay (effects.tsx, tuning.ts). */
 
+.xmas-active {
+  --start: 1.1s;
+}
+
+/* Mountains: snowflakes fall through once. */
 .xmas-flake {
-  animation: xmas-fall var(--fall, 7s) linear var(--delay, 0s) infinite;
-  will-change: transform;
+  opacity: 0;
+}
+.xmas-active .xmas-flake {
+  animation: xmas-fall var(--fall, 2.6s) ease-in calc(var(--start) + var(--delay, 0s)) 1 both;
 }
 @keyframes xmas-fall {
   0% {
-    transform: translate(0, 0);
+    transform: translate(0, 0) rotate(0deg);
     opacity: 0;
   }
-  10% {
-    opacity: 0.95;
+  12% {
+    opacity: 1;
   }
   50% {
-    transform: translate(calc(var(--drift, 0px) * -0.5), 62px);
+    transform: translate(calc(var(--drift, 0px) * -0.5), 62px) rotate(60deg);
   }
-  90% {
-    opacity: 0.9;
+  88% {
+    opacity: 0.95;
   }
   100% {
-    transform: translate(var(--drift, 0px), 124px);
+    transform: translate(var(--drift, 0px), 124px) rotate(120deg);
     opacity: 0;
   }
 }
 
+/* Fields: still streaks of wind, which sweep across twice. */
 .xmas-gust {
   fill: none;
   stroke: #ffffff;
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-dasharray: 34 200;
-  opacity: 0.75;
-  animation: xmas-gust var(--gust, 4s) ease-in-out var(--delay, 0s) infinite;
+  opacity: 0.6;
+}
+.xmas-active .xmas-gust {
+  animation: xmas-gust var(--gust, 2.4s) ease-in-out calc(var(--start) + var(--delay, 0s)) 2;
 }
 @keyframes xmas-gust {
   0% {
@@ -40,10 +51,10 @@
     opacity: 0;
   }
   15% {
-    opacity: 0.75;
+    opacity: 0.8;
   }
   80% {
-    opacity: 0.6;
+    opacity: 0.7;
   }
   100% {
     stroke-dashoffset: -190;
@@ -51,35 +62,9 @@
   }
 }
 
-.xmas-blown {
-  fill: #ffffff;
-  animation: xmas-blow var(--blow, 3.5s) linear var(--delay, 0s) infinite;
-}
-@keyframes xmas-blow {
-  0% {
-    transform: translate(0, 0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.95;
-  }
-  35% {
-    transform: translate(50px, -5px);
-  }
-  65% {
-    transform: translate(95px, 4px);
-  }
-  90% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: translate(140px, -2px);
-    opacity: 0;
-  }
-}
-
-.xmas-bulb {
-  animation: xmas-twinkle var(--twinkle, 2.8s) ease-in-out var(--delay, 0s) infinite alternate;
+/* Hills: the bulbs twinkle a few times. */
+.xmas-active .xmas-bulb {
+  animation: xmas-twinkle var(--twinkle, 0.5s) ease-in-out calc(var(--start) + var(--delay, 0s)) 6 alternate;
 }
 @keyframes xmas-twinkle {
   from {
@@ -90,40 +75,54 @@
   }
 }
 
-/* Smoke from the workshop chimney and the North Pole's glow. */
-.xmas-smoke {
-  animation: xmas-smoke 4.5s ease-out var(--delay, 0s) infinite;
+/* Pasture: each reindeer hops twice. */
+.xmas-hop {
   transform-box: fill-box;
-  transform-origin: center;
+  transform-origin: center bottom;
 }
-@keyframes xmas-smoke {
-  0% {
-    transform: translate(0, 0) scale(0.6);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.7;
-  }
+.xmas-active .xmas-hop {
+  animation: xmas-hop 0.5s ease-out calc(var(--start) + var(--delay, 0s)) 2;
+}
+@keyframes xmas-hop {
+  0%,
   100% {
-    transform: translate(6px, -22px) scale(1.6);
-    opacity: 0;
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  50% {
+    transform: translateY(-6px) scale(0.97, 1.04);
   }
 }
 
+/* Forest: the trees sway and the baubles flash. */
+.xmas-sway {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+.xmas-active .xmas-sway {
+  animation: xmas-sway 0.7s ease-in-out calc(var(--start) + var(--delay, 0s)) 3 alternate;
+}
+@keyframes xmas-sway {
+  from {
+    transform: rotate(-3deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+.xmas-active .xmas-bauble {
+  animation: xmas-twinkle 0.35s ease-in-out calc(var(--start) + var(--delay, 0s)) 8 alternate;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .xmas-flake,
-  .xmas-gust,
-  .xmas-blown,
-  .xmas-bulb,
-  .xmas-smoke {
+  .xmas-active .xmas-flake,
+  .xmas-active .xmas-gust,
+  .xmas-active .xmas-bulb,
+  .xmas-active .xmas-hop,
+  .xmas-active .xmas-sway,
+  .xmas-active .xmas-bauble {
     animation: none;
-  }
-  .xmas-flake {
-    transform: translate(0, var(--rest, 60px));
-  }
-  .xmas-gust,
-  .xmas-blown,
-  .xmas-smoke {
-    opacity: 0;
   }
 }

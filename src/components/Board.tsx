@@ -17,6 +17,7 @@ import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
 import BoardScene, { type Drift } from './BoardScene';
+import { paidTiles } from './christmas/paidTiles';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
@@ -259,6 +260,7 @@ export default function Board({
             drifts={icebergDrifts(rolled)}
             rumbles={volcanoRumbles(view, rolled)}
             northPole={view.northPole}
+            paid={paidTiles(view, rolled)}
             peeks={view.fogPeeks}
           />
           <RouteZones zones={viewerZones(view)} />

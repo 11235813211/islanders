@@ -1,11 +1,11 @@
 // Winter versions of the base tiles: snowy pines with baubles, reindeer on the pasture, wind and a
 // snowman in the fields, lights strung around the hills, snow falling on the mountains (one hides
 // the Grinch), and a frozen desert with a polar bear. Each keeps its tile's own color, so terrain still reads at a glance.
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import type { BaseTerrain } from '../../../../shared/types';
 import { TileFrame } from '../index';
 import { BrickHills, ForestGround, Wheat, WheatGround } from '../terrain-features';
-import { LightString, Snowfall, spread, Wind } from './effects';
+import { FallingFlakes, LightString, StillFlakes, Wind } from './effects';
 import { CHRISTMAS } from './tuning';
 
 const SNOW = CHRISTMAS.snow;
@@ -28,42 +28,46 @@ function SnowyPine({
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`}>
       <ellipse cx="1" cy="9" rx="11" ry="3" fill="#36506a" opacity=".2" />
-      <path d="M0 1V11" stroke="#5e5040" strokeWidth="3" />
-      {/* The board's own two-tier pine, with snow only where it would settle: the tip and the ledges. */}
-      <path d="M0-24 12 0H7L14 8H-14L-7 0H-12Z" fill="#135a32" />
-      <path d="M0-24V8H-14L-7 0H-12Z" fill="#237e3b" />
-      <path d="M-2-17-8-4H-4" fill="none" stroke="#83a374" strokeWidth="1.2" opacity=".55" />
-      <path d="M0-24l3.4 6.8q-1.7-.9-3.4.5q-1.7-1.4-3.4-.5Z" fill={SNOW.light} />
-      <path d="M-12 0H-7l-1.6 1.8q-1.5-1.1-3.4-1.8Zm19 0H12q-1.9.7-3.4 1.8Z" fill={SNOW.light} />
-      <path d="M-14 8h7q-2 1.6-3.6.6q-1.6 1-3.4-.6Zm21 0h7q-1.8 1.6-3.4.6q-1.6 1-3.6-.6Z" fill={SNOW.shade} />
-      {dressed &&
-        [
-          [-4, -9],
-          [5, -4],
-          [-8, 4],
-          [3, 4.5],
-          [9, 6],
-          [-2, -16],
-        ].map(([bx, by], i) => (
-          <circle
-            key={i}
-            cx={bx}
-            cy={by}
-            r="1.6"
-            fill={baubles[i % baubles.length]}
-            stroke="#fff"
-            strokeOpacity=".5"
-            strokeWidth=".5"
+      <g className="xmas-sway" style={{ '--delay': `${(x + 60) / 400}s` } as CSSProperties}>
+        <path d="M0 1V11" stroke="#5e5040" strokeWidth="3" />
+        {/* The board's own two-tier pine, with snow only where it would settle: the tip and the ledges. */}
+        <path d="M0-24 12 0H7L14 8H-14L-7 0H-12Z" fill="#135a32" />
+        <path d="M0-24V8H-14L-7 0H-12Z" fill="#237e3b" />
+        <path d="M-2-17-8-4H-4" fill="none" stroke="#83a374" strokeWidth="1.2" opacity=".55" />
+        <path d="M0-24l3.4 6.8q-1.7-.9-3.4.5q-1.7-1.4-3.4-.5Z" fill={SNOW.light} />
+        <path d="M-12 0H-7l-1.6 1.8q-1.5-1.1-3.4-1.8Zm19 0H12q-1.9.7-3.4 1.8Z" fill={SNOW.light} />
+        <path d="M-14 8h7q-2 1.6-3.6.6q-1.6 1-3.4-.6Zm21 0h7q-1.8 1.6-3.4.6q-1.6 1-3.6-.6Z" fill={SNOW.shade} />
+        {dressed &&
+          [
+            [-4, -9],
+            [5, -4],
+            [-8, 4],
+            [3, 4.5],
+            [9, 6],
+            [-2, -16],
+          ].map(([bx, by], i) => (
+            <circle
+              key={i}
+              className="xmas-bauble"
+              style={{ '--delay': `${i * 0.07}s` } as CSSProperties}
+              cx={bx}
+              cy={by}
+              r="1.6"
+              fill={baubles[i % baubles.length]}
+              stroke="#fff"
+              strokeOpacity=".5"
+              strokeWidth=".5"
+            />
+          ))}
+        {star && (
+          <path
+            d="M0-31.5l1.5 3.3 3.6.4-2.7 2.4.8 3.6L0-23.6l-3.2 1.8.8-3.6-2.7-2.4 3.6-.4Z"
+            fill={CHRISTMAS.forest.star}
+            stroke="#b98a12"
+            strokeWidth=".6"
           />
-        ))}
-      {star && (
-        <path
-          d="M0-31.5l1.5 3.3 3.6.4-2.7 2.4.8 3.6L0-23.6l-3.2 1.8.8-3.6-2.7-2.4 3.6-.4Z"
-          fill={CHRISTMAS.forest.star}
-          stroke="#b98a12"
-          strokeWidth=".6"
-        />
-      )}
+        )}
+      </g>
     </g>
   );
 }
@@ -168,14 +172,28 @@ export function Reindeer({
   );
 }
 
+const PASTURE_DRIFTS = [
+  [-48, 18, 12],
+  [44, 46, 12],
+] as const;
+const PASTURE_REINDEER = [
+  { x: -22, y: -22, scale: 0.95, scarf: true },
+  { x: 36, y: -14, scale: 0.85, flip: true, rudolph: true },
+  { x: -30, y: 34, scale: 0.9 },
+];
+
 function WinterPasture() {
   return (
     <g>
-      <path d="M-70-5Q-28-41 2-14T70-10V65H-70Z" fill={SNOW.light} />
+      <path d="M-70-5Q-28-41 2-14T70-10V65H-70Z" fill="#badb65" />
+      <path d="M-70-5Q-28-41 2-14T70-10V-7Q30-14 2-10T-70-1Z" fill={SNOW.light} />
       <path d="M-70 24Q-24-12 14 11T70 7V65H-70Z" fill="#86bd4a" />
-      <path d="M-70 24Q-24-12 14 11T70 7V12Q30 4 14 16T-70 30Z" fill={SNOW.shade} />
+      <path d="M-70 24Q-24-12 14 11T70 7V9.5Q30 2 14 13.5T-70 27Z" fill={SNOW.light} />
       <path d="M-70 51Q-17 10 21 35T70 32V65H-70Z" fill="#9fd055" />
-      <path d="M-70 51Q-17 10 21 35T70 32V37Q30 28 20 40T-70 56Z" fill={SNOW.light} opacity=".85" />
+      <path d="M-70 51Q-17 10 21 35T70 32V34.5Q30 26 20 37.5T-70 53.5Z" fill={SNOW.light} opacity=".9" />
+      {PASTURE_DRIFTS.map(([x, y, w]) => (
+        <Drift key={`${x},${y}`} x={x} y={y} w={w} />
+      ))}
       {/* Contours and tufts so the green reads as rolling meadow. */}
       <path
         d="M-62 38Q-34 20-6 28M14 22q20-6 44-4M-58 46q20-10 40-8M-2 60q20-14 52-14"
@@ -205,9 +223,12 @@ function WinterPasture() {
         strokeWidth="1.3"
         strokeLinecap="round"
       />
-      <Reindeer x={-22} y={-22} scale={0.95} scarf />
-      <Reindeer x={24} y={-6} scale={0.85} flip rudolph />
-      <Reindeer x={-18} y={30} scale={0.9} />
+      {/* Placed clear of the number token. Each hops when the pasture pays out. */}
+      {PASTURE_REINDEER.map(({ x, y, scale, flip, rudolph, scarf }, i) => (
+        <g key={i} className="xmas-hop" style={{ '--delay': `${i * 0.18}s` } as CSSProperties}>
+          <Reindeer x={x} y={y} scale={scale} flip={flip} rudolph={rudolph} scarf={scarf} />
+        </g>
+      ))}
     </g>
   );
 }
@@ -480,28 +501,32 @@ const SCENES: Record<BaseTerrain, (props: { grinch?: boolean }) => ReactElement>
   desert: WinterDesert,
 };
 
-/** A base tile in winter, centered at the origin, with its animation. `seed` varies the motion. */
+/** A base tile in winter, centered at the origin. `seed` varies the flakes; `paid` plays its motion. */
 export function WinterTile({
   uid,
   terrain,
   seed = 0,
   grinch = false,
+  paid,
 }: {
   uid: string;
   terrain: BaseTerrain;
   seed?: number;
   /** The one mountain on the board the Grinch hides behind. */
   grinch?: boolean;
+  /** Set (to the roll's id) when this tile just paid out: it plays its motion once. */
+  paid?: number;
 }) {
   const Scene = SCENES[terrain];
+  // A new roll gives a new key, so the motion starts over.
   return (
     <TileFrame uid={uid} terrain={terrain}>
-      <Scene grinch={grinch} />
-      {terrain === 'ore' && <Snowfall snow={CHRISTMAS.mountainSnow} seed={seed} />}
-      {terrain === 'wheat' && <Wind seed={seed} />}
-      {terrain !== 'ore' && terrain !== 'wheat' && (
-        <Snowfall snow={CHRISTMAS.lightSnow} seed={seed + 50 * spread(seed, 1)} />
-      )}
+      <g key={paid ?? 'still'} className={paid === undefined ? undefined : 'xmas-active'}>
+        <Scene grinch={grinch} />
+        <StillFlakes count={CHRISTMAS.flakes.still[terrain]} seed={seed} />
+        {terrain === 'ore' && paid !== undefined && <FallingFlakes seed={seed} />}
+        {terrain === 'wheat' && <Wind seed={seed} />}
+      </g>
     </TileFrame>
   );
 }

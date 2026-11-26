@@ -1,8 +1,7 @@
 // The North Pole tile (Santa's home: striped pole, workshop, presents) and its number token, and
 // Santa's sleigh for the flight to a building.
-import type { CSSProperties } from 'react';
 import { hexPoints } from '../../../lib/geometry';
-import { Snowfall } from './effects';
+import { StillFlakes } from './effects';
 import { Reindeer } from './tiles';
 import { CHRISTMAS } from './tuning';
 
@@ -27,22 +26,14 @@ function Present({ x, y, w, color, ribbon }: { x: number; y: number; w: number; 
   );
 }
 
-/** Santa's workshop: a red house with a snowy roof, warm windows, a wreath, and a smoking chimney. */
+/** Santa's workshop: a red house with a snowy roof, warm windows, a wreath, and chimney smoke. */
 function Workshop({ x, y }: { x: number; y: number }) {
   return (
     <g transform={`translate(${x} ${y})`}>
       <ellipse cy="1" rx="19" ry="3.5" fill="#7d9cb0" opacity=".25" />
       <rect x="9" y="-26" width="5" height="10" fill="#8f2a22" />
-      {[0, 1.5, 3].map(delay => (
-        <circle
-          key={delay}
-          className="xmas-smoke"
-          cx="11.5"
-          cy="-29"
-          r="2.6"
-          fill="#f4f7fa"
-          style={{ '--delay': `${-delay}s` } as CSSProperties}
-        />
+      {[0, 1, 2].map(i => (
+        <circle key={i} cx={11.5 + i * 2.2} cy={-29 - i * 4.4} r={2 + i * 0.7} fill="#f4f7fa" opacity={0.8 - i * 0.2} />
       ))}
       <rect x="-16" y="-15" width="32" height="15" fill={POLE.workshop} stroke="#6e1219" strokeWidth=".8" />
       <path d="M-19-14 0-29 19-14Z" fill="#7a1a20" />
@@ -84,7 +75,7 @@ export function NorthPoleTile({ uid }: { uid: string }) {
         <Present x={-27} y={38} w={7} color="#e2333b" ribbon="#fff" />
         <Present x={33} y={34} w={8} color="#4d7fd6" ribbon="#ff8adf" />
         <Reindeer x={36} y={10} scale={0.62} flip rudolph />
-        <Snowfall snow={CHRISTMAS.lightSnow} seed={91} />
+        <StillFlakes count={2} seed={91} />
         <polygon points={hexPoints(56.5)} fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="1.2" />
       </g>
     </>

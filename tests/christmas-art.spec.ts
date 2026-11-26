@@ -16,7 +16,7 @@ const MOTION = readFileSync(new URL('../src/art/v20/christmas/christmas.css', im
 const SEATS = ['red', 'blue', 'white', 'green', 'pink', 'teal'] as const;
 
 /** One row of tiles: classic art, or winter art with a gingerbread settlement and city on each. */
-function row(uid: string, winter: boolean) {
+function row(uid: string, winter: boolean, paid?: number) {
   return renderToStaticMarkup(
     h(
       'svg',
@@ -31,7 +31,7 @@ function row(uid: string, winter: boolean) {
           'g',
           { key: terrain, transform: `translate(${i * CELL + CELL / 2} 0)` },
           winter
-            ? h(WinterTile, { uid, terrain, seed: i, grinch: terrain === 'ore' })
+            ? h(WinterTile, { uid, terrain, seed: i, grinch: terrain === 'ore', paid })
             : h(art.HexTile, { uid, terrain }),
           winter &&
             h(
@@ -111,9 +111,9 @@ test('render the Christmas art for review', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1400 });
   await page.setContent(
     `<style>${MOTION}body{margin:16px;background:#0d6f88;color:#fff;font:600 18px sans-serif}h2{margin:10px 0}svg{display:block}</style>
-     <h2>Classic</h2>${row('a', false)}<h2>Christmas</h2>${row('b', true)}<h2>Close-up</h2>${closeUps(['wood', 'sheep', 'wheat'], 'c1')}${closeUps(['brick', 'ore', 'desert'], 'c2')}<h2>Pieces and sleigh</h2>${piecesAndSleigh()}`,
+     <h2>Classic</h2>${row('a', false)}<h2>Christmas</h2>${row('b', true)}<h2>Paying out (mid-motion)</h2>${row('p', true, 1)}<h2>Close-up</h2>${closeUps(['wood', 'sheep', 'wheat'], 'c1')}${closeUps(['brick', 'ore', 'desert'], 'c2')}<h2>Pieces and sleigh</h2>${piecesAndSleigh()}`,
   );
-  // Let the snow, wind, and lights run a moment so the frame shows them mid-motion.
-  await page.waitForTimeout(1500);
+  // Tiles paying out start moving as the dice settle (1.1 s); catch them mid-motion.
+  await page.waitForTimeout(1900);
   await page.screenshot({ path: 'test-results/christmas-art.png', fullPage: true });
 });
