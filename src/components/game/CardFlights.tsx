@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type GameLog, type GameView, RESOURCES, type Tradable, type TradeBag } from '../../../shared/types';
+import { CHRISTMAS } from '../../art';
 import { useFreshLog } from '../../hooks/useFreshLog';
 import { bankSpot, DevelopmentBack, FlyingCard, type Point, playerSpot, TradableFace } from './flights';
 
@@ -49,6 +50,17 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
     return exchange(id, playerSpot(view, event.fromId), playerSpot(view, event.toId), event.give, event.get);
   if (event?.kind === 'bank-trade')
     return exchange(id, playerSpot(view, event.playerId), bankSpot(), event.give, event.get);
+  // Santa's gift reaches the hand once the sleigh has landed.
+  if (event?.kind === 'santa')
+    return [
+      {
+        id: `${id}-santa`,
+        from: bankSpot(),
+        to: playerSpot(view, event.targetId),
+        delay: CHRISTMAS.sleigh.flight + 0.6,
+        card: <TradableFace item={event.resource} />,
+      },
+    ];
   if (event?.kind !== 'build' || !event.paid) return [];
   const player = playerSpot(view, event.playerId);
   const bank = bankSpot();

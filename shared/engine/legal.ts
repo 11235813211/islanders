@@ -26,7 +26,8 @@ import {
 import { routeSetupSites } from './goals';
 
 /**
- * Open land corners at least two edges from any building; outside setup, touching your road or ship.
+ * Open land corners at least two edges from any building and off the North Pole; outside setup,
+ * touching your road or ship.
  * Setup settlements stay off closed islands, and away from volcanoes unless the room allows it.
  */
 export function settlementSites(state: GameState, playerId: string, setup: boolean): string[] {
@@ -38,6 +39,8 @@ export function settlementSites(state: GameState, playerId: string, setup: boole
       if (vertex.edgeIds.some(id => state.buildings[otherEnd(index.edge.get(id)!, vertex.id)])) return false;
       // No settlement at either end of a relay station.
       if (vertex.edgeIds.some(id => state.relays.includes(id))) return false;
+      // Nobody settles at the North Pole.
+      if (state.northPole && vertex.hexIds.includes(state.northPole.hexId)) return false;
       if (setup && vertex.noSetup) return false;
       if (setup)
         return !vertex.hexIds.some(id => {

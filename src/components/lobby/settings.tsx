@@ -51,6 +51,8 @@ export interface SettingDef {
   when?: (view: GameView) => boolean;
   /** Settings of one expansion share a colored box inside their category (see THEMES). */
   theme?: Theme;
+  /** Less used: shown in its category only after "All settings" (see RoomLobby). */
+  advanced?: boolean;
   /** A question to confirm before this change, or null to apply it straight away. */
   confirm?: (view: GameView, value: GameSettings[keyof GameSettings]) => string | null;
   /** A control beside the setting that everyone can use, host or not. */
@@ -59,14 +61,13 @@ export interface SettingDef {
 export interface SettingPreviewProps {
   view: GameView;
 }
-export type Theme = 'knights' | 'seafarers' | 'tropics' | 'cartographers' | 'christmas';
+export type Theme = 'knights' | 'seafarers' | 'tropics' | 'cartographers';
 /** Titles of the themed boxes, in the order they appear. */
 export const THEMES: Record<Theme, string> = {
   knights: 'Cities & Knights',
   seafarers: 'Seafarers',
   tropics: 'Volcanoes and jungles',
   cartographers: 'Cartographers',
-  christmas: 'Christmas',
 };
 export interface Category {
   id: string;
@@ -75,6 +76,8 @@ export interface Category {
   settings: SettingDef[];
   /** A control bigger than one row, shown after the rows (it hides itself when it does not apply). */
   extra?: ComponentType<ExtraProps>;
+  /** The extra control is shown only with "All settings". */
+  extraAdvanced?: boolean;
 }
 export interface ExtraProps {
   view: GameView;
@@ -113,6 +116,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'routeLinks',
+        advanced: true,
         theme: 'seafarers',
         label: 'Roads meet ships',
         hint: 'Anywhere along your route, or only at your settlement or city (the published rule).',
@@ -128,6 +132,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'volcanoStart',
+        advanced: true,
         theme: 'tropics',
         label: 'Start next to volcanoes',
         hint: 'Whether setup settlements may touch a volcano.',
@@ -137,6 +142,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'volcanoDice',
+        advanced: true,
         theme: 'tropics',
         label: 'Eruption dice',
         hint: 'Random, or balanced: each volcano draws from its own deck of 12 with every corner twice.',
@@ -152,6 +158,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'volcanoGold',
+        advanced: true,
         theme: 'tropics',
         label: 'Volcanoes pay',
         hint: 'On: a volcano pays a resource of your choice, then erupts. Off: it only erupts.',
@@ -161,6 +168,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'discoveries',
+        advanced: true,
         theme: 'tropics',
         label: 'Jungle discoveries',
         hint: 'Kept safe is the published rule. Tradable: also traded and discarded on a 7. Like a card: also stolen and taken by Monopoly.',
@@ -176,6 +184,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'chartSpecial',
+        advanced: true,
         theme: 'cartographers',
         label: 'Chart gold and volcanoes',
         hint: 'Whether gold fields and volcanoes can be charted.',
@@ -207,19 +216,9 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'christmas',
-        theme: 'christmas',
         label: 'Christmas',
         hint: 'Snowy tiles, gingerbread pieces, and festive cards and colors for everyone.',
         icon: <Gift size={20} />,
-        control: { kind: 'toggle' },
-      },
-      {
-        key: 'northPole',
-        theme: 'christmas',
-        label: 'North Pole',
-        hint: 'Santa lives on a desert with its own number. Roll it and pick another player’s building: Santa brings them a random resource.',
-        icon: <Snowflake size={20} />,
-        when: view => view.settings.christmas,
         control: { kind: 'toggle' },
       },
       {
@@ -240,6 +239,7 @@ export const CATEGORIES: Category[] = [
     title: 'Rules',
     tone: 'brick',
     extra: RoomRewards,
+    extraAdvanced: true,
     settings: [
       {
         key: 'victoryPoints',
@@ -250,6 +250,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'discardLimit',
+        advanced: true,
         label: 'Discard limit',
         hint: 'On a 7, anyone holding more than this discards half.',
         icon: <Shield size={20} />,
@@ -257,9 +258,18 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'friendlyRobber',
+        advanced: true,
         label: 'Friendly robber',
         hint: 'The robber skips players with 2 or fewer visible points.',
         icon: <Shield size={20} />,
+        control: { kind: 'toggle' },
+      },
+      {
+        key: 'northPole',
+        advanced: true,
+        label: 'North Pole',
+        hint: 'Santa lives on a desert with its own number, and nobody settles beside it. Roll the number and pick another player’s building: Santa brings them a random resource.',
+        icon: <Snowflake size={20} />,
         control: { kind: 'toggle' },
       },
     ],
@@ -271,6 +281,7 @@ export const CATEGORIES: Category[] = [
     settings: [
       {
         key: 'autoRollSeconds',
+        advanced: true,
         label: 'Automatic dice roll',
         hint: 'Rolls for the player if they wait this long.',
         icon: <Dices size={20} />,
@@ -288,6 +299,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'tradeSeconds',
+        advanced: true,
         label: 'Trade offers last',
         hint: 'How long other players have to answer a trade offer.',
         icon: <ArrowLeftRight size={20} />,
@@ -295,6 +307,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'decisionSeconds',
+        advanced: true,
         label: 'Short choices',
         hint: 'Seconds to place the robber or pirate or pick gold before a bot picks for you.',
         icon: <Hourglass size={20} />,
@@ -309,6 +322,7 @@ export const CATEGORIES: Category[] = [
     settings: [
       {
         key: 'diceMode',
+        advanced: true,
         label: 'Dice',
         hint: 'Balanced: rolls come from a shuffled deck of all 36 combinations, with fewer repeats in a row.',
         icon: <Dices size={20} />,
@@ -322,6 +336,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'trackDice',
+        advanced: true,
         label: 'Dice results tracker',
         hint: 'Shows how often each number has been rolled.',
         icon: <BarChart3 size={20} />,
@@ -329,6 +344,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'showBank',
+        advanced: true,
         label: 'Show bank cards',
         hint: 'Everyone sees how many cards of each resource the bank has left. With two players the counts give away the other player’s hand.',
         icon: <Landmark size={20} />,

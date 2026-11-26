@@ -5,7 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PLAYER_COLORS } from '../shared/colors';
 import type { BaseTerrain } from '../shared/types';
 import { art } from '../src/art/v20';
-import { Reindeer, WinterTile } from '../src/art/v20/christmas/tiles';
+import { NorthPoleRing, NorthPoleTile, Sleigh } from '../src/art/v20/christmas/northpole';
+import { WinterTile } from '../src/art/v20/christmas/tiles';
 
 // Review the Christmas art: each tile as usual and in winter, with gingerbread pieces, and a
 // close-up. Writes test-results/christmas-art.png. Run: npx playwright test tests/christmas-art.spec.ts
@@ -29,7 +30,9 @@ function row(uid: string, winter: boolean) {
         h(
           'g',
           { key: terrain, transform: `translate(${i * CELL + CELL / 2} 0)` },
-          winter ? h(WinterTile, { uid, terrain, seed: i }) : h(art.HexTile, { uid, terrain }),
+          winter
+            ? h(WinterTile, { uid, terrain, seed: i, grinch: terrain === 'ore' })
+            : h(art.HexTile, { uid, terrain }),
           winter &&
             h(
               'g',
@@ -52,26 +55,63 @@ function row(uid: string, winter: boolean) {
   );
 }
 
-/** Close-ups: the reindeer, and the hills and mountains at 3×. */
-function closeUps() {
+/** Close-ups at 3×: tiles with the most detail, the North Pole, and the reindeer. */
+function closeUps(terrains: BaseTerrain[], uid: string) {
   return renderToStaticMarkup(
     h(
       'svg',
-      { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 -70 520 140', width: 1560 },
-      h('defs', null, h(art.ArtDefs, { uid: 'cu' })),
-      h('g', { transform: 'translate(65 0)' }, h(WinterTile, { uid: 'cu', terrain: 'sheep', seed: 3 })),
-      h('g', { transform: 'translate(195 0)' }, h(WinterTile, { uid: 'cu', terrain: 'brick', seed: 4 })),
-      h('g', { transform: 'translate(325 0)' }, h(WinterTile, { uid: 'cu', terrain: 'wheat', seed: 5 })),
-      h('g', { transform: 'translate(455 0) scale(2.4)' }, h(Reindeer, { x: -3, y: 2, rudolph: true, scarf: true })),
+      {
+        xmlns: 'http://www.w3.org/2000/svg',
+        viewBox: `0 -70 ${terrains.length * 130 + 130} 140`,
+        width: (terrains.length + 1) * 390,
+      },
+      h('defs', null, h(art.ArtDefs, { uid })),
+      ...terrains.map((terrain, i) =>
+        h(
+          'g',
+          { key: terrain, transform: `translate(${65 + i * 130} 0)` },
+          h(WinterTile, { uid, terrain, seed: i + 3, grinch: terrain === 'ore' }),
+        ),
+      ),
+      h(
+        'g',
+        { transform: `translate(${65 + terrains.length * 130} 0)` },
+        h(NorthPoleTile, { uid }),
+        h(NorthPoleRing),
+        h(art.NumberToken, { uid, number: 10 }),
+      ),
+    ),
+  );
+}
+
+/** Gingerbread pieces large, and Santa's sleigh. */
+function piecesAndSleigh() {
+  return renderToStaticMarkup(
+    h(
+      'svg',
+      { xmlns: 'http://www.w3.org/2000/svg', viewBox: '-20 -50 520 80', width: 1560 },
+      ...(['red', 'blue', 'teal'] as const).flatMap((seat, i) => [
+        h(
+          'g',
+          { key: `${seat}s`, transform: `translate(${i * 110} 12)` },
+          h(art.BuildingPiece, { color: PLAYER_COLORS[seat].fill, city: false, style: 'gingerbread' }),
+        ),
+        h(
+          'g',
+          { key: `${seat}c`, transform: `translate(${i * 110 + 45} 12)` },
+          h(art.BuildingPiece, { color: PLAYER_COLORS[seat].fill, city: true, style: 'gingerbread' }),
+        ),
+      ]),
+      h('g', { transform: 'translate(420 8)' }, h(Sleigh)),
     ),
   );
 }
 
 test('render the Christmas art for review', async ({ page }) => {
-  await page.setViewportSize({ width: TERRAINS.length * CELL * 2 + 40, height: 1400 });
+  await page.setViewportSize({ width: 1600, height: 1400 });
   await page.setContent(
     `<style>${MOTION}body{margin:16px;background:#0d6f88;color:#fff;font:600 18px sans-serif}h2{margin:10px 0}svg{display:block}</style>
-     <h2>Classic</h2>${row('a', false)}<h2>Christmas</h2>${row('b', true)}<h2>Close-up</h2>${closeUps()}`,
+     <h2>Classic</h2>${row('a', false)}<h2>Christmas</h2>${row('b', true)}<h2>Close-up</h2>${closeUps(['wood', 'sheep', 'wheat'], 'c1')}${closeUps(['brick', 'ore', 'desert'], 'c2')}<h2>Pieces and sleigh</h2>${piecesAndSleigh()}`,
   );
   // Let the snow, wind, and lights run a moment so the frame shows them mid-motion.
   await page.waitForTimeout(1500);

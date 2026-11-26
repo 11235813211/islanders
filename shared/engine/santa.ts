@@ -1,4 +1,5 @@
-// Christmas: the North Pole. Santa lives on one desert, which gets its own number. When it is
+// The North Pole (room setting `northPole`; drawn the same with or without the Christmas look).
+// Santa lives on one desert, nobody may settle on its corners, and it, which gets its own number. When it is
 // rolled, the roller picks another player's settlement or city, and Santa flies there with one
 // card of a random standard resource from the bank.
 import { shuffled } from '../board';
@@ -10,7 +11,7 @@ export const NORTH_POLE_NUMBERS = [3, 4, 5, 9, 10, 11] as const;
 
 /** Santa's tile and number for a fresh board, or null when the room or map has no place for him. */
 export function placeNorthPole(state: GameState, random: () => number): NorthPole | null {
-  if (!state.settings.christmas || !state.settings.northPole) return null;
+  if (!state.settings.northPole) return null;
   const deserts = state.board.hexes.filter(h => h.terrain === 'desert' && h.number === null);
   if (!deserts.length) return null;
   // Leave the robber its own desert when there is a second one.

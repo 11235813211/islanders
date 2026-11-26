@@ -36,7 +36,11 @@ export const GINGER = {
   roofLine: 0.75,
   wallLine: 0.85,
   /** Gumdrop size. */
-  gumdrop: 1.05,
+  gumdrop: 0.95,
+  /** Sprinkles, gumdrops, shutters, and peppermints draw from these candy colors. */
+  candy: ['#ff5f6d', '#ffd23f', '#5fd38d', '#62c2ff', '#ff9ad5'],
+  /** Candy sprinkles scattered on the roof facing the camera. */
+  sprinkles: 7,
 } as const;
 
 /** Seat-colored candy roof over cookie walls. */
@@ -48,7 +52,9 @@ const palette = (seat: string): Palette => ({
   door: GINGER.door,
   gumdrop: tone(seat, GINGER.gumdropLight),
   peppermint: GINGER.peppermint,
+  ...Object.fromEntries(GINGER.candy.map((c, i) => [`candy${i}`, c])),
 });
+const candy = (i: number) => `candy${i % GINGER.candy.length}`;
 
 const onFront = (house: House, points: [number, number][]) => points.map(([x, y]) => house.onFront(x, y));
 const onRight = (house: House, points: [number, number][]) => points.map(([z, y]) => house.onRight(z, y));
@@ -76,9 +82,17 @@ function icingEdge(house: House, ax: number, ay: number, bx: number, by: number)
 }
 
 /** A sugar window: a warm pane with an icing frame and cross. */
-function sugarWindow(house: House, x: number, y: number, size: number): Decal[] {
+function sugarWindow(house: House, x: number, y: number, size: number, shutters = 0): Decal[] {
   const h = size / 2;
+  const shutter = (left: number) => ({
+    points: onFront(house, rect(left, y, left + 0.8, y + size)),
+    fill: candy(shutters),
+    stroke: 'icing',
+    width: 0.3,
+  });
   return [
+    shutter(x - h - 0.9),
+    shutter(x + h + 0.1),
     { points: onFront(house, rect(x - h, y, x + h, y + size)), fill: 'window', stroke: 'icing', width: 0.6 },
     {
       points: onFront(house, [
@@ -111,7 +125,30 @@ function decorate(house: House, windows: [number, number][], door = true): void 
       width: 0.1,
     });
   }
-  for (const [x, y] of windows) front.push(...sugarWindow(house, x, y, 2.4));
+  windows.forEach(([x, y], i) => {
+    front.push(...sugarWindow(house, x, y, 2.4, i + 2));
+  });
+  // Candy-cane corners up both sides of the front.
+  for (const edge of [x0, x1 - 0.9]) {
+    front.push({
+      points: onFront(house, rect(edge, 0, edge + 0.9, spec.wall)),
+      fill: 'icing',
+      stroke: 'icing',
+      width: 0.1,
+    });
+    for (let y = 0.4; y < spec.wall - 0.6; y += 1.4)
+      front.push({
+        points: onFront(house, [
+          [edge, y],
+          [edge + 0.9, y + 0.55],
+          [edge + 0.9, y + 1.1],
+          [edge, y + 0.55],
+        ]),
+        fill: 'peppermint',
+        stroke: 'peppermint',
+        width: 0.05,
+      });
+  }
   // A row of icing dots along the base.
   for (let x = x0 + 1; x < x1 - 0.5; x += 1.6)
     front.push({ points: onFront(house, ring(x, 0.6, 0.28, 6)), fill: 'icing', stroke: 'icing', width: 0.1 });
@@ -124,6 +161,26 @@ function decorate(house: House, windows: [number, number][], door = true): void 
       width: 0.2,
     },
   );
+}
+
+/** A peppermint candy on the front at (x, y): a white disc with red pinwheel wedges. */
+function peppermint(house: House, x: number, y: number, r: number): Decal[] {
+  const wedges = Array.from({ length: 4 }, (_, i): Decal => {
+    const a = (i / 4) * Math.PI * 2;
+    const b = a + Math.PI / 4;
+    return {
+      points: onFront(house, [
+        [x, y],
+        [x + r * Math.cos(a), y + r * Math.sin(a)],
+        [x + r * Math.cos((a + b) / 2) * 1.02, y + r * Math.sin((a + b) / 2) * 1.02],
+        [x + r * Math.cos(b), y + r * Math.sin(b)],
+      ]),
+      fill: 'peppermint',
+      stroke: 'peppermint',
+      width: 0.05,
+    };
+  });
+  return [{ points: onFront(house, ring(x, y, r, 14)), fill: 'icing', stroke: 'line', width: 0.3 }, ...wedges];
 }
 
 /** Cookie walls, seat-colored roof slopes, and icing on the roof's thickness. */
@@ -152,6 +209,14 @@ function roofIcing(slope: { points: Vec3[]; decals: Decal[] }): void {
     const ridge = ridgeFront.map((c, i) => c + (ridgeBack[i]! - c) * v);
     return eave.map((c, i) => c + (ridge[i]! - c) * u + (i === 1 ? 0.04 : 0)) as unknown as Vec3;
   };
+  // Candy sprinkles between the eave icing and the ridge cap.
+  for (let i = 0; i < GINGER.sprinkles; i++) {
+    const u = 0.42 + 0.4 * ((i * 0.61803) % 1);
+    const v = (i + 0.5) / GINGER.sprinkles;
+    const [cx, cy, cz] = at(u, v);
+    const dot: Vec3[] = ring(0, 0, 0.42, 6).map(([a, b]) => [cx + a * 0.5, cy + b * 0.5 + 0.03, cz + a]);
+    slope.decals.push({ points: dot, fill: candy(i), stroke: candy(i), width: 0.1 });
+  }
   const n = GINGER.scallops * 2;
   const scallop = Array.from({ length: n + 1 }, (_, i) =>
     at(i % 2 ? GINGER.eaveIcing : GINGER.eaveIcing * 0.45, i / n),
@@ -167,17 +232,29 @@ function roofIcing(slope: { points: Vec3[]; decals: Decal[] }): void {
   );
 }
 
-/** Gumdrops along the ridge, on the right slope (the one facing the camera). */
+/** Gumdrops in a row just below the ridge, on the slope facing the camera, each with a sugar sparkle. */
 function gumdrops(house: House, count: number): void {
-  const { spec } = house;
-  const roof = house.solids[1]!.faces[0]!;
-  const half = spec.depth / 2 + spec.overhang;
+  const slope = house.solids[1]!.faces[0]!;
+  const [ridgeFront, ridgeBack, eaveBack, eaveFront] = slope.points as [Vec3, Vec3, Vec3, Vec3];
+  const at = (u: number, v: number): Vec3 =>
+    [0, 1, 2].map(k => {
+      const eave = eaveFront[k]! + (eaveBack[k]! - eaveFront[k]!) * v;
+      const ridge = ridgeFront[k]! + (ridgeBack[k]! - ridgeFront[k]!) * v;
+      return eave + (ridge - eave) * u + (k === 1 ? 0.06 : 0);
+    }) as unknown as Vec3;
+  const g = GINGER.gumdrop;
   for (let i = 0; i < count; i++) {
-    const z = -half + ((i + 0.5) * (2 * half)) / count;
-    const x = spec.x + 0.7;
-    const y = house.roofAt(x) + 0.05;
-    const points: Vec3[] = ring(0, 0, GINGER.gumdrop, 8).map(([a, b]) => [x + a * 0.6, y + 0.4 + b * 0.6, z + a]);
-    roof.decals.push({ points, fill: i % 2 ? 'peppermint' : 'gumdrop', stroke: 'line', width: 0.3 });
+    const [cx, cy, cz] = at(0.78, (i + 0.5) / count);
+    const drop: Vec3[] = ring(0, 0, g, 10).map(([a, b]) => [cx + b * 0.45, cy + b * 0.75, cz + a]);
+    const sparkle: Vec3[] = ring(0, 0, g * 0.28, 6).map(([a, b]) => [
+      cx + 0.2,
+      cy + g * 0.35 + b * 0.5,
+      cz - g * 0.35 + a,
+    ]);
+    slope.decals.push(
+      { points: drop, fill: i % 2 ? 'gumdrop' : candy(i), stroke: 'line', width: 0.3 },
+      { points: sparkle, fill: 'icing', stroke: 'icing', width: 0.05 },
+    );
   }
 }
 
@@ -205,9 +282,11 @@ function candyCane(x: number, z: number, height: number): Solid {
 
 /** A gingerbread cottage: one gabled house with a candy cane by the door. */
 function cottage(): Solid[] {
-  const house = gabledHouse({ x: 0, z: 0, width: 12, depth: 11, wall: 8.5, rise: 6.5, overhang: 1.3, fascia: 1.5 });
-  decorate(house, [[3.6, 3.2]]);
-  return [...materials(house), candyCane(-4.6, -6.6, 4.2)];
+  // Short walls under a tall roof read as cute at board size.
+  const house = gabledHouse({ x: 0, z: 0, width: 12, depth: 11, wall: 7.4, rise: 7.6, overhang: 1.4, fascia: 1.5 });
+  decorate(house, [[3.4, 2.8]]);
+  house.front.decals.push(...peppermint(house, 0, 10, 1.5));
+  return [...materials(house), candyCane(-4.8, -6.6, 4.4)];
 }
 
 /** A gingerbread city: a tall hall with a round sugar window joined to a lower wing, same depth. */
@@ -236,12 +315,7 @@ function hall(): Solid[] {
     fascia: 1.4,
   });
   decorate(tall, []);
-  tall.front.decals.push({
-    points: onFront(tall, ring(tall.spec.x, 9.2, 1.4, 12)),
-    fill: 'window',
-    stroke: 'icing',
-    width: 0.6,
-  });
+  tall.front.decals.push(...peppermint(tall, tall.spec.x, 9.4, 1.6));
   decorate(
     wing,
     [
@@ -292,12 +366,7 @@ function megacity(): Solid[] {
   });
   decorate(left, [[left.spec.x, 2.4]], false);
   decorate(tower, []);
-  tower.front.decals.push({
-    points: onFront(tower, ring(tower.spec.x, 12.2, 1.6, 12)),
-    fill: 'window',
-    stroke: 'icing',
-    width: 0.6,
-  });
+  tower.front.decals.push(...peppermint(tower, tower.spec.x, 12.4, 1.8));
   decorate(right, [[right.spec.x, 5.6]], false);
   return [...materials(left, 3), ...materials(tower, 3), ...materials(right, 3), candyCane(12.4, -6.4, 4.6)];
 }

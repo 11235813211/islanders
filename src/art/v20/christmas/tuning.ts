@@ -39,7 +39,7 @@ export const CHRISTMAS = {
     /** Seconds for one slow twinkle; bulbs start at different times. */
     twinkle: 2.8,
     /** How dim a bulb gets at the bottom of its twinkle (1 = never dims). */
-    dimmest: 0.5,
+    dimmest: 0.62,
     wire: '#2f3b2c',
   },
   /** Reindeer grazing on pasture tiles. */
@@ -55,6 +55,13 @@ export const CHRISTMAS = {
   },
   /** Ground colors under the snow; each tile keeps its own hue so it still reads. */
   snow: { light: '#ffffff', shade: '#dfeaf2', blue: '#c4d8e6' },
+  /** Fields: warm snow on the gold, so the tile stays a field. */
+  fields: { snow: '#fff8e8', furrow: '#fff0c4' },
+  /** The desert frozen through. */
+  frozen: { ground: '#d5eaf4', drift: '#e6f3f9', pond: '#9fcde3', pondLight: '#c4e4f2', shard: '#bfe3f3' },
+  polarBear: { fur: '#fbfbf8', shade: '#e3ecf1', line: '#a9bccb', ear: '#e8bcbc', scarf: '#2f8f4e' },
+  /** The Grinch, peeking from behind one mountain per board. */
+  grinch: { size: 1.35, fur: '#8cc63f', furDark: '#5e8f22', brow: '#2f4a12', eye: '#ffe14d', pupil: '#c62828' },
   forest: { baubles: ['#e8323c', '#ffd23f', '#4db8ff'], star: '#ffd23f' },
   northPole: {
     pole: '#e2333b',
@@ -63,8 +70,8 @@ export const CHRISTMAS = {
     roof: '#ffffff',
     light: '#ffd66e',
   },
-  /** Santa's flight: seconds to fly from the North Pole to the building. */
-  sleigh: { flight: 2.6, hold: 1.4 },
+  /** Santa's flight: seconds to fly from the North Pole to the building, to stay, and its size on the board. */
+  sleigh: { flight: 2.6, hold: 1.4, scale: 1 },
   /** Card faces: holly in a corner and snow along the top. */
   cards: { holly: '#1f7a3a', berry: '#d7263d', snow: '#ffffff' },
 } as const;

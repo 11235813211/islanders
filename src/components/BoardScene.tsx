@@ -1,8 +1,10 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, useContext } from 'react';
 import { isLandTerrain } from '../../shared/seafaring';
-import type { Board, GameView, Hex, Terrain } from '../../shared/types';
+import type { Board, GameView, Hex, NorthPole, Terrain } from '../../shared/types';
 import {
   CARTOGRAPHERS,
+  CHRISTMAS,
+  ChristmasTheme,
   type Frame,
   Harbor,
   NumberToken,
@@ -83,6 +85,13 @@ export function HalfClips({ uid }: { uid: string }) {
 /** A stable small integer per tile, so repeated sea tiles vary their waves. */
 export const tileVariant = (hex: Pick<Hex, 'q' | 'r'>) => Math.abs(hex.q * 7 + hex.r * 13);
 
+/** Christmas: the one mountain the Grinch hides behind, the same on every screen (or none). */
+function grinchHex(land: Hex[]): string | null {
+  const mountains = land.filter(h => h.terrain === 'ore' && !h.split);
+  if (!mountains.length) return null;
+  return mountains.reduce((a, b) => (tileVariant(b) < tileVariant(a) ? b : a)).id;
+}
+
 /**
  * The map itself: sea, tiles, numbers, harbors, island markers, robber, and pirate. Shared by the
  * game board and the editor's preview; interactive layers go in `children`.
@@ -97,8 +106,11 @@ export default function BoardScene({
   drifts = [],
   rumbles = [],
   peeks = {},
+  northPole = null,
   children,
 }: {
+  /** Christmas: Santa's tile and number (drawn in place of its desert). */
+  northPole?: NorthPole | null;
   uid: string;
   board: Board;
   /** Fog tiles this viewer peeked at: what each hides shows faintly through the fog. */
@@ -121,6 +133,8 @@ export default function BoardScene({
   const water = board.hexes.filter(h => !isLandTerrain(h.terrain));
   const robberHex = land.find(h => h.id === robber);
   const pirateHex = pirate ? board.hexes.find(h => h.id === pirate) : undefined;
+  const christmas = useContext(ChristmasTheme);
+  const grinch = christmas ? grinchHex(land) : null;
   return (
     <>
       <SeaBackdrop uid={uid} hexes={seaMap ? [] : board.hexes} frame={frame} />
@@ -161,10 +175,16 @@ export default function BoardScene({
       {land.map(hex => (
         <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
           <g {...rumbleProps(rumbles.find(r => r.hexId === hex.id))}>
-            {hex.split ? (
+            {hex.id === northPole?.hexId ? (
+              <>
+                <CHRISTMAS.NorthPoleTile uid={uid} />
+                <CHRISTMAS.NorthPoleRing />
+                <NumberToken uid={uid} number={northPole.number} />
+              </>
+            ) : hex.split ? (
               <SplitTile uid={uid} left={hex.terrain} right={hex.split} />
             ) : (
-              <Tile uid={uid} terrain={hex.terrain} />
+              <Tile uid={uid} terrain={hex.terrain} variant={tileVariant(hex)} grinch={hex.id === grinch} />
             )}
             {hex.number !== null && <NumberToken uid={uid} number={hex.number} />}
             {!!hex.extra?.length && (

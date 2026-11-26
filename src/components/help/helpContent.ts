@@ -74,6 +74,8 @@ function rightNow(view: GameView, v: Verbs): string | null {
       return 'Choose the player to take a card from.';
     case 'eruption':
       return 'Press Roll volcanoes.';
+    case 'santa':
+      return `${v.tap} another player’s settlement or city to send Santa there.`;
     case 'special-build':
       return isHugeGame(view.players.length)
         ? 'Build or buy cards (one bank trade until your turn), then press Done building.'

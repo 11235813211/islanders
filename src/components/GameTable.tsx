@@ -12,6 +12,7 @@ import type { useRoom } from '../hooks/useRoom';
 import { useTurnAlerts } from '../hooks/useTurnAlerts';
 import type { BoardMode, PlaceKind, Selection } from './Board';
 import BoardViewport from './BoardViewport';
+import { santaSpots } from './christmas/santa';
 import BoardPick, { useBoardLook } from './game/BoardPick';
 import BuildBar from './game/BuildBar';
 import CardFlights from './game/CardFlights';
@@ -125,6 +126,8 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
         : 'Choosing gold…';
     case 'eruption':
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
+    case 'santa':
+      return ownTurn ? 'Pick a building for Santa' : `${active?.name} is sending Santa…`;
     case 'special-build':
       if (!ownTurn) return `${active?.name} is building…`;
       if (!isHugeGame(view.players.length)) return 'Special build: no trading';
@@ -534,7 +537,7 @@ export default function GameTable({
         onHex={setHexPick}
         hexPick={hexPick}
         tiles={busy ? null : (knights.tiles ?? tiles.picking)}
-        spots={busy ? null : knights.spots}
+        spots={busy ? null : (knights.spots ?? santaSpots(view, send))}
         onKnight={knights.onKnight}
         onChart={tiles.startChart}
         onHexConfirm={confirm => {

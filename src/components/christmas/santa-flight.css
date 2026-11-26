@@ -1,0 +1,73 @@
+/* Santa's visit (SantaFlight.tsx): the sleigh arrives along its path (SMIL), waits, and leaves;
+   the gift card pops up as it lands. Durations come from CHRISTMAS.sleigh via --flight and --hold. */
+.santa-sleigh {
+  animation: santa-leave 0.8s ease-in calc(var(--flight) + var(--hold)) both;
+}
+@keyframes santa-leave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.santa-sparkles circle {
+  fill: #fff6c2;
+  animation: santa-sparkle 0.5s ease-in-out infinite alternate;
+}
+@keyframes santa-sparkle {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
+.santa-gift {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: santa-gift calc(var(--hold) + 2.4s) ease-out var(--flight) both;
+}
+@keyframes santa-gift {
+  0% {
+    opacity: 0;
+    scale: 0.4;
+  }
+  12% {
+    opacity: 1;
+    scale: 1.12;
+  }
+  20% {
+    scale: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+}
+.santa-gift-card {
+  fill: #fffdf6;
+  stroke-width: 3;
+  filter: drop-shadow(0 3px 4px #0003);
+}
+.santa-gift-amount {
+  font-size: 14px;
+  font-weight: 800;
+  fill: #8e1722;
+}
+.santa-gift-name {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #173e50;
+}
+@media (prefers-reduced-motion: reduce) {
+  .santa-sleigh {
+    display: none;
+  }
+  .santa-gift {
+    animation-duration: 4s;
+  }
+}

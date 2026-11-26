@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { isBotGame, nameTaken } from '../shared/settings';
 import type { AccountSession, GameAction, Session } from '../shared/types';
 import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
+import ChristmasLook from './components/christmas/ChristmasLook';
 import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
@@ -331,7 +332,7 @@ function App() {
   return (
     <div className={`app ${hasGame ? 'app-game' : ''}`}>
       {header}
-      {screen}
+      <ChristmasLook on={!!view?.settings.christmas}>{screen}</ChristmasLook>
       {(message || notice) && (
         <div className={`toast${message ? '' : ' toast-info'}`} role={message ? 'alert' : 'status'}>
           <span>{message ?? notice}</span>

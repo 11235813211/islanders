@@ -65,6 +65,7 @@ test('Variations group Seafarers in blue, volcano and jungle settings in red, an
     { expansions: ['seafarers'] },
   );
   const room = await mountGame(page, seaLobby(design, 2));
+  await page.getByRole('button', { name: 'All settings' }).click();
   const variations = page.locator('.setting-group').filter({ hasText: 'Variations' });
   const seafarers = variations.getByRole('group', { name: 'Seafarers' });
   await expect(seafarers).toContainText('Ships and pirate');
@@ -171,6 +172,7 @@ test('the host views, uses, or declines each proposed map, with room before the 
 
 test('raising points to win adds extra pieces the host can edit, fitting every width', async ({ page }) => {
   await mountGame(page, makeLobby(2));
+  await page.getByRole('button', { name: 'All settings' }).click();
   const points = page.getByRole('group', { name: 'Points to win' });
   const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
   await expect(rules.getByText('Extra pieces')).toBeHidden();
@@ -312,6 +314,7 @@ test('on a Seafarers map extra pieces give roads and ships, shown with the seat 
   const lobby = seaLobby(sea, 2);
   lobby.settings.victoryPoints = 13;
   await mountGame(page, lobby);
+  await page.getByRole('button', { name: 'All settings' }).click();
   const points = page.getByRole('group', { name: 'Points to win' });
   await points.getByRole('button', { name: 'More points to win' }).click();
   const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
@@ -352,4 +355,28 @@ test('host and other players can view each art style in red and blue, at every w
   }
   await row.screenshot({ path: 'test-results/lobby-art-style-row.png' });
   expect(room.errors).toEqual([]);
+});
+
+test('less used settings stay folded in their categories until anyone presses All settings', async ({ page }) => {
+  const lobby = makeLobby(2);
+  lobby.settings.discardLimit = 9;
+  // Seen by a guest: p1 hosts, the page plays p0.
+  lobby.hostId = 'p1';
+  await mountGame(page, lobby);
+  await expect(page.getByText('Host controls')).toBeVisible();
+  const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
+  await expect(rules.getByText('Discard limit')).toBeHidden();
+  await expect(page.getByText('North Pole')).toBeHidden();
+  const all = page.getByRole('button', { name: /All settings/ });
+  // The discard limit (and the test lobby's unfriendly robber) differ from a new room's.
+  await expect(all).toContainText(/\d changed/);
+  await all.click();
+  await expect(rules.getByText('Discard limit')).toBeVisible();
+  await expect(rules.getByText('North Pole')).toBeVisible();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(page.locator('.setup-settings .section-heading'));
+  }
+  await page.getByRole('button', { name: 'Fewer settings' }).click();
+  await expect(rules.getByText('Discard limit')).toBeHidden();
 });

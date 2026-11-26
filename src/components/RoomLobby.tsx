@@ -14,6 +14,7 @@ import {
 import type { Connection, RecordingChoice } from '../hooks/useRoom';
 import HelpButton from './help/HelpButton';
 import { lobbyHelp } from './help/helpContent';
+import AllSettingsButton, { shownSettings, useAllSettings } from './lobby/AllSettings';
 import ColorPicker, { ColorSwapNotice } from './lobby/ColorPicker';
 import LobbySeat from './lobby/LobbySeat';
 import LobbySpectators from './lobby/LobbySpectators';
@@ -98,6 +99,7 @@ export default function RoomLobby({
     );
   }
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
+  const [allSettings, setAllSettings] = useAllSettings();
   const [copied, setCopied] = useState(false);
   const [renaming, setRenaming] = useState(false);
   useEffect(() => {
@@ -229,13 +231,14 @@ export default function RoomLobby({
         <div className="section-heading">
           <h2>Game settings</h2>
           {!host && <span className="subtle-badge">Host controls</span>}
+          <AllSettingsButton view={view} all={allSettings} setAll={setAllSettings} />
         </div>
         {/* The map, then its Variations (the first category), then the other settings. */}
         <MapChoice view={view} host={host} busy={busy} send={send} />
         {CATEGORIES.map(category => {
-          const shown = category.settings.filter(def => def.when?.(view) ?? true);
-          if (!shown.length) return null;
-          const Extra = category.extra;
+          const shown = shownSettings(category, view, allSettings);
+          const Extra = category.extraAdvanced && !allSettings ? undefined : category.extra;
+          if (!shown.length && !Extra) return null;
           return (
             <fieldset key={category.id} className={`setting-group tone-${category.tone}`}>
               <legend>{category.title}</legend>

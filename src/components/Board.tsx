@@ -258,6 +258,7 @@ export default function Board({
             showClosed={view.phase === 'setup-settlement'}
             drifts={icebergDrifts(rolled)}
             rumbles={volcanoRumbles(view, rolled)}
+            northPole={view.northPole}
             peeks={view.fogPeeks}
           />
           <RouteZones zones={viewerZones(view)} />

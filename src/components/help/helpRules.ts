@@ -188,5 +188,20 @@ function cartographers(view: GameView): HelpSection[] {
 
 /** Every rules tab's sections, worded for this room's settings. */
 export function ruleSections(view: GameView): HelpSection[] {
-  return [...base(view), ...seafarers(), ...tropics(view), ...cartographers(view)];
+  return [...base(view), ...northPole(view), ...seafarers(), ...tropics(view), ...cartographers(view)];
+}
+
+/** The North Pole, when the room has it. */
+function northPole(view: GameView): HelpSection[] {
+  if (!view.northPole) return [];
+  return [
+    {
+      tab: 'base',
+      title: 'The North Pole',
+      lines: [
+        `Santa lives on the North Pole tile, number ${view.northPole.number}. Nobody may build on its corners, and it pays nothing.`,
+        'When you roll its number, pick another player’s settlement or city. Santa flies there and gives its owner one random card of wood, brick, wool, grain, or ore from the bank.',
+      ],
+    },
+  ];
 }

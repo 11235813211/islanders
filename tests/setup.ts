@@ -14,7 +14,7 @@ Object.assign(DEFAULT_SETTINGS, {
   pieceRewards: [],
   pieceStyle: 'classic',
   christmas: false,
-  northPole: true,
+  northPole: false,
   tradeSeconds: 30,
   decisionSeconds: 30,
   showBank: 'auto',

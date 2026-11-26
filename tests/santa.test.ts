@@ -6,7 +6,7 @@ import { makeLobby, seeded, sequence, settled, TEST_NOW } from './fixtures';
 /** A settled Christmas game with the North Pole, p0 about to roll. */
 function christmas(count = 3): GameState {
   const lobby = makeLobby(count);
-  lobby.settings.christmas = true;
+  lobby.settings.northPole = true;
   lobby.settings.diceMode = 'random';
   const g = settled(count, lobby);
   g.turnIndex = 0;
@@ -20,17 +20,23 @@ const total = (g: GameState) => (r: (typeof CLASSIC_RESOURCES)[number]) =>
   g.bank[r] + g.players.reduce((n, p) => n + p.resources[r], 0);
 
 describe('the North Pole', () => {
-  it('sits on a desert with a number that is never 6, 7, or 8, and only in Christmas rooms', () => {
+  it('sits on a desert with a number that is never 6, 7, or 8, only when the room turns it on', () => {
     const g = christmas();
     const pole = g.northPole!;
     expect(g.board.hexes.find(h => h.id === pole.hexId)!.terrain).toBe('desert');
     expect(NORTH_POLE_NUMBERS).toContain(pole.number);
     expect(getView(g, 'p1').northPole).toEqual(pole);
     expect(settled(3).northPole).toBeNull();
-    const off = makeLobby(3);
-    off.settings.christmas = true;
-    off.settings.northPole = false;
-    expect(settled(3, off).northPole).toBeNull();
+    const look = makeLobby(3);
+    look.settings.christmas = true;
+    expect(settled(3, look).northPole).toBeNull();
+  });
+
+  it('nobody settles on its corners, in setup or after', () => {
+    const g = christmas(4);
+    const corners = new Set(g.board.hexes.find(h => h.id === g.northPole!.hexId)!.vertexIds);
+    expect(Object.keys(g.buildings).some(v => corners.has(v))).toBe(false);
+    for (const p of g.players) expect(getView(g, p.id).legal.settlements.some(v => corners.has(v))).toBe(false);
   });
 
   it('on its number, the roller sends Santa to another player’s building, who gets one standard resource', () => {

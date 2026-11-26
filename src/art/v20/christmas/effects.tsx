@@ -119,9 +119,10 @@ export function LightString({ points, seed = 0 }: { points: [number, number][]; 
                 } as CSSProperties
               }
             >
-              <circle cy="3.6" r="6.2" fill={color} opacity=".32" />
-              <ellipse cy="3.4" rx="2.6" ry="3.4" fill={color} stroke="#fff" strokeOpacity=".35" strokeWidth=".4" />
-              <ellipse cx="-.8" cy="2.4" rx=".8" ry="1.2" fill="#fff" opacity=".75" />
+              <circle cy="3.6" r="7.5" fill={color} opacity=".22" />
+              <circle cy="3.6" r="4.6" fill={color} opacity=".45" />
+              <ellipse cy="3.4" rx="2.7" ry="3.5" fill={color} />
+              <ellipse cy="3.6" rx="1.3" ry="1.9" fill="#fffbe6" opacity=".85" />
             </g>
           </g>
         );

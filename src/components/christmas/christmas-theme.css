@@ -1,0 +1,105 @@
+/* The Christmas look for the page around the board: snowy background, a red header hung with
+   lights, red and pine trims on panels, and holly and snow on cards. Applied by ChristmasLook.
+   Colors to tweak are the variables below. */
+
+.theme-christmas {
+  --xmas-red: #b3202e;
+  --xmas-red-dark: #8e1722;
+  --xmas-pine: #1f6f3c;
+  --xmas-pine-soft: #e6f1e8;
+  --xmas-snow: #f7fbfd;
+  --xmas-gold: #f2c14e;
+}
+
+.theme-christmas .app {
+  background:
+    radial-gradient(circle at 12% 18%, #ffffff 0 2px, transparent 3px),
+    radial-gradient(circle at 63% 9%, #ffffff 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 82% 44%, #ffffff 0 2px, transparent 3px),
+    radial-gradient(circle at 36% 72%, #ffffff 0 1.5px, transparent 2.5px),
+    linear-gradient(160deg, #dcebf2 0%, #f4f8fa 45%, #e9f1ea 100%);
+  background-size:
+    180px 180px,
+    240px 240px,
+    210px 210px,
+    260px 260px,
+    auto;
+}
+
+/* The header: deep red, with a string of bulbs along its bottom edge. */
+.theme-christmas .site-header {
+  position: relative;
+  background: linear-gradient(180deg, var(--xmas-red), var(--xmas-red-dark));
+  border-bottom: 3px solid var(--xmas-pine);
+}
+.theme-christmas .site-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -9px;
+  height: 10px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10px 5px, #ff5f6d 0 3px, transparent 4px),
+    radial-gradient(circle at 40px 5px, #ffd23f 0 3px, transparent 4px),
+    radial-gradient(circle at 70px 5px, #5fd38d 0 3px, transparent 4px),
+    radial-gradient(circle at 100px 5px, #62c2ff 0 3px, transparent 4px);
+  background-size: 120px 10px;
+  filter: drop-shadow(0 0 3px #fff6);
+  animation: xmas-header-twinkle 3.2s ease-in-out infinite alternate;
+}
+@keyframes xmas-header-twinkle {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.7;
+  }
+}
+
+/* Panels: snow-white with a thin pine edge. */
+.theme-christmas .panel,
+.theme-christmas .player-panel,
+.theme-christmas .table-turn {
+  border-color: color-mix(in srgb, var(--xmas-pine) 35%, #ffffff);
+}
+.theme-christmas .panel {
+  background: var(--xmas-snow);
+}
+.theme-christmas .table-hand {
+  background: linear-gradient(180deg, #ffffff, var(--xmas-pine-soft));
+  border-color: color-mix(in srgb, var(--xmas-pine) 35%, #ffffff);
+}
+.theme-christmas .board-svg {
+  box-shadow:
+    0 0 0 3px #ffffffb0,
+    0 0 0 5px color-mix(in srgb, var(--xmas-red) 55%, #ffffff);
+}
+
+/* Cards: a cap of snow along the top and holly in the corner (CHRISTMAS.CardDecor). */
+.cards-xmas {
+  display: contents;
+}
+.cards-decor {
+  position: absolute;
+  pointer-events: none;
+}
+.cards-snowcap {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 12%;
+}
+.cards-holly {
+  top: 1px;
+  right: 1px;
+  width: 34%;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-christmas .site-header::after {
+    animation: none;
+  }
+}

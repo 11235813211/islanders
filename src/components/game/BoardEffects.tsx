@@ -5,6 +5,7 @@ import { ERUPTION_CORNER } from '../../../shared/seafaring';
 import type { GameEvent, GameLog, GameView, Vertex } from '../../../shared/types';
 import { BuildingPiece, type Frame } from '../../art';
 import type { Rumble } from '../BoardScene';
+import { SantaFlight, santaVisits } from '../christmas/SantaFlight';
 
 type Eruption = Extract<GameEvent, { kind: 'eruption' }>;
 /** Seconds between one volcano's die and the next. */
@@ -184,6 +185,9 @@ export default function BoardEffects({
           uid={uid}
           color={playerColor}
         />
+      ))}
+      {santaVisits(rolled).map(({ entry, event }) => (
+        <SantaFlight key={entry.id} event={event} view={view} vertices={vertices} color={playerColor} />
       ))}
     </g>
   );
