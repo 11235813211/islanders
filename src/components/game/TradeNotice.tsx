@@ -161,17 +161,20 @@ function AnswerButtons({
       >
         <X size={19} strokeWidth={3} />
       </button>
-      <button
-        type="button"
-        className="answer-button counter tip-end"
-        aria-label="Counter-offer"
-        aria-pressed={answer === 'counter'}
-        data-tip="Propose different terms"
-        disabled={disabled}
-        onClick={() => counter(offer)}
-      >
-        <Repeat2 size={19} strokeWidth={2.5} />
-      </button>
+      {/* A counter-offer takes only a yes or a no. */}
+      {!offer.counterOf && (
+        <button
+          type="button"
+          className="answer-button counter tip-end"
+          aria-label="Counter-offer"
+          aria-pressed={answer === 'counter'}
+          data-tip="Propose different terms"
+          disabled={disabled}
+          onClick={() => counter(offer)}
+        >
+          <Repeat2 size={19} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }
@@ -238,6 +241,11 @@ function offerTitle(view: GameView, offer: TradeOffer, asked: boolean): string {
   const name = (id: string) => view.players.find(p => p.id === id)?.name ?? 'Someone';
   const everyone = offer.to.length === view.players.length - 1;
   const recipients = everyone || asked ? '' : ` to ${offer.to.map(name).join(', ')}`;
+  if (offer.counterOf) {
+    const original = view.tradeOffers.find(o => o.id === offer.counterOf);
+    const whose = original ? (original.fromId === view.selfId ? ' to your offer' : ` to ${name(original.fromId)}`) : '';
+    return offer.fromId === view.selfId ? `Your counter${whose}` : `${name(offer.fromId)} counters${whose}`;
+  }
   return offer.fromId === view.selfId ? `Your offer${recipients}` : `${name(offer.fromId)} offers${recipients}`;
 }
 

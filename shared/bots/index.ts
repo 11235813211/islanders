@@ -63,9 +63,14 @@ export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}
         keepsLodestone(view, incoming) ||
         declinesCommodities(view, incoming)
         ? { type: 'decline-trade', offerId: incoming.id }
-        : brain.respond(view, incoming);
+        : answerOnly(brain.respond(view, incoming), incoming);
     const own = view.tradeOffers.find(o => o.fromId === view.selfId);
     if (own) return brain.review(view, own);
   }
   return cartographersTurn(view, brain.turn(view, options), brain.tiles);
+}
+
+/** A counter-offer takes only a yes or a no: a bot that would counter it says no. */
+function answerOnly(action: GameAction, offer: { id: string; counterOf?: string }): GameAction {
+  return offer.counterOf && action.type === 'counter-trade' ? { type: 'decline-trade', offerId: offer.id } : action;
 }

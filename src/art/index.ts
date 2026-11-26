@@ -48,9 +48,11 @@ export function ResourceIcon({ resource, size }: { resource: Resource; size?: nu
 
 /** The large illustration in the middle of a resource card. */
 export function ResourceArt({ resource }: { resource: Resource }): ReactElement {
-  const plain = createElement(PlainResourceArt, { resource });
-  if (!useContext(ChristmasTheme)) return plain;
-  return createElement('span', { className: 'cards-xmas' }, plain, createElement(CHRISTMAS.CardDecor));
+  const christmas = useContext(ChristmasTheme);
+  if (!christmas) return createElement(PlainResourceArt, { resource });
+  // Lumber and wool get Christmas faces of their own; every card gets holly and snow.
+  const face = CHRISTMAS.CardArt({ resource }) ?? createElement(PlainResourceArt, { resource });
+  return createElement('span', { className: 'cards-xmas' }, face, createElement(CHRISTMAS.CardDecor));
 }
 function PlainResourceArt({ resource }: { resource: Resource }): ReactElement {
   if (resource === 'lodestone') return createElement(CARTOGRAPHERS.ResourceArt);

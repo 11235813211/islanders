@@ -323,6 +323,32 @@ describe('trades and counter-offers', () => {
     expect(conserved(g)).toBe(true);
   });
 
+  it('a counter goes out to everyone else too, who answer it yes or no', () => {
+    let g = settled(3);
+    g.phase = 'build';
+    grant(g, 'p0', { wood: 2 });
+    grant(g, 'p1', { ore: 2 });
+    grant(g, 'p2', { wood: 2 });
+    const wood = { ...emptyBag(), wood: 1 };
+    const ore = { ...emptyBag(), ore: 1 };
+    g = act(g, 'p0', { type: 'offer-trade', give: wood, want: ore });
+    const original = g.tradeOffers[0]!.id;
+    g = act(g, 'p1', { type: 'counter-trade', offerId: original, give: ore, want: { ...emptyBag(), wood: 2 } });
+    const open = g.tradeOffers.find(o => o.counterOf === original)!;
+    expect(open).toMatchObject({ fromId: 'p1', to: ['p2'], want: { wood: 2 } });
+    expect(() => act(g, 'p2', { type: 'counter-trade', offerId: open.id, give: wood, want: ore })).toThrow(
+      /yes or a no/,
+    );
+    // A second counter replaces the first.
+    g = act(g, 'p1', { type: 'counter-trade', offerId: original, give: ore, want: wood });
+    expect(g.tradeOffers.filter(o => o.counterOf === original)).toHaveLength(1);
+    const again = g.tradeOffers.find(o => o.counterOf === original)!;
+    g = act(g, 'p2', { type: 'accept-trade', offerId: again.id });
+    g = act(g, 'p1', { type: 'confirm-trade', offerId: again.id, playerId: 'p2' });
+    expect(g.tradeOffers.some(o => o.id === again.id)).toBe(false);
+    expect(conserved(g)).toBe(true);
+  });
+
   it('rejects malformed counter-offers', () => {
     let g = settled(2);
     g.phase = 'build';

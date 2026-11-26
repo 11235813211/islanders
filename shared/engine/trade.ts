@@ -77,6 +77,38 @@ function clearAnswer(offer: TradeOffer, playerId: string): void {
   offer.counters = offer.counters.filter(counter => counter.fromId !== playerId);
 }
 
+/**
+ * A counter goes out to everyone else too, as an offer of its own that anyone may answer yes or no.
+ * The original offerer answers it on their own offer instead (accept-counter). A new counter from
+ * the same player replaces their last one.
+ */
+function openCounter(next: GameState, offer: TradeOffer, playerId: string, now: number): void {
+  dropCounterOffers(next, offer.id, playerId);
+  const counter = offer.counters.find(c => c.fromId === playerId)!;
+  const to = next.players.map(p => p.id).filter(id => id !== playerId && id !== offer.fromId);
+  if (!to.length) return;
+  const open: TradeOffer = {
+    id: `trade-${next.version + 1}-counter`,
+    fromId: playerId,
+    give: counter.give,
+    want: counter.want,
+    to,
+    acceptedBy: [],
+    declinedBy: [],
+    counters: [],
+    createdAt: now,
+    expiresAt: now + next.settings.tradeSeconds * 1000,
+    counterOf: offer.id,
+  };
+  next.tradeOffers.push(open);
+  declineUnable(next, open, now);
+}
+
+/** The open offers `playerId` sent out as counters to offer `offerId`. */
+function dropCounterOffers(next: GameState, offerId: string, playerId: string): void {
+  next.tradeOffers = next.tradeOffers.filter(o => !(o.counterOf === offerId && o.fromId === playerId));
+}
+
 /** `a` gives `aGives` and receives `bGives`; `b` the reverse. */
 function exchange(next: GameState, a: Player, b: Player, aGives: TradeBag, bGives: TradeBag, offerId: string): void {
   requireRule(canAfford(a, aGives) && canAfford(b, bGives), 'Both players must have the resources in the offer.');
@@ -284,6 +316,7 @@ export const tradeHandlers: Pick<
     needPhase(next, 'build');
     const offer = openOffer(next, action.offerId, now);
     requireRule(offer.to.includes(playerId), 'This offer was not sent to you.');
+    requireRule(!offer.counterOf, 'A counter-offer takes a yes or a no.');
     requireFairShape(next, action.give, action.want);
     requireRule(canAfford(player, action.give), 'You do not have the resources you are offering.');
     clearAnswer(offer, playerId);
@@ -300,6 +333,7 @@ export const tradeHandlers: Pick<
       give: clean(action.give),
       want: clean(action.want),
     });
+    openCounter(next, offer, playerId, now);
   },
 
   /** A recipient says yes. The offering player then picks whom to trade with (confirm-trade). */
@@ -338,6 +372,7 @@ export const tradeHandlers: Pick<
       counter.give,
       `${player.name} accepted ${other.name}’s counter-offer.`,
     );
+    dropCounterOffers(next, offer.id, other.id);
   },
 
   /** A recipient says no. The offer stays open, so they can still change their answer. */

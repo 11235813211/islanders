@@ -20,7 +20,10 @@ import type { PieceDesign } from './design';
 export const GINGER = {
   cookie: '#b8733a',
   icing: '#fffaf2',
-  window: '#ffd66e',
+  /** Sugar-glass panes: a soft cool blue that reads as glass on the cookie, not a bright blob. */
+  window: '#9cc3d8',
+  /** Icing around windows: thin, so the pane shows. */
+  windowLine: 0.32,
   door: '#5b2f17',
   peppermint: '#e2333b',
   /** Gumdrops on the ridge, in this mix of the seat color and white. */
@@ -69,39 +72,37 @@ const ring = (x: number, y: number, r: number, n = 10): [number, number][] =>
 /** Icing hanging under one gable edge, from (ax, ay) to (bx, by): a band with scalloped drips. */
 function icingEdge(house: House, ax: number, ay: number, bx: number, by: number): Decal {
   const n = GINGER.scallops;
-  const top: [number, number][] = [];
-  const bottom: [number, number][] = [];
-  for (let i = 0; i <= n * 2; i++) {
-    const t = i / (n * 2);
-    const x = ax + (bx - ax) * t;
-    const y = ay + (by - ay) * t;
-    top.push([x, y]);
-    bottom.push([x, y - (i % 2 ? GINGER.drip : 0.35)]);
-  }
-  return { points: onFront(house, [...top, ...bottom.reverse()]), fill: 'icing', stroke: 'icing', width: 0.3 };
+  const steps = n * 6;
+  const at = (t: number): [number, number] => [ax + (bx - ax) * t, ay + (by - ay) * t];
+  const top = Array.from({ length: steps + 1 }, (_, i) => at(i / steps));
+  // Rounded drips: each scallop hangs as a half circle below the edge.
+  const bottom = top
+    .map(([x, y], i): [number, number] => [
+      x,
+      y - 0.3 - GINGER.drip * Math.sin(Math.PI * ((i * n) / steps - Math.floor((i * n) / steps))),
+    ])
+    .reverse();
+  return { points: onFront(house, [...top, ...bottom]), fill: 'icing', stroke: 'icing', width: 0.3 };
 }
 
-/** A sugar window: a warm pane with an icing frame and cross. */
-function sugarWindow(house: House, x: number, y: number, size: number, shutters = 0): Decal[] {
-  const h = size / 2;
-  const shutter = (left: number) => ({
-    points: onFront(house, rect(left, y, left + 0.8, y + size)),
-    fill: candy(shutters),
-    stroke: 'icing',
-    width: 0.3,
-  });
+/** A sugar window: a glass pane with a round top, an icing frame, and a bar down the middle. */
+function sugarWindow(house: House, x: number, y: number, width: number): Decal[] {
+  const h = width / 2;
   return [
-    shutter(x - h - 0.9),
-    shutter(x + h + 0.1),
-    { points: onFront(house, rect(x - h, y, x + h, y + size)), fill: 'window', stroke: 'icing', width: 0.6 },
+    {
+      points: onFront(house, arch(x - h, x + h, y, y + width * 1.15)),
+      fill: 'window',
+      stroke: 'icing',
+      width: GINGER.windowLine,
+    },
     {
       points: onFront(house, [
         [x, y],
-        [x, y + size],
+        [x, y + width * 1.15],
       ]),
       open: true,
       stroke: 'icing',
-      width: 0.45,
+      width: 0.25,
     },
   ];
 }
@@ -125,9 +126,7 @@ function decorate(house: House, windows: [number, number][], door = true): void 
       width: 0.1,
     });
   }
-  windows.forEach(([x, y], i) => {
-    front.push(...sugarWindow(house, x, y, 2.4, i + 2));
-  });
+  for (const [x, y] of windows) front.push(...sugarWindow(house, x, y, 2.2));
   // Candy-cane corners up both sides of the front.
   for (const edge of [x0, x1 - 0.9]) {
     front.push({
@@ -153,7 +152,12 @@ function decorate(house: House, windows: [number, number][], door = true): void 
   for (let x = x0 + 1; x < x1 - 0.5; x += 1.6)
     front.push({ points: onFront(house, ring(x, 0.6, 0.28, 6)), fill: 'icing', stroke: 'icing', width: 0.1 });
   house.right.decals.push(
-    { points: onRight(house, rect(spec.z - 1.4, 3, spec.z + 1.2, 5.4)), fill: 'window', stroke: 'icing', width: 0.6 },
+    {
+      points: onRight(house, rect(spec.z - 1.4, 3, spec.z + 1.2, 5.4)),
+      fill: 'window',
+      stroke: 'icing',
+      width: GINGER.windowLine,
+    },
     {
       points: onRight(house, rect(house.z0, spec.wall - 0.6, house.z1, spec.wall)),
       fill: 'icing',
@@ -218,8 +222,9 @@ function roofIcing(slope: { points: Vec3[]; decals: Decal[] }): void {
     slope.decals.push({ points: dot, fill: candy(i), stroke: candy(i), width: 0.1 });
   }
   const n = GINGER.scallops * 2;
-  const scallop = Array.from({ length: n + 1 }, (_, i) =>
-    at(i % 2 ? GINGER.eaveIcing : GINGER.eaveIcing * 0.45, i / n),
+  // A smooth wave of rounded drips, not a zigzag.
+  const scallop = Array.from({ length: n * 4 + 1 }, (_, i) =>
+    at(GINGER.eaveIcing * (0.45 + 0.55 * Math.abs(Math.sin((Math.PI * i) / 8))), i / (n * 4)),
   );
   slope.decals.push(
     { points: [at(0, 0), ...scallop, at(0, 1)], fill: 'icing', stroke: 'icing', width: 0.2 },
@@ -284,7 +289,8 @@ function candyCane(x: number, z: number, height: number): Solid {
 function cottage(): Solid[] {
   // Short walls under a tall roof read as cute at board size.
   const house = gabledHouse({ x: 0, z: 0, width: 12, depth: 11, wall: 7.4, rise: 7.6, overhang: 1.4, fascia: 1.5 });
-  decorate(house, [[3.4, 2.8]]);
+  // Door and peppermint on the front; the window is on the side, so nothing overlaps.
+  decorate(house, []);
   house.front.decals.push(...peppermint(house, 0, 10, 1.5));
   return [...materials(house), candyCane(-4.8, -6.6, 4.4)];
 }

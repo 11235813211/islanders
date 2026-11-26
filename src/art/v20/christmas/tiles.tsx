@@ -11,7 +11,7 @@ import { CHRISTMAS } from './tuning';
 const SNOW = CHRISTMAS.snow;
 
 /** A pine with snow on each tier; `dressed` adds baubles, and `star` a star on top. */
-function SnowyPine({
+export function SnowyPine({
   x,
   y,
   scale = 1,

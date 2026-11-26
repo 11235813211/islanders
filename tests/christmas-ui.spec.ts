@@ -28,6 +28,9 @@ test('Christmas: winter board, the North Pole, and sending Santa to a building',
   await expect(page.locator('html')).toHaveClass(/theme-christmas/);
   await expect(page.getByText('Pick a building for Santa')).toBeVisible();
   await page.screenshot({ path: 'test-results/christmas-table.png' });
+  await page.getByRole('button', { name: 'dice', exact: true }).click();
+  await page.locator('.chat-panel').screenshot({ path: 'test-results/christmas-dice.png' });
+  await page.locator('.site-header').screenshot({ path: 'test-results/christmas-header.png' });
   const target = page.getByRole('button', { name: /^Send Santa to Player 2/ }).first();
   await target.click();
   await expect.poll(() => game.state().phase).toBe('build');

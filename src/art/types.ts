@@ -70,6 +70,8 @@ export interface ChristmasArt {
   Sleigh: () => ReactElement;
   /** Holly and snow over a resource card's art. */
   CardDecor: () => ReactElement;
+  /** A Christmas card face for some resources (lumber, wool); null keeps the usual art. */
+  CardArt: (props: { resource: string }) => ReactElement | null;
   /** Seconds to fly to a building, and to stay there before leaving. */
   sleigh: { flight: number; hold: number; scale: number };
 }

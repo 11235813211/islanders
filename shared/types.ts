@@ -340,6 +340,8 @@ export interface TradeOffer {
   counters: TradeCounter[];
   createdAt: number;
   expiresAt: number;
+  /** A counter-offer sent out to everyone else: the offer it answers. */
+  counterOf?: string;
 }
 /**
  * A trade two players agreed on while neither was taking their turn. It is offered again,
