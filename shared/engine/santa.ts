@@ -1,24 +1,29 @@
 // The North Pole (room setting `northPole`; drawn the same with or without the Christmas look).
-// Santa lives on one desert, nobody may settle on its corners, and it, which gets its own number. When it is
-// rolled, the roller picks another player's settlement or city, and Santa flies there with one
-// card of a random standard resource from the bank.
-import { shuffled } from '../board';
-import { CLASSIC_RESOURCES, type ClassicResource, type GameState, type NorthPole } from '../types';
+// Santa lives on a one-tile island above the map with its own number; nobody may settle on its
+// corners. When the number is rolled, the roller picks another player's settlement or city, and
+// Santa flies there with one card of a random standard resource from the bank.
+import { HEX_RADIUS, withLoneHex } from '../board';
+import { type Board, CLASSIC_RESOURCES, type ClassicResource, type GameState, type NorthPole } from '../types';
 import { addLog, type Handlers, needPhase, requireRule, tally } from './core';
 
 /** Numbers the North Pole may draw: never 7, and not the 6 and 8, so Santa comes now and then. */
 export const NORTH_POLE_NUMBERS = [3, 4, 5, 9, 10, 11] as const;
 
-/** Santa's tile and number for a fresh board, or null when the room or map has no place for him. */
-export function placeNorthPole(state: GameState, random: () => number): NorthPole | null {
+/**
+ * Santa's island for a fresh board: one tile of its own above the map, across a row of water,
+ * with its own number. Null when the room has no North Pole.
+ */
+export function placeNorthPole(state: GameState, random: () => number): { board: Board; northPole: NorthPole } | null {
   if (!state.settings.northPole) return null;
-  const deserts = state.board.hexes.filter(h => h.terrain === 'desert' && h.number === null);
-  if (!deserts.length) return null;
-  // Leave the robber its own desert when there is a second one.
-  const free = deserts.filter(h => h.id !== state.robber);
-  const home = shuffled(free.length ? free : deserts, random)[0]!;
+  const { hexes } = state.board;
+  const top = Math.min(...hexes.map(h => h.r));
+  const r = top - 2;
+  const middle = hexes.reduce((sum, h) => sum + h.x, 0) / hexes.length;
+  const q = Math.round(middle / (Math.sqrt(3) * HEX_RADIUS) - r / 2);
+  // Desert terrain pays nothing; the North Pole is drawn in its place.
+  const { board, hexId } = withLoneHex(state.board, q, r, 'desert');
   const number = NORTH_POLE_NUMBERS[Math.floor(random() * NORTH_POLE_NUMBERS.length)]!;
-  return { hexId: home.id, number };
+  return { board, northPole: { hexId, number } };
 }
 
 /** Corners holding another player's settlement or city: where the roller may send Santa. */

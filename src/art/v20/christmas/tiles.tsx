@@ -4,7 +4,7 @@
 import type { ReactElement } from 'react';
 import type { BaseTerrain } from '../../../../shared/types';
 import { TileFrame } from '../index';
-import { BrickHills, Wheat, WheatGround } from '../terrain-features';
+import { BrickHills, ForestGround, Wheat, WheatGround } from '../terrain-features';
 import { LightString, Snowfall, spread, Wind } from './effects';
 import { CHRISTMAS } from './tuning';
 
@@ -79,15 +79,35 @@ const PINES = [
   [10, 46, 0.68],
 ] as const;
 
+/** A pile of snow `w` wide, its base centered at (x, y): a white mound with a blue-gray shadow. */
+function Drift({ x, y, w }: { x: number; y: number; w: number }) {
+  const h = w * 0.32;
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <path d={`M${-w / 2} 0Q${-w / 4} ${-h * 1.1} 0 ${-h * 0.8}T${w / 2} 0Z`} fill={SNOW.light} />
+      <path d={`M${-w / 2} 0Q0 ${-h * 0.35} ${w / 2} 0Q0 ${h * 0.25} ${-w / 2} 0Z`} fill={SNOW.shade} />
+    </g>
+  );
+}
+
+/** Forest snow in a few piles; the rest of the ground keeps its greens. */
+const FOREST_DRIFTS = [
+  [-14, -4, 18],
+  [22, 12, 16],
+  [-44, 30, 20],
+  [28, 50, 22],
+  [-8, 58, 18],
+] as const;
+
 function WinterForest() {
   return (
     <g>
-      <path d="M-65 5Q-36-12-4 5T65-2V65H-65Z" fill="#5fa968" />
-      <path d="M-65-60H65V0Q30-14 0 2T-65-8Z" fill={SNOW.shade} opacity=".55" />
-      <path d="M-65 43Q-30 12 0 26T65 18V65H-65Z" fill={SNOW.light} />
-      <path d="M-65 52Q-28 30 2 38T65 32V65H-65Z" fill={SNOW.shade} />
+      <ForestGround />
+      {FOREST_DRIFTS.map(([x, y, w]) => (
+        <Drift key={`${x},${y}`} x={x} y={y} w={w} />
+      ))}
       {PINES.map(([x, y, s], i) => (
-        <SnowyPine key={i} x={x} y={y} scale={s} dressed={i === 1 || i === 3} star={i === 1} />
+        <SnowyPine key={i} x={x} y={y} scale={s} dressed star={i === 1} />
       ))}
     </g>
   );
@@ -201,21 +221,23 @@ const STALKS = [
   [38, 22, 10],
 ] as const;
 
-/** Fields under a light frost: the gold stays, with warm snow in the furrows and a snowman. */
+/** Field snow in a few piles; the rest keeps its gold. */
+const FIELD_DRIFTS = [
+  [-46, -8, 18],
+  [-12, 22, 16],
+  [44, 38, 20],
+  [-38, 48, 18],
+] as const;
+
+/** Fields with snow piled here and there, the gold still showing, and a snowman. */
 function WinterFields() {
   const frost = CHRISTMAS.fields;
   return (
     <g>
       <WheatGround />
-      <path d="M-70-1Q-32-32 9-15T70-20V-60H-70Z" fill={frost.snow} opacity=".55" />
-      <path d="M-70-1Q-32-32 9-15T70-20V-16Q30-26 9-11T-70 3Z" fill={frost.snow} opacity=".8" />
-      <path
-        d="M-70 40Q-17 10 12 32T70 31M-70 47Q-17 17 12 39T70 38M-70 54Q-17 24 12 46T70 45"
-        fill="none"
-        stroke={frost.furrow}
-        strokeWidth="1.2"
-      />
-      <path d="M-70 24Q-18-8 13 14T70 15V18Q30 8 13 17T-70 27Z" fill={frost.snow} opacity=".85" />
+      {FIELD_DRIFTS.map(([x, y, w]) => (
+        <Drift key={`${x},${y}`} x={x} y={y} w={w} />
+      ))}
       {STALKS.map(([x, y, rotate], i) => (
         <g key={i}>
           <Wheat x={x} y={y} rotate={rotate} />
@@ -228,36 +250,17 @@ function WinterFields() {
 }
 
 /**
- * The garland's posts: around each hill below its peak, like a skirt, dipping through the valley
- * between them. The wire sags a little between posts, and bulbs hang along it.
+ * Each hill's string of lights runs across its face, from one slope to the other, below the peak.
+ * The posts are where the bulbs hang (the high points of the wire).
  */
-const SKIRT: [number, number][] = [
-  [-70, 14],
-  [-58, 2],
-  [-47, -10],
-  [-37, -16],
-  [-27, -11],
-  [-16, -5],
-  [-6, -3],
-  [4, -14],
-  [16, -23],
-  [28, -15],
-  [40, -4],
-  [52, 6],
-  [70, 18],
-];
-/** Points along the wire: a sag of `sag` units below the straight line between each pair of posts. */
-function swoop(anchors: [number, number][], sag: number, steps = 6): [number, number][] {
-  const points: [number, number][] = [anchors[0]!];
-  for (let i = 1; i < anchors.length; i++) {
-    const [a, b] = [anchors[i - 1]!, anchors[i]!];
-    for (let s = 1; s <= steps; s++) {
-      const t = s / steps;
-      points.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + sag * 4 * t * (1 - t)]);
-    }
-  }
-  return points;
+function acrossHill(left: [number, number], right: [number, number], posts: number): [number, number][] {
+  return Array.from({ length: posts }, (_, i) => {
+    const t = i / (posts - 1);
+    // A slight downward bow, like a garland across a skirt.
+    return [left[0] + (right[0] - left[0]) * t, left[1] + (right[1] - left[1]) * t + 3 * Math.sin(Math.PI * t)];
+  });
 }
+const HILL_LIGHTS = [acrossHill([-49, -18], [-11, -18], 6), acrossHill([2, -25], [31, -25], 5)];
 
 /** The points of a ridge, shifted down by `depth`: a band of snow lying on it, as thick as `depth`. */
 function snowOn(ridge: [number, number][], depth: number): string {
@@ -289,7 +292,9 @@ function WinterHills() {
       <path d="M-29 34-19 38-10 34V35.3L-19 39.4-29 35.3Z" fill={SNOW.shade} />
       <path d="M22-7 32-11 39-7 31-3Z" fill={SNOW.light} />
       <path d="M22-7 31-3 39-7V-5.8L31-1.8 22-5.8Z" fill={SNOW.shade} />
-      <LightString points={swoop(SKIRT, 2.6)} />
+      {HILL_LIGHTS.map((posts, i) => (
+        <LightString key={i} posts={posts} sag={CHRISTMAS.hillLights.sag} seed={i * 7} />
+      ))}
     </g>
   );
 }
@@ -318,7 +323,7 @@ function GrinchHead({ x, y }: { x: number; y: number }) {
 function GrinchFingers({ x, y, rotate }: { x: number; y: number; rotate: number }) {
   return (
     <g
-      transform={`translate(${x} ${y}) rotate(${rotate})`}
+      transform={`translate(${x} ${y}) rotate(${rotate}) scale(${CHRISTMAS.grinch.size})`}
       fill={CHRISTMAS.grinch.fur}
       stroke={CHRISTMAS.grinch.furDark}
       strokeWidth=".5"
@@ -336,7 +341,7 @@ function WinterMountains({ grinch = false }: { grinch?: boolean }) {
   const ridge = (x: number) => -39 + ((x - 18) * 72) / 53;
   return (
     <g>
-      {grinch && <GrinchHead x={33} y={-21} />}
+      {grinch && <GrinchHead x={31} y={-21.5} />}
       <path d="M-70 30-32-27-5 14 18-39 71 33V70H-70Z" fill="#5f7a86" />
       <path d="m-32-27 4 49L-5 14Zm50-12 4 62 49 10Z" fill="#7c929c" />
       <path d="M-32-27-46-6Q-40-9-37-4.5Q-33-10-28.6-4Q-24-9-19-6Z" fill={SNOW.light} />
@@ -348,8 +353,8 @@ function WinterMountains({ grinch = false }: { grinch?: boolean }) {
       <path d="M30 6 22.3 15Q26 13 29 16.4Q33 12 37 15Z" fill={SNOW.light} />
       {grinch && (
         <>
-          <GrinchFingers x={25.5} y={ridge(25.5) + 0.5} rotate={54} />
-          <GrinchFingers x={41} y={ridge(41) + 0.5} rotate={54} />
+          <GrinchFingers x={27.4} y={ridge(27.4) + 0.3} rotate={54} />
+          <GrinchFingers x={35.4} y={ridge(35.4) + 0.3} rotate={54} />
         </>
       )}
       <path d="M-67 53Q-40 40-22 46T6 44 34 46 67 53V70H-67Z" fill={SNOW.light} />
@@ -358,27 +363,56 @@ function WinterMountains({ grinch = false }: { grinch?: boolean }) {
   );
 }
 
-/** A snowman with a scarf and a carrot nose, standing at (x, y). */
+/** A snowball of radius `r` at (0, cy), shaded so it reads as round: lit from the upper left. */
+function Snowball({ cy, r }: { cy: number; r: number }) {
+  return (
+    <g transform={`translate(0 ${cy})`}>
+      <circle r={r} fill={SNOW.blue} />
+      <circle cx={-r * 0.12} cy={-r * 0.12} r={r * 0.9} fill={SNOW.shade} />
+      <circle cx={-r * 0.22} cy={-r * 0.22} r={r * 0.72} fill={SNOW.light} />
+      <ellipse
+        cx={-r * 0.42}
+        cy={-r * 0.45}
+        rx={r * 0.22}
+        ry={r * 0.14}
+        fill="#fff"
+        transform={`rotate(-35 ${-r * 0.42} ${-r * 0.45})`}
+      />
+    </g>
+  );
+}
+
+/** A round, shaded snowman with a top hat, coal buttons, a scarf, and a carrot nose, standing at (x, y). */
 function Snowman({ x, y }: { x: number; y: number }) {
+  const scarf = CHRISTMAS.reindeer.scarf;
   return (
     <g transform={`translate(${x} ${y})`}>
-      <ellipse cy="9" rx="10" ry="2.6" fill="#8f7a3e" opacity=".22" />
-      <circle cy="2" r="8" fill={SNOW.light} stroke={SNOW.blue} strokeWidth=".8" />
-      <circle cy="-9" r="5.6" fill={SNOW.light} stroke={SNOW.blue} strokeWidth=".8" />
-      <path d="M-6-3-13-9m19 6 7-6" stroke="#6b4a2e" strokeWidth="1.2" strokeLinecap="round" />
+      <ellipse cx="1.5" cy="9.2" rx="11" ry="2.6" fill="#7a6a35" opacity=".25" />
       <path
-        d="M-5-5.5Q0-3 5-5.5M3-5 4 0"
-        stroke={CHRISTMAS.reindeer.scarf}
-        strokeWidth="2.2"
+        d="M-6-3-13-9m.8-.1-1.8-1.6m1.8 1.6.2-2.3M6-3l7-6m-.8-.1 1.9-1.4m-1.9 1.4-.3-2.3"
+        stroke="#6b4a2e"
+        strokeWidth="1.1"
         strokeLinecap="round"
-        fill="none"
       />
-      <path d="M0-9 5.5-8 0-7.6Z" fill="#f08a24" />
-      <circle cx="-2" cy="-11" r=".8" fill="#222" />
-      <circle cx="2" cy="-11" r=".8" fill="#222" />
-      <circle cy="0" r=".9" fill="#222" />
-      <circle cy="4" r=".9" fill="#222" />
-      <path d="M-5-14H5l-1.4-6.4h-7.2Z" fill="#2b2b33" />
+      <Snowball cy={2} r={8} />
+      <Snowball cy={-9.4} r={5.6} />
+      <path d="M-5.4-5.4Q0-2.6 5.4-5.4L5.6-3.6Q0-1-5.6-3.6Z" fill={scarf} />
+      <path d="M2.4-4 3.6 2.4 6 1.8 4.6-4Z" fill={scarf} />
+      <path d="M.2-9.6 6-8.4.2-7.6Z" fill="#f08a24" />
+      <circle cx="-2.1" cy="-11.4" r=".75" fill="#222" />
+      <circle cx="2" cy="-11.4" r=".75" fill="#222" />
+      {[0, 3.4, 6.6].map(by => (
+        <circle key={by} cx="-.4" cy={-2 + by} r=".9" fill="#222" />
+      ))}
+      {/* A top hat set on the head: its brim rests on the crown of the head, with a red band and holly. */}
+      <g transform="rotate(-6 0 -14.6)">
+        <ellipse cy="-14.4" rx="6.6" ry="1.5" fill="#24242c" />
+        <path d="M-4.2-14.6V-22.4Q0-23.4 4.2-22.4V-14.6Q0-13.6-4.2-14.6Z" fill="#2f2f39" />
+        <path d="M-4.2-16.6Q0-15.6 4.2-16.6V-15.2Q0-14.2-4.2-15.2Z" fill={scarf} />
+        <ellipse cy="-22.4" rx="4.2" ry=".9" fill="#3c3c48" />
+        <circle cx="2.6" cy="-16.2" r=".7" fill="#e8323c" />
+        <path d="M3-16.4l1.6-.9m-1.6.9 1.2.7" stroke="#1f7a3a" strokeWidth=".9" strokeLinecap="round" />
+      </g>
     </g>
   );
 }

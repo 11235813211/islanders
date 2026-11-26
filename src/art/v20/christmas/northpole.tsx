@@ -91,12 +91,10 @@ export function NorthPoleTile({ uid }: { uid: string }) {
   );
 }
 
-/** A candy-striped ring and a Santa hat around the North Pole's number token (drawn at its origin). */
+/** A Santa hat on the North Pole's number token (drawn at its origin). */
 export function NorthPoleRing() {
   return (
     <g transform="translate(0 8)" aria-hidden="true">
-      <circle r="21" fill="#fff" />
-      <circle r="21" fill="none" stroke={POLE.pole} strokeWidth="3.4" strokeDasharray="4.4 4.4" />
       <g transform="translate(12 -17) rotate(28)">
         <path d="M-7 2Q-3-12 6-9Q4-4 7 2Z" fill="#e2333b" />
         <rect x="-8.5" y="0" width="17" height="4.4" rx="2.2" fill="#fff" />
@@ -119,17 +117,50 @@ export function Sleigh() {
       <path d="M-28-26q2-5 6-2" stroke="#c9a227" strokeWidth="1.6" fill="none" />
       <rect x="-33" y="-24" width="6" height="5" fill="#2d8a4e" />
       <rect x="-27" y="-28" width="5" height="5" fill="#e2333b" />
-      {/* Santa */}
-      <circle cx="-12" cy="-18" r="7.5" fill="#d7263d" />
-      <path d="M-18-16q6 4 12 0" stroke="#fff" strokeWidth="2.2" fill="none" />
-      <circle cx="-10" cy="-27.5" r="4.2" fill="#f6c8a8" />
-      <path d="M-14-26.5q4 8 8 0q0 6-4 7.4q-4-1.4-4-7.4Z" fill="#fff" />
-      <path d="M-14.4-29q1-7 9-4.6l3 4Q-6-31.4-14.4-29Z" fill="#d7263d" />
-      <circle cx="-2.2" cy="-29.4" r="1.6" fill="#fff" />
-      <rect x="-15" y="-30.4" width="10" height="2.4" rx="1.2" fill="#fff" />
-      <circle cx="-8.8" cy="-27.8" r=".6" fill="#2b1a12" />
-      <path d="M-6-20q6-6 8-12" stroke="#d7263d" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <circle cx="2.4" cy="-32.6" r="1.8" fill="#fff" />
+      {/* Santa: red coat, waving, with a round face, rosy cheeks, a fluffy beard, and a fur-trimmed hat. */}
+      <circle cx="-12" cy="-17" r="8" fill="#d7263d" />
+      <path d="M-19.5-15.5q7.5 4.5 15 0" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <rect x="-14.2" y="-14.6" width="4.4" height="2.6" rx=".6" fill="#2b1a12" />
+      <rect x="-13" y="-14" width="2" height="1.4" fill="#ffd23f" />
+      <path d="M-5.5-20Q.5-26 2-33" stroke="#d7263d" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+      <circle cx="2.2" cy="-34.4" r="2" fill="#fff" />
+      <g transform="translate(-11 -29)">
+        <circle r="5.8" fill="#f8cfae" />
+        <circle cx="-2.6" cy="1" r="1.5" fill="#f29a8c" opacity=".7" />
+        <circle cx="2.8" cy="1" r="1.5" fill="#f29a8c" opacity=".7" />
+        {/* Smiling eyes and white brows. */}
+        <path
+          d="M-2.9-1.2q.9-.9 1.8 0M1.1-1.2q.9-.9 1.8 0"
+          stroke="#2b1a12"
+          strokeWidth=".7"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <path
+          d="M-3.4-2.6q1.2-.9 2.4-.2M1-2.8q1.2-.7 2.4.2"
+          stroke="#fff"
+          strokeWidth="1"
+          strokeLinecap="round"
+          fill="none"
+        />
+        {/* A fluffy beard all round the chin, a mustache, and a round nose. */}
+        <path
+          d="M-5.6 0Q-6.6 5-3.6 8.2Q-1.6 10.6 0 9.4Q1.6 10.6 3.6 8.2Q6.6 5 5.6 0Q4.6 3.4 2.2 3.2H-2.2Q-4.6 3.4-5.6 0Z"
+          fill="#fff"
+        />
+        <path
+          d="M-3.4 2.6Q-4.4 4.2-2 4.2Q-.6 3.8 0 2.8Q.6 3.8 2 4.2Q4.4 4.2 3.4 2.6Q1.6 1.6 0 2.4Q-1.6 1.6-3.4 2.6Z"
+          fill="#f4f4f4"
+          stroke="#d9dfe6"
+          strokeWidth=".3"
+        />
+        <circle cy="1.4" r="1.25" fill="#e98472" />
+        <path d="M-1.2 5.6q1.2.8 2.4 0" stroke="#b8545b" strokeWidth=".6" strokeLinecap="round" fill="none" />
+        {/* The hat, flopping back to a pompom, over a band of fur. */}
+        <path d="M-5.6-3.4Q-4.6-10.6 2-10.4Q6.6-10 9.6-6.2Q6.2-6.8 5.2-3.4Z" fill="#d7263d" />
+        <circle cx="10" cy="-5.6" r="1.9" fill="#fff" />
+        <rect x="-6.6" y="-4.6" width="13" height="3" rx="1.5" fill="#fff" />
+      </g>
       {/* The sleigh: a red body with gold trim on curled runners. */}
       <path d="M-30-14H4Q12-14 12-6Q12 2 2 2H-24Q-32 2-32-8Z" fill="#c1121f" />
       <path d="M-30-14H4Q12-14 12-6" fill="none" stroke="#ffd23f" strokeWidth="1.6" />

@@ -88,6 +88,30 @@ const HUGE_ORDERED = [
   6, 5, 3, 10, 6, 11, 8, 4, 10, 8, 4, 6, 4, 8, 9, 4, 5, 12, 5, 10, 3, 5, 2, 9, 11, 3, 9, 3, 2, 6, 11, 8, 10, 9, 12,
 ];
 
+/**
+ * A copy of `board` with one more tile standing alone at (q, r), touching no other tile, so its
+ * corners and edges are new and every existing id stays the same.
+ */
+export function withLoneHex(board: Board, q: number, r: number, terrain: Terrain): { board: Board; hexId: string } {
+  const lone = buildGraph([{ q, r, terrain }]);
+  const vertex = (id: string) => `v${board.vertices.length + Number(id.slice(1))}`;
+  const edge = (id: string) => `e${board.edges.length + Number(id.slice(1))}`;
+  const hexId = `h${board.hexes.length}`;
+  const hex = { ...lone.hexes[0]!, id: hexId, vertexIds: lone.hexes[0]!.vertexIds.map(vertex) };
+  return {
+    hexId,
+    board: {
+      ...board,
+      hexes: [...board.hexes, hex],
+      vertices: [
+        ...board.vertices,
+        ...lone.vertices.map(v => ({ ...v, id: vertex(v.id), hexIds: [hexId], edgeIds: v.edgeIds.map(edge) })),
+      ],
+      edges: [...board.edges, ...lone.edges.map(e => ({ ...e, id: edge(e.id), a: vertex(e.a), b: vertex(e.b) }))],
+    },
+  };
+}
+
 /** The standard island's tiles, numbers, and harbors; `large` is for 5–6 players, `huge` for 7–8. */
 const ISLANDS = {
   standard: {

@@ -84,7 +84,9 @@ function drawFrom(state: GameState, seed: number): ReturnType<typeof boardFor> {
 function showDraw(next: GameState, seed: number): void {
   Object.assign(next, drawFrom(next, seed));
   // Its own stream, so the board drawn from a seed stays the same with or without Santa.
-  next.northPole = placeNorthPole(next, seededRandom(seed ^ 0x5a17a));
+  const pole = placeNorthPole(next, seededRandom(seed ^ 0x5a17a));
+  next.northPole = pole?.northPole ?? null;
+  if (pole) next.board = pole.board;
 }
 
 /**

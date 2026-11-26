@@ -33,8 +33,8 @@ export const CHRISTMAS = {
   },
   /** A string of lights swooping over the hills. */
   hillLights: {
-    /** Bulbs along the string. */
-    bulbs: 11,
+    /** How far the wire dips between bulbs (board units); small keeps it taut. */
+    sag: 1,
     colors: ['#ff4d4d', '#ffd23f', '#3fd28b', '#4db8ff', '#ff8adf'],
     /** Seconds for one slow twinkle; bulbs start at different times. */
     twinkle: 2.8,
@@ -61,7 +61,7 @@ export const CHRISTMAS = {
   frozen: { ground: '#d5eaf4', drift: '#e6f3f9', pond: '#9fcde3', pondLight: '#c4e4f2', shard: '#bfe3f3' },
   polarBear: { fur: '#fbfbf8', shade: '#e3ecf1', line: '#a9bccb', ear: '#e8bcbc', scarf: '#2f8f4e' },
   /** The Grinch, peeking from behind one mountain per board. */
-  grinch: { size: 1.35, fur: '#8cc63f', furDark: '#5e8f22', brow: '#2f4a12', eye: '#ffe14d', pupil: '#c62828' },
+  grinch: { size: 0.68, fur: '#8cc63f', furDark: '#5e8f22', brow: '#2f4a12', eye: '#ffe14d', pupil: '#c62828' },
   forest: { baubles: ['#e8323c', '#ffd23f', '#4db8ff'], star: '#ffd23f' },
   northPole: {
     pole: '#e2333b',

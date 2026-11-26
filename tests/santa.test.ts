@@ -20,12 +20,25 @@ const total = (g: GameState) => (r: (typeof CLASSIC_RESOURCES)[number]) =>
   g.bank[r] + g.players.reduce((n, p) => n + p.resources[r], 0);
 
 describe('the North Pole', () => {
-  it('sits on a desert with a number that is never 6, 7, or 8, only when the room turns it on', () => {
+  it('is an island of its own above the map, with a number never 6, 7, or 8, only when the room turns it on', () => {
     const g = christmas();
     const pole = g.northPole!;
-    expect(g.board.hexes.find(h => h.id === pole.hexId)!.terrain).toBe('desert');
+    const hex = g.board.hexes.find(h => h.id === pole.hexId)!;
+    expect(hex.r).toBe(Math.min(...g.board.hexes.map(h => h.r)));
+    const others = g.board.hexes.filter(h => h !== hex);
+    // Across water: no other tile beside it, and none of its corners shared.
+    expect(
+      others.some(
+        h => Math.max(Math.abs(h.q - hex.q), Math.abs(h.r - hex.r), Math.abs(h.q + h.r - hex.q - hex.r)) <= 1,
+      ),
+    ).toBe(false);
+    expect(g.board.vertices.filter(v => v.hexIds.includes(hex.id)).every(v => v.hexIds.length === 1)).toBe(true);
+    // The desert stays a desert, and the robber never goes to the Pole.
+    expect(others.filter(h => h.terrain === 'desert')).toHaveLength(1);
     expect(NORTH_POLE_NUMBERS).toContain(pole.number);
     expect(getView(g, 'p1').northPole).toEqual(pole);
+    g.phase = 'robber';
+    expect(getView(g, 'p0').legal.robberHexes).not.toContain(pole.hexId);
     expect(settled(3).northPole).toBeNull();
     const look = makeLobby(3);
     look.settings.christmas = true;

@@ -81,30 +81,23 @@ export function Wind({ seed = 0 }: { seed?: number }) {
   );
 }
 
-/** A string of bulbs hanging along `path` points (a swooping wire), twinkling slowly out of step. */
-export function LightString({ points, seed = 0 }: { points: [number, number][]; seed?: number }) {
+/**
+ * A string of lights tied to `posts`: the wire dips a little (`sag`) between them, and a bulb hangs
+ * at each post, the high point of each dip. They twinkle slowly out of step.
+ */
+export function LightString({ posts, sag, seed = 0 }: { posts: [number, number][]; sag: number; seed?: number }) {
   const lights = CHRISTMAS.hillLights;
-  const d = `M${points.map(p => p.join(' ')).join('L')}`;
-  // Bulbs evenly along the polyline.
-  const lengths = points.slice(1).map((p, i) => Math.hypot(p[0] - points[i]![0], p[1] - points[i]![1]));
-  const total = lengths.reduce((a, b) => a + b, 0);
-  const at = (t: number): [number, number] => {
-    let left = t * total;
-    for (let i = 0; i < lengths.length; i++) {
-      if (left <= lengths[i]! || i === lengths.length - 1) {
-        const k = Math.min(1, left / lengths[i]!);
-        const [a, b] = [points[i]!, points[i + 1]!];
-        return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
-      }
-      left -= lengths[i]!;
-    }
-    return points.at(-1)!;
-  };
+  const d = posts
+    .map(([x, y], i) => {
+      if (!i) return `M${x} ${y}`;
+      const [px, py] = posts[i - 1]!;
+      return `Q${(px + x) / 2} ${(py + y) / 2 + sag * 2} ${x} ${y}`;
+    })
+    .join('');
   return (
     <g className="xmas-lights" aria-hidden="true">
       <path d={d} fill="none" stroke={lights.wire} strokeWidth="1" strokeLinejoin="round" opacity=".85" />
-      {Array.from({ length: lights.bulbs }, (_, i) => {
-        const [x, y] = at((i + 0.5) / lights.bulbs);
+      {posts.map(([x, y], i) => {
         const color = lights.colors[i % lights.colors.length]!;
         const duration = lights.twinkle * (0.8 + 0.5 * spread(i, seed + 13));
         return (

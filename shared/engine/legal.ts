@@ -233,7 +233,13 @@ function robberHexes(state: GameState, selfId: string): string[] {
   return state.board.hexes
     .filter(hex => {
       if (hex.terrain === 'sea') return seaRules(state) && hex.id !== state.pirate && !protectedHex(hex.id);
-      return isLandTerrain(hex.terrain) && hex.id !== state.robber && !protectedHex(hex.id);
+      // The robber has no business at the North Pole.
+      return (
+        isLandTerrain(hex.terrain) &&
+        hex.id !== state.robber &&
+        hex.id !== state.northPole?.hexId &&
+        !protectedHex(hex.id)
+      );
     })
     .map(hex => hex.id);
 }
