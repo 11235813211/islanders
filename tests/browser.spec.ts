@@ -31,6 +31,7 @@ test('solo lobby, large board, seat switching, mobile and tablet layouts', async
   await expect(page.getByRole('heading', { name: 'Game settings' })).toBeVisible();
   await expect(page.locator('.board-svg')).toHaveCount(0);
   await expect(page.locator('.lobby-player')).toHaveCount(3);
+  await page.getByRole('button', { name: 'All settings' }).click();
   await page.getByLabel('Automatic dice roll').selectOption('0');
   await expect.poll(() => game.state()?.settings.autoRollSeconds).toBe(0);
   await page.getByLabel('Number layout', { exact: true }).selectOption('ordered');
