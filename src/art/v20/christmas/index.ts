@@ -3,7 +3,7 @@
 import type { ChristmasArt } from '../../types';
 import { CardDecor, ChristmasCardArt } from './cards';
 import { NorthPoleRing, NorthPoleTile, Sleigh } from './northpole';
-import { WinterTile } from './tiles';
+import { LogoTree, WinterTile } from './tiles';
 import { CHRISTMAS } from './tuning';
 
 export const christmas: ChristmasArt = {
@@ -13,5 +13,6 @@ export const christmas: ChristmasArt = {
   Sleigh,
   CardDecor,
   CardArt: ChristmasCardArt,
+  LogoTree,
   sleigh: CHRISTMAS.sleigh,
 };

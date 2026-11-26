@@ -72,6 +72,11 @@ export function SnowyPine({
   );
 }
 
+/** The logo's mark: one decorated pine with its star. */
+export function LogoTree() {
+  return <SnowyPine x={0} y={0} dressed star />;
+}
+
 /** Pines spaced so none overlaps another or the number token (each is ±14 wide and 35 tall at scale 1). */
 const PINES = [
   [-24, -24, 0.84],

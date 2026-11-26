@@ -3,8 +3,8 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { isBotGame, nameTaken } from '../shared/settings';
 import type { AccountSession, GameAction, Session } from '../shared/types';
 import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
-import ChristmasBoat from './components/christmas/ChristmasBoat';
 import ChristmasLook from './components/christmas/ChristmasLook';
+import ChristmasTree from './components/christmas/ChristmasTree';
 import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
@@ -206,7 +206,7 @@ function App() {
   const header = (
     <header className="site-header">
       <button className="brand" onClick={home} aria-label="Islanders home">
-        {view?.settings.christmas ? <ChristmasBoat size={32} /> : <Sailboat size={32} />}
+        {view?.settings.christmas ? <ChristmasTree size={38} /> : <Sailboat size={32} />}
         <span>
           islanders<span className="brand-period">.</span>
         </span>

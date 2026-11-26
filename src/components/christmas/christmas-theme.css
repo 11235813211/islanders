@@ -143,12 +143,15 @@
   transform: rotate(150deg);
 }
 
-/* The logo: pine green with a white edge, and the Christmas boat (ChristmasBoat.tsx). */
+/* The logo: deep pine green with a thin lighter-green edge, and the tree (ChristmasTree.tsx). */
 .theme-christmas .brand {
-  color: #3fbf6b;
+  color: #165c33;
   text-shadow:
-    0 0 1px #fff,
-    0 1px 0 #ffffff99;
+    1px 0 0 #6fbf7f,
+    -1px 0 0 #6fbf7f,
+    0 1px 0 #6fbf7f,
+    0 -1px 0 #6fbf7f,
+    0 2px 3px #00000040;
 }
 .theme-christmas .brand-period {
   color: #ffd23f;

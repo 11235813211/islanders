@@ -72,6 +72,8 @@ export interface ChristmasArt {
   CardDecor: () => ReactElement;
   /** A Christmas card face for some resources (lumber, wool); null keeps the usual art. */
   CardArt: (props: { resource: string }) => ReactElement | null;
+  /** The logo's mark: a decorated pine with a star, centered at the origin (about ±15 by -32..12). */
+  LogoTree: () => ReactElement;
   /** Seconds to fly to a building, and to stay there before leaving. */
   sleigh: { flight: number; hold: number; scale: number };
 }
