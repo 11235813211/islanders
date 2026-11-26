@@ -1,4 +1,4 @@
-import { HEX_RADIUS, hexCenter, hexCorner } from '../board';
+import { HEX_RADIUS, hexCenter, hexCorner, ISLAND_ROWS, type IslandSize, islandCells } from '../board';
 import { takesToken } from '../seafaring';
 import type { Terrain } from '../types';
 import { neighborKeys } from './balance';
@@ -72,6 +72,56 @@ export function newDesign(kind: 'blank' | 'base', id: string, categoryId: string
     pirate: null,
     pool: { ...BASE_POOL },
     harborExclude: [],
+    updatedAt: 0,
+  };
+}
+
+/** The library id of an edited base game: rooms play it in place of the random standard island. */
+export const BASE_BOARD_ID = 'base';
+
+/** One base island (standard, large, or huge) as land ringed by sea, with its harbors. */
+function baseIslandTiles(size: IslandSize): { tiles: DesignTile[]; harbors: BoardDesign['harbors'] } {
+  const land = islandCells(ISLAND_ROWS[size]);
+  const taken = new Set(land.map(c => `${c.q},${c.r}`));
+  const ring = new Map<string, DesignTile>();
+  for (const c of land)
+    for (const [dq, dr] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, -1],
+      [-1, 1],
+    ] as const) {
+      const key = `${c.q + dq},${c.r + dr}`;
+      if (!taken.has(key)) ring.set(key, { q: c.q + dq, r: c.r + dr, kind: 'sea' });
+    }
+  const tiles: DesignTile[] = [...land.map(c => ({ ...c, kind: 'land' as const })), ...ring.values()];
+  return { tiles, harbors: autoHarbors(tiles, { standard: 9, large: 11, huge: 13 }[size]) };
+}
+
+/** The base game as a board to edit: the three islands (2–4, 5–6, 7–8 players), drawn at random each game. */
+export function baseGameDesign(categoryId: string): BoardDesign {
+  const version = (size: 'large' | 'huge', min: number) => ({
+    players: { min, max: min + 1 },
+    victoryPoints: 10,
+    ...baseIslandTiles(size),
+    robber: null,
+    pirate: null,
+  });
+  return {
+    id: BASE_BOARD_ID,
+    name: 'Base game',
+    categoryId,
+    description: 'The usual island, drawn at random each game.',
+    players: { min: 2, max: 4 },
+    victoryPoints: 10,
+    ...baseIslandTiles('standard'),
+    robber: null,
+    pirate: null,
+    pool: { ...BASE_POOL },
+    harborExclude: [],
+    versions: [version('large', 5), version('huge', 7)],
     updatedAt: 0,
   };
 }

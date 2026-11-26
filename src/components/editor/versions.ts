@@ -1,4 +1,5 @@
 import { type BoardDesign, type BoardVersion, VERSION_FIELDS } from '../../../shared/maps';
+import { MAX_PLAYERS } from '../../../shared/settings';
 
 /**
  * A board's versions for other player counts. The editor shows one at a time as a whole design:
@@ -32,12 +33,12 @@ export function editVersion(
   return mergeShown(design, version, change(showVersion(design, version)));
 }
 
-/** A new version copied from the one shown, for the next player counts up (or the whole range when full). */
+/** A new version copied from the one shown, for the next two player counts up (5–6, then 7–8). */
 export function addVersion(design: BoardDesign, from: BoardDesign): BoardDesign {
   const taken = Math.max(design.players.max, ...(design.versions ?? []).map(v => v.players.max));
-  const min = Math.min(6, taken + 1);
+  const min = Math.min(MAX_PLAYERS, taken + 1);
   const copy = structuredClone(layoutOf(from));
-  copy.players = { min, max: 6 };
+  copy.players = { min, max: Math.min(MAX_PLAYERS, min + 1) };
   return { ...design, versions: [...(design.versions ?? []), copy] };
 }
 

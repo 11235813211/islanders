@@ -422,11 +422,10 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   /**
-   * The library's design for a map id, as `username` may play it (undefined for the standard
-   * island, an unknown id, or an admin-only board chosen by someone else).
+   * The library's design for a map id, as `username` may play it (undefined for an unknown id, an
+   * admin-only board chosen by someone else, or 'base' while the base game is the random island).
    */
   private async design(mapId: string, username: string | undefined): Promise<BoardDesign | undefined> {
-    if (mapId === 'base') return undefined;
     const admin = canPlaytest(this.env, username ? { username } : null);
     const design = await libraryStub(this.env).board(mapId, admin);
     return design ? structuredClone(design) : undefined;
@@ -513,8 +512,9 @@ export class GameRoom extends DurableObject<Env> {
                 ),
               });
           }
-          if (body.mapId) {
-            const design = await this.design(body.mapId, identity?.username);
+          // New rooms play the base game: an edited one from the library, when there is one.
+          {
+            const design = await this.design(body.mapId ?? 'base', identity?.username);
             if (design)
               game = applyAction(game, playerId, { type: 'choose-map', mapId: design.id }, secureRandom, Date.now(), {
                 design,

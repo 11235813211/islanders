@@ -4,6 +4,9 @@ import { SPECIAL_LIMITS } from './maps/special';
 import type { PieceReward } from './maps/types';
 import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
 
+/** The most seats at a table (and the most players a map can be made for). */
+export const MAX_PLAYERS = 8;
+
 export { DEFAULT_SETTINGS };
 
 /** Automatic dice roll delays the lobby offers (0 is off). */

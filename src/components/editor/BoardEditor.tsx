@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Eye, FlaskConical, LayoutGrid, Lock, Redo2, Save, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
-import { newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
+import { BASE_BOARD_ID, baseGameDesign, newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
 import type { RouteTarget } from '../../../shared/maps/special-edit';
 import type { AccountSession } from '../../../shared/types';
 import { publishLibrary, useBoardLibrary } from '../../hooks/useBoardLibrary';
@@ -10,6 +10,7 @@ import { useHistory } from '../../hooks/useHistory';
 import { deleteBoard, saveBoard, saveLayout } from '../../lib/boardsApi';
 import MapBrowser from '../maps/MapBrowser';
 import MapPreview from '../maps/MapPreview';
+import { baseCategoryId } from '../maps/mapInfo';
 import BoardFields, { BoardName } from './BoardFields';
 import BoardSettings from './BoardSettings';
 import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
@@ -161,6 +162,21 @@ export default function BoardEditor({
     if (board.id === design?.id) setBrowsing(false);
     else if (leaveUnsaved()) load(board, true);
   }
+  /** The base game is what rooms play unless they pick a map, so editing it asks first. */
+  function editBase() {
+    if (!library) return;
+    const edited = library.boards.some(b => b.id === BASE_BOARD_ID);
+    if (
+      !window.confirm(
+        'Edit the base game? Every room plays it unless another map is picked, so once saved your changes apply to all new games on the base game. Delete it later to go back to the random standard island.',
+      )
+    )
+      return;
+    if (edited) return open(BASE_BOARD_ID);
+    if (!leaveUnsaved()) return;
+    load(baseGameDesign(baseCategoryId(library) ?? library.categories[0]?.id ?? ''), true);
+    setStored(false);
+  }
   async function create(kind: 'blank' | 'base', categoryId: string, from?: BoardDesign) {
     if (!library || !leaveUnsaved()) return;
     const name = from ? `${from.name} copy` : kind === 'blank' ? 'New board' : 'New base board';
@@ -178,7 +194,11 @@ export default function BoardEditor({
   }
   async function remove(id: string) {
     const board = library?.boards.find(b => b.id === id);
-    if (!library || !board || !window.confirm(`Delete ${board.name}? This cannot be undone.`)) return;
+    const question =
+      id === BASE_BOARD_ID
+        ? 'Reset the base game? Rooms go back to the random standard island. Your edits cannot be recovered.'
+        : `Delete ${board?.name}? This cannot be undone.`;
+    if (!library || !board || !window.confirm(question)) return;
     if (await run(() => deleteBoard(account, id), `Deleted ${board.name}.`)) {
       const next = { ...library, boards: library.boards.filter(b => b.id !== id) };
       publishLibrary(next);
@@ -259,6 +279,7 @@ export default function BoardEditor({
           home={goHome}
           editing={{
             open,
+            editBase,
             create: (kind, categoryId) => void create(kind, categoryId),
             duplicate: id => {
               const board = library?.boards.find(b => b.id === id);

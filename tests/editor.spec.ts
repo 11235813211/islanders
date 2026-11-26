@@ -567,3 +567,30 @@ test('a tile can be made split: the Split chips fit the panel and the canvas dra
   await page.setViewportSize({ width: 1280, height: 800 });
   await split.screenshot({ path: 'test-results/editor-split.png' });
 });
+
+test('the base game can be edited after a confirm, with layouts for 2–4, 5–6, and 7–8 players', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/#editor');
+  const library = page.getByRole('dialog', { name: 'Boards' });
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expectNoSpill(library.locator('.map-filter'));
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // Saying no leaves the browser as it was.
+  page.once('dialog', dialog => dialog.dismiss());
+  await library.getByRole('button', { name: 'Edit Base game' }).click();
+  await expect(library).toBeVisible();
+  page.once('dialog', dialog => {
+    expect(dialog.message()).toContain('Edit the base game?');
+    void dialog.accept();
+  });
+  await library.getByRole('button', { name: 'Edit Base game' }).click();
+  await expect(page.getByLabel('Board name')).toHaveValue('Base game');
+  const tabs = page.getByRole('tablist', { name: 'Versions by player count' });
+  for (const range of ['2–4', '5–6', '7–8']) await expect(tabs.getByRole('tab', { name: range })).toBeVisible();
+  await tabs.getByRole('tab', { name: '7–8' }).click();
+  await expect(page.getByLabel('Most players')).toHaveValue('8');
+  // Unchanged, it is not saved: the library keeps the random base game for other tests.
+  await expect(page.getByRole('button', { name: 'Not saved', exact: true })).toBeDisabled();
+});

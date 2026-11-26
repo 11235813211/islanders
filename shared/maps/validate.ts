@@ -1,4 +1,4 @@
-import { VICTORY_POINT_RANGE, validReward } from '../settings';
+import { MAX_PLAYERS, VICTORY_POINT_RANGE, validReward } from '../settings';
 import {
   CLASSIC_RESOURCES,
   type ClassicResource,
@@ -244,11 +244,11 @@ function parseLayout(value: Record<string, unknown>): BoardVersion {
   const players = value.players as Record<string, unknown>;
   if (
     !record(players) ||
-    !int(players.min, 2, 6) ||
-    !int(players.max, 2, 6) ||
+    !int(players.min, 2, MAX_PLAYERS) ||
+    !int(players.max, 2, MAX_PLAYERS) ||
     (players.min as number) > (players.max as number)
   )
-    fail('Players must be a range within 2–6.');
+    fail(`Players must be a range within 2–${MAX_PLAYERS}.`);
   if (!int(value.victoryPoints, VICTORY_POINT_RANGE.min, VICTORY_POINT_RANGE.max))
     fail(`Points to win must be ${VICTORY_POINT_RANGE.min}–${VICTORY_POINT_RANGE.max}.`);
   if (!Array.isArray(value.tiles) || value.tiles.length < 1 || value.tiles.length > DESIGN_LIMITS.tiles)

@@ -7,10 +7,13 @@ import {
   EXPANSIONS,
   type Expansion,
 } from '../../../shared/maps';
-import { VICTORY_POINT_RANGE } from '../../../shared/settings';
+import { MAX_PLAYERS, VICTORY_POINT_RANGE } from '../../../shared/settings';
 
 import { useDismiss } from '../../hooks/useDismiss';
 import PiecesMenu from './PiecesMenu';
+
+/** Player counts a board can be made for. */
+const PLAYER_COUNTS = Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => i + 2);
 
 type Edit = (change: (design: BoardDesign) => BoardDesign, group?: string) => void;
 
@@ -103,7 +106,7 @@ export default function BoardFields({
               set({ players });
             }}
           >
-            {[2, 3, 4, 5, 6].map(n => (
+            {PLAYER_COUNTS.map(n => (
               <option key={n} value={n}>
                 {n}
               </option>

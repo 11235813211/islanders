@@ -78,7 +78,7 @@ export const emptyStats = (): PlayerStats => ({
 export const emptyDiceCounts = (): Record<number, number> =>
   Object.fromEntries(Array.from({ length: 11 }, (_, index) => [index + 2, 0]));
 
-export const MAX_PLAYERS = 8;
+export { MAX_PLAYERS } from '../settings';
 /** Ships and the pirate are in play: the map has sea and the room plays Seafarers. */
 export const seaRules = (state: Pick<GameState, 'board' | 'settings'>): boolean =>
   state.settings.seafarers !== false && boardIndex(state.board).seafaring;

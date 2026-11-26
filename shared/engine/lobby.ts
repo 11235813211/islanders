@@ -376,13 +376,14 @@ export const lobbyHandlers: Pick<
     requireHost(next, playerId, 'choose the map');
     const base = action.mapId === 'base';
     requireRule(base || design?.id === action.mapId, 'That map is not available.');
-    const chosen = base ? null : design!;
+    // The base game is the random standard island, unless the library holds an edited one (id 'base').
+    const chosen = design?.id === action.mapId ? design : null;
     const layouts = chosen ? layoutsOf(chosen) : [];
     const layout =
       action.layoutFor === undefined
         ? null
         : layouts.find(l => action.layoutFor! >= l.players.min && action.layoutFor! <= l.players.max)?.players;
-    requireRule(layout !== undefined && (!layout || !base), 'That map has no layout for that many players.');
+    requireRule(layout !== undefined && (!layout || !!chosen), 'That map has no layout for that many players.');
     const before = next.map;
     next.design = chosen;
     next.map = chosen ? { id: chosen.id, name: chosen.name, layouts: playerRanges(chosen), layout } : null;

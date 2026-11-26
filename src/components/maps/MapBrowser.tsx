@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowLeft, Check, Copy, Eye, Map as MapIcon, Plus, Trash2, Users, X } from 'lucide-react';
 import { type CSSProperties, type DragEvent, useEffect, useState } from 'react';
 import { type BoardDesign, type BoardLibrary, designFor, thumbnailLayout } from '../../../shared/maps';
+import { MAX_PLAYERS } from '../../../shared/settings';
 import CategoryHeader from './CategoryHeader';
 import MapDetail, { ExpansionTags } from './MapDetail';
 import MapThumbnail from './MapThumbnail';
@@ -21,6 +22,8 @@ function browserTitle(editing: boolean, choosing: boolean, proposing: boolean): 
 /** Editor-only actions: the browser becomes the board library's manager. */
 export interface LibraryActions {
   open: (id: string) => void;
+  /** Edit the base game (asks first: every room that plays it changes). */
+  editBase: () => void;
   create: (kind: 'blank' | 'base', categoryId: string) => void;
   duplicate: (id: string) => void;
   remove: (id: string) => void;
@@ -68,7 +71,7 @@ export default function MapBrowser({
   /** Open straight to this map (a lobby proposal), showing the layout for `layoutFor` players. */
   initial?: { design: BoardDesign; layoutFor: number | null };
 }) {
-  const [count, setCount] = useState<number | null>(editing ? null : Math.min(6, Math.max(2, players)));
+  const [count, setCount] = useState<number | null>(editing ? null : Math.min(MAX_PLAYERS, Math.max(2, players)));
   const [open, setOpen] = useState<BoardDesign | null>(initial?.design ?? null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
@@ -91,12 +94,17 @@ export default function MapBrowser({
     setTarget(null);
     if (id && library) layout(moveBoard(library, id, categoryId, beforeId));
   };
-  const view = (board: BoardDesign) => (editing ? editing.open(board.id) : setOpen(board));
-  // Outside the editor the base game leads its category; it can't be edited, so the editor never shows it.
-  const baseHome = !editing && library ? baseCategoryId(library) : undefined;
+  const view = (board: BoardDesign) => {
+    if (!editing) setOpen(board);
+    else if (board.id === BASE_MAP_ID) editing.editBase();
+    else editing.open(board.id);
+  };
+  // The base game leads its category: the library's edited one, or the random standard island.
+  const baseHome = library ? baseCategoryId(library) : undefined;
+  const baseGame = library?.boards.find(b => b.id === BASE_MAP_ID) ?? BASE_GAME;
   const boardsIn = (categoryId: string) => [
-    ...(categoryId === baseHome ? [BASE_GAME] : []),
-    ...(library?.boards.filter(b => b.categoryId === categoryId) ?? []),
+    ...(categoryId === baseHome ? [baseGame] : []),
+    ...(library?.boards.filter(b => b.categoryId === categoryId && b.id !== BASE_MAP_ID) ?? []),
   ];
 
   return (
@@ -108,7 +116,7 @@ export default function MapBrowser({
         </h2>
         <div className="map-filter" role="radiogroup" aria-label="Players">
           <Users size={17} />
-          {[null, 2, 3, 4, 5, 6].map(n => (
+          {[null, ...PLAYER_COUNTS].map(n => (
             // biome-ignore lint/a11y/useSemanticElements: a segmented control of buttons.
             <button
               key={n ?? 'all'}
@@ -203,7 +211,7 @@ export default function MapBrowser({
                       <article
                         key={board.id}
                         className={cardClass(board, currentId, misfit, dragging)}
-                        draggable={!!editing}
+                        draggable={!!editing && board.id !== BASE_MAP_ID}
                         onDragStart={event => {
                           event.dataTransfer.setData('text/x-board', board.id);
                           setDragging(board.id);
@@ -237,24 +245,28 @@ export default function MapBrowser({
                         </button>
                         <div className="map-card-actions">
                           {editing ? (
-                            <>
-                              <button
-                                type="button"
-                                className="icon-button"
-                                aria-label={`Duplicate ${board.name}`}
-                                onClick={() => editing.duplicate(board.id)}
-                              >
-                                <Copy size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                className="icon-button"
-                                aria-label={`Delete ${board.name}`}
-                                onClick={() => editing.remove(board.id)}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </>
+                            // The unedited base game is not in the library: nothing to copy or delete.
+                            board !== BASE_GAME && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="icon-button"
+                                  aria-label={`Duplicate ${board.name}`}
+                                  onClick={() => editing.duplicate(board.id)}
+                                >
+                                  <Copy size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-button"
+                                  aria-label={board.id === BASE_MAP_ID ? 'Reset the base game' : `Delete ${board.name}`}
+                                  data-tip={board.id === BASE_MAP_ID ? 'Back to the random standard island' : undefined}
+                                  onClick={() => editing.remove(board.id)}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </>
+                            )
                           ) : (
                             <>
                               <button
@@ -317,6 +329,9 @@ export default function MapBrowser({
     </div>
   );
 }
+
+/** Player counts the filter offers. */
+const PLAYER_COUNTS = Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => i + 2);
 
 /** A card's classes: the room's map, made for another count, being dragged, or the base game. */
 function cardClass(board: BoardDesign, currentId: string | null, misfit: boolean, dragging: string | null): string {
