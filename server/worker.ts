@@ -21,6 +21,7 @@ import {
   ProtocolError,
   parseAuthorization,
   parseCredentials,
+  parseLook,
   parseName,
   parseOptionalName,
   parsePassword,
@@ -122,7 +123,14 @@ async function handleAccounts(operation: string, request: Request, env: Env, req
         rooms: await roomStatuses(env, identity, current.rooms),
         playtest: canPlaytest(env, identity),
         hasRecoveryCode: current.hasRecoveryCode,
+        christmasLook: current.christmasLook,
       });
+    }
+    case 'look': {
+      const christmas = parseLook(await readBody(request));
+      if (!(await stub.setChristmasLook(identity.sessionHash, christmas)))
+        throw new ProtocolError('Sign in again to continue.', 401);
+      return json({ christmas });
     }
     case 'name': {
       const displayName = parseName(await readBody(request));
@@ -300,7 +308,7 @@ export default {
     const requester = request.headers.get('CF-Connecting-IP') ?? 'local-development';
     let response: Response;
     try {
-      const accountMatch = /^\/api\/accounts\/(register|login|me|logout|recover|recovery-code|delete|name)$/.exec(
+      const accountMatch = /^\/api\/accounts\/(register|login|me|logout|recover|recovery-code|delete|name|look)$/.exec(
         url.pathname,
       );
       if (accountMatch) response = await handleAccounts(accountMatch[1]!, request, env, requester);

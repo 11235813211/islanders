@@ -366,3 +366,45 @@ test('eight players fit a phone: the scoreboard and turn controls', async ({ pag
   await page.screenshot({ path: 'test-results/phone-eight-players.png' });
   expect(game.errors).toEqual([]);
 });
+
+test('signed in on a phone: the account button shows, My rooms fits, and the account brings its Christmas look', async ({
+  page,
+}) => {
+  const session = { username: 'pat', displayName: 'Pat', token: 'a'.repeat(64), expiresAt: Date.now() + 3600_000 };
+  await page.addInitScript(value => localStorage.setItem('islanders-account', value), JSON.stringify(session));
+  const room = (code: string, players: string[]) => ({
+    roomId: code.toLowerCase(),
+    playerId: 'p0',
+    inviteCode: code,
+    phase: 'build',
+    players,
+    yourTurn: code === 'HARBOR42',
+    winner: null,
+  });
+  await page.route('**/api/accounts/me', route =>
+    route.fulfill({
+      json: {
+        username: 'pat',
+        rooms: [
+          room('HARBOR42', ['Pat', 'Alexandria Montgomery', 'Bartholomew', 'Christopher Columbus']),
+          room('TIDE7', ['Pat', 'Sam']),
+        ],
+        playtest: false,
+        hasRecoveryCode: true,
+        christmasLook: true,
+      },
+    }),
+  );
+  await page.goto('/');
+  for (const width of [390, 360]) {
+    await page.setViewportSize({ width, height: 664 });
+    const account = page.getByRole('button', { name: 'Account settings' });
+    await expect(account).toBeVisible();
+    expect((await account.boundingBox())!.width).toBeGreaterThan(20);
+    await expectNoSpill(page.locator('.recent-rooms'));
+  }
+  await expect(page.locator('html')).toHaveClass(/theme-christmas/);
+  await page.locator('.recent-rooms').screenshot({ path: 'test-results/phone-home-rooms.png' });
+  await page.getByRole('button', { name: 'Account settings' }).tap();
+  await expect(page.getByRole('button', { name: /Christmas look on/ })).toBeVisible();
+});

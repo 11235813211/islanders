@@ -63,6 +63,12 @@ export function parseName(body: unknown): string {
   return name;
 }
 
+/** The account's Christmas look setting: `{ christmas: boolean }`. */
+export function parseLook(body: unknown): boolean {
+  if (!record(body) || typeof body.christmas !== 'boolean') throw new ProtocolError('Say whether the look is on.');
+  return body.christmas;
+}
+
 /** A blank or missing name means "pick a guest name for me" (see shared/guest-names.ts). */
 export function parseOptionalName(body: unknown): string | null {
   if (record(body) && (body.name == null || (typeof body.name === 'string' && !body.name.trim()))) return null;

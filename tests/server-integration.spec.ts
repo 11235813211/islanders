@@ -268,6 +268,14 @@ test('accounts reclaim seats across devices and logout revokes only the current 
     expect((await me.json()).rooms).toContainEqual(
       expect.objectContaining({ roomId: session1.roomId, playerId: session1.playerId }),
     );
+    // The Christmas look is kept on the account, so a second device's sign-in sees it.
+    expect((await me.json()).christmasLook).toBeUndefined();
+    const look = await request.post(`${server}/api/accounts/look`, { headers: h1, data: { christmas: true } });
+    expect(look.ok()).toBe(true);
+    expect((await (await request.get(`${server}/api/accounts/me`, { headers: h2 })).json()).christmasLook).toBe(true);
+    expect(
+      (await request.post(`${server}/api/accounts/look`, { headers: h1, data: { christmas: 'yes' } })).status(),
+    ).toBe(400);
     const logout = await request.post(`${server}/api/accounts/logout`, { headers: h1, data: {} });
     expect(logout.ok()).toBe(true);
     await expect.poll(() => one.closeCode).toBe(4401);

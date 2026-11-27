@@ -407,6 +407,8 @@ a {
   display: flex;
   gap: 14px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 12px;
@@ -730,13 +732,14 @@ a {
     padding: 8px 12px;
     font-size: 14px;
   }
+  .recent-room {
+    flex: 1 1 100%;
+  }
+  /* The name is hidden with the other header labels; the icon stays, so the account button shows. */
   .account-name {
     font-size: 13px;
     max-width: 100px;
     overflow: hidden;
-  }
-  .account-name svg {
-    display: none;
   }
   .home-layout {
     display: flex;
@@ -879,10 +882,14 @@ a {
 /* My rooms */
 .recent-room-text {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
   min-width: 0;
+}
+.recent-room > svg {
+  flex: none;
 }
 .recent-room-text small {
   color: var(--muted);
@@ -890,7 +897,7 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 260px;
+  max-width: min(260px, 100%);
 }
 .recent-room.your-turn {
   border-color: #d69419;

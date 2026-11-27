@@ -35,12 +35,15 @@ export function useAccount() {
   const [rooms, setRooms] = useState<AccountRoomStatus[]>([]);
   const [playtest, setPlaytest] = useState(false);
   const [hasRecoveryCode, setHasRecoveryCode] = useState(true);
+  /** The account's Christmas look outside games: null until loaded (or signed out), 'unset' if never kept. */
+  const [christmasLook, setChristmasLookState] = useState<boolean | 'unset' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!account) {
       setRooms([]);
       setPlaytest(false);
+      setChristmasLookState(null);
       return;
     }
     try {
@@ -49,7 +52,9 @@ export function useAccount() {
         rooms: AccountRoomStatus[];
         playtest?: boolean;
         hasRecoveryCode?: boolean;
+        christmasLook?: boolean;
       }>('/api/accounts/me', {}, account);
+      setChristmasLookState(data.christmasLook ?? 'unset');
       setRooms(data.rooms);
       setPlaytest(data.playtest === true);
       setHasRecoveryCode(data.hasRecoveryCode !== false);
@@ -112,6 +117,13 @@ export function useAccount() {
     signedIn({ ...account, displayName });
   }
 
+  /** Keep the Christmas look outside games on this account, so every device signed in to it follows. */
+  async function setChristmasLook(on: boolean): Promise<void> {
+    if (!account) return;
+    setChristmasLookState(on);
+    await apiRequest('/api/accounts/look', { method: 'POST', body: JSON.stringify({ christmas: on }) }, account);
+  }
+
   async function replaceRecoveryCode(password: string): Promise<string> {
     const data = await apiRequest<{ recoveryCode: string }>(
       '/api/accounts/recovery-code',
@@ -149,6 +161,8 @@ export function useAccount() {
     rooms,
     playtest,
     hasRecoveryCode,
+    christmasLook,
+    setChristmasLook,
     error,
     refresh,
     authenticate,

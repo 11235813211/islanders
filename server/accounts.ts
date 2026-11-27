@@ -35,6 +35,8 @@ interface AccountRecord {
   recoveryHash?: string;
   sessions: SavedLogin[];
   rooms: AccountRoom[];
+  /** The Christmas look outside games, kept from the last game played (src/components/christmas/useChristmasLook.ts). */
+  christmasLook?: boolean;
   /** As host, save games for bot training (off unless set). */
   saveGames?: boolean;
   /** As a guest, opt out of saved games (off unless set). */
@@ -196,9 +198,13 @@ export class AccountStore extends DurableObject<Env> {
     });
   }
 
-  async current(
-    sessionHash: string,
-  ): Promise<{ identity: AccountIdentity; rooms: AccountRoom[]; hasRecoveryCode: boolean } | null> {
+  async current(sessionHash: string): Promise<{
+    identity: AccountIdentity;
+    rooms: AccountRoom[];
+    hasRecoveryCode: boolean;
+    /** Unset until the account first keeps or drops the look. */
+    christmasLook?: boolean;
+  } | null> {
     return this.serial(async () => {
       const session = this.liveSession(sessionHash);
       if (!this.account || !session) return null;
@@ -214,6 +220,7 @@ export class AccountStore extends DurableObject<Env> {
         },
         rooms: this.account.rooms,
         hasRecoveryCode: !!this.account.recoveryHash,
+        christmasLook: this.account.christmasLook,
       };
     });
   }
@@ -223,6 +230,15 @@ export class AccountStore extends DurableObject<Env> {
     return this.serial(async () => {
       if (!this.account || !this.liveSession(sessionHash)) return false;
       await this.save({ ...this.account, displayName });
+      return true;
+    });
+  }
+
+  /** Remember whether this account wears the Christmas look outside games, on every device. */
+  async setChristmasLook(sessionHash: string, on: boolean): Promise<boolean> {
+    return this.serial(async () => {
+      if (!this.account || !this.liveSession(sessionHash)) return false;
+      await this.save({ ...this.account, christmasLook: on });
       return true;
     });
   }

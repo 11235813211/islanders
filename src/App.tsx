@@ -28,7 +28,7 @@ function App() {
   const [session, setSession] = useState<Session | null>(() => savedSession(roomFromLocation()));
   const room = useRoom(session, Boolean(account.account));
   const view = room.view;
-  const christmas = useChristmasLook(view);
+  const christmas = useChristmasLook(view, account);
   const [name, setName] = useState('');
   const [code, setCode] = useState(roomFromLocation);
   const [inviteCode, setInviteCode] = useState(roomFromLocation);
