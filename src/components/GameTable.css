@@ -45,7 +45,7 @@
   padding: 6px 8px 8px;
   gap: 6px;
   grid-template-columns: minmax(0, 1fr) clamp(255px, 25vw, 330px);
-  grid-template-rows: 30px auto minmax(0, 1fr) 38px 102px 44px;
+  grid-template-rows: 30px auto minmax(0, 1fr) 38px var(--hand-row, 102px) 44px;
   grid-template-areas: "toolbar toolbar" "board players" "board chat" "turn chat" "hand chat" "actions chat";
   overflow: hidden;
 }
@@ -320,6 +320,11 @@
 }
 .board-viewport.board-moving .board-svg {
   will-change: transform;
+}
+/* A moving animation inside the board repaints the whole moving layer every frame (very slow on
+   iPads), so they hold still while the board is dragged or pinched. */
+.board-viewport.board-moving :is(.gold-sparkle, .volcano-rumble, .volcano-quake, .xmas-active *) {
+  animation-play-state: paused;
 }
 .terrain-art {
   filter: saturate(1.65) contrast(1.04);

@@ -1,6 +1,7 @@
 // Small sea-map markers: the island bonus chip, the jungle discovery icon, and the sandy
 // shore drawn under each island.
 import { hexPoints } from '../../../lib/geometry';
+import { IslandShadow } from '../shadow';
 
 /** Tweak here: chip gold, rim, and text; the discovery scroll's paper and ink. */
 export const MARKERS = {
@@ -53,9 +54,10 @@ export function DiscoveryIcon({ size = 22 }: { size?: number }) {
 }
 
 /** Sand and surf under each land tile, so islands get a shore against the sea tiles. */
-export function IslandBase({ uid, hexes }: { uid: string; hexes: { x: number; y: number }[] }) {
+export function IslandBase({ hexes }: { uid: string; hexes: { x: number; y: number }[] }) {
   return (
-    <g filter={`url(#${uid}-shadow)`}>
+    <g>
+      <IslandShadow hexes={hexes} strokeWidth={11} />
       {hexes.map((hex, i) => (
         <polygon
           key={i}

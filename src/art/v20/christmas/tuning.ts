@@ -50,6 +50,8 @@ export const CHRISTMAS = {
     rudolph: '#ff3b30',
     scarf: '#d7263d',
   },
+  /** How much of each pasture ridge's full snow band lies on it (1 = the whole band). */
+  pastureSnow: 0.6,
   /** Ground colors under the snow; each tile keeps its own hue so it still reads. */
   snow: { light: '#ffffff', shade: '#dfeaf2', blue: '#c4d8e6' },
   /** Fields: warm snow on the gold, so the tile stays a field. */

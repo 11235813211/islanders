@@ -186,18 +186,68 @@ const PASTURE_REINDEER = [
   { x: -30, y: 34, scale: 0.9 },
 ];
 
+/** A meadow ridge, left to right: start, control, middle, control, end (x, y pairs). */
+type Ridge = readonly [number, number, number, number, number, number, number, number, number, number];
+
+/** Each pasture ridge, its color below, and the lower edge of the snow lying along it. */
+const PASTURE_RIDGES: { top: Ridge; under: Ridge; fill: string; opacity?: number }[] = [
+  {
+    top: [-70, -5, -28, -41, 2, -14, 32, 13, 70, -10],
+    under: [-70, -1, -26, -6, 2, -10, 30, -14, 70, -7],
+    fill: '#badb65',
+  },
+  {
+    top: [-70, 24, -24, -12, 14, 11, 52, 34, 70, 7],
+    under: [-70, 27, -2, 25, 14, 13.5, 30, 2, 70, 9.5],
+    fill: '#86bd4a',
+  },
+  {
+    top: [-70, 51, -17, 10, 21, 35, 59, 60, 70, 32],
+    under: [-70, 53.5, 10, 49, 20, 37.5, 30, 26, 70, 34.5],
+    fill: '#9fd055',
+    opacity: 0.9,
+  },
+];
+
+/** The ridge's curve as path commands, after the move to its start. */
+function ridgeCurve(r: Ridge): string {
+  return `Q${r[2]} ${r[3]} ${r[4]} ${r[5]}Q${r[6]} ${r[7]} ${r[8]} ${r[9]}`;
+}
+
+/** The snow on a ridge: from its crest down `share` of the way to the snow's full lower edge. */
+function snowBand(top: Ridge, under: Ridge, share: number): string {
+  const low = top.map((v, i) => v + (under[i]! - v) * share);
+  const back = `M${low[8]} ${low[9]}Q${low[6]} ${low[7]} ${low[4]} ${low[5]}Q${low[2]} ${low[3]} ${low[0]} ${low[1]}`;
+  return `M${top[0]} ${top[1]}${ridgeCurve(top)}L${back.slice(1)}Z`;
+}
+
 function WinterPasture() {
   return (
     <g>
-      <path d="M-70-5Q-28-41 2-14T70-10V65H-70Z" fill="#badb65" />
-      <path d="M-70-5Q-28-41 2-14T70-10V-7Q30-14 2-10T-70-1Z" fill={SNOW.light} />
-      <path d="M-70 24Q-24-12 14 11T70 7V65H-70Z" fill="#86bd4a" />
-      <path d="M-70 24Q-24-12 14 11T70 7V9.5Q30 2 14 13.5T-70 27Z" fill={SNOW.light} />
-      <path d="M-70 51Q-17 10 21 35T70 32V65H-70Z" fill="#9fd055" />
-      <path d="M-70 51Q-17 10 21 35T70 32V34.5Q30 26 20 37.5T-70 53.5Z" fill={SNOW.light} opacity=".9" />
+      {PASTURE_RIDGES.map(({ top, under, fill, opacity }) => (
+        <g key={top[1]}>
+          <path d={`M${top[0]} ${top[1]}${ridgeCurve(top)}V65H-70Z`} fill={fill} />
+          <path d={snowBand(top, under, CHRISTMAS.pastureSnow)} fill={SNOW.light} opacity={opacity} />
+        </g>
+      ))}
       {PASTURE_DRIFTS.map(([x, y, w]) => (
         <Drift key={`${x},${y}`} x={x} y={y} w={w} />
       ))}
+      {/* The classic pasture's light streaks, grass, and flowers. */}
+      <path d="M-50 4Q-34-10-17-7M10 38q22-8 41-3" fill="none" stroke="#d9e0a9" strokeWidth="1.3" />
+      <path
+        d="m-37-6-2-5m2 5 3-4m50-18-1-4m1 4 3-3m20 47-2-5m2 5 2-3m-58-4-1.6-4m1.6 4 2.4-3m48 12-1.5-4m1.5 4 2.2-3"
+        stroke="#73905e"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <g fill="#f8ecc1">
+        <circle cx="-35" cy="13" r="1.4" />
+        <circle cx="31" cy="26" r="1.4" />
+        <circle cx="-6" cy="-36" r="1.3" />
+        <circle cx="52" cy="18" r="1.3" />
+        <circle cx="-52" cy="48" r="1.3" />
+      </g>
       {/* Contours and tufts so the green reads as rolling meadow. */}
       <path
         d="M-62 38Q-34 20-6 28M14 22q20-6 44-4M-58 46q20-10 40-8M-2 60q20-14 52-14"

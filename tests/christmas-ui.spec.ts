@@ -20,6 +20,8 @@ function santaTurn(): GameState {
   g.northPole = { ...g.northPole!, number: 4 };
   grant(g, 'p0', { wood: 2, brick: 1, sheep: 3, wheat: 1, ore: 2 });
   g = applyAction(g, 'p0', { type: 'roll' }, sequence(0.01, 0.4, 0.5), TEST_NOW);
+  // A spread of past rolls, so the dice chart shows bars of every height.
+  g.diceCounts = { 2: 1, 3: 2, 4: 4, 5: 5, 6: 7, 7: 8, 8: 6, 9: 5, 10: 3, 11: 2, 12: 1 };
   g.turnDeadline = Date.now() + 120_000;
   g.robberDeadline = Date.now() + 120_000;
   return g;

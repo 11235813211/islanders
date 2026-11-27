@@ -10,7 +10,8 @@ import { mountGame } from './ui-harness';
  *   npx playwright test tests/gesture-perf.spec.ts   (Chrome, CPU slowed 4×)
  *
  * Measure the production build for real numbers: `npx vite build && npx vite preview --port 4173`,
- * then add PLAYTEST_URL=http://127.0.0.1:4173. PERF_CSS='…' adds a stylesheet to try a CSS idea.
+ * then add PLAYTEST_URL=http://127.0.0.1:4173. PERF_CSS='…' adds a stylesheet to try a CSS idea;
+ * PERF_CHRISTMAS=1 measures the Christmas board (the most detailed art).
  */
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -83,7 +84,9 @@ test('board drag and pinch timings on a phone', async ({ page }) => {
       route.fulfill({ json: { username: 'perf', rooms: [], playtest: true, hasRecoveryCode: true } }),
     );
   }
-  await mountGame(page, richGame());
+  const game = richGame();
+  if (process.env.PERF_CHRISTMAS) game.settings = { ...game.settings, christmas: true, pieceStyle: 'gingerbread' };
+  await mountGame(page, game);
   if (process.env.PERF_CSS) await page.addStyleTag({ content: process.env.PERF_CSS });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });

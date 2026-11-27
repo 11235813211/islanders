@@ -10,6 +10,7 @@ import { christmas } from './christmas';
 import { knights } from './knights';
 import { BuildingPiece, MegacityPiece, ROAD_INSET, Road } from './pieces';
 import { sea } from './sea';
+import { IslandShadow } from './shadow';
 import { BrickHills, ForestGround, ForestTrees, WheatGround, WheatStalks } from './terrain-features';
 
 /** The standard island's drawing area. */
@@ -45,9 +46,6 @@ function ArtDefs({ uid }: { uid: string }) {
         <stop stopColor="#fff9e7" />
         <stop offset="1" stopColor="#eddfbd" />
       </linearGradient>
-      <filter id={`${uid}-shadow`} x="-30%" y="-30%" width="160%" height="170%">
-        <feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#193e47" floodOpacity=".3" />
-      </filter>
       <clipPath id={`${uid}-tile`}>
         <polygon points={hexPoints(57.2)} />
       </clipPath>
@@ -77,7 +75,8 @@ function SeaBackdrop({
         })}
         {frame === BASE_FRAME && <ellipse rx="291" ry="263" strokeDasharray="2 9" opacity=".4" />}
       </g>
-      <g filter={`url(#${uid}-shadow)`}>
+      <IslandShadow hexes={hexes} strokeWidth={13} />
+      <g>
         {hexes.map((hex, i) => (
           <polygon
             key={i}
