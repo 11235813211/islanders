@@ -12,9 +12,50 @@
 }
 
 .theme-christmas .app {
-  background:
-    url("./snowfall.svg") 0 0 / 260px 260px,
-    linear-gradient(145deg, #e3a3a6 0%, #f6e6e2 45%, #8fd3a0 100%);
+  background: linear-gradient(145deg, #e3a3a6 0%, #f6e6e2 45%, #8fd3a0 100%);
+  /* Its own stacking context, so the falling snow (z-index -1) sits over this background but under the page. */
+  isolation: isolate;
+}
+
+/* Falling snow (ChristmasLook): three layers of snowfall.svg, each a different size and speed.
+   Each layer is a tile taller than the screen and slides down by one tile, moved by a transform
+   so it costs no repaints. */
+.xmas-snowfall {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.xmas-snowfall i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--tile));
+  bottom: 0;
+  background: url("./snowfall.svg") var(--shift, 0) 0 / var(--tile) var(--tile);
+  animation: xmas-snow var(--fall) linear infinite;
+  will-change: transform;
+}
+.xmas-snowfall i:nth-child(1) {
+  --tile: 260px;
+  --fall: 34s;
+}
+.xmas-snowfall i:nth-child(2) {
+  --tile: 200px;
+  --fall: 30s;
+  --shift: 90px;
+  opacity: 0.8;
+}
+.xmas-snowfall i:nth-child(3) {
+  --tile: 330px;
+  --fall: 40s;
+  --shift: 170px;
+}
+@keyframes xmas-snow {
+  to {
+    transform: translateY(var(--tile));
+  }
 }
 
 /* The header: deep red, with a string of bulbs along its bottom edge. */
@@ -33,7 +74,7 @@
   bottom: -26px;
   height: 30px;
   pointer-events: none;
-  /* Bulbs of random colors at random spacing on a wire that droops between them (header-lights.svg). */
+  /* Evenly spaced bulbs in random colors (header-lights.svg). */
   background: url("./header-lights.svg") 0 0 / auto 30px repeat-x;
   animation: xmas-header-flicker 5s steps(1, end) infinite;
 }
@@ -162,7 +203,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .theme-christmas .site-header::after {
+  .theme-christmas .site-header::after,
+  .xmas-snowfall i {
     animation: none;
   }
 }
