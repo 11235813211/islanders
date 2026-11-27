@@ -117,8 +117,6 @@ export function specialCardOpen(state: GameState, playerId: string): boolean {
     !state.specialPlayed.includes(playerId)
   );
 }
-/** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
-export const SPECIAL_BUILD_SECONDS = 20;
 
 /** Bank cards of each resource, commodity, and jungle discovery, by island. */
 const SUPPLY: Record<IslandSize, { resource: number; commodity: number; discovery: number }> = {
@@ -246,11 +244,16 @@ export function getActivePlayerId(state: GameState): string | null {
   return state.players[state.turnIndex]?.id ?? null;
 }
 
-/** True when the latest undoable move was its actor ending their turn. */
+/**
+ * True when the latest undoable move passed play to someone else: ending a turn or a special
+ * build, or a starting road that finished its actor's setup step.
+ */
 export function undoEndsTurn(state: GameState): boolean {
   const snapshot = state.undo?.snapshot;
+  if (!snapshot) return false;
+  if (snapshot.phase === 'setup-road' || snapshot.phase === 'setup-settlement')
+    return snapshot.setupIndex !== state.setupIndex;
   return (
-    !!snapshot &&
     (snapshot.phase === 'build' || snapshot.phase === 'special-build') &&
     (snapshot.turn !== state.turn || snapshot.specialBuilder !== state.specialBuilder)
   );

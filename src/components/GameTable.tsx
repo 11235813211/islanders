@@ -120,7 +120,9 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
         ? `Move the robber${view.seafaring ? ' or pirate' : ''}${countdown(secondsUntil(view.robberDeadline, clock))}`
         : `Moving robber${countdown(secondsUntil(view.robberDeadline, clock))}`;
     case 'steal':
-      return 'Choosing a player…';
+      return ownTurn
+        ? `Choose whom to steal from${countdown(secondsUntil(view.robberDeadline, clock))}`
+        : `Choosing a player${countdown(secondsUntil(view.robberDeadline, clock))}`;
     case 'gift':
       return view.ck?.gifts[view.selfId]
         ? `Choose your Wedding gift${countdown(secondsUntil(view.discardDeadline, clock))}`
@@ -152,6 +154,15 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     default:
       return ownTurn ? (routeReminder(view) ?? 'Build or trade') : `${active?.name}’s turn`;
   }
+}
+
+/** The turn spot's undo button label, when the viewer's latest move is one it offers to take back. */
+function undoLabel(view: GameView, ownTurn: boolean, spectator: boolean): string | null {
+  const undo = view.undoAvailable;
+  if (spectator || !undo || undo.actorId !== view.selfId) return null;
+  if (ownTurn && view.phase === 'setup-road') return 'Undo settlement';
+  if (ownTurn || !undo.endsTurn) return null;
+  return view.phase.startsWith('setup') ? 'Undo placement' : 'Undo end turn';
 }
 
 /** The in-game screen. Layout is CSS grid (GameTable.css); pieces live in ./game. */
@@ -508,9 +519,10 @@ export default function GameTable({
         <span>In line ({view.specialQueue.indexOf(view.selfId) + 1}) · Cancel</span>
       </button>
     );
-  // Right after ending your turn, the same spot offers to take it back (others vote, as for any undo).
-  const canUndoEnd = !spectator && view.undoAvailable?.endsTurn && view.undoAvailable.actorId === view.selfId;
-  if (!ownTurn && canUndoEnd)
+  // Right after ending your turn or a setup step, or with a starting settlement down, the same spot
+  // offers to take it back (one other person agrees, as for any undo).
+  const label = undoLabel(view, ownTurn, spectator);
+  if (label)
     turnAction = (
       <button
         className="button secondary turn-action"
@@ -518,7 +530,7 @@ export default function GameTable({
         onClick={() => send({ type: 'propose', kind: 'undo' })}
       >
         <Undo2 size={18} />
-        <span>Undo end turn</span>
+        <span>{label}</span>
       </button>
     );
   if (finished && endHidden)

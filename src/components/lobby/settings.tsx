@@ -348,7 +348,7 @@ export const CATEGORIES: Category[] = [
         key: 'decisionSeconds',
         advanced: true,
         label: 'Short choices',
-        hint: 'Seconds to place the robber or pirate or pick gold before a bot picks for you.',
+        hint: 'Seconds to move the robber, steal, discard, or pick gold before a bot picks for you.',
         icon: <Hourglass size={20} />,
         control: { kind: 'select', options: DECISION_SECONDS.map(n => ({ value: n, label: `${n} seconds` })) },
       },

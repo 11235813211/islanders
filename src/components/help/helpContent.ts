@@ -135,7 +135,7 @@ function table(v: Verbs): HelpSection {
       `Drag the board to move it. ${v.zoom}.`,
       'The scoreboard lists points, cards in hand, development cards, longest road, and knights.',
       'The chat button opens chat, the game log, and a chart of dice rolls.',
-      'The undo arrow asks the others to undo your last move. Rolls and revealed tiles can’t be undone. Pause also needs a vote.',
+      'The undo arrow asks to undo your last move; one other player agreeing is enough. Rolls and revealed tiles can’t be undone. Pause also needs a vote.',
       'The clock shows time left in the turn. When it runs out, only forced choices are made for you and the turn ends.',
     ],
   };

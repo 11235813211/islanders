@@ -16,7 +16,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
   autoRollSeconds: 8,
   // Seconds a trade offer stays open: 15, 30, 45, 60, 90, or 120.
   tradeSeconds: 30,
-  // Seconds for short choices (robber, pirate, gold picks): 10, 15, 20, 25, 30, 45, or 60.
+  // The lobby's "Short choices" time: 10, 15, 20, 25, 30, 45, or 60. At 30 every short choice
+  // gets the seconds in CHOICE_SECONDS below; a room set to 15 gets half of each, 60 twice.
   decisionSeconds: 30,
   // Cards you may hold on a 7 without discarding: 3 to 20.
   discardLimit: 10,
@@ -58,6 +59,31 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // Cities & Knights: true or false. Turning it on in the lobby also sets points to win to 13.
   citiesKnights: false,
 };
+
+/**
+ * Seconds for each short choice before a bot chooses for the player, at the default "Short
+ * choices" time (decisionSeconds 30 above). Edit them here. A room with another short-choice time
+ * scales them all alike (choiceMs in rules.ts), and double time doubles them.
+ */
+export const CHOICE_SECONDS = {
+  // Moving the robber (or the pirate) after a 7 or a knight.
+  robber: 30,
+  // Choosing whom to steal from once the robber has moved.
+  steal: 20,
+  // Picking which cards to discard on a 7.
+  discard: 30,
+  // Picking resources from a gold field or a paying volcano.
+  gold: 30,
+  // Each pick off a candy train.
+  candy: 30,
+  // Choosing whose buildings Santa visits.
+  santa: 30,
+  // Cities & Knights Wedding: picking the cards to give.
+  gift: 30,
+  // Each player's turn in the special build phase (5+ players), or the turn limit if shorter.
+  // Not scaled by "Short choices".
+  specialBuild: 20,
+} as const;
 
 /**
  * Extra pieces a room gets when the host sets points to win, on a map without its own: `pieces`

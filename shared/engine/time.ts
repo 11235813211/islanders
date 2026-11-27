@@ -169,13 +169,13 @@ function runBotStep(state: GameState, now: number, random: () => number, thinkin
   return next;
 }
 
-/** The phase deadline that is running, if any: the roll (or volcano dice), discards, gold picks, or the robber. */
+/** The phase deadline that is running, if any: the roll (or volcano dice), discards, gold picks, the robber, or a steal. */
 function phaseDeadline(state: GameState): number | null {
   if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
   if (state.phase === 'discard' || state.phase === 'gift') return state.discardDeadline;
   if (state.phase === 'gold') return state.goldDeadline;
   if (state.phase === 'candy') return state.candyDeadline;
-  if (state.phase === 'robber' || state.phase === 'santa') return state.robberDeadline;
+  if (state.phase === 'robber' || state.phase === 'steal' || state.phase === 'santa') return state.robberDeadline;
   return null;
 }
 
@@ -259,7 +259,7 @@ export function advanceTime(
       return forced(next, id, candyChoice(getView(next, id)), random, now);
     }
     if (
-      (next.phase === 'robber' || next.phase === 'santa') &&
+      (next.phase === 'robber' || next.phase === 'steal' || next.phase === 'santa') &&
       next.robberDeadline !== null &&
       next.robberDeadline <= now
     ) {

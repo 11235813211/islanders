@@ -26,7 +26,7 @@ function clearHands(g: GameState) {
 function consent(g: GameState, at: number) {
   g = applyAction(g, g.undo!.actorId, { type: 'propose', kind: 'undo' }, seeded(), at);
   for (const id of g.proposal!.required.filter(id => !g.proposal!.accepted.includes(id)))
-    g = applyAction(g, id, { type: 'vote', proposalId: g.proposal!.id, accept: true }, seeded(), at);
+    if (g.proposal) g = applyAction(g, id, { type: 'vote', proposalId: g.proposal.id, accept: true }, seeded(), at);
   return g;
 }
 describe('bot trade offers', () => {

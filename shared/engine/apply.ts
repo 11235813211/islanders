@@ -1,20 +1,12 @@
 import { parseAction } from '../actions';
 import { copyData } from '../copy';
-import { TUNING } from '../default-settings';
+import { CHOICE_SECONDS, TUNING } from '../default-settings';
 import type { BoardDesign } from '../maps/types';
-import { timedChoosers, timeFactor, updateAwards, victoryPoints } from '../rules';
+import { choiceMs, type ShortChoice, timedChoosers, timeFactor, updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
 import { candyHandlers } from './candy';
 import { cartographersHandlers } from './cartographers';
-import {
-  type ActionContext,
-  addLog,
-  cloneState,
-  getActivePlayerId,
-  type Handlers,
-  requireRule,
-  SPECIAL_BUILD_SECONDS,
-} from './core';
+import { type ActionContext, addLog, cloneState, getActivePlayerId, type Handlers, requireRule } from './core';
 import { developmentHandlers } from './development';
 import { routeMet, updatePeaks } from './goals';
 import { trackHands } from './hands';
@@ -232,6 +224,10 @@ function holdTurnClock(next: GameState, now: number): void {
   }
 }
 
+/** Phases timed by robberDeadline and discardDeadline, and which short choice each is. */
+const AIMING: Partial<Record<GameState['phase'], ShortChoice>> = { robber: 'robber', steal: 'steal', santa: 'santa' };
+const PICKING: Partial<Record<GameState['phase'], ShortChoice>> = { discard: 'discard', gift: 'gift' };
+
 /** Bookkeeping shared by every move: awards, winning, trade validity, clocks, and undo history. */
 function afterAction(state: GameState, next: GameState, playerId: string, action: GameAction, now: number): void {
   if (next.phase === 'robber' && !legalMoves(next, getActivePlayerId(next)!).robberHexes.length) {
@@ -275,22 +271,22 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   if (rolling(next.phase) && next.phase !== state.phase) {
     next.rollDeadline = next.settings.autoRollSeconds ? now + next.settings.autoRollSeconds * 1000 * moverFactor : null;
   } else if (!rolling(next.phase)) next.rollDeadline = null;
-  // Gold picks and the robber share the room's short-choice clock.
-  const decision = next.settings.decisionSeconds * 1000 * choosersFactor;
-  if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + decision;
+  // Short choices, each on its own clock (CHOICE_SECONDS in default-settings.ts).
+  const choice = (kind: ShortChoice) => now + choiceMs(next.settings, kind) * choosersFactor;
+  if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = choice('gold');
   else if (next.phase !== 'gold') next.goldDeadline = null;
-  // Each candy pick gets the short-choice clock of its own.
+  // Each candy pick gets a clock of its own.
   const candyPicked = state.candyLoad?.picks.length !== next.candyLoad?.picks.length;
-  if (next.phase === 'candy' && (state.phase !== 'candy' || candyPicked)) next.candyDeadline = now + decision;
+  if (next.phase === 'candy' && (state.phase !== 'candy' || candyPicked)) next.candyDeadline = choice('candy');
   else if (next.phase !== 'candy') next.candyDeadline = null;
-  // Sending Santa is a short choice like the robber's, on the same clock.
-  const aiming = (phase: GameState['phase']) => phase === 'robber' || phase === 'santa';
-  if (aiming(next.phase) && next.phase !== state.phase) next.robberDeadline = now + decision;
-  else if (!aiming(next.phase)) next.robberDeadline = null;
-  // Wedding gifts are picked like discards, on the same clock.
-  const picking = (phase: GameState['phase']) => phase === 'discard' || phase === 'gift';
-  if (picking(next.phase) && next.phase !== state.phase) next.discardDeadline = now + decision;
-  else if (!picking(next.phase)) next.discardDeadline = null;
+  // Moving the robber, choosing whom to steal from, and sending Santa share one deadline field.
+  const aiming = AIMING[next.phase];
+  if (aiming && next.phase !== state.phase) next.robberDeadline = choice(aiming);
+  else if (!aiming) next.robberDeadline = null;
+  // Wedding gifts are picked like discards, on the same deadline field.
+  const picking = PICKING[next.phase];
+  if (picking && next.phase !== state.phase) next.discardDeadline = choice(picking);
+  else if (!picking) next.discardDeadline = null;
   if (next.phase !== 'roll') next.rollHeldMs = null;
   holdTurnClock(next, now);
   const newSeat =
@@ -301,7 +297,7 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   if (playing && newSeat) {
     const seconds =
       next.phase === 'special-build'
-        ? Math.min(SPECIAL_BUILD_SECONDS, next.settings.turnSeconds)
+        ? Math.min(CHOICE_SECONDS.specialBuild, next.settings.turnSeconds)
         : next.settings.turnSeconds;
     next.turnDeadline = now + seconds * 1000 * moverFactor;
     next.turnHeldAt = HELD_PHASES.includes(next.phase) ? now : null;

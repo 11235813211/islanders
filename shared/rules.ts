@@ -1,5 +1,6 @@
 import { type IslandSize, shuffled } from './board';
 import { crosses, ownEdges, pieceOn } from './crossings';
+import { CHOICE_SECONDS, DEFAULT_SETTINGS } from './default-settings';
 import { type KnightsBoard, knightsPoints } from './knights';
 import { routeFinished } from './maps/special';
 import { boardIndex, terrainResource } from './seafaring';
@@ -85,6 +86,12 @@ export function canGiveTime(game: ClockTable, activeId: string | null, giverId: 
     clockRunning(game)
   );
 }
+
+/** Milliseconds a short choice gets in this room: CHOICE_SECONDS scaled by its short-choice time. */
+export function choiceMs(settings: Pick<GameSettings, 'decisionSeconds'>, choice: ShortChoice): number {
+  return CHOICE_SECONDS[choice] * 1000 * (settings.decisionSeconds / DEFAULT_SETTINGS.decisionSeconds);
+}
+export type ShortChoice = Exclude<keyof typeof CHOICE_SECONDS, 'specialBuild'>;
 
 /** How many times longer clocks run for these people: double when any of them has double time. */
 export function timeFactor(

@@ -23,11 +23,12 @@ export function shiftClocks(state: GameState, milliseconds: number): void {
 }
 
 /**
- * Votes a proposal needs: an undo needs everyone; pause and resume need one other person to agree,
- * so with two people the proposer alone decides.
+ * Votes a proposal needs: an undo needs one other person to agree (the proposer's vote counts,
+ * so two in all); pause and resume need one other too, except with two people, where the
+ * proposer alone decides.
  */
 export function votesNeeded(proposal: Pick<Proposal, 'kind' | 'required'>): number {
-  if (proposal.kind === 'undo') return proposal.required.length;
+  if (proposal.kind === 'undo') return Math.min(proposal.required.length, 2);
   return Math.min(proposal.required.length, proposal.required.length <= 2 ? 1 : 2);
 }
 

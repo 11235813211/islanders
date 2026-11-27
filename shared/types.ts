@@ -501,7 +501,7 @@ export interface GameState {
   candyLoad: CandyLoad | null;
   /** When the next candy pick is made for whoever hasn't picked. */
   candyDeadline: number | null;
-  /** When the robber (or pirate) is placed for a player who hasn't moved it. */
+  /** When the robber (or pirate) is placed, the steal made, or Santa sent for a player who hasn't. */
   robberDeadline: number | null;
   /** When discards are made for whoever hasn't discarded. */
   discardDeadline: number | null;
@@ -740,7 +740,7 @@ export interface GameView {
   pausedAt: number | null;
   pauseReason: 'vote' | 'idle' | null;
   proposal: Proposal | null;
-  /** The latest move its actor may ask to undo. `endsTurn` when that move was ending their turn. */
+  /** The latest move its actor may ask to undo. `endsTurn` when that move passed play on (a turn, special build, or setup step). */
   undoAvailable: { actorId: string; description: string; endsTurn: boolean } | null;
   chat: ChatMessage[];
   map: MapInfo | null;
