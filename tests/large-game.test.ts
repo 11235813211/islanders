@@ -77,34 +77,50 @@ describe('the 5–6 player island', () => {
 });
 
 describe('special build phase', () => {
-  it('players who ask build after the turn, in the order they asked; nobody else is waited on', () => {
+  it('players who ask build after the turn in seat order, whenever they asked; nobody else is waited on', () => {
     let g = sixAtBuild();
     grant(g, 'p2', { wood: 1, brick: 1 });
     grant(g, 'p4', { sheep: 1, wheat: 1, ore: 1 });
-    // During p0's turn, p4 asks first, then p2.
+    // During p0's turn, p4 asks first, then p2: p2 sits first after p0, so builds first.
     g = act(g, 'p4', { type: 'request-special-build' });
     g = act(g, 'p2', { type: 'request-special-build' });
+    expect(g.specialQueue).toEqual(['p2', 'p4']);
     expect(() => act(g, 'p4', { type: 'request-special-build' })).toThrow(/already/);
     expect(() => act(g, 'p0', { type: 'request-special-build' })).toThrow(/your turn/);
     g = act(g, 'p0', { type: 'end-turn' });
     expect(g.phase).toBe('special-build');
-    expect(getActivePlayerId(g)).toBe('p4');
-    expect(getView(g, 'p4').turnPlayerId).toBe('p0');
-    expect(getView(g, 'p4').legal.development).toBe(true);
-    g = act(g, 'p4', { type: 'buy-development' });
-    // p5 joins the line during p4's special build, even out of seat order.
-    g = act(g, 'p5', { type: 'request-special-build' });
-    g = act(g, 'p4', { type: 'end-turn' });
     expect(getActivePlayerId(g)).toBe('p2');
+    expect(getView(g, 'p2').turnPlayerId).toBe('p0');
     const road = getView(g, 'p2').legal.roads[0]!;
     g = act(g, 'p2', { type: 'build-road', edgeId: road });
     expect(g.roads[road]).toBe('p2');
+    // p5 and then p3 join during p2's special build; p3 still goes before p4, and p5 last.
+    g = act(g, 'p5', { type: 'request-special-build' });
+    g = act(g, 'p3', { type: 'request-special-build' });
+    expect(g.specialQueue).toEqual(['p3', 'p4', 'p5']);
     g = act(g, 'p2', { type: 'end-turn' });
+    expect(getActivePlayerId(g)).toBe('p3');
+    g = act(g, 'p3', { type: 'end-turn' });
+    expect(getActivePlayerId(g)).toBe('p4');
+    expect(getView(g, 'p4').legal.development).toBe(true);
+    g = act(g, 'p4', { type: 'buy-development' });
+    g = act(g, 'p4', { type: 'end-turn' });
     expect(getActivePlayerId(g)).toBe('p5');
     g = act(g, 'p5', { type: 'end-turn' });
     expect(g.phase).toBe('roll');
     expect(getActivePlayerId(g)).toBe('p1');
     expect(g.specialAsked).toEqual([]);
+  });
+
+  it('bots join the line in seat order among the people who asked', () => {
+    let g = sixAtBuild();
+    g.players[2]!.bot = 'advanced';
+    grant(g, 'p2', { wheat: 2, ore: 3 });
+    grant(g, 'p4', { wood: 1, brick: 1 });
+    g = act(g, 'p4', { type: 'request-special-build' });
+    g = act(g, 'p0', { type: 'end-turn' });
+    expect(getActivePlayerId(g)).toBe('p2');
+    expect(g.specialQueue).toEqual(['p4']);
   });
 
   it('with nobody asking, the next turn starts straight away', () => {

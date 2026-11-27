@@ -560,7 +560,7 @@ export interface GameState {
   freeRoads: number;
   /** Who is building in the special build phase, or null. */
   specialBuilder: string | null;
-  /** Players waiting to build after this turn, in the order they asked. */
+  /** Players waiting to build after this turn, in seat order after the player whose turn it is. */
   specialQueue: string[];
   /** Who asked to build this turn (each player may ask once). */
   specialAsked: string[];

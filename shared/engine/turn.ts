@@ -112,10 +112,17 @@ export function visitIsland(next: GameState, playerId: string, vertexId: string,
   addLog(next, `${name} settled a new island and earned ${bonus} bonus point${bonus === 1 ? '' : 's'}.`);
 }
 
+/** Keep the special build line in seat order after the player whose turn it is, whenever they asked. */
+function sortSpecialQueue(next: GameState): void {
+  const count = next.players.length;
+  const after = (id: string) => (next.players.findIndex(p => p.id === id) - next.turnIndex + count) % count;
+  next.specialQueue.sort((a, b) => after(a) - after(b));
+}
+
 /**
  * With five or more players, others may ask to build after a turn (no cards; no trading, except one
  * bank trade between turns with seven or eight). They go in
- * the order they asked; bots that could build a city or settlement join when the turn ends.
+ * seat order after the player whose turn it is; bots that could build a city or settlement join when the turn ends.
  * Returns who builds next, or null when nobody is waiting.
  */
 function nextSpecialBuilder(next: GameState): string | null {
@@ -132,6 +139,7 @@ function nextSpecialBuilder(next: GameState): string | null {
       }
     }
   }
+  sortSpecialQueue(next);
   return next.specialQueue.shift() ?? null;
 }
 
@@ -387,6 +395,7 @@ export const turnHandlers: Pick<
     requireRule(!next.specialAsked.includes(playerId), 'You already asked to build this turn.');
     next.specialAsked.push(playerId);
     next.specialQueue.push(playerId);
+    sortSpecialQueue(next);
     addLog(next, `${player.name} wants to build after this turn.`);
   },
 
