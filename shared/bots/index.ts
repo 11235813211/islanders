@@ -4,6 +4,7 @@ import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameView, TILE_
 import { advanced } from './advanced';
 import { goldChoice, keepRoutePiece, specialBuild } from './analysis';
 import { beginner } from './beginner';
+import { candyChoice } from './candy';
 import { cartographersTurn, keepsLodestone } from './cartographers';
 import { splitGoldChoice } from './charting';
 import { declinesCommodities, knightsAct } from './knights';
@@ -53,6 +54,7 @@ export function actWith(brain: Brain, given: GameView, options: TurnOptions = {}
   if (view.phase === 'special-build') return (brain.specialBuild ?? specialBuild)(view);
   if (view.phase === 'eruption') return { type: 'roll-volcanoes' };
   if (view.phase === 'santa') return santaChoice(view);
+  if (view.phase === 'candy') return candyChoice(view);
   if (view.phase === 'build') {
     // The player whose turn it is can be sent an offer too, by someone trading off turn.
     const incoming = view.tradeOffers.find(o => o.to.includes(view.selfId) && !hasAnswered(o, view.selfId));

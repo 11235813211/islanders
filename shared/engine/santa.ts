@@ -3,6 +3,7 @@
 // corners. When the number is rolled, the roller picks another player's settlement or city, and
 // Santa flies there with one card of a random standard resource from the bank.
 import { HEX_RADIUS, withLoneHex } from '../board';
+import { logName } from '../candy-names';
 import { type Board, CLASSIC_RESOURCES, type ClassicResource, type GameState, type NorthPole } from '../types';
 import { addLog, type Handlers, needPhase, requireRule, tally } from './core';
 
@@ -112,7 +113,7 @@ export const santaHandlers: Pick<Handlers, 'send-santa'> = {
     next.bank[resource]--;
     target.resources[resource]++;
     tally(next, targetId, 'cardsIn', 'santa', 1);
-    addLog(next, `${player.name} sent Santa to ${target.name}, who got one ${resource}.`, {
+    addLog(next, `${player.name} sent Santa to ${target.name}, who got one ${logName(next.settings, resource)}.`, {
       kind: 'santa',
       playerId,
       targetId,

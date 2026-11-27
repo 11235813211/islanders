@@ -47,6 +47,11 @@ import from `src/art` and never draw art themselves.
   (`candy-garland.tsx`), and lights wound around some Twizzler bunches. `CandyRailways` takes optional
   `roads` and draws a level crossing (road deck over the rails, crossbuck signs) wherever one meets the rails. The editor's Candy art dialog now
   previews the five tiles; v21 keeps the A/B options.
+  `v23/` adds Christmas Candy cards: card faces and small icons for the five resources
+  (`christmas/candy-cards.tsx`, the same sweets as the tiles), and the start station's sign is a
+  little locomotive holding up the train's number (`4/10` when unset). `CandyRailways` now takes
+  `tracks` (`designTracks(design)` in the editor; the game passes its board's trains, parked, with
+  the loaded cards on the flatcars).
 - Review the candy hexes (v22 above the v21 picks) with the train beside roads and buildings:
   `npx playwright test tests/candy-art.spec.ts` writes `test-results/christmas-candy-review.png`.
   `tests/candy-editor.spec.ts` checks authoring, save/reload, votes, animation, and five widths;

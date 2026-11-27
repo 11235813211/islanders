@@ -158,6 +158,8 @@ function EntryCards({ event, players }: { event: GameEvent | undefined; players:
       return <Cards bag={event.resources} />;
     case 'gold':
       return <Cards bag={event.resources} />;
+    case 'candy':
+      return <Cards bag={{ [event.resource]: 1 }} />;
     case 'steal':
       return event.resource ? <Cards bag={{ [event.resource]: 1 }} /> : null;
     case 'development':

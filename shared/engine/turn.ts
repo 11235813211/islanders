@@ -4,6 +4,7 @@ import { setupPieces } from '../maps/special';
 import { canGiveTime } from '../rules';
 import { boardIndex, islandBonus, vertexIsland } from '../seafaring';
 import { type GameState, type Player, RESOURCES, type Tradable } from '../types';
+import { loadTrains } from './candy';
 import {
   addBag,
   addLog,
@@ -136,8 +137,13 @@ export function afterProduction(next: GameState): GameState['phase'] {
   return next.eruption ? 'eruption' : afterEruption(next);
 }
 
-/** After any eruption: Santa when his number was rolled (and the eruption left someone to visit). */
+/** After any eruption: picks from a loaded candy train, then Santa. */
 export function afterEruption(next: GameState): GameState['phase'] {
+  return next.candyLoad ? 'candy' : afterCandy(next);
+}
+
+/** After the candy trains: Santa when his number was rolled (and the eruption left someone to visit). */
+export function afterCandy(next: GameState): GameState['phase'] {
   const roller = next.players[next.turnIndex]!.id;
   const total = next.dice ? next.dice[0] + next.dice[1] : 0;
   return santaComes(next, total, roller) ? 'santa' : 'build';
@@ -185,6 +191,7 @@ export function performRoll(next: GameState, player: Player, random: () => numbe
   next.log[next.log.indexOf(rolled)] = { ...rolled, event: { kind: 'roll', playerId, dice, gains } };
   if (next.ck) aqueduct(next, gains);
   drift(next, total, random);
+  loadTrains(next, total, random);
   const volcanoes = eruptingVolcanoes(next, total);
   next.eruption = volcanoes.length ? volcanoes : null;
   next.phase = afterProduction(next);

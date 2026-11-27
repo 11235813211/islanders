@@ -1,4 +1,5 @@
 import { shuffled } from '../board';
+import { logName } from '../candy-names';
 import { choiceGroups, choiceLimit } from '../choices';
 import { crosses, edgeOwners, ownEdges, pieceOn, placePiece, removePiece } from '../crossings';
 import { COMMODITY_OF } from '../knights';
@@ -65,7 +66,7 @@ export function produce(state: GameState, total: number): Record<string, Resourc
     const recipients = state.players.filter(player => demand.get(player.id)![resource] > 0);
     const needed = recipients.reduce((sum, player) => sum + demand.get(player.id)![resource], 0);
     if (recipients.length > 1 && needed > state.bank[resource]) {
-      addLog(state, `The bank is short of ${resource}: nobody collects it.`);
+      addLog(state, `The bank is short of ${logName(state.settings, resource)}: nobody collects it.`);
       continue;
     }
     for (const player of recipients) {

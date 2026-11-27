@@ -2,6 +2,10 @@ import { hexCenter, hexCorner } from '../board';
 import type { BoardDesign, CandyRoute, DesignTile } from './types';
 
 export const CANDY_LIMITS = { routes: 4, corners: 80 } as const;
+/** Numbers a train may be given in the editor (any roll but 7). */
+export const CANDY_NUMBERS: readonly number[] = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
+/** What an unset train number draws from each game. */
+export const CANDY_DEFAULT_NUMBERS = [4, 10] as const;
 export interface RailPoint {
   x: number;
   y: number;
@@ -94,7 +98,8 @@ export function parseCandyRoutes(value: unknown, tiles: DesignTile[]): CandyRout
       last = p;
       return p.key;
     });
-    return { corners, side: v.side };
+    if (v.number !== undefined && !CANDY_NUMBERS.includes(v.number)) throw new Error('Invalid candy train number.');
+    return { corners, side: v.side, ...(v.number !== undefined ? { number: v.number } : {}) };
   });
 }
 

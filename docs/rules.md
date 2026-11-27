@@ -112,19 +112,26 @@ Not a published expansion here: our own, built like the 5–6 player rules.
 | Seat colors                                                                                                                                                                                                                                          | Pink and teal added; ten colors to choose from                                                                                                               | `colors.ts`                                                                                                    |
 | Designed maps                                                                                                                                                                                                                                        | No built-in map has a 7–8 player layout yet; the base game does                                                                                              | `mapInfo.ts` BASE_GAME                                                                                         |
 
-## Christmas Candy (appearance and editor preview)
+## Christmas Candy
 
-Christmas Candy is a separate room look (`christmasCandy`), sharing the Christmas background,
-decorations, and gingerbread pieces. Turning it on enables Christmas and uses its existing defaults
-for pieces and the North Pole; turning Candy off returns to plain Christmas. Resources, costs,
-and production stay the same. Tested in `santa.test.ts` and the Christmas Candy phone tests.
+Christmas Candy is a room setting (`christmasCandy`) on top of the Christmas look: candy tiles,
+cards, and icons, and candy names for the five resources (Candy Cane, Twizzler, Cotton, Gum Drop,
+Kiss; `shared/candy-names.ts`). Turning it on turns on Christmas (with its pieces and the North
+Pole); turning Candy off returns to plain Christmas. Settings: `santa.test.ts`; lobby, game table,
+and phone: `christmas-ui.spec.ts`, `candy-game.spec.ts`, `phone.spec.ts`.
 
-The board editor can save up to four candy train routes per layout. Routes follow adjacent land
-corners with rails offset from the road edges; the first and last corners are stations. The preview
-shuttles candy cars between those stations, with pause and reduced-motion support. Trains do not
-enter game state or grant resource choices yet. Validation, layout isolation, and tile-erasure
-cleanup: `candy-train.test.ts`; authoring, saving, animation and phone controls:
-`candy-editor.spec.ts`, `phone.spec.ts`.
+**Candy trains** (our own rule). The board editor's Train tool draws up to four tracks per layout
+along land corners; the first corner is the start station. Each track has a number (set in the
+editor, or a 4 or a 10 drawn each game). Only maps with tracks have trains; editing the base game
+gives rooms without a map one too.
+
+| Rule            | How it plays                                                                                                                                                                                                                                                          | Code / tests                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Loading         | When the train's number is rolled, it is loaded from the bank with one random standard card per pick plus 2 spares                                                                                                                                                    | `engine/candy.ts`, `candy-engine.test.ts`                                         |
+| Picks           | Each settlement on the track picks one card, each city two, in track order from the start station; one at a time, on the short-choice clock (a bot picks for anyone out of time)                                                                                      | same                                                                              |
+| Leftovers       | Cards still on the train go back to the bank                                                                                                                                                                                                                          | same                                                                              |
+| Order in a turn | Gold choices, then volcano dice, then the candy train, then Santa                                                                                                                                                                                                     | `afterEruption` in `engine/turn.ts`; `candy-engine.test.ts`, `candy-game.spec.ts` |
+| Poorer numbers  | A track is like an extra tile, and its start like a gold field, so random numbers on tiles touching the track lose about 2 dots near the start and 1 near the end (rounded at random, never below 1 dot, staying on the same side of 7). Numbers the design sets stay | `maps/candy-board.ts`, `candy-engine.test.ts`                                     |
 
 ## The North Pole (room setting, any look)
 

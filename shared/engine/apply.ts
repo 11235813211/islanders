@@ -4,6 +4,7 @@ import { TUNING } from '../default-settings';
 import type { BoardDesign } from '../maps/types';
 import { updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
+import { candyHandlers } from './candy';
 import { cartographersHandlers } from './cartographers';
 import {
   type ActionContext,
@@ -41,6 +42,7 @@ const HANDLERS: Handlers = {
   ...seatHandlers,
   ...mapProposalHandlers,
   ...santaHandlers,
+  ...candyHandlers,
 } as Handlers;
 
 /** Actions a player may take when it is not their turn. */
@@ -66,6 +68,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'set-board-players',
   'discard',
   'choose-gold',
+  'take-candy',
   'give-cards',
   'request-special-build',
   'cancel-special-build',
@@ -204,7 +207,7 @@ function earnsTime(state: GameState, next: GameState, action: GameAction): boole
 }
 
 /** Phases where others may be the ones choosing, on their own short clock. */
-const HELD_PHASES: readonly GameState['phase'][] = ['discard', 'gold', 'gift'];
+const HELD_PHASES: readonly GameState['phase'][] = ['discard', 'gold', 'gift', 'candy'];
 
 /**
  * The turn clock stops while players discard or pick gold, so their choices never use up the
@@ -262,6 +265,10 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   const decision = next.settings.decisionSeconds * 1000;
   if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + decision;
   else if (next.phase !== 'gold') next.goldDeadline = null;
+  // Each candy pick gets the short-choice clock of its own.
+  const candyPicked = state.candyLoad?.picks.length !== next.candyLoad?.picks.length;
+  if (next.phase === 'candy' && (state.phase !== 'candy' || candyPicked)) next.candyDeadline = now + decision;
+  else if (next.phase !== 'candy') next.candyDeadline = null;
   // Sending Santa is a short choice like the robber's, on the same clock.
   const aiming = (phase: GameState['phase']) => phase === 'robber' || phase === 'santa';
   if (aiming(next.phase) && next.phase !== state.phase) next.robberDeadline = now + decision;

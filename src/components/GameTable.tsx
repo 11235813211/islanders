@@ -15,6 +15,7 @@ import BoardViewport from './BoardViewport';
 import { santaSpots } from './christmas/santa';
 import BoardPick, { useBoardLook } from './game/BoardPick';
 import BuildBar from './game/BuildBar';
+import CandyPanel, { picksCandy } from './game/CandyPanel';
 import CardFlights from './game/CardFlights';
 import { addDiscard, cardsOwed, DiscardPanel, GoldPanel, MonopolyPanel, PlentyPanel } from './game/CornerPanels';
 import DecisionTimer from './game/DecisionTimer';
@@ -87,6 +88,14 @@ const countdown = (seconds: number | null) => (seconds === null ? '' : ` · ${se
 const setupPieceNow = (view: GameView) =>
   setupPieces(view.board.rules)[Math.floor(view.setupIndex / Math.max(1, view.players.length))] ?? 'settlement';
 
+/** The candy train's line: your pick, or whose it is. */
+function candyInstruction(view: GameView, clock: number): string {
+  const picker = view.candyLoad?.picks[0]?.playerId;
+  if (picker === view.selfId)
+    return `Take a card from the candy train${countdown(secondsUntil(view.candyDeadline, clock))}`;
+  return `${view.players.find(p => p.id === picker)?.name ?? 'Someone'} is picking from the candy train…`;
+}
+
 function instructionFor(view: GameView, ownTurn: boolean, clock: number): string {
   const rollIn = secondsUntil(view.rollDeadline, clock);
   const active = view.players.find(p => p.id === view.activePlayerId);
@@ -128,6 +137,8 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
     case 'santa':
       return ownTurn ? 'Pick a player’s network for Santa' : `${active?.name} is sending Santa…`;
+    case 'candy':
+      return candyInstruction(view, clock);
     case 'special-build':
       if (!ownTurn) return `${active?.name} is building…`;
       if (!isHugeGame(view.players.length)) return 'Special build: no trading';
@@ -244,7 +255,9 @@ export default function GameTable({
         ? Object.keys(view.pendingDiscards).find(id => (view.pendingDiscards[id] ?? 0) > 0)
         : view.phase === 'gold'
           ? Object.keys(view.pendingGold)[0]
-          : view.activePlayerId;
+          : view.phase === 'candy'
+            ? view.candyLoad?.picks[0]?.playerId
+            : view.activePlayerId;
     if (next && next !== view.selfId && !view.players.find(p => p.id === next)?.bot) room.viewAs(next);
   }, [view, follow, busy, room.viewAs, spectator, paused]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset local choices when the seat or phase changes.
@@ -377,6 +390,16 @@ export default function GameTable({
       return <DiscardPanel key={view.selfId} view={view} bag={discard} setBag={setDiscard} busy={busy} send={send} />;
     if (tiles.panel) return tiles.panel;
     if (knights.panel) return knights.panel;
+    if (picksCandy(view) && !paused)
+      return (
+        <CandyPanel
+          key={view.selfId}
+          view={view}
+          busy={busy}
+          send={send}
+          secondsLeft={secondsUntil(view.candyDeadline, clock)}
+        />
+      );
     if (choosingGold)
       return (
         <GoldPanel

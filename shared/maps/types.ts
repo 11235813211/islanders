@@ -136,11 +136,13 @@ export interface BoardRules {
 /** One corner of a tile, as the editor stores it: tile `q,r` and corner 0–5 (see Hex.vertexIds). */
 export type CornerKey = string;
 
-/** Editor-only railway preview. Ordered adjacent corners; endpoints are stations. */
+/** A candy train's track (Christmas Candy rooms): ordered adjacent corners from the start station. */
 export interface CandyRoute {
   corners: CornerKey[];
   /** Which side of the directed route the rails sit on, leaving road edges clear. */
   side: 1 | -1;
+  /** The roll that loads the train; absent draws a 4 or a 10 each game. */
+  number?: number;
 }
 
 /** What a board's version for some player counts replaces; everything else is shared. */
@@ -158,7 +160,7 @@ export const VERSION_FIELDS = [
 export type BoardVersion = Pick<BoardDesign, (typeof VERSION_FIELDS)[number]>;
 
 export interface BoardDesign {
-  /** Saved with each layout, but not carried into gameplay or resource production. */
+  /** Candy train tracks, per layout; played only in Christmas Candy rooms (see maps/candy-board.ts). */
   candyRoutes?: CandyRoute[];
   id: string;
   name: string;

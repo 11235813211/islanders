@@ -276,6 +276,11 @@ const MIGRATIONS: Migration[] = [
   next => {
     next.settings.christmasCandy ??= false;
   },
+  // 37 → 38: Christmas Candy trains, loaded on their number and picked from in order.
+  next => {
+    next.candyLoad ??= null;
+    next.candyDeadline ??= null;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

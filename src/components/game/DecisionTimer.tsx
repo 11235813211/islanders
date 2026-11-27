@@ -12,6 +12,8 @@ function decisionDeadline(view: GameView): { deadline: number; label: string } |
     return { deadline: view.discardDeadline, label: 'Discard' };
   if (view.phase === 'gold' && (view.pendingGold[view.selfId] ?? 0) > 0 && view.goldDeadline !== null)
     return { deadline: view.goldDeadline, label: 'Gold' };
+  if (view.phase === 'candy' && view.candyLoad?.picks[0]?.playerId === view.selfId && view.candyDeadline !== null)
+    return { deadline: view.candyDeadline, label: 'Candy' };
   return null;
 }
 

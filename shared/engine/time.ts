@@ -1,4 +1,5 @@
 import { type BotThought, botThink, chooseBotAction } from '../bots';
+import { candyChoice } from '../bots/candy';
 import { choiceGroups, fillChoice } from '../choices';
 import { hasAnswered } from '../rules';
 import { type BotLevel, DEFAULT_BOT_LEVEL, type GameAction, type GameState } from '../types';
@@ -40,6 +41,10 @@ export function pendingBotActor(state: GameState): string | null {
   if (state.phase === 'discard')
     return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0 && isBot(state, id)) ?? null;
   if (state.phase === 'gold') return Object.keys(state.pendingGold).find(id => isBot(state, id)) ?? null;
+  if (state.phase === 'candy') {
+    const picker = state.candyLoad?.picks[0]?.playerId;
+    return picker && isBot(state, picker) ? picker : null;
+  }
   if (state.phase === 'gift') return Object.keys(state.ck?.gifts ?? {}).find(id => isBot(state, id)) ?? null;
   const offers = state.phase === 'build' ? state.tradeOffers : [];
   for (const offer of offers) {
@@ -169,6 +174,7 @@ function phaseDeadline(state: GameState): number | null {
   if (state.phase === 'roll' || state.phase === 'eruption') return state.rollDeadline;
   if (state.phase === 'discard' || state.phase === 'gift') return state.discardDeadline;
   if (state.phase === 'gold') return state.goldDeadline;
+  if (state.phase === 'candy') return state.candyDeadline;
   if (state.phase === 'robber' || state.phase === 'santa') return state.robberDeadline;
   return null;
 }
@@ -195,6 +201,7 @@ const TAKEOVER_TEXT: Partial<Record<GameAction['type'], string>> = {
   'move-robber': 'moved the robber',
   steal: 'picked whom to rob',
   'choose-gold': 'picked gold',
+  'take-candy': 'took from the candy train',
   'give-cards': 'gave cards',
   'place-knight': 'placed a knight',
   'build-settlement': 'placed a settlement',
@@ -247,6 +254,10 @@ export function advanceTime(
       return giveForAll(next, now, random);
     if (next.phase === 'gold' && next.goldDeadline !== null && next.goldDeadline <= now)
       return chooseGoldForAll(next, now, random);
+    if (next.phase === 'candy' && next.candyDeadline !== null && next.candyDeadline <= now) {
+      const id = next.candyLoad!.picks[0]!.playerId;
+      return forced(next, id, candyChoice(getView(next, id)), random, now);
+    }
     if (
       (next.phase === 'robber' || next.phase === 'santa') &&
       next.robberDeadline !== null &&
@@ -342,6 +353,7 @@ function forcedChoice(state: GameState, id: string, level: BotLevel, thought?: B
 function nextChooser(state: GameState): string {
   if (state.phase === 'discard') return Object.keys(state.pendingDiscards).find(id => state.pendingDiscards[id]! > 0)!;
   if (state.phase === 'gold') return Object.keys(state.pendingGold)[0]!;
+  if (state.phase === 'candy') return state.candyLoad!.picks[0]!.playerId;
   if (state.phase === 'gift') return Object.keys(state.ck!.gifts)[0]!;
   return getActivePlayerId(state)!;
 }

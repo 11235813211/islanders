@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { hexCenter, hexCorner } from '../../../shared/board';
 import { type BoardDesign, type DesignHarbor, type DesignTile, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
 import { closedTiles, isLand, noStartPoints, takesNumber } from '../../../shared/maps/edit';
-import { CandyRailways, Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
+import { CandyRailways, designTracks, Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import { HalfClips, SplitTile, tileVariant } from '../BoardScene';
 import IslandRims from '../IslandRims';
@@ -188,6 +188,7 @@ export default function EditorLayer({
   routeFocus?: number;
   trainPaused?: boolean;
 }) {
+  const tracks = useMemo(() => designTracks(design), [design]);
   const occupied = new Set(design.tiles.map(t => tileKey(t.q, t.r)));
   const ghosts = new Map<string, { q: number; r: number }>();
   for (const tile of readOnly ? [] : design.tiles)
@@ -307,7 +308,7 @@ export default function EditorLayer({
       })}
       <RouteZones zones={routeZonesOf(design, routeFocus)} />
       <NoStartMarks design={design} />
-      <CandyRailways design={design} paused={readOnly || trainPaused} />
+      <CandyRailways tracks={tracks} paused={readOnly || trainPaused} />
       {selectedTile && <polygon className="editor-selected" points={hexPoints(55)} transform={place(selectedTile)} />}
     </>
   );

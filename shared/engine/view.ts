@@ -152,6 +152,8 @@ export function getView(state: GameState, selfId: string): GameView {
     pendingGold: state.pendingGold,
     pendingSplit: state.pendingSplit,
     goldDeadline: state.goldDeadline,
+    candyLoad: state.candyLoad,
+    candyDeadline: state.candyDeadline,
     robberDeadline: state.robberDeadline,
     discardDeadline: state.discardDeadline,
     turnHeldAt: state.turnHeldAt,

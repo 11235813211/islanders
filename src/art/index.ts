@@ -1,7 +1,15 @@
 // Active art version. To roll back, point this at an older folder (e.g. './v1').
 import type { ReactElement } from 'react';
 import { createContext, createElement, useContext } from 'react';
-import { type BaseTerrain, COMMODITIES, type Commodity, type Resource, type Terrain } from '../../shared/types';
+import {
+  type BaseTerrain,
+  CLASSIC_RESOURCES,
+  type ClassicResource,
+  COMMODITIES,
+  type Commodity,
+  type Resource,
+  type Terrain,
+} from '../../shared/types';
 import { CandyTheme } from './candy-options';
 import type { CardColors, CartographersArt, ChristmasArt, KnightsArt, SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
@@ -11,12 +19,12 @@ import { cartographers as splitCartographers } from './v16/cartographers';
 import { knights as fallbackKnights } from './v18/knights';
 import { MegacityPiece as fallbackMegacity } from './v19/pieces';
 import { art as christmasPack } from './v20';
-import { art } from './v22';
-import { CandyTile } from './v22/christmas/candy-tiles';
+import { art } from './v23';
+import { CandyTile } from './v23/christmas/candy-tiles';
 
 export type { Frame, SeaTileKind } from './types';
-export { CandyTile } from './v22/christmas/candy-tiles';
-export { CandyRailways } from './v22/christmas/train';
+export { CandyTile } from './v23/christmas/candy-tiles';
+export { CandyRailways, designTracks, type RailRoad, type RailTrack } from './v23/christmas/train';
 export const ART_VERSION = art.version;
 export const ROAD_INSET = art.roadInset ?? 0.19;
 export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, BuildingPiece, SeaDecorations } = art;
@@ -47,8 +55,14 @@ export const CARD_COLORS: Record<Resource, CardColors> = {
 const isCommodity = (resource: Resource): resource is Commodity =>
   (COMMODITIES as readonly string[]).includes(resource);
 
+/** The standard resource to draw as candy (Christmas Candy look), or null. */
+const candyResource = (candy: boolean, resource: Resource): ClassicResource | null =>
+  candy && (CLASSIC_RESOURCES as readonly string[]).includes(resource) ? (resource as ClassicResource) : null;
+
 /** A resource's small icon (card corners, harbors, logs). */
 export function ResourceIcon({ resource, size }: { resource: Resource; size?: number }): ReactElement {
+  const candy = candyResource(useContext(CandyTheme), resource);
+  if (candy && CHRISTMAS.CandyIcon) return createElement(CHRISTMAS.CandyIcon, { resource: candy, size });
   if (resource === 'lodestone') return createElement(CARTOGRAPHERS.ResourceIcon, { size });
   if (isCommodity(resource)) return createElement(KNIGHTS.CommodityIcon, { commodity: resource, size });
   return createElement(art.ResourceIcon, { resource, size });
@@ -57,7 +71,15 @@ export function ResourceIcon({ resource, size }: { resource: Resource; size?: nu
 /** The large illustration in the middle of a resource card. */
 export function ResourceArt({ resource }: { resource: Resource }): ReactElement {
   const christmas = useContext(ChristmasTheme);
+  const candy = candyResource(useContext(CandyTheme), resource);
   if (!christmas) return createElement(PlainResourceArt, { resource });
+  if (candy && CHRISTMAS.CandyCardArt)
+    return createElement(
+      'span',
+      { className: 'cards-xmas' },
+      createElement(CHRISTMAS.CandyCardArt, { resource: candy }),
+      createElement(CHRISTMAS.CardDecor),
+    );
   // Lumber and wool get Christmas faces of their own; every card gets holly and snow.
   const face = CHRISTMAS.CardArt({ resource }) ?? createElement(PlainResourceArt, { resource });
   return createElement('span', { className: 'cards-xmas' }, face, createElement(CHRISTMAS.CardDecor));

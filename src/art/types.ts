@@ -71,6 +71,9 @@ export interface ChristmasArt {
   CardDecor: () => ReactElement;
   /** A Christmas card face for some resources (lumber, wool); null keeps the usual art. */
   CardArt: (props: { resource: string }) => ReactElement | null;
+  /** Christmas Candy: a standard resource card's face and small icon. Versions before v23 leave these out. */
+  CandyCardArt?: (props: { resource: ClassicResource }) => ReactElement;
+  CandyIcon?: (props: { resource: ClassicResource; size?: number }) => ReactElement;
   /** The logo's mark: a decorated pine with a star, centered at the origin (about ±15 by -32..12). */
   LogoTree: () => ReactElement;
   /** The robber in a Christmas room: the Grinch, in the usual robber's footprint. */

@@ -222,3 +222,43 @@ export function knightsTable(): GameState {
   ck.hands.p1 = [{ id: 'c5', kind: 'spy' }];
   return g;
 }
+
+/** The shortest run of corners from `from` to `to` along board edges, passing no other building. */
+function trackBetween(game: GameState, from: string, to: string): string[] {
+  const vertices = new Map(game.board.vertices.map(v => [v.id, v]));
+  const edges = new Map(game.board.edges.map(e => [e.id, e]));
+  const back = new Map<string, string>([[from, from]]);
+  const queue = [from];
+  while (queue.length && !back.has(to)) {
+    const at = queue.shift()!;
+    for (const edgeId of vertices.get(at)!.edgeIds) {
+      const edge = edges.get(edgeId)!;
+      const next = edge.a === at ? edge.b : edge.a;
+      if (back.has(next) || (next !== to && game.buildings[next])) continue;
+      back.set(next, at);
+      queue.push(next);
+    }
+  }
+  const path = [to];
+  while (path[0] !== from) path.unshift(back.get(path[0]!)!);
+  return path;
+}
+
+/**
+ * A settled Christmas Candy game with one train on 4: its track runs from p1's first settlement
+ * to p0's (made a city), so p1 picks once and then p0 twice. p0 is about to roll.
+ */
+export function candyGame(northPole = false): GameState {
+  const lobby = makeLobby(3);
+  Object.assign(lobby.settings, { christmas: true, christmasCandy: true, northPole, diceMode: 'random' });
+  const g = settled(3, lobby);
+  g.turnIndex = 0;
+  g.phase = 'roll';
+  const own = (id: string) => Object.keys(g.buildings).filter(v => g.buildings[v]!.playerId === id);
+  const [p1First] = own('p1');
+  const [p0First] = own('p0');
+  g.buildings[p0First!] = { playerId: 'p0', kind: 'city' };
+  g.board = { ...g.board, trains: [{ vertexIds: trackBetween(g, p1First!, p0First!), number: 4, side: 1 }] };
+  if (g.northPole) g.northPole = { ...g.northPole, number: 4 };
+  return g;
+}

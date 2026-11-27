@@ -1,9 +1,10 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
+import { CANDY_NAMES } from '../../shared/candy-names';
 import { RESOURCES, type Resource, type ResourceBag } from '../../shared/types';
 import { CARD_COLORS, ResourceArt, ResourceIcon } from '../art';
 import './Cards.css';
 
-export const RESOURCE_LABELS: Record<Resource, string> = {
+const PLAIN_LABELS: Record<Resource, string> = {
   wood: 'Lumber',
   brick: 'Brick',
   sheep: 'Wool',
@@ -14,6 +15,17 @@ export const RESOURCE_LABELS: Record<Resource, string> = {
   cloth: 'Cloth',
   coin: 'Coin',
 };
+
+/**
+ * Every card, panel, and label reads its name here. The page shows one look at a time, so
+ * ChristmasLook switches the whole set to the candy names while it renders (see setCandyNames).
+ */
+export const RESOURCE_LABELS: Record<Resource, string> = { ...PLAIN_LABELS };
+
+/** Use the Christmas Candy names (on) or the usual ones. Called by ChristmasLook before its children render. */
+export function setCandyNames(on: boolean): void {
+  Object.assign(RESOURCE_LABELS, PLAIN_LABELS, on ? CANDY_NAMES : {});
+}
 
 /** Most cards drawn in one stack; the count badge carries the rest. */
 const MAX_STACK = 8;

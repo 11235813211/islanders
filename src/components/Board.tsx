@@ -21,6 +21,7 @@ import { paidTiles } from './christmas/paidTiles';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
+import CandyTrains from './game/CandyTrains';
 import { GroupGlow, type GroupPick, GroupTargets } from './game/GroupTargets';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
@@ -217,6 +218,12 @@ export default function Board({
     const edge = edges.get(edgeId)!;
     return [vertices.get(edge.a)!, vertices.get(edge.b)!] as const;
   };
+  /** Roads the candy rails cross get a level crossing. */
+  const trainRoads = () =>
+    allPieces(view, 'road').map(([edgeId, owner]) => {
+      const [from, to] = edgeEnds(edgeId);
+      return { from, to, color: color(owner) };
+    });
   const edgeLabel = (edgeId: string) => {
     if (mode === 'move-ship') return moveFrom ? `Move ship to ${edgeId}` : `Move the ship at ${edgeId}`;
     if (mode === 'relay') return `Build relay station at ${edgeId}`;
@@ -271,6 +278,7 @@ export default function Board({
             peeks={view.fogPeeks}
           />
           <RouteZones zones={viewerZones(view)} />
+          <CandyTrains board={view.board} load={view.candyLoad} roads={trainRoads()} />
           {groups && (
             <GroupGlow view={view} groups={groups} picked={groupPick} vertices={vertices} edgeEnds={edgeEnds} />
           )}

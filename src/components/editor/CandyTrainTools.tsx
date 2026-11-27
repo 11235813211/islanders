@@ -1,5 +1,5 @@
 import type { BoardDesign } from '../../../shared/maps';
-import { CANDY_LIMITS, replaceCandyRoute } from '../../../shared/maps/candy-train';
+import { CANDY_LIMITS, CANDY_NUMBERS, replaceCandyRoute } from '../../../shared/maps/candy-train';
 import './candy.css';
 
 export interface CandyTrainControls {
@@ -64,6 +64,27 @@ export default function CandyTrainTools({
         </button>
       </div>
       <div className="candy-train-row">
+        <label>
+          Number{' '}
+          <select
+            aria-label="Candy train number"
+            value={route?.number ?? ''}
+            disabled={!route}
+            onChange={e => {
+              const value = e.target.value;
+              update(({ number: _old, ...r }) => (value ? { ...r, number: Number(value) } : r));
+            }}
+          >
+            <option value="">4 or 10</option>
+            {CANDY_NUMBERS.map(n => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="candy-train-row">
         <button
           type="button"
           disabled={!route?.corners.length}
@@ -91,7 +112,7 @@ export default function CandyTrainTools({
           : !route.corners.length
             ? 'Tap a corner for Start, then follow the highlighted corners.'
             : `Train ${controls.route + 1} · ${Math.max(0, route.corners.length - 1)} edges. Tap a highlighted corner to extend; an earlier corner to shorten.`}{' '}
-        First and last corners are stops. Editor preview only.
+        Picks go from the start station to the end. Played in Christmas Candy rooms.
       </p>
     </section>
   );

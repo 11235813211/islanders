@@ -17,7 +17,7 @@ function design() {
   return d;
 }
 
-describe('editor-only candy railway', () => {
+describe('candy railway editing', () => {
   it('joins aliases of the same physical corner, rejects gaps, and trims earlier corners', () => {
     let d = design();
     const graph = candyGraph(d.tiles);

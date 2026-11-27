@@ -36,9 +36,11 @@ export function boardFor(
   seafarers = !!design,
   /** Play the layout made for this many players instead of the one that fits `players`. */
   layoutFor?: number,
+  /** Christmas Candy: lay the map's candy train tracks. */
+  trains = false,
 ): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   if (design) {
-    const built = buildBoard(designFor(design, layoutFor ?? players), random);
+    const built = buildBoard(designFor(design, layoutFor ?? players), random, { trains });
     return seafarers ? built : { ...built, pirate: null };
   }
   const board = generateBoard(random, layout, islandSize(players), seafarers);
@@ -77,6 +79,7 @@ function drawFrom(state: GameState, seed: number): ReturnType<typeof boardFor> {
     players.length,
     settings.seafarers,
     layoutCount(state),
+    settings.christmasCandy,
   );
 }
 
@@ -172,6 +175,8 @@ export function createGame(
     pendingGold: {},
     pendingSplit: {},
     goldDeadline: null,
+    candyLoad: null,
+    candyDeadline: null,
     robberDeadline: null,
     discardDeadline: null,
     turnHeldAt: null,

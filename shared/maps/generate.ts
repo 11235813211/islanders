@@ -19,6 +19,7 @@ import {
   randomNumber,
   swapEqualOdds,
 } from './balance';
+import { placeTrains } from './candy-board';
 import { fogIslandsOf, fogKinds, fogMayBeSea, fogMixOf } from './fog';
 import { autoHarbors, harborTarget } from './harbors';
 import { landMixOf } from './land-mix';
@@ -529,6 +530,8 @@ function icebergNumbers(tiles: DesignTile[], terrains: Map<string, Terrain>, ran
 export function buildBoard(
   design: BoardDesign,
   random: () => number = Math.random,
+  /** Christmas Candy: lay the design's train tracks (drawn last, so the rest of the board is the same draw). */
+  options: { trains?: boolean } = {},
 ): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
   const unique = { ...design, tiles };
@@ -612,7 +615,9 @@ export function buildBoard(
   const pirate = pirateStart(design, board, at(design.pirate));
   const rules = rulesOf(design);
   if (rules) board.rules = rules;
-  return { board, robber, pirate, fog: drawFog(design, board, random) };
+  const fog = drawFog(design, board, random);
+  if (options.trains) placeTrains(design, board, new Set(fixed.keys()), random);
+  return { board, robber, pirate, fog };
 }
 
 /**

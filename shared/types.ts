@@ -89,6 +89,25 @@ export interface Board {
   harbors: Harbor[];
   /** The map's special rules (setup pieces, piece rewards, routes); absent on boards without any. */
   rules?: BoardRules;
+  /** Christmas Candy: the candy trains drawn on this board, absent without the setting or routes. */
+  trains?: CandyTrain[];
+}
+/** A candy train's track: corners in order from its start station, and the number that loads it. */
+export interface CandyTrain {
+  vertexIds: string[];
+  number: number;
+  /** Which side of the track the rails are drawn on (as the editor saved it). */
+  side: 1 | -1;
+}
+/** A loaded candy train waiting to be picked from: the cards on it and who picks next, in order. */
+export interface CandyLoad {
+  /** Index into `board.trains`. */
+  train: number;
+  cards: ClassicResource[];
+  /** One entry per pick (a city picks twice), from the start of the track to the end. */
+  picks: { playerId: string; vertexId: string }[];
+  /** Other trains with the same number, loaded once this one is done. */
+  waiting: number[];
 }
 export interface Building {
   playerId: string;
@@ -143,6 +162,7 @@ export const CARD_SOURCES = [
   'bank',
   'trade',
   'santa',
+  'candy',
 ] as const;
 export type CardSource = (typeof CARD_SOURCES)[number];
 /** Where a player's cards went. */
@@ -196,6 +216,8 @@ export type Phase =
   | 'place-knight'
   /** Christmas: the North Pole's number came up; the roller picks another player's building for Santa. */
   | 'santa'
+  /** Christmas Candy: a candy train's number came up; the players on its track take cards in order. */
+  | 'candy'
   | 'finished';
 /**
  * Structured record of what a log line describes, for bots, stats, and UI.
@@ -222,6 +244,8 @@ export type GameEvent =
   | { kind: 'gold'; playerId: string; resources: ResourceBag }
   /** Santa flew from the North Pole to `vertexId` and gave its owner one card. */
   | { kind: 'santa'; playerId: string; targetId: string; vertexId: string; resource: ClassicResource }
+  /** A player took one card off a candy train, for the building at `vertexId`. */
+  | { kind: 'candy'; playerId: string; vertexId: string; resource: ClassicResource }
   | {
       kind: 'eruption';
       hexId: string;
@@ -462,6 +486,10 @@ export interface GameState {
   pendingSplit: Record<string, SplitChoice[]>;
   /** When gold choices are made for whoever hasn't chosen. */
   goldDeadline: number | null;
+  /** Christmas Candy: the train being picked from, or null. */
+  candyLoad: CandyLoad | null;
+  /** When the next candy pick is made for whoever hasn't picked. */
+  candyDeadline: number | null;
   /** When the robber (or pirate) is placed for a player who hasn't moved it. */
   robberDeadline: number | null;
   /** When discards are made for whoever hasn't discarded. */
@@ -665,6 +693,8 @@ export interface GameView {
   pendingGold: Record<string, number>;
   pendingSplit: Record<string, SplitChoice[]>;
   goldDeadline: number | null;
+  candyLoad: CandyLoad | null;
+  candyDeadline: number | null;
   robberDeadline: number | null;
   discardDeadline: number | null;
   turnHeldAt: number | null;
@@ -756,6 +786,7 @@ export type GameAction =
   | { type: 'roll' }
   | { type: 'roll-volcanoes' }
   | { type: 'send-santa'; vertexId: string }
+  | { type: 'take-candy'; resource: ClassicResource }
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }

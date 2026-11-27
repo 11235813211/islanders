@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { emptyBag } from '../../../shared/engine';
 import { payingNumbers } from '../../../shared/rules';
 import { paysChoice } from '../../../shared/seafaring';
 import { type GameLog, type GameView, type Hex, RESOURCES, type Resource } from '../../../shared/types';
@@ -33,7 +34,13 @@ function sources(view: GameView, playerId: string, total: number | null, pays: (
 function flightsFor(entry: GameLog, view: GameView): Flight[] {
   const event = entry.event;
   const flights: Flight[] = [];
-  const add = (playerId: string, resource: Resource, count: number, from: Hex[], delay: number) => {
+  const add = (
+    playerId: string,
+    resource: Resource,
+    count: number,
+    from: { x: number; y: number }[],
+    delay: number,
+  ) => {
     const to = playerSpot(view, playerId);
     for (let i = 0; i < count; i++) {
       const hex = from[i % Math.max(1, from.length)];
@@ -68,6 +75,11 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
     const from = sources(view, event.playerId, total, h => paysChoice(h.terrain));
     for (const r of RESOURCES) if (event.resources[r]) add(event.playerId, r, event.resources[r], from, 0);
   }
+  // A candy card leaves the train from the picker's building on the track.
+  if (event?.kind === 'candy') {
+    const at = view.board.vertices.find(v => v.id === event.vertexId);
+    add(event.playerId, event.resource, 1, at ? [at] : [], 0);
+  }
   return flights;
 }
 
@@ -85,7 +97,9 @@ function cardsIn(entry: GameLog): Airborne[] {
       ? Object.entries(event.gains)
       : event?.kind === 'gold'
         ? [[event.playerId, event.resources] as const]
-        : [];
+        : event?.kind === 'candy'
+          ? [[event.playerId, { ...emptyBag(), [event.resource]: 1 }] as const]
+          : [];
   return bags.flatMap(([playerId, bag]) =>
     RESOURCES.flatMap(resource =>
       Array.from({ length: bag[resource] }, (_, i) => ({

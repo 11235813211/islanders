@@ -26,9 +26,13 @@ test('candy routes draw, animate, pause, undo and persist through save and reope
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Candy train routes' })).toContainText('4 edges');
   await page.getByRole('button', { name: 'Flip rail side', exact: true }).click();
+  // Unset, the start sign shows the 4 or 10 each game draws; a chosen number replaces it.
+  await expect(page.locator('.candy-start text')).toHaveText('4/10');
+  await page.getByRole('combobox', { name: 'Candy train number' }).selectOption('9');
+  await expect(page.locator('.candy-start text')).toHaveText('9');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
-  expect(board.saved().candyRoutes).toEqual([{ corners, side: -1 }]);
+  expect(board.saved().candyRoutes).toEqual([{ corners, side: -1, number: 9 }]);
   await page.reload();
   await page.getByRole('button', { name: 'Edit Candy test', exact: true }).click();
   await expect(page.locator('.candy-station')).toHaveCount(2);
