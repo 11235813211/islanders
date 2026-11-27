@@ -37,7 +37,8 @@ test('a game is saved when the host chose to and nobody opted out, and the saved
 
     host.socket.send(JSON.stringify({ type: 'consent', value: true }));
     await expect.poll(() => status(host)).toEqual({ ...off, mine: true, hostSaves: true, on: true });
-    // A guest opting out turns it off; taking that back turns it on again.
+    // A guest opting out turns it off; taking that back turns it on again. Starting a game checks the
+    // same rule (shouldRecord, tests/replay.test.ts), so a second whole game isn't needed for it.
     guest.socket.send(JSON.stringify({ type: 'decline', value: true }));
     await expect.poll(() => status(guest)).toEqual({ mine: true, declined: true, hostSaves: true, on: false });
     await expect.poll(() => status(host)).toEqual({ ...off, mine: true, hostSaves: true });
@@ -47,7 +48,7 @@ test('a game is saved when the host chose to and nobody opted out, and the saved
     // The shortest game: 3 points are reached right after setup.
     await host.action({
       type: 'configure',
-      settings: { ...host.state.settings, victoryPoints: 3, autoRollSeconds: 0 },
+      settings: { ...host.state.settings, victoryPoints: 3, autoRollSeconds: 0, tradeSeconds: 15 },
     });
     // A bot wins quickly; the two people just pass their turns.
     await host.action({ type: 'add-bot', level: 'advanced' });
@@ -73,39 +74,6 @@ test('a game is saved when the host chose to and nobody opted out, and the saved
     expect((await listed()).some(item => item.id === latest.id)).toBe(false);
     expect((await request.get(`${server}/api/records/${latest.id}`, { headers: exporter })).status()).toBe(404);
     expect((await request.delete(`${server}/api/records/${latest.id}`, { headers: exporter })).status()).toBe(404);
-  } finally {
-    host.dispose();
-    guest.dispose();
-  }
-});
-
-test('a game is not saved when a guest opted out', { tag: '@slow' }, async ({ request }) => {
-  test.setTimeout(120_000);
-  const exporter = await registerAccount(request);
-  const count = async () =>
-    ((await (await request.get(`${server}/api/records`, { headers: exporter })).json()) as Listed[]).length;
-  const before = await count();
-  const hostSession = await join(request, 'Host');
-  const guestSession = await join(request, 'Guest', hostSession.roomId);
-  const host = new PlayerConnection(hostSession.roomId);
-  const guest = new PlayerConnection(hostSession.roomId);
-  try {
-    await host.authenticate(hostSession);
-    await guest.authenticate(guestSession);
-    host.socket.send(JSON.stringify({ type: 'consent', value: true }));
-    guest.socket.send(JSON.stringify({ type: 'decline', value: true }));
-    await host.action({
-      type: 'configure',
-      settings: { ...host.state.settings, victoryPoints: 3, autoRollSeconds: 0 },
-    });
-    // A bot wins quickly; the two people just pass their turns.
-    await host.action({ type: 'add-bot', level: 'advanced' });
-    host.autoPlay();
-    guest.autoPlay();
-    await host.action({ type: 'start' });
-    await expect.poll(() => host.state.phase, { timeout: 100_000 }).toBe('finished');
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    expect(await count()).toBe(before);
   } finally {
     host.dispose();
     guest.dispose();
