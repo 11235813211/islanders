@@ -65,3 +65,13 @@ test('Christmas fits a phone', async ({ page }) => {
   await expectDecorClear(page, DECORATED);
   await page.screenshot({ path: 'test-results/christmas-phone.png' });
 });
+
+test('after a Christmas game, the rest of the site keeps the look until switched off', async ({ page }) => {
+  await mountGame(page, santaTurn());
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('islanders.christmasLook'))).toBe('1');
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveClass(/theme-christmas/);
+  await page.evaluate(() => localStorage.setItem('islanders.christmasLook', '0'));
+  await page.reload();
+  await expect(page.locator('html')).not.toHaveClass(/theme-christmas/);
+});

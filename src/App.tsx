@@ -5,6 +5,7 @@ import type { AccountSession, GameAction, Session } from '../shared/types';
 import { AccountDialog, RecoveryCodeDialog, SignInDialog } from './components/AccountDialogs';
 import ChristmasLook from './components/christmas/ChristmasLook';
 import ChristmasTree from './components/christmas/ChristmasTree';
+import { useChristmasLook } from './components/christmas/useChristmasLook';
 import BoardEditor from './components/editor/BoardEditor';
 import GameTable from './components/GameTable';
 import HomeScreen from './components/HomeScreen';
@@ -27,6 +28,7 @@ function App() {
   const [session, setSession] = useState<Session | null>(() => savedSession(roomFromLocation()));
   const room = useRoom(session, Boolean(account.account));
   const view = room.view;
+  const christmas = useChristmasLook(view);
   const [name, setName] = useState('');
   const [code, setCode] = useState(roomFromLocation);
   const [inviteCode, setInviteCode] = useState(roomFromLocation);
@@ -206,7 +208,7 @@ function App() {
   const header = (
     <header className="site-header">
       <button className="brand" onClick={home} aria-label="Islanders home">
-        {view?.settings.christmas ? <ChristmasTree size={38} /> : <Sailboat size={32} />}
+        {christmas.on ? <ChristmasTree size={38} /> : <Sailboat size={32} />}
         <span>
           islanders<span className="brand-period">.</span>
         </span>
@@ -333,7 +335,7 @@ function App() {
   return (
     <div className={`app ${hasGame ? 'app-game' : ''}`}>
       {header}
-      <ChristmasLook on={!!view?.settings.christmas}>{screen}</ChristmasLook>
+      <ChristmasLook on={christmas.on}>{screen}</ChristmasLook>
       {(message || notice) && (
         <div className={`toast${message ? '' : ' toast-info'}`} role={message ? 'alert' : 'status'}>
           <span>{message ?? notice}</span>
@@ -370,6 +372,8 @@ function App() {
             setNotice('Your account was deleted.');
           }}
           onRenamed={renameInRoom}
+          christmas={christmas.sticky}
+          setChristmas={christmas.setSticky}
         />
       )}
       {recoveryCode && <RecoveryCodeDialog code={recoveryCode} close={() => setRecoveryCode(null)} />}

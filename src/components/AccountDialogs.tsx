@@ -1,4 +1,4 @@
-import { Check, Copy, Eye, EyeOff, KeyRound, LoaderCircle, Trash2, X } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff, KeyRound, LoaderCircle, Trash2, TreePine, X } from 'lucide-react';
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { AccountSession } from '../../shared/types';
 import type { useAccount } from '../hooks/useAccount';
@@ -235,6 +235,8 @@ export function AccountDialog({
   onCode,
   onDeleted,
   onRenamed,
+  christmas,
+  setChristmas,
 }: {
   account: Account;
   close: () => void;
@@ -242,6 +244,9 @@ export function AccountDialog({
   onDeleted: () => void;
   /** The account's game name changed; the room in progress, if any, follows it. */
   onRenamed: (name: string) => void;
+  /** The Christmas look outside games (kept from the last game played; see useChristmasLook). */
+  christmas: boolean;
+  setChristmas: (on: boolean) => void;
 }) {
   const [action, setAction] = useState<'code' | 'delete' | null>(account.hasRecoveryCode ? null : 'code');
   const [password, setPassword] = useState('');
@@ -280,6 +285,17 @@ export function AccountDialog({
         }}
       />
       <div className="account-actions">
+        <button
+          className={`account-action ${christmas ? 'selected' : ''}`}
+          aria-pressed={christmas}
+          onClick={() => setChristmas(!christmas)}
+        >
+          <TreePine size={20} />
+          <span>
+            <strong>Christmas look {christmas ? 'on' : 'off'}</strong>
+            <small>Outside games. Each game uses its room's setting.</small>
+          </span>
+        </button>
         <button className={`account-action ${action === 'code' ? 'selected' : ''}`} onClick={() => setAction('code')}>
           <KeyRound size={20} />
           <span>
