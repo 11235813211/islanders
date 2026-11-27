@@ -180,7 +180,7 @@ describe('numbers beside a candy train', () => {
     };
   }
 
-  it('are drawn poorer, about two dots near the start and one near the end, with the rest of the board', () => {
+  it('are drawn poorer, about 1.25 dots near the start and 0.5 near the end, with the rest of the board', () => {
     let seed = 7;
     const random = () => {
       seed = (seed * 16807) % 2147483647;
@@ -190,9 +190,10 @@ describe('numbers beside a candy train', () => {
     const designed = trainStats(() => buildBoard(design, random, { trains: true }).board);
     const standard = trainStats(() => boardFor(null, 'random', random, 4, false, undefined, true).board);
     for (const stats of [designed, standard]) {
-      expect(stats.rest - stats.start).toBeGreaterThan(1.3);
-      expect(stats.rest - stats.end).toBeGreaterThan(0.6);
-      expect(stats.rest - stats.end).toBeLessThan(1.4);
+      expect(stats.rest - stats.start).toBeGreaterThan(0.8);
+      expect(stats.rest - stats.start).toBeLessThan(1.6);
+      expect(stats.rest - stats.end).toBeGreaterThan(0.25);
+      expect(stats.rest - stats.end).toBeLessThan(0.9);
       expect(stats.start).toBeLessThan(stats.end);
     }
   });

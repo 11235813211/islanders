@@ -33,7 +33,7 @@ export {
 } from './v23/christmas/train';
 export const ART_VERSION = art.version;
 export const ROAD_INSET = art.roadInset ?? 0.19;
-export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, BuildingPiece, SeaDecorations } = art;
+export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Road, BuildingPiece, SeaDecorations } = art;
 /** Cartographers art: the active version's, or v14's for versions made before it. */
 export const CARTOGRAPHERS: CartographersArt =
   (art as { cartographers?: CartographersArt }).cartographers ?? fallbackCartographers;
@@ -83,6 +83,13 @@ export function ResourceIcon({ resource, size }: { resource: Resource; size?: nu
   if (resource === 'lodestone') return createElement(CARTOGRAPHERS.ResourceIcon, { size });
   if (isCommodity(resource)) return createElement(KNIGHTS.CommodityIcon, { commodity: resource, size });
   return createElement(art.ResourceIcon, { resource, size });
+}
+
+/** A harbor's piers and sign, its icon drawn as the room's look draws resources (candy in Candy rooms). */
+export function Harbor(props: Parameters<typeof art.Harbor>[0]): ReactElement {
+  const icon =
+    props.resource === 'any' ? undefined : createElement(ResourceIcon, { resource: props.resource, size: 20 });
+  return createElement(art.Harbor, { ...props, icon });
 }
 
 /** The large illustration in the middle of a resource card. */

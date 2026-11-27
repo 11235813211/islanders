@@ -105,7 +105,7 @@ const dotsOf = (n: number) => 6 - Math.abs(7 - n);
 /**
  * The start station: a striped post, like the END sign's, holding up the number that loads the
  * train (red for 6 and 8, as on the tiles). Before a game draws it (the editor), both rolls with
- * the route's dots, as "4/10".
+ * the route's dots, as "5/9".
  */
 export function StartSign({
   path,

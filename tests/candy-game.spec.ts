@@ -26,6 +26,10 @@ test('Christmas Candy: candy cards and names, the train with its number, picking
   for (const name of ['Candy Cane', 'Twizzler', 'Cotton', 'Kiss']) await expect(panel.getByText(name)).toBeVisible();
   await expect(page.locator('[data-candy-card]').first()).toBeVisible();
   await expect(page.getByRole('group', { name: 'Cards left in the bank' }).locator('[data-candy-icon]')).toHaveCount(5);
+  // Two-for-one harbors show the candy too.
+  const harbors = page.locator('.board-harbor');
+  await expect(harbors.locator('[data-candy-icon]')).toHaveCount(await harbors.locator('.resource-icon').count());
+  await expect(harbors.locator('[data-candy-icon]').first()).toBeVisible();
   await expect(page.getByText('Take a card from the candy train')).toBeVisible();
   await expectNoSpill(panel);
   await page.screenshot({ path: 'test-results/candy-game.png' });

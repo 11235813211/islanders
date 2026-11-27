@@ -1,7 +1,7 @@
 // Art v23: copied from v22. Christmas Candy card faces and icons, and the train's number sign.
 // survey ships, and charted numbers. Other illustrations are preserved from v13.
 // Board illustrations remain unchanged from v12.
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { Resource, BaseTerrain as Terrain } from '../../../shared/types';
 import { hexPoints } from '../../lib/geometry';
 import type { ArtPack, Frame } from '../types';
@@ -235,10 +235,12 @@ function Harbor({
   resource,
   at,
   corners,
+  icon,
 }: {
   resource: Resource | 'any';
   at: { x: number; y: number };
   corners: { x: number; y: number }[];
+  icon?: ReactElement;
 }) {
   return (
     <>
@@ -256,9 +258,7 @@ function Harbor({
             ?
           </text>
         ) : (
-          <g transform="translate(-10 -23)">
-            <ResourceIcon resource={resource} size={20} />
-          </g>
+          <g transform="translate(-10 -23)">{icon ?? <ResourceIcon resource={resource} size={20} />}</g>
         )}
         <text textAnchor="middle" y="6" fill="#253f49" fontSize="13" fontWeight="800">
           {resource === 'any' ? '3:1' : '2:1'}

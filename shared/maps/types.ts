@@ -142,7 +142,7 @@ export interface CandyRoute {
   /** Which side of the directed route the rails sit on, leaving road edges clear. */
   side: 1 | -1;
   /** Dots (1–5) of the roll that loads the train, drawn each game from the two with that many;
-   * absent is 3 (a 4 or a 10). */
+   * absent is 4 (a 5 or a 9). */
   dots?: number;
 }
 

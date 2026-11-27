@@ -100,6 +100,6 @@ export const TUNING = {
   candyTrainTileShare: 0.4,
   // Random numbers on tiles touching a candy train average this many dots fewer than the rest of the
   // board: the first at the start station, the second at the end of the track.
-  candyStartCut: 2,
-  candyEndCut: 1,
+  candyStartCut: 1.25,
+  candyEndCut: 0.5,
 } as const;

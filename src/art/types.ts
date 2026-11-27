@@ -27,6 +27,8 @@ export interface ArtPack {
     resource: Resource | 'any';
     at: { x: number; y: number };
     corners: { x: number; y: number }[];
+    /** The sign's resource icon, drawn by the caller so room looks (candy) apply. */
+    icon?: ReactElement;
   }) => ReactElement;
   Road: (props: { from: { x: number; y: number }; to: { x: number; y: number }; color: string }) => ReactElement;
   /** Share of an edge left bare at each end of a road; road targets match it. Before v6: 0.19. */

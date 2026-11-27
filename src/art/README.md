@@ -49,7 +49,7 @@ import from `src/art` and never draw art themselves.
   previews the five tiles; v21 keeps the A/B options.
   `v23/` adds Christmas Candy cards: card faces and small icons for the five resources
   (`christmas/candy-cards.tsx`, the same sweets as the tiles), and the start station's sign is a
-  little locomotive holding up the train's number (`4/10` when unset). `CandyRailways` now takes
+  little locomotive holding up the train's number (`5/9` when unset). `CandyRailways` now takes
   `tracks` (`designTracks(design)` in the editor; the game passes its board's trains, parked, with
   the loaded cards on the flatcars).
 - Review the candy hexes (v22 above the v21 picks) with the train beside roads and buildings:

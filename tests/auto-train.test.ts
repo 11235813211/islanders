@@ -62,7 +62,7 @@ describe('generated candy trains', () => {
       expect(train!.vertexIds.length).toBeGreaterThanOrEqual(want - 1);
       expect(train!.vertexIds.length).toBeLessThanOrEqual(want);
       tiles += borderedTiles(board, train!) / board.hexes.filter(h => isLandTerrain(h.terrain)).length;
-      expect([4, 10]).toContain(train!.number);
+      expect([5, 9]).toContain(train!.number);
       expectSound(board, train!);
     }
     expect(Math.abs(tiles / 20 - TUNING.candyTrainTileShare)).toBeLessThan(0.05);

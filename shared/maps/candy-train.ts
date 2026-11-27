@@ -5,8 +5,8 @@ import type { BoardDesign, CandyRoute, DesignTile } from './types';
 export const CANDY_LIMITS = { routes: 4, corners: 80 } as const;
 /** Dots a train's number may have, as on number tokens; the editor picks one per route. */
 export const TRAIN_DOTS = [1, 2, 3, 4, 5] as const;
-/** Dots of a route without its own (a 4 or a 10). */
-export const DEFAULT_TRAIN_DOTS = 3;
+/** Dots of a route without its own (a 5 or a 9). */
+export const DEFAULT_TRAIN_DOTS = 4;
 /** The two rolls with `dots` dots: 1 → 2 and 12, 5 → 6 and 8. */
 export const numbersWithDots = (dots: number): [number, number] => [1 + dots, 13 - dots];
 /** A train's number for one game: either roll with the route's dots. */
