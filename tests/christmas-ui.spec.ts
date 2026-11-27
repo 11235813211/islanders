@@ -71,6 +71,10 @@ test('after a Christmas game, the rest of the site keeps the look until switched
   await expect.poll(() => page.evaluate(() => localStorage.getItem('islanders.christmasLook'))).toBe('1');
   await page.goto('/');
   await expect(page.locator('html')).toHaveClass(/theme-christmas/);
+  // A lobby keeps it too, though the room hasn't turned Christmas on.
+  await mountGame(page, makeLobby(2));
+  await expect(page.locator('.room-setup')).toBeVisible();
+  await expect(page.locator('html')).toHaveClass(/theme-christmas/);
   await page.evaluate(() => localStorage.setItem('islanders.christmasLook', '0'));
   await page.reload();
   await expect(page.locator('html')).not.toHaveClass(/theme-christmas/);

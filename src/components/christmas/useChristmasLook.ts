@@ -12,9 +12,10 @@ function remembered(): boolean {
 }
 
 /**
- * Whether the page wears the Christmas look. In a room, the room's setting decides. Elsewhere (home,
- * the editor) it follows the last game this player played, remembered on this device, until a game
- * without it or the account dialog's switch turns it off. Returns the look and that switch.
+ * Whether the page wears the Christmas look. A game in play shows its room's setting. Everywhere
+ * else (home, the editor, a room's lobby) it also follows the last game this player played,
+ * remembered on this device, until a game without it or the account dialog's switch turns it off.
+ * Returns the look and that switch.
  */
 export function useChristmasLook(view: GameView | null | undefined): {
   on: boolean;
@@ -35,5 +36,7 @@ export function useChristmasLook(view: GameView | null | undefined): {
   useEffect(() => {
     if (played !== undefined && played !== sticky) setSticky(played);
   }, [played]);
-  return { on: view ? !!view.settings.christmas : sticky, sticky, setSticky };
+  // A game in play shows its own setting; a lobby (or no room) also keeps the remembered look.
+  const on = played !== undefined ? played : !!view?.settings.christmas || sticky;
+  return { on, sticky, setSticky };
 }
