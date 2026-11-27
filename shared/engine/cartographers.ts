@@ -25,6 +25,7 @@ export const cartographersHandlers: Pick<
       playerId,
       piece: 'megacity',
       paid: BUILD_COSTS.megacity,
+      at: action.vertexId,
     });
   },
 
@@ -43,6 +44,7 @@ export const cartographersHandlers: Pick<
       playerId,
       piece: 'relay',
       paid: BUILD_COSTS.relay,
+      at: action.edgeId,
     });
     revealFog(next, action.edgeId, playerId);
   },

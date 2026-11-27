@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { type GameLog, type GameView, RESOURCES, type Tradable, type TradeBag } from '../../../shared/types';
 import { CHRISTMAS } from '../../art';
 import { useFreshLog } from '../../hooks/useFreshLog';
-import { bankSpot, DevelopmentBack, FlyingCard, type Point, playerSpot, TradableFace } from './flights';
+import { bankSpot, DevelopmentBack, FlyingCard, type Point, pieceSpot, playerSpot, TradableFace } from './flights';
 
 interface Flight {
   id: string;
@@ -42,7 +42,7 @@ function exchange(id: string, a: Point, b: Point, give: TradeBag, get: TradeBag)
   return [...bagFlights(`${id}-give`, give, a, b, 0), ...bagFlights(`${id}-get`, get, b, a, RETURN_DELAY)];
 }
 
-/** Flights for one log entry: a build or purchase paying the bank, or a finished trade. */
+/** Flights for one log entry: a build paying into its piece, a purchase paying the bank, or a finished trade. */
 function flightsFor(entry: GameLog, view: GameView): Flight[] {
   const event = entry.event;
   const id = String(entry.id);
@@ -64,7 +64,9 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
   if (event?.kind !== 'build' || !event.paid) return [];
   const player = playerSpot(view, event.playerId);
   const bank = bankSpot();
-  const flights = bagFlights(`${id}-paid`, event.paid, player, bank, 0);
+  // A piece's cards fly into the piece on the board; a development card's go to the bank.
+  const target = (event.at && pieceSpot(view, event.at)) || bank;
+  const flights = bagFlights(`${id}-paid`, event.paid, player, target, 0);
   if (event.piece === 'development')
     flights.push({
       id: `${id}-card`,
@@ -77,8 +79,8 @@ function flightsFor(entry: GameLog, view: GameView): Flight[] {
 }
 
 /**
- * Cards moving between players and the bank, for everyone to see: payment for a build or
- * development card, a bought card coming back, and both sides of a trade once it goes through.
+ * Cards moving between players, the board, and the bank, for everyone to see: payment into a built
+ * piece or to the bank for a development card, a bought card coming back, and both sides of a trade once it goes through.
  */
 export default function CardFlights({ view }: { view: GameView }) {
   const fresh = useFreshLog(view.log);

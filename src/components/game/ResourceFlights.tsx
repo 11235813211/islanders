@@ -4,7 +4,7 @@ import { payingNumbers } from '../../../shared/rules';
 import { paysChoice } from '../../../shared/seafaring';
 import { type GameLog, type GameView, type Hex, RESOURCES, type Resource } from '../../../shared/types';
 import { useFreshLog } from '../../hooks/useFreshLog';
-import { FlyingCard, playerSpot, ResourceFace } from './flights';
+import { FlyingCard, onScreen, playerSpot, ResourceFace } from './flights';
 
 interface Flight {
   id: string;
@@ -17,18 +17,6 @@ interface Flight {
 
 /** Seconds before cards leave a rolled tile, so the dice land first. */
 const AFTER_DICE = 1.1;
-
-/** Screen point of a board point, through the board's current pan and zoom. */
-function onScreen(x: number, y: number): { x: number; y: number } | null {
-  const svg = document.querySelector<SVGSVGElement>('.board-svg');
-  const matrix = svg?.getScreenCTM();
-  if (!svg || !matrix) return null;
-  const point = svg.createSVGPoint();
-  point.x = x;
-  point.y = y;
-  const p = point.matrixTransform(matrix);
-  return { x: p.x, y: p.y };
-}
 
 /** Tiles that paid this player on a roll of `total` (resource tiles of `resource`, or gold and volcanoes). */
 function sources(view: GameView, playerId: string, total: number | null, pays: (hex: Hex) => boolean): Hex[] {

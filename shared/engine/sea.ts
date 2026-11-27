@@ -47,7 +47,13 @@ export const seaHandlers: Pick<Handlers, 'place-ship' | 'build-ship' | 'move-shi
       placePiece(next, playerId, action.edgeId, 'ship');
       next.shipsBuilt.push(action.edgeId);
       tally(next, playerId, 'built', 'ship');
-      addLog(next, `${player.name} built a ship.`, { kind: 'build', playerId, piece: 'ship', ...(paid && { paid }) });
+      addLog(next, `${player.name} built a ship.`, {
+        kind: 'build',
+        playerId,
+        piece: 'ship',
+        at: action.edgeId,
+        ...(paid && { paid }),
+      });
       if (next.phase === 'free-roads') afterFreePiece(next, playerId);
       revealFog(next, action.edgeId, playerId);
     },

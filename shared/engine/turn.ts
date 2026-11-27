@@ -310,7 +310,13 @@ export const turnHandlers: Pick<
     if (paid) pay(next, player, paid);
     placePiece(next, playerId, action.edgeId, 'road');
     tally(next, playerId, 'built', 'road');
-    addLog(next, `${player.name} built a road.`, { kind: 'build', playerId, piece: 'road', ...(paid && { paid }) });
+    addLog(next, `${player.name} built a road.`, {
+      kind: 'build',
+      playerId,
+      piece: 'road',
+      at: action.edgeId,
+      ...(paid && { paid }),
+    });
     if (next.phase === 'free-roads') afterFreePiece(next, playerId);
     revealFog(next, action.edgeId, playerId);
   },
@@ -329,6 +335,7 @@ export const turnHandlers: Pick<
       playerId,
       piece: 'settlement',
       paid: BUILD_COSTS.settlement,
+      at: action.vertexId,
     });
     visitIsland(next, playerId, action.vertexId, false);
   },
@@ -347,6 +354,7 @@ export const turnHandlers: Pick<
       playerId,
       piece: 'city',
       paid: BUILD_COSTS.city,
+      at: action.vertexId,
     });
   },
 

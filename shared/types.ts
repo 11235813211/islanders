@@ -209,6 +209,8 @@ export type GameEvent =
       playerId: string;
       piece: 'road' | 'ship' | 'settlement' | 'city' | 'development' | 'relay' | 'megacity';
       paid?: ResourceBag;
+      /** The vertex or edge built on (absent for development cards and older logs): the paid cards fly there. */
+      at?: string;
     }
   | { kind: 'bank-trade'; playerId: string; give: ResourceBag; get: ResourceBag }
   | { kind: 'player-trade'; fromId: string; toId: string; give: TradeBag; get: TradeBag }

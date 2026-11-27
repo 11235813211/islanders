@@ -22,6 +22,28 @@ export function playerSpot(view: GameView, playerId: string): Point {
   return rect ? center(rect) : { x: window.innerWidth - 40, y: 40 };
 }
 
+/** Screen point of a board point, through the board's current pan and zoom. */
+export function onScreen(x: number, y: number): { x: number; y: number } | null {
+  const svg = document.querySelector<SVGSVGElement>('.board-svg');
+  const matrix = svg?.getScreenCTM();
+  if (!svg || !matrix) return null;
+  const point = svg.createSVGPoint();
+  point.x = x;
+  point.y = y;
+  const p = point.matrixTransform(matrix);
+  return { x: p.x, y: p.y };
+}
+
+/** Where a built piece stands on screen (a corner, or an edge's middle), or null when it isn't on the board. */
+export function pieceSpot(view: GameView, at: string): Point | null {
+  const vertex = view.board.vertices.find(v => v.id === at);
+  if (vertex) return onScreen(vertex.x, vertex.y);
+  const edge = view.board.edges.find(e => e.id === at);
+  const a = edge && view.board.vertices.find(v => v.id === edge.a);
+  const b = edge && view.board.vertices.find(v => v.id === edge.b);
+  return a && b ? onScreen((a.x + b.x) / 2, (a.y + b.y) / 2) : null;
+}
+
 /** The bank: its counts under the scoreboard when the room shows them, else the top of the board. */
 export function bankSpot(): Point {
   const counts = shown('.bank-counts');

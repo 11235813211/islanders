@@ -421,6 +421,30 @@ test('spending flies the cards to the bank, and a bought development card flies 
   expect(game.errors).toEqual([]);
 });
 
+test('a built road’s cards fly into the road, not the bank', async ({ page }) => {
+  const g = richGame();
+  g.settings.showBank = 'always';
+  await mountGame(page, g);
+  await page.getByLabel('Follow current turn').uncheck();
+  const target = page.getByRole('button', { name: /^Build road at/ }).first();
+  const road = (await target.boundingBox())!;
+  await target.click();
+  await page.getByRole('button', { name: 'Confirm road', exact: true }).click();
+  await expect(page.locator('.card-flights .resource-flight')).toHaveCount(2);
+  const landing = await page
+    .locator('.card-flights .resource-flight')
+    .first()
+    .evaluate(e => {
+      const style = getComputedStyle(e);
+      return {
+        x: parseFloat(style.left) + parseFloat(style.getPropertyValue('--fx')),
+        y: parseFloat(style.top) + parseFloat(style.getPropertyValue('--fy')),
+      };
+    });
+  expect(Math.abs(landing.x - (road.x + road.width / 2))).toBeLessThan(6);
+  expect(Math.abs(landing.y - (road.y + road.height / 2))).toBeLessThan(6);
+});
+
 test('on a wide screen the scoreboard has no fold button', async ({ page }) => {
   await mountGame(page, richGame());
   await expect(page.locator('.player-table')).toBeVisible();
