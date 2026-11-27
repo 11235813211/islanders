@@ -97,7 +97,8 @@ describe('advanced trading with people at the table', () => {
       rounds += g.turn / 4;
     }
     expect(counters.size / rounds).toBeLessThan(COUNTERS_PER_ROUND);
-  });
+    // Three whole games: under 2 s on a laptop, but a busy CI runner has taken over 5.
+  }, 20_000);
 
   it('does not counter the same person again within three rounds', () => {
     const random = seeded(5);
