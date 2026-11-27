@@ -157,3 +157,24 @@ export function GrinchSantaSlim({ edge = CREAM_EDGE }: GrinchProps): ReactElemen
     </g>
   );
 }
+
+/** F: the usual robber's shape with a Santa coat down to its waist (the pinch); the base below stays the robber's. */
+export function GrinchSantaCoat({ edge = CREAM_EDGE }: GrinchProps): ReactElement {
+  const cloak = 'M-6-1Q-9 4-7 10L-11 15Q-11 20 0 20T11 15L7 10Q9 4 6-1Z';
+  return (
+    <g transform="translate(24 -20)">
+      <ellipse cy="18" rx="12" ry="4" fill="#263d3e" opacity=".3" />
+      <path d={cloak} fill="#34474a" />
+      <path d="M-6-1Q-9 4-7 10H7Q9 4 6-1Z" fill={RED} />
+      <path d="M0 1V10" stroke="#fff" strokeWidth="2.2" />
+      <path d="M-7.7 4.3H7.7" stroke={BELT} strokeWidth="1.8" />
+      <rect x="-1.4" y="2.9" width="2.8" height="2.8" fill="none" stroke="#ffd23f" strokeWidth=".8" />
+      <path d="M-7.4 10.2H7.4" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
+      <path d={cloak} fill="none" stroke={edge} strokeWidth="1.3" />
+      <circle cy="-6" r="7" fill={G.fur} stroke={edge} strokeWidth="1.3" />
+      <Eyes y={-5.6} />
+      <path d="M-4-2Q0 1 4.6-2.8" fill="none" stroke={G.brow} strokeWidth=".9" strokeLinecap="round" />
+      <Hat y={-11} edge={edge} />
+    </g>
+  );
+}

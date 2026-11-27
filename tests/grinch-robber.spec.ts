@@ -12,6 +12,7 @@ import {
   GrinchSack,
   GrinchSanta,
   GrinchSantaCloak,
+  GrinchSantaCoat,
   GrinchSantaSlim,
 } from '../src/art/v20/christmas/grinch-robber';
 import { WinterTile } from '../src/art/v20/christmas/tiles';
@@ -27,6 +28,7 @@ const OPTIONS: [string, Draft][] = [
   ['C: Green cloak and hat', GrinchCloak],
   ['D: Robber cloak as a Santa suit', GrinchSantaCloak],
   ['E: Skinny Santa suit', GrinchSantaSlim],
+  ['F: Santa coat to the waist, robber base below', GrinchSantaCoat],
 ];
 const TERRAINS: BaseTerrain[] = ['wood', 'ore', 'sheep', 'desert'];
 
