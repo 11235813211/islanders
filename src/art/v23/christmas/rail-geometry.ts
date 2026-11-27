@@ -1,7 +1,7 @@
 import type { RailPoint } from '../../../../shared/maps/candy-train';
 
 /** Rail centerline clearance from road edges; rounded bends also clear settlement corners. */
-export const RAIL_OFFSET = 18;
+export const RAIL_OFFSET = 15;
 export interface RailSample extends RailPoint {
   distance: number;
 }

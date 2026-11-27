@@ -17,6 +17,7 @@ import {
   Shield,
   Snowflake,
   Timer,
+  TrainFront,
   Trophy,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
@@ -57,6 +58,11 @@ export interface SettingDef {
   confirm?: (view: GameView, value: GameSettings[keyof GameSettings]) => string | null;
   /** A control beside the setting that everyone can use, host or not. */
   preview?: ComponentType<SettingPreviewProps>;
+  /** A select that sets more than its `key`: the option the settings show, and what each option sets. */
+  combined?: {
+    read: (settings: GameSettings) => string;
+    write: (value: string) => Partial<GameSettings>;
+  };
 }
 export interface SettingPreviewProps {
   view: GameView;
@@ -69,6 +75,17 @@ export const THEMES: Record<Theme, string> = {
   tropics: 'Volcanoes and jungles',
   cartographers: 'Cartographers',
 };
+/** The room's look as one choice: Normal, Christmas, or Christmas Candy (which includes Christmas). */
+function lookOf(settings: GameSettings): string {
+  if (settings.christmasCandy) return 'candy';
+  return settings.christmas ? 'christmas' : 'normal';
+}
+
+/** The look settings for one choice; linkChristmas then brings the pieces and the North Pole. */
+function lookSettings(look: string): Partial<GameSettings> {
+  return { christmas: look !== 'normal', christmasCandy: look === 'candy' };
+}
+
 export interface Category {
   id: string;
   title: string;
@@ -216,21 +233,30 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'christmas',
-        label: 'Christmas',
-        hint: 'Snowy tiles, Christmas pieces, the North Pole, and festive cards and colors for everyone.',
+        label: 'Art style',
+        hint: 'Christmas: snowy tiles, Christmas pieces, and the North Pole. Candy adds candy tiles.',
         icon: <Gift size={20} />,
-        control: { kind: 'toggle' },
+        combined: { read: lookOf, write: lookSettings },
+        control: {
+          kind: 'select',
+          options: [
+            { value: 'normal', label: 'Normal' },
+            { value: 'christmas', label: 'Christmas' },
+            { value: 'candy', label: 'Christmas Candy' },
+          ],
+        },
       },
       {
-        key: 'christmasCandy',
-        label: 'Christmas Candy',
-        hint: 'Candy resource tiles with the Christmas scenery and gingerbread pieces.',
-        icon: <Gift size={20} />,
+        key: 'candyTrains',
+        label: 'Candy train',
+        hint: 'A train that brings cards to buildings on its track. Maps without a track get one.',
+        icon: <TrainFront size={20} />,
+        when: view => view.settings.christmasCandy,
         control: { kind: 'toggle' },
       },
       {
         key: 'pieceStyle',
-        label: 'Art style',
+        label: 'Piece style',
         hint: 'How the pieces look. The rules are the same.',
         icon: <Palette size={20} />,
         preview: ArtStylesButton,
@@ -384,7 +410,7 @@ export function SettingControl({
   readOnly: boolean;
   change: (next: Partial<GameSettings>) => void;
 }) {
-  const value = settings[def.key];
+  const value = def.combined ? def.combined.read(settings) : settings[def.key];
   const { control } = def;
   const locked = disabled || readOnly;
   if (control.kind === 'toggle')
@@ -412,7 +438,7 @@ export function SettingControl({
             return;
           }
           const option = control.options.find(o => String(o.value) === e.target.value)!;
-          change({ [def.key]: option.value });
+          change(def.combined ? def.combined.write(String(option.value)) : { [def.key]: option.value });
         }}
       >
         {control.options.map(o => (

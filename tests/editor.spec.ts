@@ -319,10 +319,9 @@ test('boards move between categories by drag and drop, and categories can be add
   expect(restore.status()).toBe(200);
 });
 
-test('the settings panel fits without sideways scrolling, folds away, and a board open elsewhere is read-only', async ({
-  page,
-  browser,
-}) => {
+test('the settings panel fits without sideways scrolling, folds away, and a board open elsewhere is read-only', {
+  tag: '@local',
+}, async ({ page, browser }) => {
   await signIn(page);
   await page.goto('/#editor');
   const library = page.getByRole('dialog', { name: 'Boards' });
@@ -490,7 +489,7 @@ test("the Pieces menu sets each player's pieces, with ships only on a Seafarers 
   await expect(menu.getByRole('button', { name: 'Starting pieces: Usual' })).toBeVisible();
 });
 
-test('the (i) help teaches the editor by topic, and every tab fits', async ({ page }) => {
+test('the (i) help teaches the editor by topic, and every tab fits', { tag: '@local' }, async ({ page }) => {
   await signIn(page);
   await page.goto('/#editor');
   await page.getByRole('dialog', { name: 'Boards' }).getByRole('button', { name: 'Edit Outer Isles' }).click();

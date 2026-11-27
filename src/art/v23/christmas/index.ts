@@ -5,11 +5,12 @@ import { CandyCardArt, CandyIcon } from './candy-cards';
 import { CardDecor, ChristmasCardArt } from './cards';
 import { NorthPoleRing, NorthPoleTile, Sleigh } from './northpole';
 import { GrinchRobber } from './robber';
-import { LogoTree, WinterTile } from './tiles';
+import { LogoTree, WinterFigure, WinterTile } from './tiles';
 import { CHRISTMAS } from './tuning';
 
 export const christmas: ChristmasArt = {
   WinterTile,
+  TileFigure: WinterFigure,
   NorthPoleTile,
   NorthPoleRing,
   Sleigh,

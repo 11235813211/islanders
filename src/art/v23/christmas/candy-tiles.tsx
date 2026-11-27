@@ -95,6 +95,7 @@ function ForestGarland({ uid }: { uid: string }) {
   return (
     <GarlandRope
       uid={uid}
+      snow
       points={[
         [-70, -4],
         [-50, -9],

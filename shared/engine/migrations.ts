@@ -281,6 +281,10 @@ const MIGRATIONS: Migration[] = [
     next.candyLoad ??= null;
     next.candyDeadline ??= null;
   },
+  // 38 → 39: Christmas Candy rooms may turn the candy train off.
+  next => {
+    next.settings.candyTrains ??= true;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

@@ -3,7 +3,17 @@ import { hexCenter, hexCorner } from '../../../shared/board';
 import { type BoardDesign, type DesignHarbor, type DesignTile, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
 import { closedTiles, isLand, noStartPoints, takesNumber } from '../../../shared/maps/edit';
-import { CandyRailways, designTracks, Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
+import {
+  CandyRailways,
+  designTracks,
+  FiguresApart,
+  Harbor,
+  NumberToken,
+  Robber,
+  SEA,
+  Tile,
+  TileFigure,
+} from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import { HalfClips, SplitTile, tileVariant } from '../BoardScene';
 import IslandRims from '../IslandRims';
@@ -206,7 +216,7 @@ export default function EditorLayer({
   const selectedTile = selection?.kind === 'tile' ? selection : null;
   const closed = closedTiles(design);
   return (
-    <>
+    <FiguresApart.Provider value={true}>
       {[...ghosts.values()].map(cell => (
         <polygon
           key={tileKey(cell.q, cell.r)}
@@ -246,7 +256,6 @@ export default function EditorLayer({
           </LinkRim>
           {tile.bonus && <SEA.BonusChip points={tile.bonus} />}
           {!readOnly && <LinkBadge piece={tile} x={-25} y={27} />}
-          {design.robber?.q === tile.q && design.robber.r === tile.r && <Robber />}
           {takesNumber(tile.kind) && <NumberSlot uid={uid} tile={tile} readOnly={readOnly} stepNumber={stepNumber} />}
         </g>
       ))}
@@ -309,7 +318,16 @@ export default function EditorLayer({
       <RouteZones zones={routeZonesOf(design, routeFocus)} />
       <NoStartMarks design={design} />
       <CandyRailways tracks={tracks} paused={readOnly || trainPaused} />
+      {/* Standing figures and the robber go over the rails, as on the game board. */}
+      <g pointerEvents="none">
+        {land.map(tile => (
+          <g key={tileKey(tile.q, tile.r)} transform={place(tile)}>
+            <TileFigure terrain={tile.kind} />
+            {design.robber?.q === tile.q && design.robber.r === tile.r && <Robber />}
+          </g>
+        ))}
+      </g>
       {selectedTile && <polygon className="editor-selected" points={hexPoints(55)} transform={place(selectedTile)} />}
-    </>
+    </FiguresApart.Provider>
   );
 }

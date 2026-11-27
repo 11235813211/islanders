@@ -124,6 +124,7 @@ export function validSettings(
     (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never)) &&
     (s.christmas === undefined || typeof s.christmas === 'boolean') &&
     (s.christmasCandy === undefined || typeof s.christmasCandy === 'boolean') &&
+    (s.candyTrains === undefined || typeof s.candyTrains === 'boolean') &&
     (s.northPole === undefined || typeof s.northPole === 'boolean') &&
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
     (s.decisionSeconds === undefined || DECISION_SECONDS.includes(s.decisionSeconds as never)) &&

@@ -1,5 +1,7 @@
 import { test } from '@playwright/test';
+import { seededRandom } from '../shared/board';
 import { getActivePlayerId } from '../shared/engine';
+import { autoTrain } from '../shared/maps/auto-train';
 import { BUILTIN_BOARDS } from '../shared/maps/builtin';
 import type { PieceStyle, PlayerColor } from '../shared/types';
 import { grant, makeLobby, richGame, seaSettled } from './fixtures';
@@ -219,4 +221,19 @@ test('table cues and lobby map proposals', async ({ page }) => {
   await page.locator('.map-choice').screenshot({ path: 'test-results/visual-cues-proposals.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('.map-choice').screenshot({ path: 'test-results/phone-cues-proposals.png' });
+});
+
+/** Christmas Candy with a generated train: one leg on the standard island, joined legs on a sea map. */
+test('generated candy trains on the standard island and a sea map', async ({ page }) => {
+  const plain = spreadPieces(['red', 'blue', 'white', 'orange'], 'gingerbread');
+  const sea = seaSettled(BUILTIN_BOARDS.find(board => board.id === 'jungle-coast')!, 3);
+  for (const [name, game] of [
+    ['standard', plain],
+    ['sea', sea],
+  ] as const) {
+    Object.assign(game.settings, { christmas: true, christmasCandy: true });
+    game.board = { ...game.board, trains: autoTrain(game.board, seededRandom(4)) };
+    await mountGame(page, game);
+    await page.locator('.board-svg').screenshot({ path: `test-results/visual-candy-train-${name}.png` });
+  }
 });

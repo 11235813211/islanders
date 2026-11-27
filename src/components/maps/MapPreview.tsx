@@ -3,7 +3,7 @@ import { useId, useMemo, useState } from 'react';
 import { type BoardDesign, buildBoard } from '../../../shared/maps';
 import { ArtDefs, CandyRailways, designTracks, SEA } from '../../art';
 import { boardFrame } from '../../lib/boardCamera';
-import BoardScene from '../BoardScene';
+import BoardScene, { SceneFigures } from '../BoardScene';
 import PanZoomSvg from './PanZoomSvg';
 
 /**
@@ -39,8 +39,10 @@ export default function MapPreview({ design }: { design: BoardDesign }) {
           pirate={built.pirate}
           showClosed
           peeks={showFog ? built.fog : {}}
+          figuresLater
         />
         <CandyRailways tracks={tracks} />
+        <SceneFigures board={built.board} robber={built.robber} />
       </PanZoomSvg>
       <div className="map-preview-actions">
         <button type="button" className="button secondary" onClick={() => setDraw(n => n + 1)}>

@@ -4,6 +4,7 @@ import type { Board, GameView, Hex, NorthPole, Terrain } from '../../shared/type
 import {
   CARTOGRAPHERS,
   CHRISTMAS,
+  FiguresApart,
   type Frame,
   Harbor,
   NumberToken,
@@ -13,6 +14,7 @@ import {
   SeaBackdrop,
   SplitSeam,
   Tile,
+  TileFigure,
 } from '../art';
 import { hexPoints } from '../lib/geometry';
 import FlyingPiece from './FlyingPiece';
@@ -85,8 +87,41 @@ export function HalfClips({ uid }: { uid: string }) {
 export const tileVariant = (hex: Pick<Hex, 'q' | 'r'>) => Math.abs(hex.q * 7 + hex.r * 13);
 
 /**
+ * What stands up off the map: the Christmas tiles' figures (the desert's polar bear) and the robber
+ * (the Grinch). Boards with trains or pieces draw these last, so both stay in front of them.
+ */
+export function SceneFigures({
+  board,
+  robber = '',
+  northPole = null,
+}: {
+  board: Board;
+  robber?: string;
+  northPole?: NorthPole | null;
+}) {
+  const robberHex = board.hexes.find(h => h.id === robber && isLandTerrain(h.terrain));
+  return (
+    <g pointerEvents="none">
+      {board.hexes
+        .filter(hex => hex.id !== northPole?.hexId)
+        .map(hex => (
+          <g key={hex.id} transform={`translate(${hex.x} ${hex.y})`}>
+            <TileFigure terrain={hex.terrain} />
+          </g>
+        ))}
+      {robberHex && (
+        <FlyingPiece x={robberHex.x} y={robberHex.y}>
+          <Robber />
+        </FlyingPiece>
+      )}
+    </g>
+  );
+}
+
+/**
  * The map itself: sea, tiles, numbers, harbors, island markers, robber, and pirate. Shared by the
- * game board and the editor's preview; interactive layers go in `children`.
+ * game board and the editor's preview; interactive layers go in `children`. With `figuresLater`,
+ * the robber and standing figures are left for SceneFigures, drawn by the caller over its layers.
  */
 export default function BoardScene({
   uid,
@@ -100,8 +135,10 @@ export default function BoardScene({
   peeks = {},
   northPole = null,
   paid = null,
+  figuresLater = false,
   children,
 }: {
+  figuresLater?: boolean;
   /** Tiles that just paid out on a roll (Christmas tiles play their motion). */
   paid?: { hexIds: Set<string>; rollId: number } | null;
   /** Christmas: Santa's tile and number (drawn in place of its desert). */
@@ -129,7 +166,7 @@ export default function BoardScene({
   const robberHex = land.find(h => h.id === robber);
   const pirateHex = pirate ? board.hexes.find(h => h.id === pirate) : undefined;
   return (
-    <>
+    <FiguresApart.Provider value={figuresLater}>
       <SeaBackdrop uid={uid} hexes={seaMap ? [] : board.hexes} frame={frame} />
       {board.hexes.some(h => h.split) && <HalfClips uid={uid} />}
       {water.map(hex => {
@@ -194,7 +231,7 @@ export default function BoardScene({
           </g>
         </g>
       ))}
-      {robberHex && (
+      {robberHex && !figuresLater && (
         <FlyingPiece x={robberHex.x} y={robberHex.y}>
           <Robber />
         </FlyingPiece>
@@ -233,6 +270,6 @@ export default function BoardScene({
         </g>
       ))}
       {children}
-    </>
+    </FiguresApart.Provider>
   );
 }

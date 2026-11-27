@@ -6,6 +6,9 @@ export const CANDY_LIMITS = { routes: 4, corners: 80 } as const;
 export const CANDY_NUMBERS: readonly number[] = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
 /** What an unset train number draws from each game. */
 export const CANDY_DEFAULT_NUMBERS = [4, 10] as const;
+/** A random default number for a train, one of CANDY_DEFAULT_NUMBERS. */
+export const defaultTrainNumber = (random: () => number): number =>
+  CANDY_DEFAULT_NUMBERS[Math.floor(random() * CANDY_DEFAULT_NUMBERS.length)]!;
 export interface RailPoint {
   x: number;
   y: number;

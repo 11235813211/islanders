@@ -38,7 +38,7 @@ export const TOOLS: { tool: Tool; key: string; label: string; icon: ReactNode; h
     key: 't',
     label: 'Train',
     icon: <TrainFront size={17} />,
-    hint: 'Add a train route, then tap neighboring corners in order',
+    hint: 'Add a train route, tap a corner to start, then tap or drag along the highlighted edges',
   },
   {
     tool: 'harbor',

@@ -1,7 +1,8 @@
 // Winter versions of the base tiles: snowy pines with baubles, reindeer on the pasture, wind and a
 // snowman in the fields, lights strung around the hills, snow falling on the mountains, and a frozen desert with a polar bear. Each keeps its tile's own color, so terrain still reads at a glance.
-import type { ReactElement } from 'react';
+import { type ReactElement, useContext } from 'react';
 import type { BaseTerrain } from '../../../../shared/types';
+import { FiguresApart } from '../../figures';
 import { TileFrame } from '../index';
 import { BrickHills, ForestGround, Wheat, WheatGround } from '../terrain-features';
 import { FallingFlakes, LightString, playFor, StillFlakes, Wind } from './effects';
@@ -484,6 +485,7 @@ function PolarBear({ x, y, scale = 1 }: { x: number; y: number; scale?: number }
 /** The desert frozen through: ice, snowfields, a frozen pond with cracks, and a polar bear. */
 function WinterDesert() {
   const ice = CHRISTMAS.frozen;
+  const apart = useContext(FiguresApart);
   return (
     <g>
       <polygon points="-70,-70 70,-70 70,70 -70,70" fill={ice.ground} />
@@ -496,9 +498,16 @@ function WinterDesert() {
       <path d="M30 26q4-1.6 7 0" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" opacity=".8" />
       <path d="M-46-30l3-8 3 8Zm6 1 2-5 2 5ZM42-36l2.6-7 2.6 7Z" fill={ice.shard} stroke="#fff" strokeWidth=".6" />
       <path d="M-44-8q21-13 41-7M10 46q18-6 36-1" fill="none" stroke="#fff" strokeWidth="1.5" />
-      <PolarBear x={-20} y={-14} scale={1.1} />
+      {!apart && <DesertBear />}
     </g>
   );
+}
+
+const DesertBear = () => <PolarBear x={-20} y={-14} scale={1.1} />;
+
+/** A winter tile's standing figures, for boards that draw them above trains and pieces (FiguresApart). */
+export function WinterFigure({ terrain }: { terrain: BaseTerrain }): ReactElement | null {
+  return terrain === 'desert' ? <DesertBear /> : null;
 }
 
 const SCENES: Record<BaseTerrain, () => ReactElement> = {

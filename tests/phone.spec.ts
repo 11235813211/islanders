@@ -43,7 +43,7 @@ test('a guest can sign in from the game toolbar on a phone, and the toolbar stil
   await page.screenshot({ path: 'test-results/phone-toolbar-guest.png' });
 });
 
-test('the help button opens touch-worded help that fits a phone', async ({ page }) => {
+test('the help button opens touch-worded help that fits a phone', { tag: '@local' }, async ({ page }) => {
   const game = await mountGame(page, richGame());
   await page.getByRole('button', { name: 'How to play here' }).tap();
   const help = page.getByRole('dialog', { name: 'How to play here' });

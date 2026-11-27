@@ -39,10 +39,10 @@ test('Christmas Candy: candy cards and names, the train with its number, picking
     await expect.poll(() => game.state().candyLoad?.picks.length ?? 0).toBe(1 - pick);
     expect(card).toBeTruthy();
   }
-  // Picked over, it drives back into its start station.
-  await expect.poll(front).toBeLessThan(atDepot);
-  const moving = await front();
-  await expect.poll(front, { timeout: 5000 }).toBeLessThan(moving);
+  // Picked over, it drives on into the end tunnel (never backwards), then waits unseen at the start.
+  await expect.poll(front).toBeGreaterThan(atDepot);
+  await expect.poll(front, { timeout: 8000 }).toBeLessThan(0);
+  await expect(page.locator('.candy-tunnel')).toHaveCount(2);
   // The North Pole has the same number: Santa comes once the train is done.
   await expect.poll(() => game.state().phase).toBe('santa');
   await expect(page.getByText('Pick a player’s network for Santa')).toBeVisible();

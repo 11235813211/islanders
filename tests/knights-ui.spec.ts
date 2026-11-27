@@ -52,9 +52,9 @@ async function checkAt(page: Page, selector: string, name: string) {
   }
 }
 
-test('the Cities & Knights table fits at every width: build bar, hand, scoreboard, and barbarians', async ({
-  page,
-}) => {
+test('the Cities & Knights table fits at every width: build bar, hand, scoreboard, and barbarians', {
+  tag: '@local',
+}, async ({ page }) => {
   const game = await mountGame(page, knightsTable());
   for (const selector of ['.table-actions', '.player-table tbody', '.bank-counts', '.ck-barbarians'])
     await checkAt(page, selector, selector.replace(/\W/g, ''));

@@ -66,7 +66,9 @@ test('Christmas fits a phone', async ({ page }) => {
   await page.screenshot({ path: 'test-results/christmas-phone.png' });
 });
 
-test('after a Christmas game, the rest of the site keeps the look until switched off', async ({ page }) => {
+test('after a Christmas game, the rest of the site keeps the look until switched off', { tag: '@local' }, async ({
+  page,
+}) => {
   await mountGame(page, santaTurn());
   await expect.poll(() => page.evaluate(() => localStorage.getItem('islanders.christmasLook'))).toBe('1');
   await page.goto('/');
@@ -80,13 +82,27 @@ test('after a Christmas game, the rest of the site keeps the look until switched
   await expect(page.locator('html')).not.toHaveClass(/theme-christmas/);
 });
 
-test('Christmas Candy in the room settings: turns Christmas on, starts a candy game, and fits', async ({ page }) => {
+test('Art style in the room settings: Christmas Candy brings Christmas and Santa, starts a candy game, and fits', async ({
+  page,
+}) => {
   const game = await mountGame(page, makeLobby(2));
-  const candy = page.getByRole('checkbox', { name: 'Christmas Candy', exact: true });
-  await candy.click();
-  await expect(candy).toBeChecked();
-  await expect.poll(() => game.state().settings).toMatchObject({ christmas: true, christmasCandy: true });
-  await expect(page.getByRole('checkbox', { name: 'Christmas', exact: true })).toBeChecked();
+  const look = page.getByRole('combobox', { name: 'Art style', exact: true });
+  await expect(look).toHaveValue('normal');
+  await look.selectOption('candy');
+  await expect
+    .poll(() => game.state().settings)
+    .toMatchObject({
+      christmas: true,
+      christmasCandy: true,
+      northPole: true,
+      pieceStyle: 'gingerbread',
+    });
+  await expect(look).toHaveValue('candy');
+  await look.selectOption('christmas');
+  await expect
+    .poll(() => game.state().settings)
+    .toMatchObject({ christmas: true, christmasCandy: false, northPole: true });
+  await look.selectOption('candy');
   for (const width of [1600, 1280, 1024, 820, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const group of await page.locator('.setting-group').all()) await expectNoSpill(group);

@@ -45,7 +45,7 @@ export default function ArtStylesButton({ view }: SettingPreviewProps) {
         View
       </button>
       {open && (
-        <GameDialog title="Art styles" close={() => setOpen(false)}>
+        <GameDialog title="Piece styles" close={() => setOpen(false)}>
           <div className="art-style-list">
             {PIECE_STYLES.map(style => (
               <ArtStyleCard key={style} style={style} current={view.settings.pieceStyle === style} />

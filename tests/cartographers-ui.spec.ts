@@ -145,7 +145,7 @@ test('splitting a tile draws both halves, and its rolls ask for one of the two',
   expect(room.errors).toEqual([]);
 });
 
-test('the tile panel never spills at any width', async ({ page }) => {
+test('the tile panel never spills at any width', { tag: '@local' }, async ({ page }) => {
   await mountGame(page, game());
   await page.getByRole('button', { name: /^Split a tile/ }).click();
   await page

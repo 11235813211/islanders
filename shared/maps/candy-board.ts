@@ -3,10 +3,17 @@
 // around the track are drawn poorer: about two dots fewer at the start, one fewer at the end.
 
 import type { Board, CandyTrain } from '../types';
+import { autoTrain } from './auto-train';
 import { pips } from './balance';
-import { CANDY_DEFAULT_NUMBERS } from './candy-train';
+import { defaultTrainNumber } from './candy-train';
 import type { BoardDesign } from './types';
 import { tileKey } from './types';
+
+/** Every corner of a train's track, through all its legs, in order. */
+export function trainCorners(train: CandyTrain | undefined): string[] {
+  if (!train) return [];
+  return [...train.vertexIds, ...(train.legs ?? []).flatMap(leg => leg.vertexIds)];
+}
 
 /** Dots taken off a number beside the track: this at the start station, one less at the end. */
 const START_CUT = 2;
@@ -25,38 +32,47 @@ function cutAt(t: number, random: () => number): number {
   return whole + (random() < cut - whole ? 1 : 0);
 }
 
+/** The design's routes as trains on the built board (routes too short to drive are left out). */
+function designTrains(design: Pick<BoardDesign, 'candyRoutes'>, board: Board, random: () => number): CandyTrain[] {
+  const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));
+  return (design.candyRoutes ?? []).flatMap(route => {
+    const vertexIds = route.corners.flatMap(corner => {
+      const [q, r, c] = corner.split(',').map(Number) as [number, number, number];
+      const id = byKey.get(tileKey(q, r))?.vertexIds[c];
+      return id ? [id] : [];
+    });
+    if (vertexIds.length < 2) return [];
+    return [{ vertexIds, number: route.number ?? defaultTrainNumber(random), side: route.side }];
+  });
+}
+
 /**
- * Put the design's trains on the board and make the random numbers beside each track poorer.
- * Numbers the design set (`fixed`, by tile key) stay as they are; nothing drops below one dot (two
- * with `noTwoTwelve`, unless it already had one). Changes `board` in place; call it while building.
+ * Put trains on the board: the design's routes, or with none, a generated track (autoTrain) when
+ * `generate` is set. Random numbers beside each track get poorer. Numbers in `fixed` (by tile key)
+ * stay as they are; nothing drops below one dot (two with `noTwoTwelve`, unless it already had one).
+ * Changes `board` in place; call it while building.
  */
 export function placeTrains(
   design: Pick<BoardDesign, 'candyRoutes' | 'noTwoTwelve'>,
   board: Board,
   fixed: Set<string>,
   random: () => number,
+  generate = true,
 ): void {
-  const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));
+  let trains = designTrains(design, board, random);
+  if (!trains.length && generate) trains = autoTrain(board, random);
+  if (!trains.length) return;
+  board.trains = trains;
   const vertices = new Map(board.vertices.map(v => [v.id, v]));
-  const trains: CandyTrain[] = [];
   /** Tile id → how close to a start station it is (0 at the start, 1 at the end), nearest train. */
   const nearest = new Map<string, number>();
-  for (const route of design.candyRoutes ?? []) {
-    const vertexIds = route.corners.flatMap(corner => {
-      const [q, r, c] = corner.split(',').map(Number) as [number, number, number];
-      const id = byKey.get(tileKey(q, r))?.vertexIds[c];
-      return id ? [id] : [];
-    });
-    if (vertexIds.length < 2) continue;
-    const number = route.number ?? CANDY_DEFAULT_NUMBERS[Math.floor(random() * CANDY_DEFAULT_NUMBERS.length)]!;
-    trains.push({ vertexIds, number, side: route.side });
-    vertexIds.forEach((id, i) => {
-      const t = i / (vertexIds.length - 1);
+  for (const train of trains) {
+    const corners = trainCorners(train);
+    corners.forEach((id, i) => {
+      const t = i / (corners.length - 1);
       for (const hexId of vertices.get(id)!.hexIds) nearest.set(hexId, Math.min(t, nearest.get(hexId) ?? 1));
     });
   }
-  if (!trains.length) return;
-  board.trains = trains;
   const floor = design.noTwoTwelve ? 2 : 1;
   for (const hex of board.hexes) {
     const t = nearest.get(hex.id);

@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { candyGraph } from '../shared/maps/candy-train';
 import { expectNoSpill, openCandyEditor } from './ui-harness';
 
-test('candy routes draw, animate, pause, undo and persist through save and reopen', async ({ page }) => {
+test('candy routes draw, animate, pause, undo and persist through save and reopen', { tag: '@local' }, async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   const board = await openCandyEditor(page);
@@ -49,7 +51,9 @@ test('candy routes draw, animate, pause, undo and persist through save and reope
   expect(errors).toEqual([]);
 });
 
-test('the candy preview fits, its look persists, and pure Christmas remains available', async ({ page }) => {
+test('the candy preview fits, its look persists, and pure Christmas remains available', { tag: '@local' }, async ({
+  page,
+}) => {
   await openCandyEditor(page);
   await page.getByRole('button', { name: 'Candy art', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Christmas Candy art' });
@@ -69,7 +73,7 @@ test('the candy preview fits, its look persists, and pure Christmas remains avai
   await expect(page.locator('.editor-canvas [data-candy-terrain="ore"]').first()).toBeVisible();
 });
 
-test('reduced motion parks the candy train', async ({ page }) => {
+test('reduced motion parks the candy train', { tag: '@local' }, async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openCandyEditor(page);
   await page.getByRole('button', { name: 'Train', exact: true }).click();

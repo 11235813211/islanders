@@ -166,8 +166,28 @@ function smoothCurve(points: Point[]) {
   return samples;
 }
 
-/** One continuous run of the UI garland lying on the ground, snaking through `points`. */
-export function GarlandRope({ uid, points }: { uid: string; points: Point[] }) {
+/**
+ * Snow patches under and around the garland, so its greens stand out on a dark floor: where along
+ * the rope (0–1), how far below it (some drift well away), and each patch's half width and height.
+ */
+const SNOW_PATCHES: [t: number, drop: number, rx: number, ry: number][] = [
+  [0.03, 3, 7, 2.6],
+  [0.13, -1, 5, 2],
+  [0.22, 5, 8, 2.8],
+  [0.3, 13, 5.5, 2],
+  [0.41, 2, 6, 2.2],
+  [0.5, -3, 4.5, 1.8],
+  [0.57, 6, 9, 3],
+  [0.66, 16, 6, 2.2],
+  [0.74, 1, 5, 2],
+  [0.84, 7, 7.5, 2.6],
+  [0.93, -2, 5, 2],
+  [0.97, 12, 4, 1.6],
+];
+const SNOW = { top: '#ffffff', under: '#d9e6ee' };
+
+/** One continuous run of the UI garland lying on the ground, snaking through `points`; `snow` beds it in snow. */
+export function GarlandRope({ uid, points, snow = false }: { uid: string; points: Point[]; snow?: boolean }) {
   const id = `${uid}-garland`;
   const curve = smoothCurve(points);
   const length = curve.at(-1)!.distance;
@@ -205,6 +225,16 @@ export function GarlandRope({ uid, points }: { uid: string; points: Point[] }) {
   return (
     <g className="candy-garland" aria-hidden="true">
       <GarlandDefs uid={id} />
+      {snow &&
+        SNOW_PATCHES.map(([t, drop, rx, ry]) => {
+          const p = at(t);
+          return (
+            <g key={t}>
+              <ellipse cx={p.x} cy={p.y + drop + 0.8} rx={rx} ry={ry} fill={SNOW.under} />
+              <ellipse cx={p.x - 0.4} cy={p.y + drop} rx={rx * 0.94} ry={ry * 0.85} fill={SNOW.top} />
+            </g>
+          );
+        })}
       <polyline
         points={curve.map(p => `${p.x},${p.y}`).join(' ')}
         fill="none"

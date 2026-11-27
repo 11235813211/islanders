@@ -98,6 +98,11 @@ export interface CandyTrain {
   number: number;
   /** Which side of the track the rails are drawn on (as the editor saved it). */
   side: 1 | -1;
+  /**
+   * More legs of the same train, in order (generated tracks): it goes into a tunnel at the end of
+   * one leg and comes out at the start of the next. Picks run through every leg.
+   */
+  legs?: { vertexIds: string[]; side: 1 | -1 }[];
 }
 /** A loaded candy train waiting to be picked from: the cards on it and who picks next, in order. */
 export interface CandyLoad {
@@ -319,6 +324,8 @@ export interface GameSettings {
   christmas: boolean;
   /** Christmas Candy shares the winter look, with five candy resource illustrations. */
   christmasCandy: boolean;
+  /** Christmas Candy: play with the candy train (the map's routes, or a generated track without any). */
+  candyTrains: boolean;
   /** Santa's North Pole on a desert, with its own number; nobody settles beside it (engine/santa.ts). */
   northPole: boolean;
   /** Seconds a trade offer stays open. */

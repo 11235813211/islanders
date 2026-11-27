@@ -3,7 +3,8 @@ import type { GameSettings, GameView } from '../../../shared/types';
 import { CATEGORIES, type SettingDef } from '../lobby/settings';
 
 /** A setting's value as short text: the option label, On/Off, or the number. */
-function valueText(def: SettingDef, value: GameSettings[keyof GameSettings]): string {
+function valueText(def: SettingDef, settings: GameSettings): string {
+  const value = def.combined ? def.combined.read(settings) : settings[def.key];
   const { control } = def;
   if (control.kind === 'toggle') return value ? 'On' : 'Off';
   if (control.kind === 'select') return control.options.find(o => o.value === value)?.label ?? String(value);
@@ -46,7 +47,7 @@ export default function SettingsSummary({ view }: { view: GameView }) {
                     </span>
                     {def.label}
                   </dt>
-                  <dd>{valueText(def, view.settings[def.key])}</dd>
+                  <dd>{valueText(def, view.settings)}</dd>
                 </div>
               ))}
             </dl>

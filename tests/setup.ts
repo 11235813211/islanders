@@ -15,6 +15,7 @@ Object.assign(DEFAULT_SETTINGS, {
   pieceStyle: 'classic',
   christmas: false,
   christmasCandy: false,
+  candyTrains: true,
   northPole: false,
   tradeSeconds: 30,
   decisionSeconds: 30,

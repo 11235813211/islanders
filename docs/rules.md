@@ -116,15 +116,21 @@ Not a published expansion here: our own, built like the 5–6 player rules.
 
 Christmas Candy is a room setting (`christmasCandy`) on top of the Christmas look: candy tiles,
 cards, and icons, and candy names for the five resources (Candy Cane, Twizzler, Cotton, Gum Drop,
-Kiss; `shared/candy-names.ts`). Turning it on turns on Christmas (with its pieces and the North
-Pole); turning Candy off returns to plain Christmas. Settings: `santa.test.ts`; lobby, game table,
+Kiss; `shared/candy-names.ts`). The lobby's one "Art style" choice sets the look: Normal,
+Christmas, or Christmas Candy. Either Christmas choice brings Christmas pieces and the North Pole
+(Santa); Christmas Candy also sets `christmas`. Settings: `santa.test.ts`; lobby, game table,
 and phone: `christmas-ui.spec.ts`, `candy-game.spec.ts`, `phone.spec.ts`.
 
 **Candy trains** (our own rule). The board editor's Train tool draws up to four tracks per layout
 along land corners; the first corner is the start station. Rails run beside the edges on one side,
 always the land side (`railSideIsLand` in `maps/candy-train.ts`, `candy-train.test.ts`). Each track has a number (set in the
-editor, or a 4 or a 10 drawn each game). Only maps with tracks have trains; editing the base game
-gives rooms without a map one too.
+editor, or a 4 or a 10 drawn each game). Room setting "Candy train" (`candyTrains`, on by default,
+shown with Christmas Candy) plays with the train; on a map without tracks (the standard island
+included) each game lays one: a snaking track past about 1/7 of the corners, its rails on the land
+side of every edge, split into legs on separate islands on a sea map (`maps/auto-train.ts`,
+`auto-train.test.ts`). The train comes out of a tunnel, always drives forward, and goes into a
+tunnel at the end of each leg, coming out of the same-colored tunnel at the next leg's start; picks
+run through every leg in order.
 
 | Rule            | How it plays                                                                                                                                                                                                                                                          | Code / tests                                                                      |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |

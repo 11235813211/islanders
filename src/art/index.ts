@@ -24,7 +24,13 @@ import { CandyTile } from './v23/christmas/candy-tiles';
 
 export type { Frame, SeaTileKind } from './types';
 export { CandyTile } from './v23/christmas/candy-tiles';
-export { CandyRailways, designTracks, type RailRoad, type RailTrack } from './v23/christmas/train';
+export {
+  CandyRailways,
+  designTracks,
+  type RailRoad,
+  type RailTrack,
+  trainInFront,
+} from './v23/christmas/train';
 export const ART_VERSION = art.version;
 export const ROAD_INSET = art.roadInset ?? 0.19;
 export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, BuildingPiece, SeaDecorations } = art;
@@ -43,6 +49,17 @@ export const ChristmasTheme = createContext(false);
 /** The robber: the Grinch in a room with the Christmas look, else the active version's. */
 export function Robber(): ReactElement {
   return createElement(useContext(ChristmasTheme) ? CHRISTMAS.Robber : art.Robber);
+}
+export { FiguresApart } from './figures';
+/**
+ * A tile's standing figures in a Christmas or Candy room, for boards that draw them in their own
+ * layer above trains and pieces (inside FiguresApart); null for tiles without one.
+ */
+export function TileFigure({ terrain }: { terrain: Terrain | 'land' }): ReactElement | null {
+  const christmas = useContext(ChristmasTheme);
+  const candy = useContext(CandyTheme);
+  if (!(christmas || candy) || !CHRISTMAS.TileFigure || !BASE_TERRAINS.has(terrain)) return null;
+  return createElement(CHRISTMAS.TileFigure, { terrain: terrain as BaseTerrain });
 }
 /** Cities & Knights art: the active version's, or v18's for versions made before it. */
 export const KNIGHTS: KnightsArt = (art as { knights?: KnightsArt }).knights ?? fallbackKnights;

@@ -1,9 +1,18 @@
 import { assignNumbers, generateBoard, islandSize, seededRandom, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
 import { KNIGHTS_LIMITS } from '../knights';
+import { placeTrains } from '../maps/candy-board';
 import { buildBoard } from '../maps/generate';
 import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
-import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
+import {
+  type BoardDesign,
+  boardExpansions,
+  designFor,
+  layoutsOf,
+  playerRange,
+  playerRanges,
+  tileKey,
+} from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName, linkChristmas, pointRewards } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
@@ -27,6 +36,9 @@ import { startKnights } from './knights';
 import { SCHEMA_VERSION } from './migrations';
 import { placeNorthPole } from './santa';
 
+/** Whether the room plays with candy trains: Christmas Candy with its train setting on. */
+export const trainsOn = (settings: GameSettings) => settings.christmasCandy && settings.candyTrains;
+
 /** A fresh board for the room's map: the standard island, or a new draw of the chosen design. */
 export function boardFor(
   design: BoardDesign | null,
@@ -36,7 +48,7 @@ export function boardFor(
   seafarers = !!design,
   /** Play the layout made for this many players instead of the one that fits `players`. */
   layoutFor?: number,
-  /** Christmas Candy: lay the map's candy train tracks. */
+  /** Christmas Candy: lay the map's candy train tracks, or a generated one on a map without any. */
   trains = false,
 ): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   if (design) {
@@ -44,6 +56,9 @@ export function boardFor(
     return seafarers ? built : { ...built, pirate: null };
   }
   const board = generateBoard(random, layout, islandSize(players), seafarers);
+  // The standard spiral's numbers are the printed ones; only a random layout's may get poorer.
+  if (trains)
+    placeTrains({}, board, new Set(layout === 'ordered' ? board.hexes.map(h => tileKey(h.q, h.r)) : []), random);
   return {
     board,
     robber: board.hexes.find(hex => hex.terrain === 'desert')!.id,
@@ -79,7 +94,7 @@ function drawFrom(state: GameState, seed: number): ReturnType<typeof boardFor> {
     players.length,
     settings.seafarers,
     layoutCount(state),
-    settings.christmasCandy,
+    trainsOn(settings),
   );
 }
 
@@ -366,6 +381,7 @@ export const lobbyHandlers: Pick<
           next.players.length,
           next.settings.seafarers,
           next.map?.layout?.min,
+          trainsOn(next.settings),
         ),
       );
     else if (state.settings.numberLayout !== next.settings.numberLayout && !next.design) {
@@ -419,6 +435,7 @@ export const lobbyHandlers: Pick<
         next.players.length,
         next.settings.seafarers,
         next.map?.layout?.min,
+        trainsOn(next.settings),
       ),
     );
     const which = layout && layouts.length > 1 ? ` (the ${playerRange(layout)} player map)` : '';

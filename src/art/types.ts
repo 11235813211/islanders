@@ -61,6 +61,8 @@ export interface ChristmasArt {
     /** The roll's id when this tile just paid out: it plays its motion once. */
     paid?: number;
   }) => ReactElement;
+  /** A winter tile's standing figures (the desert's polar bear), drawn above trains and pieces. Versions before v23 leave it out. */
+  TileFigure?: (props: { terrain: BaseTerrain }) => ReactElement | null;
   /** Santa's home, centered at the origin. */
   NorthPoleTile: (props: { uid: string }) => ReactElement;
   /** Drawn under the North Pole's number token, at its origin. */

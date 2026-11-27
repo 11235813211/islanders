@@ -23,19 +23,20 @@ jobs:
       - uses: ./.github/actions/setup
       - run: npm run check
 
-  # Browser tests, split across two runners that run at the same time.
+  # Browser tests, split across three runners that run at the same time. Tests tagged @local
+  # (layout sweeps across widths, art reviews) run only locally (npm run test:e2e).
   browsers:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/browsers
-      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
+      - run: npm run test:e2e:ci -- --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

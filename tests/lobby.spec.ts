@@ -331,15 +331,17 @@ test('on a Seafarers map extra pieces give roads and ships, shown with the seat 
   await rules.screenshot({ path: 'test-results/lobby-rewards-sea.png' });
 });
 
-test('host and other players can view each art style in red and blue, at every width', async ({ page }) => {
+test('host and other players can view each art style in red and blue, at every width', { tag: '@local' }, async ({
+  page,
+}) => {
   const lobby = makeLobby(2);
   // Seen from a seat that is not the host's.
   lobby.hostId = lobby.players[1]!.id;
   const room = await mountGame(page, lobby);
-  const row = page.locator('.setting-row').filter({ hasText: 'Art style' });
-  await expect(row.getByLabel('Art style')).toHaveValue('classic');
+  const row = page.locator('.setting-row').filter({ hasText: 'Piece style' });
+  await expect(row.getByLabel('Piece style')).toHaveValue('classic');
   await row.getByRole('button', { name: 'View' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Art styles' });
+  const dialog = page.getByRole('dialog', { name: 'Piece styles' });
   for (const name of ['Classic', 'Mountain chalet', 'Korean'])
     await expect(dialog.getByRole('article', { name }).locator('.piece-icon')).toHaveCount(4);
   await expect(dialog.getByRole('article', { name: 'Classic' })).toContainText('This room');

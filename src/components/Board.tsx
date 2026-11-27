@@ -12,16 +12,17 @@ import {
   SEA,
   SeaDecorations,
   TERRAIN,
+  trainInFront,
 } from '../art';
 import { sinceLatestRoll, useFreshLog } from '../hooks/useFreshLog';
 import { boardFrame, cameraViewBox } from '../lib/boardCamera';
 import { hexPoints } from '../lib/geometry';
-import BoardScene, { type Drift } from './BoardScene';
+import BoardScene, { type Drift, SceneFigures } from './BoardScene';
 import { paidTiles } from './christmas/paidTiles';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
-import CandyTrains from './game/CandyTrains';
+import CandyTrains, { boardTracks } from './game/CandyTrains';
 import { GroupGlow, type GroupPick, GroupTargets } from './game/GroupTargets';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
@@ -216,6 +217,37 @@ export default function Board({
     (tiles?.hexes.length ?? 0) + (spots ? spots.vertices.length + spots.edges.length + (spots.groups?.length ?? 0) : 0);
   const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + pickable > 0;
   const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected && !tiles?.picked;
+  const tracks = boardTracks(view.board, view.candyLoad);
+  // Buildings sorted back to front; the candy cars pass in front of those whose rails run below them.
+  const standing = Object.entries(view.buildings).sort(([a], [b]) => vertices.get(a)!.y - vertices.get(b)!.y);
+  const behindTrain = standing.filter(([id]) => tracks.length > 0 && trainInFront(tracks, vertices.get(id)!));
+  const inFront = standing.filter(entry => !behindTrain.includes(entry));
+  /** One settlement, city, or megacity at its corner. */
+  const renderBuilding = ([vertexId, building]: [string, GameView['buildings'][string]]) => {
+    const vertex = vertices.get(vertexId)!;
+    const rise = rising.get(vertexId);
+    return (
+      <g
+        key={vertexId}
+        transform={`translate(${vertex.x} ${vertex.y - 3})`}
+        className={rise === undefined ? undefined : 'eruption-rise'}
+        style={rise === undefined ? undefined : { animationDelay: `${rise}s` }}
+      >
+        <title>
+          {playerName(building.playerId)}&apos;s {mega(vertexId) ? 'megacity' : building.kind}
+        </title>
+        {mega(vertexId) ? (
+          <MegacityPiece color={color(building.playerId)} style={view.settings.pieceStyle} />
+        ) : (
+          <BuildingPiece
+            color={color(building.playerId)}
+            city={building.kind === 'city'}
+            style={view.settings.pieceStyle}
+          />
+        )}
+      </g>
+    );
+  };
   return (
     <div className={`board-frame${hasTargets ? ' board-has-targets' : ''}`}>
       <svg
@@ -247,9 +279,9 @@ export default function Board({
             northPole={view.northPole}
             paid={paidTiles(view, rolled)}
             peeks={view.fogPeeks}
+            figuresLater
           />
           <RouteZones zones={viewerZones(view)} />
-          <CandyTrains board={view.board} load={view.candyLoad} roads={trainRoads()} />
           {groups && (
             <GroupGlow view={view} groups={groups} picked={groupPick} vertices={vertices} edgeEnds={edgeEnds} />
           )}
@@ -279,6 +311,7 @@ export default function Board({
             playerName={playerName}
             onShip={onEdge}
           />
+          <CandyTrains tracks={tracks} roads={trainRoads()} layer="rails" />
           {view.board.hexes
             .filter(hex => hexTargets.has(hex.id))
             .map(hex => {
@@ -326,33 +359,9 @@ export default function Board({
             );
           })}
           <KnightWalls view={view} vertices={vertices} color={color} />
-          {Object.entries(view.buildings)
-            .sort(([a], [b]) => vertices.get(a)!.y - vertices.get(b)!.y)
-            .map(([vertexId, building]) => {
-              const vertex = vertices.get(vertexId)!;
-              const rise = rising.get(vertexId);
-              return (
-                <g
-                  key={vertexId}
-                  transform={`translate(${vertex.x} ${vertex.y - 3})`}
-                  className={rise === undefined ? undefined : 'eruption-rise'}
-                  style={rise === undefined ? undefined : { animationDelay: `${rise}s` }}
-                >
-                  <title>
-                    {playerName(building.playerId)}&apos;s {mega(vertexId) ? 'megacity' : building.kind}
-                  </title>
-                  {mega(vertexId) ? (
-                    <MegacityPiece color={color(building.playerId)} style={view.settings.pieceStyle} />
-                  ) : (
-                    <BuildingPiece
-                      color={color(building.playerId)}
-                      city={building.kind === 'city'}
-                      style={view.settings.pieceStyle}
-                    />
-                  )}
-                </g>
-              );
-            })}
+          {behindTrain.map(renderBuilding)}
+          <CandyTrains tracks={tracks} layer="cars" />
+          {inFront.map(renderBuilding)}
           <KnightPieces
             view={view}
             vertices={vertices}
@@ -360,6 +369,11 @@ export default function Board({
             playerName={playerName}
             onKnight={mode === null ? onKnight : undefined}
             disabled={disabled}
+          />
+          <SceneFigures
+            board={view.board}
+            robber={pickedPiece === 'robber' ? picked!.id : view.robber}
+            northPole={view.northPole}
           />
           {tiles && <TileTargets view={view} tiles={tiles} />}
           {spots && !disabled && <SpotTargets spots={spots} vertices={vertices} edgeEnds={edgeEnds} />}

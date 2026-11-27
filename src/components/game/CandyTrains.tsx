@@ -1,33 +1,35 @@
-import { useMemo } from 'react';
+import { trainCorners } from '../../../shared/maps/candy-board';
 import type { Board, CandyLoad } from '../../../shared/types';
 import { CandyRailways, type RailRoad, type RailTrack } from '../../art';
 
 /** The board's trains as tracks to draw; a loaded train carries what is left on it and stops at the next picker. */
-function boardTracks(board: Board, load: CandyLoad | null): RailTrack[] {
+export function boardTracks(board: Board, load: CandyLoad | null): RailTrack[] {
   const vertices = new Map(board.vertices.map(v => [v.id, v]));
   return (board.trains ?? []).map((train, i) => ({
-    points: train.vertexIds.map(id => vertices.get(id)!),
-    side: train.side,
+    legs: [train, ...(train.legs ?? [])].map(leg => ({
+      points: leg.vertexIds.map(id => vertices.get(id)!),
+      side: leg.side,
+    })),
     number: train.number,
     cargo: load?.train === i ? load.cards : [],
-    ...(load?.train === i && load.picks[0] ? { stop: train.vertexIds.indexOf(load.picks[0].vertexId) } : {}),
+    ...(load?.train === i && load.picks[0] ? { stop: trainCorners(train).indexOf(load.picks[0].vertexId) } : {}),
   }));
 }
 
 /**
- * Christmas Candy: the trains on the game board. A loaded train drives along its track and stops
- * at each building whose owner is picking, like a depot, then backs into its start station.
+ * Christmas Candy: the trains on the game board. A loaded train comes out of its start tunnel and
+ * stops at each building whose owner is picking, then drives on into the end tunnel. The board
+ * draws the rails over the roads, then the cars between the buildings behind and in front.
  */
 export default function CandyTrains({
-  board,
-  load,
-  roads,
+  tracks,
+  roads = [],
+  layer,
 }: {
-  board: Board;
-  load: CandyLoad | null;
-  roads: RailRoad[];
+  tracks: RailTrack[];
+  roads?: RailRoad[];
+  layer: 'rails' | 'cars';
 }) {
-  const tracks = useMemo(() => boardTracks(board, load), [board, load]);
   if (!tracks.length) return null;
-  return <CandyRailways tracks={tracks} parked roads={roads} />;
+  return <CandyRailways tracks={tracks} parked roads={roads} layer={layer} />;
 }

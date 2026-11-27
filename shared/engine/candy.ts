@@ -2,6 +2,7 @@
 // number is rolled it is loaded from the bank with one random standard card per pick, plus
 // CANDY_SPARE more. Each settlement on its track picks one card (a city two), from the start
 // station to the end, so the first picks have the most choice. Leftovers go back to the bank.
+import { trainCorners } from '../maps/candy-board';
 import { type CandyLoad, CLASSIC_RESOURCES, type ClassicResource, type GameState } from '../types';
 import { addLog, type Handlers, needPhase, requireRule, tally } from './core';
 import { afterCandy } from './turn';
@@ -11,7 +12,7 @@ export const CANDY_SPARE = 2;
 
 /** Who picks from a train, in track order: each settlement once, each city twice. */
 export function candyPicks(state: Pick<GameState, 'board' | 'buildings'>, train: number): CandyLoad['picks'] {
-  return (state.board.trains?.[train]?.vertexIds ?? []).flatMap(vertexId => {
+  return trainCorners(state.board.trains?.[train]).flatMap(vertexId => {
     const building = state.buildings[vertexId];
     if (!building) return [];
     const pick = { playerId: building.playerId, vertexId };
