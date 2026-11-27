@@ -268,6 +268,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.northPole ??= null;
   },
+  // 35 → 36: seven and eight players may also play one development card between turns.
+  s => {
+    s.specialPlayed ??= [];
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

@@ -1,11 +1,11 @@
 // Winter versions of the base tiles: snowy pines with baubles, reindeer on the pasture, wind and a
 // snowman in the fields, lights strung around the hills, snow falling on the mountains (one hides
 // the Grinch), and a frozen desert with a polar bear. Each keeps its tile's own color, so terrain still reads at a glance.
-import type { CSSProperties, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import type { BaseTerrain } from '../../../../shared/types';
 import { TileFrame } from '../index';
 import { BrickHills, ForestGround, Wheat, WheatGround } from '../terrain-features';
-import { FallingFlakes, LightString, StillFlakes, Wind } from './effects';
+import { FallingFlakes, LightString, playFor, StillFlakes, Wind } from './effects';
 import { CHRISTMAS } from './tuning';
 
 const SNOW = CHRISTMAS.snow;
@@ -28,7 +28,7 @@ export function SnowyPine({
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`}>
       <ellipse cx="1" cy="9" rx="11" ry="3" fill="#36506a" opacity=".2" />
-      <g className="xmas-sway" style={{ '--delay': `${(x + 60) / 400}s` } as CSSProperties}>
+      <g className="xmas-sway" style={playFor('sway', CHRISTMAS.motion.sway, (x + 60) / 400, true)}>
         <path d="M0 1V11" stroke="#5e5040" strokeWidth="3" />
         {/* The board's own two-tier pine, with snow only where it would settle: the tip and the ledges. */}
         <path d="M0-24 12 0H7L14 8H-14L-7 0H-12Z" fill="#135a32" />
@@ -49,7 +49,7 @@ export function SnowyPine({
             <circle
               key={i}
               className="xmas-bauble"
-              style={{ '--delay': `${i * 0.07}s` } as CSSProperties}
+              style={playFor('bauble', CHRISTMAS.motion.bauble, i * 0.07, true)}
               cx={bx}
               cy={by}
               r="1.6"
@@ -230,7 +230,7 @@ function WinterPasture() {
       />
       {/* Placed clear of the number token. Each hops when the pasture pays out. */}
       {PASTURE_REINDEER.map(({ x, y, scale, flip, rudolph, scarf }, i) => (
-        <g key={i} className="xmas-hop" style={{ '--delay': `${i * 0.18}s` } as CSSProperties}>
+        <g key={i} className="xmas-hop" style={playFor('hop', CHRISTMAS.motion.hop, i * 0.18)}>
           <Reindeer x={x} y={y} scale={scale} flip={flip} rudolph={rudolph} scarf={scarf} />
         </g>
       ))}
@@ -519,7 +519,7 @@ export function WinterTile({
   seed?: number;
   /** The one mountain on the board the Grinch hides behind. */
   grinch?: boolean;
-  /** Set (to the roll's id) when this tile just paid out: it plays its motion once. */
+  /** Set (to the roll's id) when this tile just paid out: it plays its motion for a few seconds. */
   paid?: number;
 }) {
   const Scene = SCENES[terrain];

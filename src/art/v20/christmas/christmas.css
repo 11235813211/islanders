@@ -1,17 +1,18 @@
 /* Christmas tile motion. Tiles are still; a tile that pays out on a roll gets `.xmas-active`
-   (WinterTile) and plays its motion once, starting as the dice settle (--start). Timings come from
-   each element's --fall, --gust, --twinkle and --delay (effects.tsx, tuning.ts). */
+   (WinterTile) and plays its motion, starting as the dice settle (--start). Each element's period,
+   --delay and --runs (repeats that fill CHRISTMAS.motion.play seconds) come from playFor in
+   effects.tsx. */
 
 .xmas-active {
   --start: 1.1s;
 }
 
-/* Mountains: snowflakes fall through once. */
+/* Mountains: snowflakes fall through, again and again. */
 .xmas-flake {
   opacity: 0;
 }
 .xmas-active .xmas-flake {
-  animation: xmas-fall var(--fall, 2.6s) ease-in calc(var(--start) + var(--delay, 0s)) 1 both;
+  animation: xmas-fall var(--fall, 2.6s) ease-in calc(var(--start) + var(--delay, 0s)) var(--runs, 1) both;
 }
 @keyframes xmas-fall {
   0% {
@@ -33,7 +34,7 @@
   }
 }
 
-/* Fields: still streaks of wind, which sweep across twice. */
+/* Fields: still streaks of wind, which sweep across. */
 .xmas-gust {
   fill: none;
   stroke: #ffffff;
@@ -43,7 +44,7 @@
   opacity: 0.6;
 }
 .xmas-active .xmas-gust {
-  animation: xmas-gust var(--gust, 2.4s) ease-in-out calc(var(--start) + var(--delay, 0s)) 2;
+  animation: xmas-gust var(--gust, 2.4s) ease-in-out calc(var(--start) + var(--delay, 0s)) var(--runs, 1);
 }
 @keyframes xmas-gust {
   0% {
@@ -62,9 +63,10 @@
   }
 }
 
-/* Hills: the bulbs twinkle a few times. */
+/* Hills: the bulbs twinkle. */
 .xmas-active .xmas-bulb {
-  animation: xmas-twinkle var(--twinkle, 0.5s) ease-in-out calc(var(--start) + var(--delay, 0s)) 6 alternate;
+  animation: xmas-twinkle var(--twinkle, 0.5s) ease-in-out calc(var(--start) + var(--delay, 0s)) var(--runs, 2)
+    alternate;
 }
 @keyframes xmas-twinkle {
   from {
@@ -75,13 +77,13 @@
   }
 }
 
-/* Pasture: each reindeer hops twice. */
+/* Pasture: the reindeer hop. */
 .xmas-hop {
   transform-box: fill-box;
   transform-origin: center bottom;
 }
 .xmas-active .xmas-hop {
-  animation: xmas-hop 0.5s ease-out calc(var(--start) + var(--delay, 0s)) 2;
+  animation: xmas-hop var(--hop, 0.5s) ease-out calc(var(--start) + var(--delay, 0s)) var(--runs, 1);
 }
 @keyframes xmas-hop {
   0%,
@@ -102,7 +104,7 @@
   transform-origin: center bottom;
 }
 .xmas-active .xmas-sway {
-  animation: xmas-sway 0.7s ease-in-out calc(var(--start) + var(--delay, 0s)) 3 alternate;
+  animation: xmas-sway var(--sway, 0.7s) ease-in-out calc(var(--start) + var(--delay, 0s)) var(--runs, 2) alternate;
 }
 @keyframes xmas-sway {
   from {
@@ -113,7 +115,8 @@
   }
 }
 .xmas-active .xmas-bauble {
-  animation: xmas-twinkle 0.35s ease-in-out calc(var(--start) + var(--delay, 0s)) 8 alternate;
+  animation: xmas-twinkle var(--bauble, 0.35s) ease-in-out calc(var(--start) + var(--delay, 0s)) var(--runs, 2)
+    alternate;
 }
 
 @media (prefers-reduced-motion: reduce) {

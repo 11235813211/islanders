@@ -78,7 +78,7 @@ function rightNow(view: GameView, v: Verbs): string | null {
       return `${v.tap} another player’s settlement or city to send Santa there.`;
     case 'special-build':
       return isHugeGame(view.players.length)
-        ? 'Build or buy cards (one bank trade until your turn), then press Done building.'
+        ? 'Build or buy cards (one bank trade and one card that isn’t a knight until your turn), then press Done building.'
         : 'Build or buy cards (no trading), then press Done building.';
     case 'free-roads':
       return `Place your free ${view.seafaring ? 'roads or ships' : 'roads'} on glowing edges. Finish roads stops early.`;
@@ -172,7 +172,7 @@ function specialBuild(view: GameView): HelpSection {
     lines: [
       'During someone else’s turn, press Special build to build or buy cards after it ends. Press it again to cancel.',
       huge
-        ? 'One bank trade between your turns, however many times you special build. No offers to players, playing cards, or moving ships.'
+        ? 'One bank trade and one development card (not a knight) between your turns, however many times you special build. No offers to players or moving ships.'
         : 'No trading, playing cards, or moving ships then. Press Done building when finished.',
     ],
   };

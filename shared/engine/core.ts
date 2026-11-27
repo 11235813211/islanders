@@ -105,6 +105,18 @@ export function specialTradeOpen(
     !game.specialTraded.includes(playerId)
   );
 }
+/**
+ * Seven or eight players: whether the one building now may still play their one development card
+ * (not a knight) between their own turns.
+ */
+export function specialCardOpen(state: GameState, playerId: string): boolean {
+  return (
+    state.phase === 'special-build' &&
+    isHugeGame(state.players.length) &&
+    state.specialBuilder === playerId &&
+    !state.specialPlayed.includes(playerId)
+  );
+}
 /** Seconds each player gets in the special build phase (or the turn limit, if shorter). */
 export const SPECIAL_BUILD_SECONDS = 20;
 
@@ -229,6 +241,8 @@ export function getActivePlayerId(state: GameState): string | null {
   if (state.phase === 'setup-settlement' || state.phase === 'setup-road')
     return state.setupOrder[state.setupIndex] ?? null;
   if (state.phase === 'special-build') return state.specialBuilder;
+  // Road Building played while special building.
+  if (state.phase === 'free-roads' && state.resumePhase === 'special-build') return state.specialBuilder;
   return state.players[state.turnIndex]?.id ?? null;
 }
 

@@ -423,6 +423,7 @@ export const turnHandlers: Pick<
     // A new turn of your own gives back the special-build trade.
     const starting = next.players[next.turnIndex]!.id;
     next.specialTraded = next.specialTraded.filter(id => id !== starting);
+    next.specialPlayed = next.specialPlayed.filter(id => id !== starting);
     next.turn++;
     next.dice = null;
     next.phase = 'roll';

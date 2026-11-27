@@ -43,22 +43,29 @@ export function tradeGain(econ: Economy, partnerId: string, get: TradeBag, give:
   return ours - knobs.partnerGain * theirs * threat(econ, partnerId);
 }
 
+/** Extra gain over tradeMargin a counter must bring: counters interrupt everyone, so only clear wins. */
+const COUNTER_MARGIN = 0.4;
+/** Rounds before we counter anyone again (the log keeps only the last few rounds). */
+const COUNTER_ROUNDS = 3;
+
 /**
  * Answer an offer sent to us: yes if it's good for us; otherwise a counter (we give what they
- * asked for, but take a card we need instead) when that would be; otherwise no.
+ * asked for, but take a card we need instead) when that would clearly be; otherwise no. One
+ * counter per offer is enough, so we stay quiet when someone else has already countered it.
  */
 export function respond(econ: Economy, offer: TradeOffer): GameAction {
   const { knobs, view } = econ;
   if (tradeGain(econ, offer.fromId, offer.give, offer.want) > knobs.tradeMargin)
     return { type: 'accept-trade', offerId: offer.id };
   const goal = econ.bestGoal();
-  if (knobs.counters >= 0.5 && goal && !counteredLately(econ, offer.fromId)) {
+  const quiet = offer.counters.length > 0 || view.tradeOffers.some(o => o.counterOf === offer.id);
+  if (knobs.counters >= 0.5 && goal && !quiet && !counteredLately(econ)) {
     let best: { want: ResourceBag; gain: number } | null = null;
     for (const r of TILE_RESOURCES) {
       if (view.hand[r] >= goal.cost[r] || (offer.want[r] ?? 0) > 0) continue;
       const want = bag(r, 1);
       const gain = tradeGain(econ, offer.fromId, want, offer.want);
-      if (gain > knobs.tradeMargin && (!best || gain > best.gain)) best = { want, gain };
+      if (gain > knobs.tradeMargin + COUNTER_MARGIN && (!best || gain > best.gain)) best = { want, gain };
     }
     if (best) {
       const give = Object.fromEntries(TILE_RESOURCES.map(r => [r, offer.want[r] ?? 0])) as ResourceBag;
@@ -69,20 +76,13 @@ export function respond(econ: Economy, offer: TradeOffer): GameAction {
 }
 
 /**
- * Whether we countered this person's offers in the last two rounds: a person who asks again has
- * heard our terms, and the same counter every time is just noise. Bots get countered freely.
+ * Whether we countered anyone in the last few rounds: a person who asks again has heard our
+ * terms, and frequent counters are just noise at the table.
  */
-function counteredLately(econ: Economy, fromId: string): boolean {
+function counteredLately(econ: Economy): boolean {
   const { view } = econ;
-  if (view.players.find(p => p.id === fromId)?.bot) return false;
-  const since = view.turn - 2 * view.players.length;
-  return view.log.some(
-    e =>
-      (e.turn ?? 0) > since &&
-      e.event?.kind === 'counter' &&
-      e.event.playerId === view.selfId &&
-      e.event.toId === fromId,
-  );
+  const since = view.turn - COUNTER_ROUNDS * view.players.length;
+  return view.log.some(e => (e.turn ?? 0) > since && e.event?.kind === 'counter' && e.event.playerId === view.selfId);
 }
 
 /** Our own offer has its answers: trade with the least dangerous taker, or the best counter. */

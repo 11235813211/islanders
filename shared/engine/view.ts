@@ -17,6 +17,7 @@ import {
   requireRule,
   resourceCount,
   seaRules,
+  specialCardOpen,
   undoEndsTurn,
 } from './core';
 import { knightMoves } from './knights-legal';
@@ -158,6 +159,7 @@ export function getView(state: GameState, selfId: string): GameView {
     specialQueue: state.specialQueue,
     specialAsked: state.specialAsked,
     specialTraded: state.specialTraded,
+    specialPlayed: state.specialPlayed,
     northPole: state.northPole,
     features: mapFeatures(state),
     winnerId: state.winnerId,
@@ -175,15 +177,7 @@ export function getView(state: GameState, selfId: string): GameView {
     spectators: state.spectators,
     development: player?.development ?? [],
     developmentRemaining: state.developmentDeck.length,
-    playableDevelopment:
-      state.pausedAt === null &&
-      !state.developmentPlayed &&
-      active === selfId &&
-      ['roll', 'build'].includes(state.phase)
-        ? (player?.development ?? [])
-            .filter(c => c.kind !== 'victory-point' && c.boughtTurn < state.turn)
-            .map(c => c.id)
-        : [],
+    playableDevelopment: playableDevelopment(state, selfId, active),
     tradeRates: tradeRates(state, selfId),
     longestRoadId: state.longestRoadId,
     largestArmyId: state.largestArmyId,
@@ -215,6 +209,20 @@ export function getView(state: GameState, selfId: string): GameView {
 }
 
 /** Cities & Knights as one seat sees it: decks and other hands only as counts. */
+/**
+ * The cards `selfId` may play now: on their own turn, one a turn; while special building with seven
+ * or eight players, one that isn't a knight between their turns. Cards bought this turn wait.
+ */
+function playableDevelopment(state: GameState, selfId: string, active: string | null): string[] {
+  if (state.pausedAt !== null || active !== selfId) return [];
+  const special = specialCardOpen(state, selfId);
+  if (!special && (state.developmentPlayed || !['roll', 'build'].includes(state.phase))) return [];
+  const player = state.players.find(p => p.id === selfId);
+  return (player?.development ?? [])
+    .filter(c => c.kind !== 'victory-point' && c.boughtTurn < state.turn && !(special && c.kind === 'knight'))
+    .map(c => c.id);
+}
+
 function knightsView(state: GameState, selfId: string): KnightsView | null {
   if (!state.ck) return null;
   const { decks, hands, sabotage: _sabotage, bishop: _bishop, ...board } = state.ck;

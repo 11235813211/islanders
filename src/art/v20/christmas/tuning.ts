@@ -1,7 +1,10 @@
 // Every number and color of the Christmas look, in one place to tweak. Tiles are still; a tile
-// plays its motion once when it pays out on a roll. Times are in seconds; counts are per tile.
+// plays its motion for `motion.play` seconds when it pays out on a roll. Times are in seconds;
+// counts are per tile.
 
 export const CHRISTMAS = {
+  /** A paying tile's motion: how long it plays, and the period of the motions without their own entry. */
+  motion: { play: 5, sway: 0.7, hop: 0.5, bauble: 0.35 },
   /** Snowflakes: still ones on the tiles, and ones that fall on a mountain when it pays out. */
   flakes: {
     color: '#ffffff',

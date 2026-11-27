@@ -1,5 +1,6 @@
 import { Coins, Route, Sparkles, Trophy } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { isHugeGame } from '../../../shared/engine';
 import { DEVELOPMENT_TYPES, type DevelopmentType, type GameView } from '../../../shared/types';
 import { CardGroup, groupTurn, stackCards } from '../ResourceHand';
 import { KnightIcon } from './icons';
@@ -46,7 +47,10 @@ export function blockedReason(view: GameView, kind: DevelopmentType): string | n
   if (canPlayKind(view, kind)) return null;
   const cards = view.development.filter(card => card.kind === kind);
   if (view.pausedAt !== null) return 'The game is paused.';
-  if (view.activePlayerId !== view.selfId || !['roll', 'build'].includes(view.phase))
+  if (view.phase === 'special-build' && view.activePlayerId === view.selfId && isHugeGame(view.players.length)) {
+    if (kind === 'knight') return 'Knights can only be played on your turn.';
+    if (view.specialPlayed.includes(view.selfId)) return 'You already played a development card since your turn.';
+  } else if (view.activePlayerId !== view.selfId || !['roll', 'build'].includes(view.phase))
     return 'You can play this on your turn.';
   if (cards.every(card => card.boughtTurn === view.turn)) return 'You bought this card this turn. Play it next turn.';
   return 'You already played a development card this turn.';

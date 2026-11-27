@@ -14,6 +14,7 @@ export {
   MAX_PLAYERS,
   ownBoard,
   resourceCount,
+  specialCardOpen,
   specialTradeOpen,
 } from './core';
 export { barbarianAttack, knightReach, knightsRules, levelOf } from './knights';

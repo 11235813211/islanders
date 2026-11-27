@@ -1,5 +1,5 @@
 /* The Christmas look for the page around the board: snowy background, a red header hung with
-   lights, red and pine trims on panels, and holly and snow on cards. Applied by ChristmasLook.
+   lights, red and pine trims on panels, garlands on the scoreboard and hand, and holly and snow on cards. Applied by ChristmasLook.
    Colors to tweak are the variables below. */
 
 .theme-christmas {
@@ -107,40 +107,37 @@
   border-color: color-mix(in srgb, var(--xmas-pine) 35%, #ffffff);
 }
 
-/* Holly in two corners of the table's panels: the scoreboard, chat, hand, and turn line. */
-.theme-christmas .player-panel,
-.theme-christmas .chat-panel,
-.theme-christmas .table-hand,
-.theme-christmas .table-turn {
-  position: relative;
-}
-.theme-christmas .player-panel::before,
-.theme-christmas .player-panel::after,
-.theme-christmas .chat-panel::before,
-.theme-christmas .chat-panel::after,
-.theme-christmas .table-hand::before,
-.theme-christmas .table-hand::after,
-.theme-christmas .table-turn::before,
-.theme-christmas .table-turn::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  width: 32px;
-  height: 26px;
-  pointer-events: none;
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 24'%3E%3Cpath d='M15 12C10 4 4 6 2 3c2 5-1 6 1 9 3-1 5 2 12 0Z' fill='%231f7a3a'/%3E%3Cpath d='M15 12c5-8 11-6 13-9-2 5 1 6-1 9-3-1-5 2-12 0Z' fill='%23278c45'/%3E%3Cpath d='M15 12C9 5 4 7 2 3m13 9c6-7 11-5 13-9' stroke='%230f4d23' stroke-width='.8' fill='none'/%3E%3Ccircle cx='13' cy='14.5' r='2.6' fill='%23d7263d'/%3E%3Ccircle cx='17.4' cy='14' r='2.6' fill='%23d7263d'/%3E%3Ccircle cx='15.2' cy='17.6' r='2.6' fill='%23e0303f'/%3E%3Ccircle cx='12.3' cy='13.6' r='.8' fill='%23fff' opacity='.7'/%3E%3C/svg%3E")
-    center / contain no-repeat;
-}
-.theme-christmas :is(.player-panel, .chat-panel, .table-hand, .table-turn)::before {
-  top: -3px;
-  left: -4px;
-  transform: rotate(-30deg);
-}
-.theme-christmas :is(.player-panel, .chat-panel, .table-hand, .table-turn)::after {
-  bottom: -3px;
-  right: -4px;
-  transform: rotate(150deg);
+/* A garland along the top of the scoreboard and the hand, with holly at each end. The panel's
+   top padding grows by the garland's height so it never covers text or buttons (christmas-ui.spec.ts
+   checks). Other panels have no free corner, so they go without, and phones (whose hand row has a
+   fixed height) have none. */
+@media (min-width: 721px) and (min-height: 601px) {
+  .theme-christmas .player-panel,
+  .theme-christmas .table-hand {
+    position: relative;
+    --xmas-garland-room: 9px;
+    padding-top: calc(var(--xmas-garland-pad, 6px) + var(--xmas-garland-room));
+  }
+  .theme-christmas .table-hand {
+    --xmas-garland-pad: 3px;
+  }
+  .theme-christmas :is(.player-panel, .table-hand)::before {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    height: 18px;
+    pointer-events: none;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 24'%3E%3Cpath d='M15 12C10 4 4 6 2 3c2 5-1 6 1 9 3-1 5 2 12 0Z' fill='%231f7a3a'/%3E%3Cpath d='M15 12c5-8 11-6 13-9-2 5 1 6-1 9-3-1-5 2-12 0Z' fill='%23278c45'/%3E%3Cpath d='M15 12C9 5 4 7 2 3m13 9c6-7 11-5 13-9' stroke='%230f4d23' stroke-width='.8' fill='none'/%3E%3Ccircle cx='13' cy='14.5' r='2.6' fill='%23d7263d'/%3E%3Ccircle cx='17.4' cy='14' r='2.6' fill='%23d7263d'/%3E%3Ccircle cx='15.2' cy='17.6' r='2.6' fill='%23e0303f'/%3E%3Ccircle cx='12.3' cy='13.6' r='.8' fill='%23fff' opacity='.7'/%3E%3C/svg%3E")
+      left top / 22px 18px no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 24'%3E%3Cg transform='matrix(-1 0 0 1 30 0)'%3E%3Cpath d='M15 12C10 4 4 6 2 3c2 5-1 6 1 9 3-1 5 2 12 0Z' fill='%231f7a3a'/%3E%3Cpath d='M15 12c5-8 11-6 13-9-2 5 1 6-1 9-3-1-5 2-12 0Z' fill='%23278c45'/%3E%3Cpath d='M15 12C9 5 4 7 2 3m13 9c6-7 11-5 13-9' stroke='%230f4d23' stroke-width='.8' fill='none'/%3E%3Ccircle cx='13' cy='14.5' r='2.6' fill='%23d7263d'/%3E%3Ccircle cx='17.4' cy='14' r='2.6' fill='%23d7263d'/%3E%3Ccircle cx='15.2' cy='17.6' r='2.6' fill='%23e0303f'/%3E%3Ccircle cx='12.3' cy='13.6' r='.8' fill='%23fff' opacity='.7'/%3E%3C/g%3E%3C/svg%3E")
+      right top / 22px 18px no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='14' viewBox='0 0 64 14'%3E%3Cpath d='M0 3Q16 12 32 3T64 3' fill='none' stroke='%23135a32' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M0 3Q16 12 32 3T64 3' fill='none' stroke='%23278c45' stroke-width='3.4' stroke-dasharray='1.6 1.4'/%3E%3Cpath d='M0 2Q16 11 32 2T64 2' fill='none' stroke='%2366b77a' stroke-width='1' stroke-dasharray='1 3'/%3E%3Ccircle cx='14.6' cy='8.6' r='1.9' fill='%23d7263d'/%3E%3Ccircle cx='17.6' cy='8.2' r='1.9' fill='%23e0303f'/%3E%3Ccircle cx='46.6' cy='8.6' r='1.9' fill='%23ffd23f'/%3E%3Ccircle cx='49.6' cy='8.2' r='1.9' fill='%23d7263d'/%3E%3C/svg%3E")
+      0 4px / 64px 14px repeat-x;
+  }
 }
 
 /* The logo: deep pine green with a thin lighter-green edge, and the tree (ChristmasTree.tsx). */

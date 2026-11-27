@@ -130,3 +130,46 @@ export async function startGame(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start game', exact: true }).click();
   await page.getByRole('region', { name: 'Choose the board' }).getByRole('button', { name: 'Play' }).click();
 }
+
+/**
+ * Fails when a decoration drawn as a ::before or ::after box (Christmas holly and garlands) covers
+ * any text or control on the page. Rotation is ignored, so the box checked is the unrotated one.
+ */
+export async function expectDecorClear(page: Page, selectors: string): Promise<void> {
+  const problems = await page.evaluate(selectors => {
+    const hit = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+    const decor: { name: string; box: DOMRect }[] = [];
+    for (const el of document.querySelectorAll<HTMLElement>(selectors)) {
+      const host = el.getBoundingClientRect();
+      for (const pseudo of ['::before', '::after']) {
+        const s = getComputedStyle(el, pseudo);
+        if (s.content === 'none' || s.display === 'none' || s.position !== 'absolute') continue;
+        const left = host.left + el.clientLeft + parseFloat(s.left);
+        const top = host.top + el.clientTop + parseFloat(s.top);
+        const box = new DOMRect(left, top, parseFloat(s.width), parseFloat(s.height));
+        if (box.width && box.height) decor.push({ name: `${el.className.split(' ')[0]}${pseudo}`, box });
+      }
+    }
+    const found: string[] = [];
+    const controls = document.querySelectorAll('button, input, select, textarea, a, [role="button"]');
+    for (const el of controls) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || getComputedStyle(el).visibility === 'hidden') continue;
+      for (const d of decor)
+        if (hit(d.box, r))
+          found.push(`${d.name} covers ${el.tagName.toLowerCase()} "${(el.textContent ?? '').trim().slice(0, 20)}"`);
+    }
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const r of range.getClientRects())
+        for (const d of decor)
+          if (hit(d.box, r)) found.push(`${d.name} covers text "${node.textContent.trim().slice(0, 20)}"`);
+    }
+    return [...new Set(found)];
+  }, selectors);
+  expect(problems).toEqual([]);
+}

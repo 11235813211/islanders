@@ -100,6 +100,67 @@ describe('special build with seven or eight', () => {
     expect(g.specialTraded).toEqual([]);
   });
 
+  it('allows one development card (not a knight) between your turns while special building', () => {
+    let g = eightAtBuild();
+    g.players[3]!.development.push(
+      { id: 'k', kind: 'knight', boughtTurn: 0 },
+      { id: 'm', kind: 'monopoly', boughtTurn: 0 },
+      { id: 'y', kind: 'year-of-plenty', boughtTurn: 0 },
+    );
+    grant(g, 'p5', { ore: 2 });
+    g = specialBuildAfter(g, ['p3']);
+    expect(getView(g, 'p3').playableDevelopment.sort()).toEqual(['m', 'y']);
+    expect(() => act(g, 'p3', { type: 'play-knight', cardId: 'k' })).toThrow(/your turn/);
+    g = act(g, 'p3', { type: 'play-monopoly', cardId: 'm', resource: 'ore' });
+    expect(g.players[3]!.resources.ore).toBe(2);
+    expect(g.phase).toBe('special-build');
+    expect(getView(g, 'p3').playableDevelopment).toEqual([]);
+    const plenty = { ...emptyBag(), wheat: 2 };
+    expect(() => act(g, 'p3', { type: 'play-plenty', cardId: 'y', resources: plenty })).toThrow(/already played/);
+    g = act(g, 'p3', { type: 'end-turn' });
+    // p1's turn: p3 special builds again, still without a card to play.
+    g.phase = 'build';
+    expect(g.developmentPlayed).toBe(false);
+    g = specialBuildAfter(g, ['p3']);
+    expect(() => act(g, 'p3', { type: 'play-plenty', cardId: 'y', resources: plenty })).toThrow(/already played/);
+    // p3's own turn gives it back, and their own turn's card is still theirs to play.
+    g = act(g, 'p3', { type: 'end-turn' });
+    g.phase = 'build';
+    g = act(g, 'p2', { type: 'end-turn' });
+    expect(getActivePlayerId(g)).toBe('p3');
+    expect(g.specialPlayed).toEqual([]);
+    g.phase = 'build';
+    g = act(g, 'p3', { type: 'play-plenty', cardId: 'y', resources: plenty });
+    expect(g.players[3]!.resources.wheat).toBe(2);
+  });
+
+  it('Road Building while special building places the roads, then goes back to the special build', () => {
+    let g = eightAtBuild();
+    g.players[3]!.development.push({ id: 'r', kind: 'road-building', boughtTurn: 0 });
+    g = specialBuildAfter(g, ['p3']);
+    g = act(g, 'p3', { type: 'play-road-building', cardId: 'r' });
+    expect(g.phase).toBe('free-roads');
+    expect(getActivePlayerId(g)).toBe('p3');
+    for (let i = 0; i < 2; i++) {
+      const edgeId = getView(g, 'p3').legal.roads[0]!;
+      g = act(g, 'p3', { type: 'build-road', edgeId });
+    }
+    expect(g.phase).toBe('special-build');
+    expect(getActivePlayerId(g)).toBe('p3');
+    expect(g.players[3]!.resources).toEqual(eightAtBuild().players[3]!.resources);
+  });
+
+  it('six players may not play development cards while special building', () => {
+    let g = settled(6);
+    g.phase = 'build';
+    g.turnIndex = 0;
+    g.players[2]!.development.push({ id: 'm', kind: 'monopoly', boughtTurn: 0 });
+    grant(g, 'p2', { wood: 4 });
+    g = specialBuildAfter(g, ['p2']);
+    expect(getView(g, 'p2').playableDevelopment).toEqual([]);
+    expect(() => act(g, 'p2', { type: 'play-monopoly', cardId: 'm', resource: 'ore' })).toThrow();
+  });
+
   it('six players still may not trade while special building', () => {
     const g = settled(6);
     g.phase = 'build';
@@ -110,11 +171,14 @@ describe('special build with seven or eight', () => {
     expect(() => act(next, 'p2', { type: 'trade', give: 'wood', receive: 'ore' })).toThrow(/No trading/);
   });
 
-  it('old rooms load with no special-build trades used', () => {
+  it('old rooms load with no special-build trades or cards used', () => {
     const g = settled(3) as Partial<GameState>;
     delete g.specialTraded;
+    delete g.specialPlayed;
     g.schemaVersion = 33;
-    expect(normalizeGame(g as GameState).specialTraded).toEqual([]);
+    const loaded = normalizeGame(g as GameState);
+    expect(loaded.specialTraded).toEqual([]);
+    expect(loaded.specialPlayed).toEqual([]);
   });
 
   it('eight bots finish a game on the huge island', () => {

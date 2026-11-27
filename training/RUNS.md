@@ -10,6 +10,11 @@ _Nothing running._
 
 ## Finished
 
+### Check after making counter-offers rarer
+
+- **Why:** Advanced countered about 1.3 times per round in all-bot games, which crowds the table. Counters now need 0.4 more gain than a plain trade, only one counter goes to each offer, and a bot waits three rounds before countering anyone again (`bots/advanced/trade.ts`). Confirm Advanced still beats Intermediate.
+- **Result (2026-11-26, `eval --games 2000`, a few minutes):** Advanced won **58.9% ±1.1%** against a fair 29.7% (×1.98), no unfinished games, 735 ms per game. Not weaker than before (57.0%). Counters in the six-game check of `tests/advanced-bot.test.ts` fell from 1.28 to 0.23 per round (six games; the test keeps three: 1.25 to 0.20).
+
 ### Check after replacing finished charts with megacities
 
 - **Why:** Cartographers swapped the finished-chart point for megacities, and every bot level got a simple megacity move (build one when legal, chart toward one beside its city); confirm Advanced still beats Intermediate.

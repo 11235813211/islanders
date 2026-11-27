@@ -1,6 +1,6 @@
 // Snowflakes, wind, and lights for the Christmas tiles. Tiles are still; when one pays out on a
-// roll it plays its motion once (inside a `.xmas-active` group: see WinterTile and
-// christmas.css). Each element's timing comes from a fixed pseudo-random spread, so every tile
+// roll it plays its motion for CHRISTMAS.motion.play seconds (inside a `.xmas-active` group: see
+// WinterTile and christmas.css). Each element's timing comes from a fixed pseudo-random spread, so every tile
 // looks the same on every screen. Reduced motion skips the motion.
 import type { CSSProperties } from 'react';
 import { CHRISTMAS } from './tuning';
@@ -13,6 +13,17 @@ export function spread(i: number, salt: number): number {
 const between = ([lo, hi]: readonly [number, number], t: number) => lo + (hi - lo) * t;
 const seconds = (values: Record<string, number>) =>
   Object.fromEntries(Object.entries(values).map(([k, v]) => [`--${k}`, `${v}s`])) as CSSProperties;
+
+/**
+ * Timing for one moving element: its period and delay, and how many times to repeat so it plays
+ * for about CHRISTMAS.motion.play seconds. An `alternate` motion repeats an even number of times,
+ * so it ends where it began.
+ */
+export function playFor(name: string, period: number, delay = 0, alternate = false): CSSProperties {
+  const fit = Math.max(0, CHRISTMAS.motion.play - delay) / period;
+  const runs = alternate ? 2 * Math.max(1, Math.round(fit / 2)) : Math.max(1, Math.round(fit));
+  return { ...seconds({ [name]: period, delay }), '--runs': runs } as CSSProperties;
+}
 
 /** A six-armed snowflake with little branches and a glint, `size` across, centered at the origin. */
 export function Snowflake({ size, rotate = 0 }: { size: number; rotate?: number }) {
@@ -60,14 +71,14 @@ export function StillFlakes({ count, seed }: { count: number; seed: number }) {
   );
 }
 
-/** Snowflakes that fall through the tile once, when it pays out. */
+/** Snowflakes that keep falling through the tile while it pays out. */
 export function FallingFlakes({ seed }: { seed: number }) {
   const { fall, falling, size, drift } = CHRISTMAS.flakes;
   return (
     <g className="xmas-snow" aria-hidden="true">
       {Array.from({ length: falling }, (_, i) => {
         const style = {
-          ...seconds({ fall: fall * (0.8 + 0.4 * spread(i, seed + 2)), delay: 0.9 * spread(i, seed + 3) }),
+          ...playFor('fall', fall * (0.8 + 0.4 * spread(i, seed + 2)), 0.9 * spread(i, seed + 3)),
           '--drift': `${(spread(i, seed + 4) - 0.5) * 2 * drift}px`,
         } as CSSProperties;
         return (
@@ -82,7 +93,7 @@ export function FallingFlakes({ seed }: { seed: number }) {
   );
 }
 
-/** White streaks of wind across a field; they sweep across once when the field pays out. */
+/** White streaks of wind across a field; they sweep across while the field pays out. */
 export function Wind({ seed = 0 }: { seed?: number }) {
   const wind = CHRISTMAS.fieldWind;
   return (
@@ -95,7 +106,7 @@ export function Wind({ seed = 0 }: { seed?: number }) {
             className="xmas-gust"
             d={`M-80 ${y}q20 -7 40 0t40 0 40 0q10 -4 16 -12`}
             style={{
-              ...seconds({ gust: wind.gust * (0.85 + 0.3 * spread(i, seed + 7)), delay: 0.35 * i }),
+              ...playFor('gust', wind.gust * (0.85 + 0.3 * spread(i, seed + 7)), 0.35 * i),
               strokeDashoffset: -40 - 60 * spread(i, seed + 8),
             }}
           />
@@ -107,7 +118,7 @@ export function Wind({ seed = 0 }: { seed?: number }) {
 
 /**
  * A string of lights tied to `posts`: the wire dips a little (`sag`) between them, and a bulb hangs
- * at each post, the high point of each dip. They twinkle a few times when the hill pays out.
+ * at each post, the high point of each dip. They twinkle while the hill pays out.
  */
 export function LightString({ posts, sag, seed = 0 }: { posts: [number, number][]; sag: number; seed?: number }) {
   const lights = CHRISTMAS.hillLights;
@@ -130,7 +141,7 @@ export function LightString({ posts, sag, seed = 0 }: { posts: [number, number][
               className="xmas-bulb"
               style={
                 {
-                  ...seconds({ twinkle: lights.twinkle, delay: 0.25 * spread(i, seed + 14) }),
+                  ...playFor('twinkle', lights.twinkle, 0.25 * spread(i, seed + 14), true),
                   '--dim': lights.dimmest,
                 } as CSSProperties
               }

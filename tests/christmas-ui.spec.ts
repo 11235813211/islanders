@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { applyAction } from '../shared/engine';
 import type { GameState } from '../shared/types';
 import { grant, makeLobby, sequence, settled, TEST_NOW } from './fixtures';
-import { expectNoSpill, mountGame } from './ui-harness';
+import { expectDecorClear, expectNoSpill, mountGame } from './ui-harness';
+
+const DECORATED = '.player-panel, .table-hand';
 
 /** A Christmas game with the North Pole, p0 having just rolled its number. */
 function santaTurn(): GameState {
@@ -28,6 +30,13 @@ test('Christmas: winter board, the North Pole, and sending Santa to a building',
   await expect(page.locator('html')).toHaveClass(/theme-christmas/);
   await expect(page.getByText('Pick a building for Santa')).toBeVisible();
   await page.screenshot({ path: 'test-results/christmas-table.png' });
+  await expectDecorClear(page, DECORATED);
+  const size = page.viewportSize()!;
+  for (const width of [1600, 1280, 1024, 820]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectDecorClear(page, DECORATED);
+  }
+  await page.setViewportSize(size);
   await page.getByRole('button', { name: 'dice', exact: true }).click();
   await page.locator('.chat-panel').screenshot({ path: 'test-results/christmas-dice.png' });
   await page.locator('.site-header').screenshot({ path: 'test-results/christmas-header.png' });
@@ -47,5 +56,6 @@ test('Christmas fits a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 664 });
   await mountGame(page, santaTurn());
   await expectNoSpill(page.locator('.table-turn'));
+  await expectDecorClear(page, DECORATED);
   await page.screenshot({ path: 'test-results/christmas-phone.png' });
 });

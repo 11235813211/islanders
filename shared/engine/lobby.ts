@@ -206,6 +206,7 @@ export function createGame(
     specialQueue: [],
     specialAsked: [],
     specialTraded: [],
+    specialPlayed: [],
     northPole: null,
     resumePhase: null,
     longestRoadId: null,

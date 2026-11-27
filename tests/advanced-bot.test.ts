@@ -3,7 +3,11 @@ import { chooseBotAction } from '../shared/bots';
 import { advanceTime, applyAction, botDueAt, getActivePlayerId, getView } from '../shared/engine';
 import { pendingBotActor } from '../shared/engine/time';
 import type { GameState, Terrain } from '../shared/types';
+import { playBotGame } from './bot-harness';
 import { grant, inSeatOrder, makeLobby, seaLobby, seeded, TEST_NOW, testDesign } from './fixtures';
+
+/** Measured on these games: 1.25 counters per round before counters got rarer (2026-11-26), 0.20 after. */
+const COUNTERS_PER_ROUND = 0.4;
 
 /**
  * Targeted checks of the Advanced bot's choices, on a small sea map: home island on the left,
@@ -82,7 +86,20 @@ describe('advanced robber and pirate', () => {
 });
 
 describe('advanced trading with people at the table', () => {
-  it('does not counter the same person again within two rounds', () => {
+  it('counters rarely: at most one counter every few rounds in an all-bot game', () => {
+    // The log keeps only its last entries, so collect counters as the game goes.
+    const counters = new Set<string>();
+    let rounds = 0;
+    for (let seed = 1; seed <= 3; seed++) {
+      const g = playBotGame(['advanced', 'advanced', 'advanced', 'advanced'], seed, 6000, undefined, s => {
+        for (const e of s.log) if (e.event?.kind === 'counter') counters.add(`${seed}-${e.id}`);
+      });
+      rounds += g.turn / 4;
+    }
+    expect(counters.size / rounds).toBeLessThan(COUNTERS_PER_ROUND);
+  });
+
+  it('does not counter the same person again within three rounds', () => {
     const random = seeded(5);
     let g = makeLobby(4);
     for (const p of g.players.slice(1)) p.bot = 'advanced';
@@ -121,7 +138,7 @@ describe('advanced trading with people at the table', () => {
     for (const e of toPerson.sort((a, b) => a.id - b.id)) {
       const from = (e.event as { playerId: string }).playerId;
       const before = last.get(from);
-      if (before !== undefined) expect(e.turn! - before).toBeGreaterThanOrEqual(2 * 4);
+      if (before !== undefined) expect(e.turn! - before).toBeGreaterThanOrEqual(3 * 4);
       last.set(from, e.turn!);
     }
   });

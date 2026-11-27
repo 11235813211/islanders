@@ -523,9 +523,12 @@ export interface GameState {
   specialAsked: string[];
   /** Seven or eight players: who made their one special-build bank trade since their own last turn. */
   specialTraded: string[];
+  /** Seven or eight players: who played their one special-build development card since their own last turn. */
+  specialPlayed: string[];
   /** Christmas: Santa's tile and its number, or null without the North Pole. */
   northPole: NorthPole | null;
-  resumePhase: 'roll' | 'build' | null;
+  /** Where a knight, Road Building, or a 7 returns to when it is done. */
+  resumePhase: 'roll' | 'build' | 'special-build' | null;
   longestRoadId: string | null;
   largestArmyId: string | null;
   turnDeadline: number | null;
@@ -665,6 +668,7 @@ export interface GameView {
   specialQueue: string[];
   specialAsked: string[];
   specialTraded: string[];
+  specialPlayed: string[];
   northPole: NorthPole | null;
   /** What the map has or may draw: sea (it needs Seafarers) and volcanoes. */
   features: { sea: boolean; volcano: boolean; fogLand: number };
