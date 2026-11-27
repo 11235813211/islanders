@@ -28,7 +28,7 @@ const OPTIONS: [string, Draft][] = [
   ['C: Green cloak and hat', GrinchCloak],
   ['D: Robber cloak as a Santa suit', GrinchSantaCloak],
   ['E: Skinny Santa suit', GrinchSantaSlim],
-  ['F: Santa coat to the waist, robber base below', GrinchSantaCoat],
+  ['F: Santa coat to the waist, green below', GrinchSantaCoat],
 ];
 const TERRAINS: BaseTerrain[] = ['wood', 'ore', 'sheep', 'desert'];
 
