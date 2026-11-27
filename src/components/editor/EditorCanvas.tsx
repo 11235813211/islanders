@@ -2,10 +2,13 @@ import { Maximize, Minus, Plus } from 'lucide-react';
 import { type PointerEvent as ReactPointerEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { HEX_RADIUS, hexCenter } from '../../../shared/board';
 import { type BoardDesign, type DesignKind, tileKey } from '../../../shared/maps';
+import { candyCornerAt, extendCandyRoute } from '../../../shared/maps/candy-train';
 import { cellAt, paint, sideAt, stepNumber, toggleHarbor, toggleNoStart, updateTile } from '../../../shared/maps/edit';
 import { inRouteZone, paintRoute, type RouteTarget } from '../../../shared/maps/special-edit';
 import { ArtDefs, SEA } from '../../art';
 import { hexPoints } from '../../lib/geometry';
+import CandyTrainTargets from './CandyTrainTargets';
+import type { CandyTrainControls } from './CandyTrainTools';
 import EditorLayer from './EditorLayer';
 import IslandLeanings from './IslandLeanings';
 import { applyLink, linkChoice } from './LinkPicker';
@@ -16,6 +19,7 @@ export type Tool =
   | 'link'
   | 'nostart'
   | 'route'
+  | 'train'
   | 'sea'
   | 'land'
   | 'brush'
@@ -83,6 +87,7 @@ export default function EditorCanvas({
   routeTarget,
   edit,
   fitKey,
+  train,
 }: {
   design: BoardDesign;
   selection: EditorSelection;
@@ -96,6 +101,7 @@ export default function EditorCanvas({
   edit: Edit;
   /** Refit the view when this changes (a different board was opened). */
   fitKey: string;
+  train: CandyTrainControls;
 }) {
   const uid = useId().replace(/:/g, '');
   const root = useRef<HTMLDivElement>(null);
@@ -202,6 +208,10 @@ export default function EditorCanvas({
   function click(point: { x: number; y: number }, active: Tool) {
     const { q, r } = cellAt(point.x, point.y);
     const tile = design.tiles.find(t => t.q === q && t.r === r);
+    if (active === 'train') {
+      const key = candyCornerAt(design, point);
+      if (key) edit(d => extendCandyRoute(d, train.route, key));
+    }
     if (active === 'select') select(tile ? { kind: 'tile', q, r } : null);
     // Clicking a tile that already has this link takes it off again.
     if (active === 'link' && tile)
@@ -219,7 +229,7 @@ export default function EditorCanvas({
   }
 
   function down(event: ReactPointerEvent) {
-    if ((event.target as Element).closest('button, .editor-token, .editor-harbor')) return;
+    if ((event.target as Element).closest('button, .editor-token, .editor-harbor, .candy-corner')) return;
     if (event.pointerType === 'touch') {
       touches.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (touches.current.size > 1) {
@@ -314,6 +324,7 @@ export default function EditorCanvas({
         </defs>
         <EditorLayer
           uid={uid}
+          trainPaused={train.paused}
           design={design}
           routeFocus={tool === 'route' ? routeTarget.route : undefined}
           selection={selection}
@@ -329,7 +340,14 @@ export default function EditorCanvas({
             )
           }
         />
-        {hover && (
+        {tool === 'train' && (
+          <CandyTrainTargets
+            design={design}
+            route={train.route}
+            choose={key => edit(d => extendCandyRoute(d, train.route, key))}
+          />
+        )}
+        {hover && tool !== 'train' && (
           <polygon
             className={`editor-hover hover-${hover.tool}${hoverOpen ? ' open' : ''}`}
             points={hexPoints(57)}

@@ -2,6 +2,7 @@
 import type { ReactElement } from 'react';
 import { createContext, createElement, useContext } from 'react';
 import { type BaseTerrain, COMMODITIES, type Commodity, type Resource, type Terrain } from '../../shared/types';
+import { CandyTheme } from './candy-options';
 import type { CardColors, CartographersArt, ChristmasArt, KnightsArt, SeaArt, SeaTileKind } from './types';
 import { sea as fallbackSea } from './v7/sea';
 import { FogTile as FallbackFogTile } from './v12/sea/fog';
@@ -9,10 +10,13 @@ import { cartographers as fallbackCartographers } from './v14/cartographers';
 import { cartographers as splitCartographers } from './v16/cartographers';
 import { knights as fallbackKnights } from './v18/knights';
 import { MegacityPiece as fallbackMegacity } from './v19/pieces';
-import { art } from './v20';
-import { christmas as fallbackChristmas } from './v20/christmas';
+import { art as christmasPack } from './v20';
+import { art } from './v22';
+import { CandyTile } from './v22/christmas/candy-tiles';
 
 export type { Frame, SeaTileKind } from './types';
+export { CandyTile } from './v22/christmas/candy-tiles';
+export { CandyRailways } from './v22/christmas/train';
 export const ART_VERSION = art.version;
 export const ROAD_INSET = art.roadInset ?? 0.19;
 export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, BuildingPiece, SeaDecorations } = art;
@@ -25,7 +29,7 @@ export const PeekVeil = CARTOGRAPHERS.PeekVeil ?? splitCartographers.PeekVeil!;
 /** Megacities: the active version's, or v19's for versions made before them. */
 export const MegacityPiece = (art as { MegacityPiece?: typeof fallbackMegacity }).MegacityPiece ?? fallbackMegacity;
 /** The Christmas look: the active version's, or v20's for versions made before it. */
-export const CHRISTMAS: ChristmasArt = (art as { christmas?: ChristmasArt }).christmas ?? fallbackChristmas;
+export const CHRISTMAS: ChristmasArt = (art as { christmas?: ChristmasArt }).christmas ?? christmasPack.christmas;
 /** True inside a room with the Christmas look: tiles and cards draw their winter versions. */
 export const ChristmasTheme = createContext(false);
 /** The robber: the Grinch in a room with the Christmas look, else the active version's. */
@@ -91,7 +95,10 @@ export function Tile({
   paid?: number;
 }): ReactElement {
   const winter = useContext(ChristmasTheme);
+  const candy = useContext(CandyTheme);
   if (terrain === 'fog') return createElement(FogTile, { uid });
+  if (candy && BASE_TERRAINS.has(terrain))
+    return createElement(CandyTile, { uid, terrain: terrain as BaseTerrain, seed: variant ?? 0, paid });
   if (winter && BASE_TERRAINS.has(terrain))
     return createElement(CHRISTMAS.WinterTile, {
       uid,

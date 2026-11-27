@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const artDir = join(import.meta.dirname, '..', 'src', 'art');
 const indexPath = join(artDir, 'index.ts');
 const index = readFileSync(indexPath, 'utf8');
-const active = /from '\.\/(v\d+)'/.exec(index)?.[1];
+const active = /import \{ art \} from '\.\/(v\d+)'/.exec(index)?.[1];
 if (!active) throw new Error('Could not find the active version import in src/art/index.ts.');
 
 const latest = Math.max(

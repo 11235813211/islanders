@@ -272,6 +272,10 @@ const MIGRATIONS: Migration[] = [
   s => {
     s.specialPlayed ??= [];
   },
+  // 36 → 37: Christmas Candy is a separate look; older Christmas rooms keep their art.
+  next => {
+    next.settings.christmasCandy ??= false;
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

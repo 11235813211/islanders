@@ -2,6 +2,7 @@ import { HEX_RADIUS, hexCenter, hexCorner, ISLAND_ROWS, type IslandSize, islandC
 import { takesToken } from '../seafaring';
 import type { Terrain } from '../types';
 import { neighborKeys } from './balance';
+import { tidyCandyRoutes } from './candy-train';
 import { fogMayBeSea, fogWarnings } from './fog';
 import { autoHarbors } from './harbors';
 import { keptSplit } from './split';
@@ -176,6 +177,7 @@ export function tidy(design: BoardDesign): BoardDesign {
       return next;
     }),
     ...noStartOn(design, byKey),
+    ...tidyCandyRoutes(design),
     robber: robber ? design.robber : null,
     pirate: pirate ? design.pirate : null,
   };

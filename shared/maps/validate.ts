@@ -8,6 +8,7 @@ import {
   type TileResource,
 } from '../types';
 import { NUMBER_LEVELS } from './balance';
+import { parseCandyRoutes } from './candy-train';
 import { DEFAULT_SETUP, PIECE_LIMITS, SPECIAL_LIMITS, SUPPLY_LIMITS, type SupplyKind } from './special';
 import { keptSplit } from './split';
 import {
@@ -258,10 +259,20 @@ function parseLayout(value: Record<string, unknown>): BoardVersion {
   const noStart = value.noStart ?? [];
   if (!Array.isArray(noStart) || noStart.length > 200 || !noStart.every(k => typeof k === 'string' && CORNER.test(k)))
     fail('Invalid no-start corners.');
+  const tiles = (value.tiles as unknown[]).map(parseTile);
+  let candyRoutes: BoardDesign['candyRoutes'];
+  if (value.candyRoutes !== undefined) {
+    try {
+      candyRoutes = parseCandyRoutes(value.candyRoutes, tiles);
+    } catch (error) {
+      fail((error as Error).message);
+    }
+  }
   return {
+    ...(candyRoutes ? { candyRoutes } : {}),
     players: { min: players.min as number, max: players.max as number },
     victoryPoints: value.victoryPoints as number,
-    tiles: (value.tiles as unknown[]).map(parseTile),
+    tiles,
     harbors: (value.harbors as unknown[]).map(parseHarbor),
     robber: cell(value.robber, 'Robber start'),
     pirate: cell(value.pirate, 'Pirate start'),

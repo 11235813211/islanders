@@ -112,6 +112,20 @@ Not a published expansion here: our own, built like the 5–6 player rules.
 | Seat colors                                                                                                                                                                                                                                          | Pink and teal added; ten colors to choose from                                                                                                               | `colors.ts`                                                                                                    |
 | Designed maps                                                                                                                                                                                                                                        | No built-in map has a 7–8 player layout yet; the base game does                                                                                              | `mapInfo.ts` BASE_GAME                                                                                         |
 
+## Christmas Candy (appearance and editor preview)
+
+Christmas Candy is a separate room look (`christmasCandy`), sharing the Christmas background,
+decorations, and gingerbread pieces. Turning it on enables Christmas and uses its existing defaults
+for pieces and the North Pole; turning Candy off returns to plain Christmas. Resources, costs,
+and production stay the same. Tested in `santa.test.ts` and the Christmas Candy phone tests.
+
+The board editor can save up to four candy train routes per layout. Routes follow adjacent land
+corners with rails offset from the road edges; the first and last corners are stations. The preview
+shuttles candy cars between those stations, with pause and reduced-motion support. Trains do not
+enter game state or grant resource choices yet. Validation, layout isolation, and tile-erasure
+cleanup: `candy-train.test.ts`; authoring, saving, animation and phone controls:
+`candy-editor.spec.ts`, `phone.spec.ts`.
+
 ## The North Pole (room setting, any look)
 
 Our own rule. Advanced setting "North Pole" (default off), with or without the Christmas look.

@@ -222,6 +222,13 @@ export const CATEGORIES: Category[] = [
         control: { kind: 'toggle' },
       },
       {
+        key: 'christmasCandy',
+        label: 'Christmas Candy',
+        hint: 'Candy resource tiles with the Christmas scenery and gingerbread pieces.',
+        icon: <Gift size={20} />,
+        control: { kind: 'toggle' },
+      },
+      {
         key: 'pieceStyle',
         label: 'Art style',
         hint: 'How the pieces look. The rules are the same.',

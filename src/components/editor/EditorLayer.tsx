@@ -3,7 +3,7 @@ import { hexCenter, hexCorner } from '../../../shared/board';
 import { type BoardDesign, type DesignHarbor, type DesignTile, SIDE_DIRECTIONS, tileKey } from '../../../shared/maps';
 import { neighborKeys } from '../../../shared/maps/balance';
 import { closedTiles, isLand, noStartPoints, takesNumber } from '../../../shared/maps/edit';
-import { Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
+import { CandyRailways, Harbor, NumberToken, Robber, SEA, Tile } from '../../art';
 import { hexPoints } from '../../lib/geometry';
 import { HalfClips, SplitTile, tileVariant } from '../BoardScene';
 import IslandRims from '../IslandRims';
@@ -174,6 +174,7 @@ export default function EditorLayer({
   stepNumber = () => {},
   readOnly = false,
   routeFocus,
+  trainPaused = false,
 }: {
   uid: string;
   design: BoardDesign;
@@ -185,6 +186,7 @@ export default function EditorLayer({
   readOnly?: boolean;
   /** Show only this route's areas (the Route tool's route); undefined shows every route. */
   routeFocus?: number;
+  trainPaused?: boolean;
 }) {
   const occupied = new Set(design.tiles.map(t => tileKey(t.q, t.r)));
   const ghosts = new Map<string, { q: number; r: number }>();
@@ -305,6 +307,7 @@ export default function EditorLayer({
       })}
       <RouteZones zones={routeZonesOf(design, routeFocus)} />
       <NoStartMarks design={design} />
+      <CandyRailways design={design} paused={readOnly || trainPaused} />
       {selectedTile && <polygon className="editor-selected" points={hexPoints(55)} transform={place(selectedTile)} />}
     </>
   );

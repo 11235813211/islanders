@@ -1,4 +1,4 @@
-import { Anchor, Ban, Flag, Hand, Link2, Sailboat, UserRound } from 'lucide-react';
+import { Anchor, Ban, Flag, Hand, Link2, Sailboat, TrainFront, UserRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { BoardLibrary, DesignKind } from '../../../shared/maps';
 import type { Tool } from './EditorCanvas';
@@ -32,6 +32,13 @@ export const TOOLS: { tool: Tool; key: string; label: string; icon: ReactNode; h
     label: 'Route',
     icon: <Flag size={17} />,
     hint: 'Click or drag land to add it to the chosen route area (click again to remove)',
+  },
+  {
+    tool: 'train',
+    key: 't',
+    label: 'Train',
+    icon: <TrainFront size={17} />,
+    hint: 'Add a train route, then tap neighboring corners in order',
   },
   {
     tool: 'harbor',

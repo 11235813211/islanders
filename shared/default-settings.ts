@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // The Christmas look (winter tiles, festive cards and colors): true or false.
   // Turning it on in the lobby also picks Christmas pieces and the North Pole (see linkChristmas).
   christmas: false,
+  christmasCandy: false,
   // Santa's North Pole on a desert, with its own number (with or without the Christmas look): true or false.
   northPole: false,
   // Seafarers rules (ships, pirate): true or false.

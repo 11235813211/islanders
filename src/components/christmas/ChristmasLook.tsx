@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect } from 'react';
 import { ChristmasTheme } from '../../art';
+import { CandyTheme } from '../../art/candy-options';
 import './christmas-theme.css';
 
 /**
@@ -7,7 +8,15 @@ import './christmas-theme.css';
  * ChristmasTheme), the page's colors (the `theme-christmas` class on the document), and snow falling
  * behind the page.
  */
-export default function ChristmasLook({ on, children }: { on: boolean; children: ReactNode }) {
+export default function ChristmasLook({
+  on,
+  candy = false,
+  children,
+}: {
+  on: boolean;
+  candy?: boolean;
+  children: ReactNode;
+}) {
   useEffect(() => {
     document.documentElement.classList.toggle('theme-christmas', on);
     return () => document.documentElement.classList.remove('theme-christmas');
@@ -21,7 +30,7 @@ export default function ChristmasLook({ on, children }: { on: boolean; children:
           <i />
         </div>
       )}
-      {children}
+      <CandyTheme.Provider value={on && candy}>{children}</CandyTheme.Provider>
     </ChristmasTheme.Provider>
   );
 }

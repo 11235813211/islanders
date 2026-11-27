@@ -1,7 +1,7 @@
 import { CloudFog, Shuffle } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { type BoardDesign, buildBoard } from '../../../shared/maps';
-import { ArtDefs, SEA } from '../../art';
+import { ArtDefs, CandyRailways, SEA } from '../../art';
 import { boardFrame } from '../../lib/boardCamera';
 import BoardScene from '../BoardScene';
 import PanZoomSvg from './PanZoomSvg';
@@ -39,6 +39,7 @@ export default function MapPreview({ design }: { design: BoardDesign }) {
           showClosed
           peeks={showFog ? built.fog : {}}
         />
+        <CandyRailways design={design} />
       </PanZoomSvg>
       <div className="map-preview-actions">
         <button type="button" className="button secondary" onClick={() => setDraw(n => n + 1)}>

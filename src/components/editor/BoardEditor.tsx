@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Eye, FlaskConical, LayoutGrid, Lock, Redo2, Save, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardDesign, BoardLibrary, DesignKind } from '../../../shared/maps';
-import { BASE_BOARD_ID, baseGameDesign, newDesign, stepNumber, updateTile } from '../../../shared/maps/edit';
+import { BASE_BOARD_ID, baseGameDesign, newDesign, paint, stepNumber, updateTile } from '../../../shared/maps/edit';
 import type { RouteTarget } from '../../../shared/maps/special-edit';
 import type { AccountSession } from '../../../shared/types';
 import { publishLibrary, useBoardLibrary } from '../../hooks/useBoardLibrary';
@@ -13,6 +13,7 @@ import MapPreview from '../maps/MapPreview';
 import { baseCategoryId } from '../maps/mapInfo';
 import BoardFields, { BoardName } from './BoardFields';
 import BoardSettings from './BoardSettings';
+import type { CandyTrainControls } from './CandyTrainTools';
 import EditorCanvas, { type EditorSelection, type Tool } from './EditorCanvas';
 import EditorHelp from './EditorHelp';
 import EditorToolbar from './EditorToolbar';
@@ -56,6 +57,14 @@ export default function BoardEditor({
   const [stored, setStored] = useState(true);
   const [selection, select] = useState<EditorSelection>(null);
   const [tool, setTool] = useState<Tool>('select');
+  const [trainRoute, setTrainRoute] = useState(0);
+  const [trainPaused, setTrainPaused] = useState(false);
+  const train: CandyTrainControls = {
+    route: trainRoute,
+    select: setTrainRoute,
+    paused: trainPaused,
+    pause: () => setTrainPaused(p => !p),
+  };
   const [brush, setBrush] = useState<DesignKind>('gold');
   const [linkLetter, setLinkLetter] = useState<string | null>('A');
   const [routeTarget, setRouteTarget] = useState<RouteTarget>({ route: 0, zone: 'start' });
@@ -90,6 +99,7 @@ export default function BoardEditor({
     setStored(true);
     lastFill.current = null;
     setVersionState(null);
+    setTrainRoute(0);
     select(null);
     setPanel(null);
     setBrowsing(false);
@@ -105,6 +115,7 @@ export default function BoardEditor({
   };
   const setVersion = (next: number | null) => {
     setVersionState(next);
+    setTrainRoute(0);
     lastFill.current = null;
     select(null);
   };
@@ -251,8 +262,7 @@ export default function BoardEditor({
       }
       if (selection && (event.key === 'Delete' || event.key === 'Backspace')) {
         event.preventDefault();
-        if (selection.kind === 'tile')
-          edit(d => ({ ...d, tiles: d.tiles.filter(t => t.q !== selection.q || t.r !== selection.r) }));
+        if (selection.kind === 'tile') edit(d => paint(d, [selection], 'erase'));
         else
           edit(d => ({
             ...d,
@@ -294,7 +304,9 @@ export default function BoardEditor({
       </>
     );
   return (
-    <main className={`board-editor${panel ? ` show-${panel}` : ''}${collapsed ? ' inspector-collapsed' : ''}`}>
+    <main
+      className={`board-editor${tool === 'train' ? ' train-editing' : ''}${panel ? ` show-${panel}` : ''}${collapsed ? ' inspector-collapsed' : ''}`}
+    >
       <header className="editor-bar">
         <div className="editor-bar-top">
           <button type="button" className="text-button" aria-label="All boards" onClick={() => setBrowsing(true)}>
@@ -381,6 +393,7 @@ export default function BoardEditor({
           setBrush={setBrush}
           linkLetter={linkLetter}
           setLinkLetter={setLinkLetter}
+          train={train}
           routeTarget={routeTarget}
           setRouteTarget={setRouteTarget}
           edit={edit}
@@ -402,6 +415,7 @@ export default function BoardEditor({
           tool={tool}
           brush={brush}
           linkLetter={linkLetter}
+          train={train}
           routeTarget={routeTarget}
           edit={edit}
           fitKey={`${design.id}:${version ?? ''}`}

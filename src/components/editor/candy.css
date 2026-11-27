@@ -1,0 +1,170 @@
+.candy-art-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+}
+.candy-art-dialog {
+  box-sizing: border-box;
+  width: min(920px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 20px;
+  border: 1px solid #b8cec7;
+  border-radius: 18px;
+  background: #f5f7ed;
+  color: #243e3b;
+  overflow-y: auto;
+}
+.candy-art-dialog::backdrop {
+  background: #142c3bd9;
+}
+.candy-art-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.candy-art-dialog h2 {
+  margin: 0;
+  min-width: 0;
+  font-size: 24px;
+}
+.candy-art-dialog p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.candy-look-buttons,
+.candy-train-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.candy-look-buttons {
+  margin-top: 14px;
+}
+.candy-look-buttons button,
+.candy-train-row button {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 10px;
+}
+.candy-look-buttons button[aria-pressed="true"] {
+  background: #285f4e;
+  color: white;
+}
+.candy-art-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.candy-choice {
+  min-width: 0;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid #b8cfc4;
+  border-radius: 12px;
+  background: #dfebe5;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.candy-choice svg[role="img"] {
+  width: 100%;
+  display: block;
+}
+.candy-choice figcaption {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.candy-train-tools {
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid #b5c5ba;
+  padding-top: 7px;
+}
+.candy-train-tools p {
+  min-width: 0;
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.4;
+}
+.candy-train-row label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.candy-train-row select {
+  width: 94px;
+  height: 32px;
+  box-sizing: border-box;
+}
+.candy-corner {
+  cursor: pointer;
+  outline: none;
+}
+.candy-corner:focus circle:last-child {
+  stroke-width: 4;
+  stroke: #254cce;
+}
+@media (max-width: 650px) {
+  /* Train authoring needs canvas height; the other tools restore terrain and board controls. */
+  .train-editing .board-fields,
+  .train-editing .fill-bar,
+  .train-editing .brush-picker,
+  .train-editing .editor-panels {
+    display: none !important;
+  }
+  .candy-art-dialog {
+    padding: 12px;
+  }
+  .candy-art-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .candy-train-row button {
+    font-size: 11px;
+    padding-inline: 7px;
+  }
+  .candy-train-tools p {
+    font-size: 11px;
+  }
+}
+
+.editor-tool-group {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.candy-look-buttons {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.candy-train-row button,
+.candy-look-buttons button {
+  border: 1px solid #a2bdb5;
+  border-radius: 7px;
+  background: #f1f7ef;
+  color: #244d48;
+  cursor: pointer;
+}
+.candy-train-row button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.candy-train-row button[aria-pressed="true"],
+.candy-look-buttons button[aria-pressed="true"] {
+  background: #285f4e;
+  color: #fff;
+}

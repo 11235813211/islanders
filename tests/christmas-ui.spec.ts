@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { applyAction } from '../shared/engine';
 import type { GameState } from '../shared/types';
 import { grant, makeLobby, sequence, settled, TEST_NOW } from './fixtures';
-import { expectDecorClear, expectNoSpill, mountGame } from './ui-harness';
+import { expectDecorClear, expectNoSpill, mountGame, startGame } from './ui-harness';
 
 const DECORATED = '.player-panel, .table-hand';
 
@@ -78,4 +78,23 @@ test('after a Christmas game, the rest of the site keeps the look until switched
   await page.evaluate(() => localStorage.setItem('islanders.christmasLook', '0'));
   await page.reload();
   await expect(page.locator('html')).not.toHaveClass(/theme-christmas/);
+});
+
+test('Christmas Candy in the room settings: turns Christmas on, starts a candy game, and fits', async ({ page }) => {
+  const game = await mountGame(page, makeLobby(2));
+  const candy = page.getByRole('checkbox', { name: 'Christmas Candy', exact: true });
+  await candy.click();
+  await expect(candy).toBeChecked();
+  await expect.poll(() => game.state().settings).toMatchObject({ christmas: true, christmasCandy: true });
+  await expect(page.getByRole('checkbox', { name: 'Christmas', exact: true })).toBeChecked();
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const group of await page.locator('.setting-group').all()) await expectNoSpill(group);
+  }
+  await page.screenshot({ path: 'test-results/candy-lobby.png', fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await startGame(page);
+  await expect(page.locator('[data-candy-terrain]').first()).toBeVisible();
+  await expect(page.locator('html')).toHaveClass(/theme-christmas/);
+  expect(game.errors).toEqual([]);
 });

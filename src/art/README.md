@@ -34,6 +34,23 @@ import from `src/art` and never draw art themselves.
   materials, `roofs.ts` (curved roofs from a few numbers), and `timber.ts` (platforms and halls). A design's
   settlement and city share one camera.
   `v19/` adds the megacity (`pieces/megacity.ts`): three buildings in each piece style (Cartographers).
+  `v20/` adds the Christmas scenery, winter resource tiles, and gingerbread buildings.
+  `v21/` preserves plain Christmas and adds **Christmas Candy**: two candy compositions for each of
+  the five base resources (`christmas/candy-tiles.tsx`, shared sweets in `candies.tsx`). The editor's
+  Candy art picker saves per-resource A/B votes on this device. The separate room setting
+  `christmasCandy` shares Christmas decorations and buildings. `christmas/train.tsx` draws an
+  extruded locomotive and candy flatcars on offset rails; `rail-geometry.ts` rounds their bends.
+  `v22/` keeps one candy design per resource (the A/B picks, refined): brighter ground with its own
+  small snow pockets per terrain (`christmas/candy-ground.tsx`), snowcapped chocolate-kiss mountains,
+  uneven bunches of twisted Twizzlers (`twizzlers.tsx`), snow at the cane pairs' feet, gold bells on the
+  gumdrops (`candy-bells.tsx`), one run of the page garland lying across the forest floor
+  (`candy-garland.tsx`), and lights wound around some Twizzler bunches. `CandyRailways` takes optional
+  `roads` and draws a level crossing (road deck over the rails, crossbuck signs) wherever one meets the rails. The editor's Candy art dialog now
+  previews the five tiles; v21 keeps the A/B options.
+- Review the candy hexes (v22 above the v21 picks) with the train beside roads and buildings:
+  `npx playwright test tests/candy-art.spec.ts` writes `test-results/christmas-candy-review.png`.
+  `tests/candy-editor.spec.ts` checks authoring, save/reload, votes, animation, and five widths;
+  the Christmas Candy cases in `tests/phone.spec.ts` exercise actual touch input.
 - Review the sea art large: `npx playwright test tests/sea-art.spec.ts` writes `test-results/sea-art.png`.
   It also writes `sea-art-details.png` and `sea-art-phone.png` with forest comparisons and number tokens.
 - Review Cartographers art: `npx playwright test tests/cartographers-art.spec.ts` writes

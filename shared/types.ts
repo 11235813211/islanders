@@ -293,6 +293,8 @@ export interface GameSettings {
   pieceStyle: PieceStyle;
   /** The Christmas look: winter tiles, festive cards and colors, for everyone in the room. */
   christmas: boolean;
+  /** Christmas Candy shares the winter look, with five candy resource illustrations. */
+  christmasCandy: boolean;
   /** Santa's North Pole on a desert, with its own number; nobody settles beside it (engine/santa.ts). */
   northPole: boolean;
   /** Seconds a trade offer stays open. */

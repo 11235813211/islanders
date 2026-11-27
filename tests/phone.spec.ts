@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { BUILTIN_BOARDS } from '../shared/maps';
 import { grant, knightsTable, richGame, seaSettled, settled } from './fixtures';
-import { expectNoSpill, mountGame } from './ui-harness';
+import { expectNoSpill, mountGame, openCandyEditor } from './ui-harness';
 
 // Runs in the "iphone" project (WebKit, touch, 390×664 viewport). See playwright.config.ts.
 
@@ -407,4 +407,40 @@ test('signed in on a phone: the account button shows, My rooms fits, and the acc
   await page.locator('.recent-rooms').screenshot({ path: 'test-results/phone-home-rooms.png' });
   await page.getByRole('button', { name: 'Account settings' }).tap();
   await expect(page.getByRole('button', { name: /Christmas look on/ })).toBeVisible();
+});
+
+test('Christmas Candy: preview the tiles and draw a train route by touch', async ({ page }) => {
+  await openCandyEditor(page);
+  await page.getByRole('button', { name: 'Candy art', exact: true }).tap();
+  const dialog = page.getByRole('dialog', { name: 'Christmas Candy art' });
+  await dialog.getByRole('button', { name: 'Christmas Candy', exact: true }).tap();
+  await expect(dialog.getByRole('button', { name: 'Christmas Candy', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expectNoSpill(dialog);
+  await dialog.getByRole('button', { name: 'Close candy art' }).tap();
+  await page.getByRole('button', { name: 'Train', exact: true }).tap();
+  await page.getByRole('button', { name: 'New train route' }).tap();
+  await page.getByRole('button', { name: 'Start train at 0,0,0', exact: true }).tap();
+  await page.getByRole('button', { name: 'Train corner 0,0,1', exact: true }).tap();
+  await expect(page.locator('.candy-station')).toHaveCount(2);
+  await expectNoSpill(page.locator('.editor-bar'));
+  expect((await page.locator('.editor-canvas').boundingBox())!.height).toBeGreaterThan(220);
+  await page.screenshot({ path: 'test-results/phone-candy-train.png' });
+});
+
+test('Christmas Candy: game tiles switch without changing pure Christmas', async ({ page }) => {
+  const game = richGame();
+  Object.assign(game.settings, { christmas: true, christmasCandy: true, pieceStyle: 'gingerbread' });
+  const mounted = await mountGame(page, game);
+  await expect(page.locator('[data-candy-terrain="wood"]').first()).toBeVisible();
+  await expect(page.locator('html')).toHaveClass(/theme-christmas/);
+  await page.screenshot({ path: 'test-results/phone-christmas-candy.png' });
+  mounted.update(state => {
+    state.settings.christmasCandy = false;
+  });
+  await expect(page.locator('[data-candy-terrain]')).toHaveCount(0);
+  await expect(page.locator('html')).toHaveClass(/theme-christmas/);
+  expect(mounted.errors).toEqual([]);
 });

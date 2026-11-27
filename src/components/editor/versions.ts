@@ -9,7 +9,7 @@ import { MAX_PLAYERS } from '../../../shared/settings';
 /** The design as the editor shows it for `version` (null: the main layout). */
 export function showVersion(design: BoardDesign, version: number | null): BoardDesign {
   const own = version === null ? undefined : design.versions?.[version];
-  return own ? { ...design, ...own } : design;
+  return own ? { ...design, ...own, candyRoutes: own.candyRoutes ?? [] } : design;
 }
 
 const layoutOf = (shown: BoardDesign): BoardVersion =>

@@ -136,6 +136,13 @@ export interface BoardRules {
 /** One corner of a tile, as the editor stores it: tile `q,r` and corner 0–5 (see Hex.vertexIds). */
 export type CornerKey = string;
 
+/** Editor-only railway preview. Ordered adjacent corners; endpoints are stations. */
+export interface CandyRoute {
+  corners: CornerKey[];
+  /** Which side of the directed route the rails sit on, leaving road edges clear. */
+  side: 1 | -1;
+}
+
 /** What a board's version for some player counts replaces; everything else is shared. */
 export const VERSION_FIELDS = [
   'players',
@@ -146,10 +153,13 @@ export const VERSION_FIELDS = [
   'pirate',
   'noStart',
   'routes',
+  'candyRoutes',
 ] as const;
 export type BoardVersion = Pick<BoardDesign, (typeof VERSION_FIELDS)[number]>;
 
 export interface BoardDesign {
+  /** Saved with each layout, but not carried into gameplay or resource production. */
+  candyRoutes?: CandyRoute[];
   id: string;
   name: string;
   categoryId: string;
@@ -207,7 +217,7 @@ export interface BoardDesign {
 /** The layout to play with `players` seated: the first version made for that count, or the board itself. */
 export function designFor(design: BoardDesign, players: number): BoardDesign {
   const version = design.versions?.find(v => players >= v.players.min && players <= v.players.max);
-  return version ? { ...design, ...version } : design;
+  return version ? { ...design, ...version, candyRoutes: version.candyRoutes ?? [] } : design;
 }
 
 /** "3–4", or "3" when the range is one number. */
@@ -221,7 +231,11 @@ export function playerRanges(design: Pick<BoardDesign, 'players' | 'versions'>):
 
 /** The board and each of its versions as a whole design to show or play, fewest players first. */
 export function layoutsOf(design: BoardDesign): BoardDesign[] {
-  const versions = (design.versions ?? []).map(version => ({ ...design, ...version }));
+  const versions = (design.versions ?? []).map(version => ({
+    ...design,
+    ...version,
+    candyRoutes: version.candyRoutes ?? [],
+  }));
   return [design, ...versions].sort((a, b) => a.players.min - b.players.min);
 }
 

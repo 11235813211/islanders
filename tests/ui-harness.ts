@@ -2,8 +2,11 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { PLAYER_COLORS } from '../shared/colors';
 import { applyAction, getView, peekBoard } from '../shared/engine';
 import { BUILTIN_BOARDS } from '../shared/maps/builtin';
+import { newDesign } from '../shared/maps/edit';
+import { parseDesign } from '../shared/maps/validate';
 import type { ClientMessage, GameState, PlayerColor, ServerMessage } from '../shared/types';
 import { seeded } from './fixtures';
+import { signIn } from './server-helpers';
 /**
  * Deterministic UI scenarios use the real rules engine, without production debug routes. A lobby
  * has no board, so it waits for the settings instead.
@@ -172,4 +175,28 @@ export async function expectDecorClear(page: Page, selectors: string): Promise<v
     return [...new Set(found)];
   }, selectors);
   expect(problems).toEqual([]);
+}
+
+/** A small fixed board keeps the preview readable and saves confined to this test. */
+export async function openCandyEditor(page: Page) {
+  await signIn(page);
+  let board = newDesign('base', 'candy-editor-test', 'candy', 'Candy test');
+  const kinds = ['wood', 'brick', 'sheep', 'wheat', 'ore'] as const;
+  board.tiles = board.tiles.map((t, i) => (t.kind === 'land' ? { ...t, kind: kinds[i % 5]!, number: 8 } : t));
+  const categories = [{ id: 'candy', name: 'Candy tests', color: '#448866' }];
+  await page.route('**/api/boards', route => route.fulfill({ json: { categories, boards: [board] } }));
+  await page.route('**/api/boards/candy-editor-test/lock', route => route.fulfill({ json: { ok: true } }));
+  await page.route('**/api/boards/candy-editor-test', async route => {
+    if (route.request().method() === 'PUT')
+      board = { ...parseDesign(route.request().postDataJSON(), ['candy']), updatedAt: Date.now() };
+    await route.fulfill({ json: board });
+  });
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('islanders.candy-art'))
+      localStorage.setItem('islanders.candy-art', JSON.stringify({ look: 'candy', votes: {} }));
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Board editor', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit Candy test', exact: true }).click();
+  return { saved: () => board };
 }

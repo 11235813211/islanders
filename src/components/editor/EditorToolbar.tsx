@@ -2,6 +2,8 @@ import { SlidersHorizontal } from 'lucide-react';
 import type { BoardDesign, DesignKind } from '../../../shared/maps';
 import type { RouteTarget } from '../../../shared/maps/special-edit';
 import BrushPicker from './BrushPicker';
+import CandyArtPicker from './CandyArtPicker';
+import CandyTrainTools, { type CandyTrainControls } from './CandyTrainTools';
 import type { Tool } from './EditorCanvas';
 import FillBar, { type Refill } from './FillBar';
 import LinkPicker from './LinkPicker';
@@ -27,6 +29,7 @@ export default function EditorToolbar({
   edit,
   refill,
   togglePanel,
+  train,
 }: {
   design: BoardDesign;
   tool: Tool;
@@ -40,6 +43,7 @@ export default function EditorToolbar({
   edit: Edit;
   refill: Refill;
   togglePanel: () => void;
+  train: CandyTrainControls;
 }) {
   return (
     <div className="editor-tools">
@@ -49,6 +53,7 @@ export default function EditorToolbar({
             key={t.tool}
             type="button"
             aria-pressed={tool === t.tool}
+            aria-label={t.label}
             data-tip={`${t.hint} (${t.key.toUpperCase()})`}
             className={t.tool === 'select' ? 'tip-start' : undefined}
             onClick={() => setTool(t.tool)}
@@ -57,6 +62,7 @@ export default function EditorToolbar({
             <span>{t.label}</span>
           </button>
         ))}
+        <CandyArtPicker />
         <BrushPicker brush={brush} setBrush={setBrush} />
       </div>
       {tool === 'link' && (
@@ -65,6 +71,7 @@ export default function EditorToolbar({
         </div>
       )}
       {tool === 'route' && <RoutePicker design={design} target={routeTarget} setTarget={setRouteTarget} />}
+      {tool === 'train' && <CandyTrainTools design={design} edit={edit} controls={train} />}
       <FillBar design={design} edit={edit} refill={refill} />
       <button type="button" className="icon-button editor-panels" aria-label="Show settings" onClick={togglePanel}>
         <SlidersHorizontal size={19} />

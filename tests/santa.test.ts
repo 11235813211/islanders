@@ -145,6 +145,19 @@ describe('Christmas settings go together by default', () => {
   const configure = (g: GameState, settings: Partial<GameState['settings']>) =>
     applyAction(g, 'p0', { type: 'configure', settings: { ...g.settings, ...settings } }, seeded(), TEST_NOW);
 
+  it('Christmas Candy enables the shared look and can return to pure Christmas', () => {
+    const candy = configure(makeLobby(3), { christmasCandy: true });
+    expect(candy.settings).toMatchObject({
+      christmasCandy: true,
+      christmas: true,
+      pieceStyle: 'gingerbread',
+      northPole: true,
+    });
+    const plain = configure(candy, { christmasCandy: false });
+    expect(plain.settings).toMatchObject({ christmasCandy: false, christmas: true, pieceStyle: 'gingerbread' });
+    expect(configure(candy, { christmas: false }).settings.christmasCandy).toBe(false);
+  });
+
   it('the look brings Christmas pieces and the North Pole, and off takes them away', () => {
     const on = configure(makeLobby(3), { christmas: true });
     expect(on.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: true });

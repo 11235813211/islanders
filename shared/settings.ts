@@ -123,6 +123,7 @@ export function validSettings(
         s.pieceRewards.every(validReward))) &&
     (s.pieceStyle === undefined || PIECE_STYLES.includes(s.pieceStyle as never)) &&
     (s.christmas === undefined || typeof s.christmas === 'boolean') &&
+    (s.christmasCandy === undefined || typeof s.christmasCandy === 'boolean') &&
     (s.northPole === undefined || typeof s.northPole === 'boolean') &&
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
     (s.decisionSeconds === undefined || DECISION_SECONDS.includes(s.decisionSeconds as never)) &&
@@ -148,6 +149,8 @@ export function validSettings(
 export function linkChristmas(before: GameSettings, after: GameSettings): GameSettings {
   const next = { ...after };
   const changed = (key: keyof GameSettings) => before[key] !== after[key];
+  if (changed('christmasCandy') && after.christmasCandy) next.christmas = true;
+  if (changed('christmas') && !after.christmas) next.christmasCandy = false;
   if (changed('pieceStyle') && after.pieceStyle === 'gingerbread' && !changed('christmas')) next.christmas = true;
   if (next.christmas === before.christmas) return next;
   if (!changed('pieceStyle'))
