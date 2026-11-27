@@ -1,18 +1,10 @@
 import { assignNumbers, generateBoard, islandSize, seededRandom, shuffled } from '../board';
 import { firstFreeColor } from '../colors';
 import { KNIGHTS_LIMITS } from '../knights';
-import { placeTrains } from '../maps/candy-board';
+import { layTrains, trainStandardBoard } from '../maps/candy-board';
 import { buildBoard } from '../maps/generate';
 import { DEFAULT_SETUP, setupPieces, setupSequence } from '../maps/special';
-import {
-  type BoardDesign,
-  boardExpansions,
-  designFor,
-  layoutsOf,
-  playerRange,
-  playerRanges,
-  tileKey,
-} from '../maps/types';
+import { type BoardDesign, boardExpansions, designFor, layoutsOf, playerRange, playerRanges } from '../maps/types';
 import { developmentDeck } from '../rules';
 import { DEFAULT_SETTINGS, guestName, linkChristmas, pointRewards } from '../settings';
 import { type Board, DEFAULT_BOT_LEVEL, type GameSettings, type GameState, type Player } from '../types';
@@ -56,9 +48,9 @@ export function boardFor(
     return seafarers ? built : { ...built, pirate: null };
   }
   const board = generateBoard(random, layout, islandSize(players), seafarers);
-  // The standard spiral's numbers are the printed ones; only a random layout's may get poorer.
-  if (trains)
-    placeTrains({}, board, new Set(layout === 'ordered' ? board.hexes.map(h => tileKey(h.q, h.r)) : []), random);
+  // The standard spiral's numbers are the printed ones; a random layout's are drawn again around the track.
+  if (trains && layout === 'ordered') layTrains({}, board, random);
+  else if (trains) trainStandardBoard(board, random);
   return {
     board,
     robber: board.hexes.find(hex => hex.terrain === 'desert')!.id,

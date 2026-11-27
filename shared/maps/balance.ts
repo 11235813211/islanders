@@ -126,6 +126,8 @@ export interface NumberCell extends Cell {
   terrain: string;
   pips?: number[];
   level?: number;
+  /** Dots fewer than its mix's average this cell should have on average (beside a candy train). */
+  cut?: number;
 }
 
 /** Steps each way a number level goes: -3 is only 2, 3, 11 and 12; 3 is only 6 and 8. */
@@ -146,6 +148,61 @@ export function numberMix(level: number, noEnds: boolean): Map<number, number> {
   for (const n of set) weights.set(n, (weights.get(n) ?? 0) + (1 - shift) / set.length);
   for (const n of toward) weights.set(n, (weights.get(n) ?? 0) + shift / toward.length);
   return weights;
+}
+
+const averageDots = (mix: Map<number, number>) => {
+  const total = [...mix.values()].reduce((a, b) => a + b, 0);
+  return [...mix].reduce((sum, [n, w]) => sum + pips(n) * w, 0) / total;
+};
+
+/**
+ * `mix` leaned toward poorer numbers so its average has `cut` fewer dots (or as few as the mix
+ * allows). Every number keeps some chance, the richer ones less, so a poor cell can still roll a 5.
+ */
+export function poorerMix(mix: Map<number, number>, cut: number): Map<number, number> {
+  const tilt = (lean: number) => new Map([...mix].map(([n, w]) => [n, w * Math.exp(-lean * pips(n))]));
+  const target = averageDots(mix) - cut;
+  let [low, high] = [0, 12];
+  for (let step = 0; step < 30; step++) {
+    const lean = (low + high) / 2;
+    if (averageDots(tilt(lean)) > target) low = lean;
+    else high = lean;
+  }
+  return tilt((low + high) / 2);
+}
+
+/**
+ * Draw a number for each cell from its own mix, one at a time in random order, mostly avoiding
+ * numbers already beside it and never putting a red beside a red.
+ */
+function drawEach(
+  cells: NumberCell[],
+  mixes: Map<string, Map<number, number>>,
+  numbers: Map<string, number>,
+  random: () => number,
+): void {
+  for (const cell of shuffled(cells, random)) {
+    const around = neighborKeys(cell).map(k => numbers.get(k));
+    const nearRed = around.some(m => isRed(m ?? 0));
+    const weight = (n: number, w: number) => {
+      if (cell.pips?.length && !cell.pips.includes(pips(n))) return 0;
+      if (isRed(n) && nearRed) return 0;
+      return around.includes(n) ? w * 0.05 : w;
+    };
+    const mix = [...mixes.get(key(cell.q, cell.r))!].map(([n, w]) => [n, weight(n, w)] as const);
+    const total = mix.reduce((sum, [, w]) => sum + w, 0);
+    if (total <= 0) continue;
+    let roll = random() * total;
+    let pick = mix.filter(([, w]) => w > 0).at(-1)![0];
+    for (const [n, w] of mix) {
+      roll -= w;
+      if (roll < 0) {
+        pick = n;
+        break;
+      }
+    }
+    numbers.set(key(cell.q, cell.r), pick);
+  }
 }
 
 /** A random number for one tile with no neighbors to balance against (an iceberg). */
@@ -209,6 +266,7 @@ function placeNumbers(cells: NumberCell[], pool: number[], numbers: Map<string, 
  * Numbers for the open producing cells, keeping the base game's mix (counting `fixed` numbers
  * already on the board) and choosing the most even of several tries. Cells with a `level` draw
  * from their own mix (one per level), so the rest of the board keeps its full share of reds.
+ * Cells with a `cut` each draw from a poorer mix of their own, in the same tries as the rest.
  * With `noTwoTwelve`, no random number is a 2 or 12.
  */
 export function balancedNumbers(
@@ -218,9 +276,15 @@ export function balancedNumbers(
   { tries = 30, noTwoTwelve = false }: { tries?: number; noTwoTwelve?: boolean } = {},
 ): Map<string, number> {
   const levelOf = (c: NumberCell) => c.level ?? 0;
-  const levels = [...new Set(producing.map(levelOf))].sort((a, b) => a - b);
+  const isPoorer = (c: NumberCell) => (c.cut ?? 0) > 0 && !fixed.has(key(c.q, c.r));
+  const poorer = producing.filter(isPoorer);
+  const mixes = new Map(
+    poorer.map(c => [key(c.q, c.r), poorerMix(numberMix(levelOf(c), noTwoTwelve), c.cut!)] as const),
+  );
+  const pooled = producing.filter(c => !isPoorer(c));
+  const levels = [...new Set(pooled.map(levelOf))].sort((a, b) => a - b);
   const groups = levels.map(level => {
-    const cells = producing.filter(c => levelOf(c) === level);
+    const cells = pooled.filter(c => levelOf(c) === level);
     const open = cells.filter(c => !fixed.has(key(c.q, c.r)));
     const fixedCounts = new Map<number, number>();
     for (const c of cells) {
@@ -232,6 +296,7 @@ export function balancedNumbers(
   let best: { cost: number; numbers: Map<string, number> } | null = null;
   for (let attempt = 0; attempt < tries; attempt++) {
     const numbers = new Map(fixed);
+    drawEach(poorer, mixes, numbers, random);
     // Rarer levels first, so their reds get the pick of spots and the common mix fills around them.
     for (const { open, pool } of [...groups].sort((a, b) => a.open.length - b.open.length))
       placeNumbers(open, pool, numbers, random);

@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { candyChoice } from '../shared/bots/candy';
+import { TUNING } from '../shared/default-settings';
 import { advanceTime, applyAction, candyRun, emptyBag, getView, resourceCount } from '../shared/engine';
 import { CANDY_SPARE, candyPicks } from '../shared/engine/candy';
+import { boardFor } from '../shared/engine/lobby';
 import { buildBoard } from '../shared/maps';
-import { pips } from '../shared/maps/balance';
+import { neighborKeys, pips } from '../shared/maps/balance';
+import { trainCuts } from '../shared/maps/candy-board';
 import { candyGraph, parseCandyRoutes } from '../shared/maps/candy-train';
 import { baseGameDesign } from '../shared/maps/edit';
-import type { BoardDesign } from '../shared/maps/types';
-import { CLASSIC_RESOURCES, type ClassicResource, type GameState } from '../shared/types';
+import { type BoardDesign, tileKey } from '../shared/maps/types';
+import { isLandTerrain } from '../shared/seafaring';
+import { type Board, CLASSIC_RESOURCES, type ClassicResource, type GameState } from '../shared/types';
 import { candyGame, sequence, TEST_NOW } from './fixtures';
 
 /** p0 rolls `a` + `b` (random dice read floor(v * 6) + 1), then the train loads from later draws. */
@@ -146,71 +150,50 @@ function trainDesign(dots?: number): BoardDesign {
 }
 
 describe('numbers beside a candy train', () => {
-  it('are poorer: about two dots fewer near the start, one fewer near the end; the rest of the board is the same', () => {
-    const design = trainDesign();
-    let cut = 0;
-    let touched = 0;
-    for (let seed = 1; seed <= 40; seed++) {
-      const random = () => {
-        seed = (seed * 16807) % 2147483647;
-        return seed / 2147483647;
-      };
-      const start = seed;
-      const plain = buildBoard(design, random).board;
-      seed = start;
-      const candy = buildBoard(design, random, { trains: true }).board;
-      expect(plain.trains).toBeUndefined();
-      const train = candy.trains![0]!;
-      expect([4, 10]).toContain(train.number);
-      const near = new Set(train.vertexIds.flatMap(id => candy.vertices.find(v => v.id === id)!.hexIds));
-      candy.hexes.forEach((hex, i) => {
-        const was = plain.hexes[i]!;
-        expect(hex.terrain).toBe(was.terrain);
-        if (!near.has(hex.id) || was.number === null) {
-          expect(hex.number).toBe(was.number);
-          return;
-        }
-        // The number stays on the same side of 7 and never goes below one dot.
-        expect(Math.sign(hex.number! - 7)).toBe(Math.sign(was.number - 7));
-        const lost = pips(was.number) - pips(hex.number!);
-        expect(lost).toBeGreaterThanOrEqual(Math.min(1, pips(was.number) - 1));
-        expect(lost).toBeLessThanOrEqual(2);
-        cut += lost;
-        touched++;
-      });
-    }
-    expect(cut / touched).toBeGreaterThan(1.1);
-    expect(cut / touched).toBeLessThan(1.9);
-  });
-
-  it('cut poor numbers less, and leave no corner of the track a poor spot', () => {
-    const design = trainDesign();
-    for (let seed = 1; seed <= 60; seed++) {
-      const random = () => {
-        seed = (seed * 16807) % 2147483647;
-        return seed / 2147483647;
-      };
-      const start = seed;
-      const plain = buildBoard(design, random).board;
-      seed = start;
-      const candy = buildBoard(design, random, { trains: true }).board;
-      const dotsAt = (board: typeof candy, vertexId: string) => {
-        const tiles = board.vertices
-          .find(v => v.id === vertexId)!
-          .hexIds.map(id => board.hexes.find(h => h.id === id)!);
-        const numbered = tiles.filter(h => h.number !== null);
-        return { dots: numbered.reduce((sum, h) => sum + pips(h.number!), 0), count: numbered.length };
-      };
-      candy.hexes.forEach((hex, i) => {
-        // A 2 or 12 is already as poor as a number gets.
-        if (plain.hexes[i]!.number && pips(plain.hexes[i]!.number!) === 1)
-          expect(hex.number).toBe(plain.hexes[i]!.number);
-      });
-      for (const id of candy.trains![0]!.vertexIds) {
-        const now = dotsAt(candy, id);
-        const was = dotsAt(plain, id);
-        expect(now.dots).toBeGreaterThanOrEqual(Math.min(was.dots, 2 * now.count));
+  /** Dots beside the track (start half, end half), elsewhere, and equal neighbors touching the track, over many boards. */
+  function trainStats(boards: () => Board) {
+    const sums = { start: [0, 0], end: [0, 0], rest: [0, 0] };
+    let repeats = 0;
+    let count = 0;
+    for (let i = 0; i < 200; i++) {
+      const board = boards();
+      const cuts = trainCuts(board);
+      const mid = (TUNING.candyStartCut + TUNING.candyEndCut) / 2;
+      const byKey = new Map(board.hexes.map(h => [tileKey(h.q, h.r), h]));
+      for (const hex of board.hexes) {
+        if (hex.number === null || !isLandTerrain(hex.terrain)) continue;
+        const cut = cuts.get(tileKey(hex.q, hex.r));
+        const sum = cut === undefined ? sums.rest : cut > mid ? sums.start : sums.end;
+        sum[0]! += pips(hex.number);
+        sum[1]!++;
+        if (cut === undefined) continue;
+        for (const k of neighborKeys(hex)) if (byKey.get(k)?.number === hex.number) repeats++;
       }
+      count++;
+    }
+    const average = ([dots, tiles]: number[]) => dots! / tiles!;
+    return {
+      start: average(sums.start),
+      end: average(sums.end),
+      rest: average(sums.rest),
+      repeats: repeats / count,
+    };
+  }
+
+  it('are drawn poorer, about two dots near the start and one near the end, with the rest of the board', () => {
+    let seed = 7;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const design = trainDesign();
+    const designed = trainStats(() => buildBoard(design, random, { trains: true }).board);
+    const standard = trainStats(() => boardFor(null, 'random', random, 4, false, undefined, true).board);
+    for (const stats of [designed, standard]) {
+      expect(stats.rest - stats.start).toBeGreaterThan(1.3);
+      expect(stats.rest - stats.end).toBeGreaterThan(0.6);
+      expect(stats.rest - stats.end).toBeLessThan(1.4);
+      expect(stats.start).toBeLessThan(stats.end);
     }
   });
 

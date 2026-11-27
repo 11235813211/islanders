@@ -19,7 +19,7 @@ import {
   randomNumber,
   swapEqualOdds,
 } from './balance';
-import { placeTrains } from './candy-board';
+import { layTrains, trainCuts } from './candy-board';
 import { fogIslandsOf, fogKinds, fogMayBeSea, fogMixOf } from './fog';
 import { autoHarbors, harborTarget } from './harbors';
 import { landMixOf } from './land-mix';
@@ -530,7 +530,7 @@ function icebergNumbers(tiles: DesignTile[], terrains: Map<string, Terrain>, ran
 export function buildBoard(
   design: BoardDesign,
   random: () => number = Math.random,
-  /** Christmas Candy: lay the design's train tracks (drawn last, so the rest of the board is the same draw). */
+  /** Christmas Candy: lay the design's train tracks (or a generated one), with poorer numbers beside them. */
   options: { trains?: boolean } = {},
 ): { board: Board; robber: string; pirate: string | null; fog: GameState['fog'] } {
   const tiles = [...new Map(design.tiles.map(t => [tileKey(t.q, t.r), t])).values()];
@@ -540,6 +540,10 @@ export function buildBoard(
   const harbors = design.harbors.length ? design.harbors : autoHarbors(tiles, harborTarget(unique), [], random);
   const resolvedHarbors = resolveHarbors({ ...unique, harbors }, terrains, links, random);
   placeIcebergs(unique, terrains, harbors, random);
+  const board = buildGraph(tiles.map(t => ({ q: t.q, r: t.r, terrain: terrains.get(tileKey(t.q, t.r))! })));
+  // The track goes down first so the numbers beside it are drawn poorer, together with the rest.
+  if (options.trains) layTrains(design, board, random);
+  const cuts = trainCuts(board);
   const lean = numberLeanings(unique);
   const producing = tiles
     .map(t => ({
@@ -547,6 +551,7 @@ export function buildBoard(
       r: t.r,
       terrain: terrains.get(tileKey(t.q, t.r))!,
       pips: t.pips,
+      cut: cuts.get(tileKey(t.q, t.r)),
       ...lean(t.q, t.r, terrains.get(tileKey(t.q, t.r))!),
     }))
     .filter(c => isProducing(c.terrain));
@@ -561,12 +566,7 @@ export function buildBoard(
     }),
     ...icebergNumbers(tiles, terrains, random, design.noTwoTwelve),
   ]);
-  const board = buildGraph(
-    tiles.map(t => {
-      const k = tileKey(t.q, t.r);
-      return { q: t.q, r: t.r, terrain: terrains.get(k)!, number: numbers.get(k) ?? null };
-    }),
-  );
+  for (const hex of board.hexes) hex.number = numbers.get(tileKey(hex.q, hex.r)) ?? null;
   for (const hex of board.hexes) {
     const split = splits.get(tileKey(hex.q, hex.r));
     if (split) hex.split = split;
@@ -616,7 +616,6 @@ export function buildBoard(
   const rules = rulesOf(design);
   if (rules) board.rules = rules;
   const fog = drawFog(design, board, random);
-  if (options.trains) placeTrains(design, board, new Set(fixed.keys()), random);
   return { board, robber, pirate, fog };
 }
 

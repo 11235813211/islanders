@@ -98,4 +98,8 @@ export const TUNING = {
   // first; among walks of that length the generator picks the one bordering closest to the second.
   candyTrainCornerShare: 0.12,
   candyTrainTileShare: 0.4,
+  // Random numbers on tiles touching a candy train average this many dots fewer than the rest of the
+  // board: the first at the start station, the second at the end of the track.
+  candyStartCut: 2,
+  candyEndCut: 1,
 } as const;
