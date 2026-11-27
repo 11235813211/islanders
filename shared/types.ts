@@ -797,7 +797,11 @@ export type GameAction =
   | { type: 'roll' }
   | { type: 'roll-volcanoes' }
   | { type: 'send-santa'; vertexId: string }
-  | { type: 'take-candy'; resource: ClassicResource }
+  /**
+   * Take a card off the candy train; `more` takes cards for the next picks too, as long as they
+   * are this player's in an unbroken run (another player's pick in between ends the run).
+   */
+  | { type: 'take-candy'; resource: ClassicResource; more?: ResourceBag }
   | { type: 'build-road'; edgeId: string }
   | { type: 'build-settlement'; vertexId: string }
   | { type: 'build-city'; vertexId: string }

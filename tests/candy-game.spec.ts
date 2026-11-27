@@ -32,13 +32,16 @@ test('Christmas Candy: candy cards and names, the train with its number, picking
   // p1 picked at the start station; the train has stopped at p0's city at the end of the line.
   const front = async () => Number(await page.locator('[data-train-front]').getAttribute('data-train-front'));
   const atDepot = await front();
-  for (let pick = 0; pick < 2; pick++) {
-    const card = game.state().candyLoad!.cards[0]!;
-    await panel.locator('.trade-card:not([disabled])').first().click();
-    await panel.getByRole('button', { name: /^Take / }).click();
-    await expect.poll(() => game.state().candyLoad?.picks.length ?? 0).toBe(1 - pick);
-    expect(card).toBeTruthy();
-  }
+  // p0's city has both remaining picks in a row: choose two cards, then take them together.
+  await expect(panel).toContainText('0 / 2 chosen');
+  for (let pick = 0; pick < 2; pick++) await panel.locator('.trade-card:not([disabled])').first().click();
+  await expect(panel).toContainText('2 / 2 chosen');
+  await expect(
+    panel.getByRole('group', { name: 'Cards on the candy train' }).locator('.trade-card:not([disabled])'),
+  ).toHaveCount(0);
+  await expectNoSpill(panel);
+  await panel.getByRole('button', { name: 'Take 2 cards' }).click();
+  await expect.poll(() => game.state().candyLoad).toBeNull();
   // Picked over, it drives on into the end tunnel (never backwards), then waits unseen at the start.
   await expect.poll(front).toBeGreaterThan(atDepot);
   await expect.poll(front, { timeout: 8000 }).toBeLessThan(0);
@@ -57,6 +60,7 @@ test('Christmas Candy: the train panel fits a phone', async ({ page }) => {
   await mountGame(page, candyTurn());
   const panel = page.getByRole('dialog', { name: 'Candy train' });
   await expect(panel).toBeVisible();
+  await panel.locator('.trade-card:not([disabled])').first().click();
   await expectNoSpill(panel);
   await expectNoSpill(page.locator('.table-turn'));
   await page.screenshot({ path: 'test-results/phone-candy-game.png' });

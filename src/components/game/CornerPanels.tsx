@@ -68,7 +68,7 @@ export function Panel({
 const ALL: Tradable[] = [...RESOURCES, 'discovery'];
 
 /** A row of chosen cards; tapping one takes it back out. */
-function Chosen({
+export function Chosen({
   bag,
   label,
   direction,

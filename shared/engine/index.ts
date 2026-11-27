@@ -1,6 +1,7 @@
 // Public API of the rules engine. Import from 'shared/engine', not from the files inside.
 export { DEFAULT_SETTINGS } from '../settings';
 export { applyAction } from './apply';
+export { candyRun } from './candy';
 export {
   BUILD_COSTS,
   bankFor,

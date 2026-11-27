@@ -60,7 +60,7 @@ const SPEC = {
   'improve-city': { track: 'track' },
   'place-knight': { vertexId: 'id' },
   'send-santa': { vertexId: 'id' },
-  'take-candy': { resource: 'resource' },
+  'take-candy': { resource: 'resource', more: 'bag?' },
   'give-cards': { resources: 'tradeBag' },
   'play-progress': {
     cardId: 'id',

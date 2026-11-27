@@ -3,7 +3,14 @@
 // CANDY_SPARE more. Each settlement on its track picks one card (a city two), from the start
 // station to the end, so the first picks have the most choice. Leftovers go back to the bank.
 import { trainCorners } from '../maps/candy-board';
-import { type CandyLoad, CLASSIC_RESOURCES, type ClassicResource, type GameState } from '../types';
+import {
+  type CandyLoad,
+  CLASSIC_RESOURCES,
+  type ClassicResource,
+  type GameState,
+  RESOURCES,
+  type ResourceBag,
+} from '../types';
 import { addLog, type Handlers, needPhase, requireRule, tally } from './core';
 import { afterCandy } from './turn';
 
@@ -63,26 +70,49 @@ function unload(state: GameState, load: CandyLoad): void {
   for (const card of load.cards) state.bank[card]++;
 }
 
+/** How many picks in a row are `playerId`'s from the front of the train's line (zero if it isn't their turn). */
+export function candyRun(load: Pick<CandyLoad, 'picks'> | null, playerId: string): number {
+  const picks = load?.picks ?? [];
+  const end = picks.findIndex(pick => pick.playerId !== playerId);
+  return end < 0 ? picks.length : end;
+}
+
+/** The cards a take-candy action asks for, in pick order: `resource`, then `more`. */
+function cardsAsked(action: { resource: ClassicResource; more?: ResourceBag }): ClassicResource[] {
+  const more = action.more;
+  if (more)
+    requireRule(
+      RESOURCES.every(r => (CLASSIC_RESOURCES as readonly string[]).includes(r) || !more[r]),
+      'Only standard cards ride the candy train.',
+    );
+  return [action.resource, ...CLASSIC_RESOURCES.flatMap(r => Array<ClassicResource>(more?.[r] ?? 0).fill(r))];
+}
+
 export const candyHandlers: Pick<Handlers, 'take-candy'> = {
-  /** Off-turn too: whoever is next along the track takes one card off the train. */
+  /** Off-turn too: whoever is next along the track takes a card off the train (or one per pick in their run). */
   'take-candy'({ next, player, playerId, random }, action) {
     needPhase(next, 'candy');
     const load = next.candyLoad!;
-    const pick = load.picks[0]!;
-    requireRule(pick.playerId === playerId, 'Wait for your pick from the candy train.');
-    const index = load.cards.indexOf(action.resource as ClassicResource);
-    requireRule(index >= 0, 'Choose a card that is on the train.');
-    const resource = load.cards[index]!;
-    const rest = { ...load, cards: load.cards.filter((_, i) => i !== index), picks: load.picks.slice(1) };
-    player.resources[resource]++;
-    tally(next, playerId, 'cardsIn', 'candy', 1);
-    tally(next, playerId, 'produced', resource, 1);
-    addLog(next, `${player.name} took a card from the candy train.`, {
-      kind: 'candy',
-      playerId,
-      vertexId: pick.vertexId,
-      resource,
-    });
+    const run = candyRun(load, playerId);
+    requireRule(run > 0, 'Wait for your pick from the candy train.');
+    const asked = cardsAsked(action);
+    requireRule(asked.length <= run, run === 1 ? 'You have one pick now.' : `You have ${run} picks in a row now.`);
+    const cards = [...load.cards];
+    for (const [i, resource] of asked.entries()) {
+      const index = cards.indexOf(resource);
+      requireRule(index >= 0, 'Choose cards that are on the train.');
+      cards.splice(index, 1);
+      player.resources[resource]++;
+      tally(next, playerId, 'cardsIn', 'candy', 1);
+      tally(next, playerId, 'produced', resource, 1);
+      addLog(next, `${player.name} took a card from the candy train.`, {
+        kind: 'candy',
+        playerId,
+        vertexId: load.picks[i]!.vertexId,
+        resource,
+      });
+    }
+    const rest = { ...load, cards, picks: load.picks.slice(asked.length) };
     if (rest.picks.length) {
       next.candyLoad = rest;
       return;
