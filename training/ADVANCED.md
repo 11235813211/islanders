@@ -267,6 +267,11 @@ See [robber.ts](../shared/bots/advanced/robber.ts).
   the smallest quantity. If all choices are splits, Advanced's gold evaluation is bypassed.
 - `winningGold` only checks the active player's impending build phase. Off-turn choices
   receive no explicit next-turn winning-plan search.
+- Candy trains (Christmas Candy): every stop on a track counts as gold pips on the train's
+  number, times `trainSpot`, falling to 70% of that at the end of the line (later picks choose
+  from fewer cards). They go into `geo.gold`, so setup, the setup network's gold inputs, spot
+  values, forecasts, and city plans all see them (`addTrains` in `geometry.ts`). Picking cards
+  off a loaded train is the shared `bots/candy.ts` for every level.
 - Discards remove the card that hurts hand value least, one at a time. If discoveries count
   toward the limit, the wrapper discards them only after resource cards run out.
 - Special build takes a city or settlement first, then the normal build planner

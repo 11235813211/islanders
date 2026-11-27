@@ -84,7 +84,7 @@ function setupSeats(view: GameView, seats: number[]): number[] {
 }
 
 function context(view: GameView, params: AdvancedParams): Context {
-  const geo = geometry(view);
+  const geo = geometry(view, params.knobs.trainSpot);
   const players = view.players.length;
   const seats = view.players.map((_, i) => i);
   const average = geo.boardPips.reduce((a, b) => a + b, 0) / 5 || 1;
@@ -489,7 +489,7 @@ export function thinkPlacement(view: GameView, params: AdvancedParams, done?: Bo
   }
   const { picks } = done;
   if (picks.length < 2 || done.edges.length >= picks.length) return null;
-  const geo = geometry(view);
+  const geo = geometry(view, params.knobs.trainSpot);
   const more = picks
     .slice(done.edges.length, done.edges.length + FORECASTS_PER_STEP)
     .map(p => setupEdge(view, geo, p.final, params.knobs));

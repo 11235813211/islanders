@@ -42,6 +42,7 @@ Updated 2026-11-18. All bot-vs-bot unless it says otherwise.
 
 | Conclusion                                                                                                  | Status                   | Evidence                                                          |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------- |
+| Counting candy train stops as gold (0.85) gains +26.8 ±1.4 pp in candy games, vs a train-blind field        | Shipped 2026-11-27       | [candy trains](analysis/2026-11-27-candy-train-stops.md)          |
 | The combined bot (placement forecast, spare roads, over-limit trades) gains +1.26 ±0.60 pp on fresh seeds   | Shipped 2026-11-18       | [shipping](analysis/2026-11-18-shipping-combined-bot.md)          |
 | Both 2-player protected boards lean negative (−1.59 ±1.04, −1.00 ±1.09), probably not from the road race    | Watch                    | [shipping](analysis/2026-11-18-shipping-combined-bot.md)          |
 | Placement forecast (weight 0.25) gains about +0.9 ±0.3 pp, also against forecasting opponents               | Likely, now fast enough  | [forecast](analysis/2026-11-18-forecast-roads-placement.md)       |
@@ -65,6 +66,7 @@ Newest first.
 
 | Date            | Question                                                                                                      | Answer in one line                                               | Verdict                         |
 | --------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
+| 11-27           | [Should Advanced count candy train stops?](analysis/2026-11-27-candy-train-stops.md)                          | Yes: +26.8 ±1.4 pp in candy games vs ignoring them               | Shipped                         |
 | 11-19           | [Does counting only the robbed number keep Advanced strong?](analysis/2026-11-19-robber-top-number.md)        | Yes: +1.12 ±0.52 pp on Cartographers maps; ×1.92 vs Intermediate | Shipped                         |
 | 11-18 midday    | [Should the combined bot ship?](analysis/2026-11-18-shipping-combined-bot.md)                                 | Yes: +1.26 ±0.60 pp, all protected games pass                    | Shipped                         |
 | 11-18 night     | [Can a forecast improve placement, builds and Longest Road?](analysis/2026-11-18-forecast-roads-placement.md) | Placement yes, modestly; builds not yet; roads held more         | Keep placement, make it faster  |

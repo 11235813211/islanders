@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { Economy } from '../shared/bots/advanced/economy';
+import { makeParams } from '../shared/bots/advanced/params';
 import { candyChoice } from '../shared/bots/candy';
 import { TUNING } from '../shared/default-settings';
 import { advanceTime, applyAction, candyRun, emptyBag, getView, resourceCount } from '../shared/engine';
@@ -212,5 +214,19 @@ describe('numbers beside a candy train', () => {
     const { corners } = trainDesign().candyRoutes![0]!;
     const tiles = trainDesign().tiles;
     expect(parseCandyRoutes([{ corners, side: 1, number: 9 }], tiles)[0]!.dots).toBe(4);
+  });
+});
+
+describe('the Advanced bot and candy trains', () => {
+  /** p0's free-choice pips (gold and train stops) as the Advanced bot's economy sees them. */
+  function choiceWith(trainSpot: number) {
+    const { knobs } = makeParams({ knobs: { trainSpot } });
+    return new Economy(getView(candyGame(), 'p0'), knobs).choicePips;
+  }
+
+  it('counts a building on the track as a card of choice on the train’s number, a city twice', () => {
+    // p0's city is the last stop of a track rolled on 4 (3 pips): two picks at the end-of-line share.
+    expect(choiceWith(0)).toBe(0);
+    expect(choiceWith(1)).toBeCloseTo(3 * 2 * 0.7, 5);
   });
 });

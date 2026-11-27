@@ -67,6 +67,8 @@ export const KNOBS = {
   /** Victory points from an island bonus, in spot-value units per point. */
   bonusValue: [6, 2, 12],
   goldSpot: [1.4, 0.8, 2.5],
+  /** A candy train stop's pip as a share of a gold field's (0: ignore trains); geometry.ts. */
+  trainSpot: [0.85, 0, 1.2],
 
   /** 0: races judged by who is closer (racePenalty); 1: by predicted rival targets and arrival (rivals.ts). */
   raceModel: [0, 0, 1],

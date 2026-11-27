@@ -1,3 +1,4 @@
+import { trainCorners } from '../../maps/candy-board';
 import {
   boardIndex,
   isLandVertex,
@@ -29,7 +30,10 @@ export interface Geometry {
   indexOf: Map<string, number>;
   /** Pips per resource per corner: pips[c * 5 + r]. The robber is ignored here. */
   pips: Float32Array;
+  /** Free-choice pips: gold fields, plus candy train stops at `trainShare` (see addTrains). */
   gold: Float32Array;
+  /** Candy train stops alone (already in `gold`): the train number's pips, less toward the end. */
+  train: Float32Array;
   /** Lodestone pips (Cartographers), kept apart from the five the network knows. */
   lodestone: Float32Array;
   volcano: Float32Array;
@@ -60,21 +64,50 @@ export interface Geometry {
   n: number;
 }
 
-const cache = new WeakMap<Board, Map<boolean, Geometry>>();
+const cache = new WeakMap<Board, Map<string, Geometry>>();
 
-/** The board's geometry; `seafaring` says whether ships may carry routes over water. */
-export function geometry(view: GameView): Geometry {
+/**
+ * The board's geometry; `seafaring` says whether ships may carry routes over water. `trainShare`
+ * (knob trainSpot) is what a candy train stop's pip is worth next to a gold field's.
+ */
+export function geometry(view: GameView, trainShare: number): Geometry {
   let byRule = cache.get(view.board);
   if (!byRule) {
     byRule = new Map();
     cache.set(view.board, byRule);
   }
-  let geo = byRule.get(view.seafaring);
+  const trains = view.settings.christmasCandy ? trainShare : 0;
+  const key = `${view.seafaring}|${trains}`;
+  let geo = byRule.get(key);
   if (!geo) {
     geo = build(view.board, view.seafaring);
-    byRule.set(view.seafaring, geo);
+    addTrains(geo, view.board, trains);
+    byRule.set(key, geo);
   }
   return geo;
+}
+
+/** Share of a stop's worth left at the end of a track: later picks choose from fewer cards. */
+const TRAIN_END = 0.7;
+
+/**
+ * Candy trains as gold: a building on a track takes a card of its choice (a city two) whenever the
+ * train's number is rolled, like a gold field with that number. The first picks choose from the
+ * most cards, so stops count less toward the end of the line.
+ */
+function addTrains(geo: Geometry, board: Board, share: number): void {
+  if (share <= 0) return;
+  for (const train of board.trains ?? []) {
+    const corners = trainCorners(train);
+    corners.forEach((id, i) => {
+      const c = geo.indexOf.get(id);
+      if (c === undefined) return;
+      const along = corners.length > 1 ? i / (corners.length - 1) : 0;
+      const p = pips(train.number) * share * (1 - (1 - TRAIN_END) * along);
+      geo.train[c]! += p;
+      geo.gold[c]! += p;
+    });
+  }
 }
 
 function build(board: Board, seafaring: boolean): Geometry {
@@ -87,6 +120,7 @@ function build(board: Board, seafaring: boolean): Geometry {
     indexOf,
     pips: new Float32Array(n * 5),
     gold: new Float32Array(n),
+    train: new Float32Array(n),
     lodestone: new Float32Array(n),
     volcano: new Float32Array(n),
     jungle: new Float32Array(n),

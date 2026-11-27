@@ -24,7 +24,7 @@ interface Pick {
 
 /** Corner totals and resource kinds from the board's geometry. */
 function corner(g: GameState, playerId: string, id: string) {
-  const geo = geometry(getView(g, playerId));
+  const geo = geometry(getView(g, playerId), 0);
   const c = geo.indexOf.get(id)!;
   const byResource = NAMES.map((_, r) => geo.pips[c * 5 + r]!);
   return { total: byResource.reduce((a, b) => a + b, 0) + geo.gold[c]!, byResource };
