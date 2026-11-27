@@ -1,4 +1,4 @@
-import { type CSSProperties, useId } from 'react';
+import { type CSSProperties, useEffect, useId, useState } from 'react';
 import { playerColor } from '../../shared/colors';
 import { allPieces } from '../../shared/crossings';
 import type { GameLog, GameView } from '../../shared/types';
@@ -21,6 +21,7 @@ import { paidTiles } from './christmas/paidTiles';
 import { ConfirmCard, HexConfirm, keyboardActivate } from './game/BoardConfirm';
 import BoardDice from './game/BoardDice';
 import BoardEffects, { risingSettlements, volcanoRumbles } from './game/BoardEffects';
+import { GroupGlow, type GroupPick, GroupTargets } from './game/GroupTargets';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import { pieceEnds } from './game/sharedEdges';
@@ -166,6 +167,11 @@ export default function Board({
   onKnight,
 }: BoardProps) {
   const uid = useId().replace(/:/g, '');
+  // A tapped network (Santa's pick) waiting for its confirm; any new phase drops it.
+  const [groupPick, setGroupPick] = useState<GroupPick | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the phase is the trigger, not a value read.
+  useEffect(() => setGroupPick(null), [view.phase]);
+  const groups = spots?.groups && !disabled ? spots.groups : null;
   const picked = hexPick ? view.board.hexes.find(h => h.id === hexPick) : undefined;
   // A tile picked by a tool that confirms on the board (the chart tool) gets its card above it.
   const tileConfirm = tiles?.confirm && tiles.picked ? view.board.hexes.find(h => h.id === tiles.picked) : undefined;
@@ -228,7 +234,8 @@ export default function Board({
       : vertices.get(selected.id)
     : null;
   const choices = selected?.choices ?? (selected ? [selected.kind] : []);
-  const pickable = (tiles?.hexes.length ?? 0) + (spots ? spots.vertices.length + spots.edges.length : 0);
+  const pickable =
+    (tiles?.hexes.length ?? 0) + (spots ? spots.vertices.length + spots.edges.length + (spots.groups?.length ?? 0) : 0);
   const hasTargets = vertexTargets.size + edgeTargets.size + hexTargets.size + pickable > 0;
   const showHint = hasTargets && (!direct || mode === 'move-ship') && !selected && !tiles?.picked;
   return (
@@ -264,6 +271,9 @@ export default function Board({
             peeks={view.fogPeeks}
           />
           <RouteZones zones={viewerZones(view)} />
+          {groups && (
+            <GroupGlow view={view} groups={groups} picked={groupPick} vertices={vertices} edgeEnds={edgeEnds} />
+          )}
           {allPieces(view, 'road').map(([edgeId, owner]) => {
             const [a, b] = pieceEnds(view, edgeId, owner, edgeEnds(edgeId));
             const relay = view.relays.includes(edgeId);
@@ -407,6 +417,16 @@ export default function Board({
           />
           {tiles && <TileTargets view={view} tiles={tiles} />}
           {spots && !disabled && <SpotTargets spots={spots} vertices={vertices} edgeEnds={edgeEnds} />}
+          {spots && groups && (
+            <GroupTargets
+              spots={spots}
+              groups={groups}
+              picked={groupPick}
+              onPicked={setGroupPick}
+              vertices={vertices}
+              edgeEnds={edgeEnds}
+            />
+          )}
           <BoardEffects view={view} rolled={rolled} vertices={vertices} frame={frame} uid={uid} playerColor={color} />
           {[...vertexTargets].map(vertexId => {
             const vertex = vertices.get(vertexId)!;

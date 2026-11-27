@@ -323,7 +323,7 @@
 }
 /* A moving animation inside the board repaints the whole moving layer every frame (very slow on
    iPads), so they hold still while the board is dragged or pinched. */
-.board-viewport.board-moving :is(.gold-sparkle, .volcano-rumble, .volcano-quake, .xmas-active *) {
+.board-viewport.board-moving :is(.gold-sparkle, .volcano-rumble, .volcano-quake, .xmas-active *, .group-glow-set) {
   animation-play-state: paused;
 }
 .terrain-art {

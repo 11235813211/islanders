@@ -22,7 +22,7 @@ export function HexConfirm({
   onConfirm,
 }: {
   at: { x: number; y: number };
-  piece: 'robber' | 'pirate' | 'peek' | 'chart';
+  piece: 'robber' | 'pirate' | 'peek' | 'chart' | 'santa';
   text?: string;
   onConfirm: (confirm: boolean) => void;
 }) {

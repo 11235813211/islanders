@@ -127,7 +127,7 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     case 'eruption':
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
     case 'santa':
-      return ownTurn ? 'Pick a building for Santa' : `${active?.name} is sending Santa…`;
+      return ownTurn ? 'Pick a player’s network for Santa' : `${active?.name} is sending Santa…`;
     case 'special-build':
       if (!ownTurn) return `${active?.name} is building…`;
       if (!isHugeGame(view.players.length)) return 'Special build: no trading';

@@ -30,7 +30,7 @@ function santaTurn(): GameState {
 test('Christmas: winter board, the North Pole, and sending Santa to a building', async ({ page }) => {
   const game = await mountGame(page, santaTurn());
   await expect(page.locator('html')).toHaveClass(/theme-christmas/);
-  await expect(page.getByText('Pick a building for Santa')).toBeVisible();
+  await expect(page.getByText('Pick a player’s network for Santa')).toBeVisible();
   await page.screenshot({ path: 'test-results/christmas-table.png' });
   await expectDecorClear(page, DECORATED);
   const size = page.viewportSize()!;
@@ -43,7 +43,11 @@ test('Christmas: winter board, the North Pole, and sending Santa to a building',
   await page.locator('.chat-panel').screenshot({ path: 'test-results/christmas-dice.png' });
   await page.locator('.site-header').screenshot({ path: 'test-results/christmas-header.png' });
   const target = page.getByRole('button', { name: /^Send Santa to Player 2/ }).first();
-  await target.click();
+  await target.locator('line.board-hit-area').first().click({ force: true });
+  // A tap (here on a road) asks first; Santa goes only on the check.
+  await expect(page.getByRole('button', { name: 'Confirm santa' })).toBeVisible();
+  expect(game.state().phase).toBe('santa');
+  await page.getByRole('button', { name: 'Confirm santa' }).click();
   await expect.poll(() => game.state().phase).toBe('build');
   // Mid-flight, then the gift card everyone sees.
   await page.waitForTimeout(1300);

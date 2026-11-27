@@ -10,6 +10,17 @@ export interface SpotPicking {
   hint: string;
   label: (id: string) => string;
   onPick: (id: string) => void;
+  /** Whole networks picked as one (Santa's gift): any of a group's corners or edges picks its id. */
+  groups?: SpotGroup[];
+  /** With groups: the confirm card's text once a group is tapped. */
+  confirmText?: (id: string) => string;
+}
+
+/** A set of corners and edges that flash together and are picked as one. */
+export interface SpotGroup {
+  id: string;
+  vertices: string[];
+  edges: string[];
 }
 
 type Corners = Map<string, Vertex>;

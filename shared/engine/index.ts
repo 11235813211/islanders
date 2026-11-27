@@ -23,7 +23,7 @@ export { affordsSplit, chartHexes, splitCost } from './legal';
 export { addPlayer, addSpectator, createGame, peekBoard } from './lobby';
 export { normalizeGame, SCHEMA_VERSION } from './migrations';
 export { boardPlayerCount, proposalsBy } from './proposals';
-export { NORTH_POLE_NUMBERS, santaTargets } from './santa';
+export { NORTH_POLE_NUMBERS, type SantaNetwork, santaNetworks, santaTargets } from './santa';
 export { awayHostSuccessor, botSeatId, passHost } from './seats';
 export { idlePause, idleResume, logPresence } from './social';
 export {

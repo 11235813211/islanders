@@ -1,0 +1,49 @@
+/* Whole networks to pick as one (GroupTargets.tsx): a gold halo in each piece's shape, under the
+   pieces, that flashes; the tapped group's halo holds steady while its confirm card is up. */
+.group-glow-set {
+  animation: group-flash 1.1s ease-in-out infinite alternate;
+}
+.group-glow-road {
+  stroke: #ffd23f;
+  stroke-width: 17;
+  stroke-linecap: round;
+}
+/* The building drawn again in solid gold with a thick edge: a silhouette a little larger than the piece. */
+.group-glow-building * {
+  fill: #ffd23f !important;
+  stroke: #ffd23f !important;
+  stroke-width: 7px !important;
+  stroke-linejoin: round;
+}
+.group-glow-picked {
+  animation: none;
+  opacity: 1;
+}
+.group-glow-picked .group-glow-road,
+.group-glow-picked .group-glow-building * {
+  stroke: #fff0a0 !important;
+}
+.group-target {
+  cursor: pointer;
+}
+.group-target .board-hit-area {
+  stroke: transparent;
+  fill: transparent;
+  stroke-linecap: round;
+}
+.group-target:focus-visible {
+  outline: none;
+}
+@keyframes group-flash {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .group-glow-set {
+    animation: none;
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTime, applyAction, getView, NORTH_POLE_NUMBERS, normalizeGame } from '../shared/engine';
+import { advanceTime, applyAction, getView, NORTH_POLE_NUMBERS, normalizeGame, santaNetworks } from '../shared/engine';
 import { CLASSIC_RESOURCES, type GameState } from '../shared/types';
 import { makeLobby, seeded, sequence, settled, TEST_NOW } from './fixtures';
 
@@ -43,6 +43,34 @@ describe('the North Pole', () => {
     const look = makeLobby(3);
     look.settings.christmas = true;
     expect(settled(3, look).northPole).toBeNull();
+  });
+
+  it('offers each rival network of buildings and roads as one pick, split where another building sits', () => {
+    const g = christmas(3);
+    const networks = santaNetworks(g, 'p0');
+    // After setup, each rival has two settlements, each with its road.
+    expect(networks.map(n => n.playerId).sort()).toEqual(['p1', 'p1', 'p2', 'p2']);
+    for (const n of networks) {
+      expect(n.vertices).toEqual([n.vertexId]);
+      expect(n.edges).toHaveLength(1);
+      expect(g.board.edges.find(e => e.id === n.edges[0])).toSatisfy(
+        (e: { a: string; b: string }) => e.a === n.vertexId || e.b === n.vertexId,
+      );
+    }
+    // A road on from p1's road's far end joins that network.
+    const first = networks.find(n => n.playerId === 'p1')!;
+    const road = g.board.edges.find(e => e.id === first.edges[0])!;
+    const far = road.a === first.vertexId ? road.b : road.a;
+    const next = g.board.edges.find(e => e.id !== road.id && (e.a === far || e.b === far) && !g.roads[e.id])!;
+    g.roads[next.id] = 'p1';
+    expect(
+      santaNetworks(g, 'p0')
+        .find(n => n.vertexId === first.vertexId)!
+        .edges.sort(),
+    ).toEqual([road.id, next.id].sort());
+    // A p2 settlement on the far corner cuts p1's road off there.
+    g.buildings[far] = { playerId: 'p2', kind: 'settlement' };
+    expect(santaNetworks(g, 'p0').find(n => n.vertexId === first.vertexId)!.edges).toEqual([road.id]);
   });
 
   it('nobody settles on its corners, in setup or after', () => {
