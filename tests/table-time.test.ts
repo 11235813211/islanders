@@ -89,6 +89,33 @@ describe('giving time', () => {
     expect(() => act(bot, 'p1', { type: 'give-time' })).toThrow(/give time/);
   });
 
+  it('extends the short clock of those discarding or picking cards, not the held turn', () => {
+    const rolled = rollSeven(sevenComing());
+    expect(rolled.phase).toBe('discard');
+    const helped = act(rolled, 'p2', { type: 'give-time' });
+    expect(helped.discardDeadline).toBe(rolled.discardDeadline! + given);
+    expect(helped.turnDeadline).toBe(rolled.turnDeadline);
+    expect(helped.log.at(-1)!.text).toBe(`Player 2 gave Player 1 ${TUNING.giveTimeSeconds} seconds.`);
+    // The mover may help the discarder too; the discarder can't help themselves.
+    expect(act(rolled, 'p0', { type: 'give-time' }).discardDeadline).toBe(rolled.discardDeadline! + given);
+    expect(() => act(rolled, 'p1', { type: 'give-time' })).toThrow(/give time/);
+    const gold = building();
+    gold.phase = 'gold';
+    gold.pendingGold = { p1: 1, p2: 2 };
+    gold.goldDeadline = TEST_NOW + 10_000;
+    gold.turnHeldAt = TEST_NOW;
+    const goldHelped = act(gold, 'p0', { type: 'give-time' });
+    expect(goldHelped.goldDeadline).toBe(TEST_NOW + 10_000 + given);
+    expect(goldHelped.log.at(-1)!.text).toBe(`Player 0 gave Player 1 and Player 2 ${TUNING.giveTimeSeconds} seconds.`);
+  });
+
+  it('extends Santa’s clock', () => {
+    const g = building();
+    g.phase = 'santa';
+    g.robberDeadline = TEST_NOW + 10_000;
+    expect(act(g, 'p1', { type: 'give-time' }).robberDeadline).toBe(TEST_NOW + 10_000 + given);
+  });
+
   it('keeps the active player’s undo', () => {
     const g = building();
     grant(g, 'p0', { wood: 4 });

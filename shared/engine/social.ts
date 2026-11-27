@@ -13,6 +13,7 @@ export function shiftClocks(state: GameState, milliseconds: number): void {
   if (state.goldDeadline !== null) state.goldDeadline += milliseconds;
   if (state.robberDeadline !== null) state.robberDeadline += milliseconds;
   if (state.discardDeadline !== null) state.discardDeadline += milliseconds;
+  if (state.candyDeadline !== null) state.candyDeadline += milliseconds;
   // A held turn clock was already stopped for this time, so its start moves on too.
   if (state.turnHeldAt !== null) state.turnHeldAt += milliseconds;
   for (const offer of state.tradeOffers) {

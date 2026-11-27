@@ -93,7 +93,7 @@ function candyInstruction(view: GameView, clock: number): string {
   const picker = view.candyLoad?.picks[0]?.playerId;
   if (picker === view.selfId)
     return `Take a card from the candy train${countdown(secondsUntil(view.candyDeadline, clock))}`;
-  return `${view.players.find(p => p.id === picker)?.name ?? 'Someone'} is picking from the candy train…`;
+  return `${view.players.find(p => p.id === picker)?.name ?? 'Someone'} is picking from the candy train${countdown(secondsUntil(view.candyDeadline, clock))}`;
 }
 
 function instructionFor(view: GameView, ownTurn: boolean, clock: number): string {
@@ -118,25 +118,29 @@ function instructionFor(view: GameView, ownTurn: boolean, clock: number): string
     case 'robber':
       return ownTurn
         ? `Move the robber${view.seafaring ? ' or pirate' : ''}${countdown(secondsUntil(view.robberDeadline, clock))}`
-        : 'Moving robber…';
+        : `Moving robber${countdown(secondsUntil(view.robberDeadline, clock))}`;
     case 'steal':
       return 'Choosing a player…';
     case 'gift':
-      return view.ck?.gifts[view.selfId] ? 'Choose your Wedding gift' : 'Wedding gifts…';
+      return view.ck?.gifts[view.selfId]
+        ? `Choose your Wedding gift${countdown(secondsUntil(view.discardDeadline, clock))}`
+        : `Wedding gifts${countdown(secondsUntil(view.discardDeadline, clock))}`;
     case 'place-knight':
       return ownTurn ? 'Place the deserting knight' : 'Placing a knight…';
     case 'discard':
       return view.pendingDiscards[view.selfId]
         ? `Discard${countdown(secondsUntil(view.discardDeadline, clock))}`
-        : 'Discarding resources…';
+        : `Discarding${countdown(secondsUntil(view.discardDeadline, clock))}`;
     case 'gold':
       return view.pendingGold[view.selfId]
         ? `Choose your gold${countdown(secondsUntil(view.goldDeadline, clock))}`
-        : 'Choosing gold…';
+        : `Choosing gold${countdown(secondsUntil(view.goldDeadline, clock))}`;
     case 'eruption':
       return ownTurn ? 'Roll the volcano dice' : `${active?.name} rolls for the volcanoes…`;
     case 'santa':
-      return ownTurn ? 'Pick a player’s network for Santa' : `${active?.name} is sending Santa…`;
+      return ownTurn
+        ? `Pick a player’s network for Santa${countdown(secondsUntil(view.robberDeadline, clock))}`
+        : `${active?.name} is sending Santa${countdown(secondsUntil(view.robberDeadline, clock))}`;
     case 'candy':
       return candyInstruction(view, clock);
     case 'special-build':

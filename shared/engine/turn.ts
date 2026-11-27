@@ -1,7 +1,7 @@
 import { placePiece } from '../crossings';
 import { TUNING } from '../default-settings';
 import { setupPieces } from '../maps/special';
-import { canGiveTime } from '../rules';
+import { CHOICE_CLOCKS, canGiveTime, timedChoosers } from '../rules';
 import { boardIndex, islandBonus, vertexIsland } from '../seafaring';
 import { type GameState, type Player, RESOURCES, type Tradable } from '../types';
 import { loadTrains } from './candy';
@@ -33,6 +33,10 @@ import { afterDiscards, aqueduct, discardLimit, endKnightsTurn, resolveEventDie 
 import { legalMoves, roadSites, shipSites, stealTargets } from './legal';
 import { collectStart, drift, eruptingVolcanoes, produce } from './production';
 import { santaComes } from './santa';
+
+/** "A", "A and B", "A, B and C". */
+const listNames = (names: string[]) =>
+  names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 
 /** The least auto-roll wait left after a held roll restarts, so the roller can still tap Roll. */
 const ROLL_RESUME_MS = 3000;
@@ -394,15 +398,22 @@ export const turnHandlers: Pick<
     addLog(next, `${player.name} no longer wants to build after this turn.`);
   },
 
-  /** Any other player may add time for the person moving, without a vote. */
+  /**
+   * Any other player may add time for the people choosing, without a vote: the person moving, or,
+   * while the turn clock holds, those discarding or picking cards on their own short clock.
+   */
   'give-time'({ next, player, playerId }) {
     const activeId = getActivePlayerId(next);
     requireRule(canGiveTime(next, activeId, playerId), 'You can’t give time right now.');
     const added = TUNING.giveTimeSeconds * 1000;
-    next.turnDeadline! += added;
-    if (next.robberDeadline !== null) next.robberDeadline += added;
-    const active = next.players.find(p => p.id === activeId)!;
-    addLog(next, `${player.name} gave ${active.name} ${TUNING.giveTimeSeconds} seconds.`);
+    const choice = CHOICE_CLOCKS[next.phase as keyof typeof CHOICE_CLOCKS];
+    if (choice) next[choice]! += added;
+    else {
+      next.turnDeadline! += added;
+      if (next.robberDeadline !== null) next.robberDeadline += added;
+    }
+    const names = timedChoosers(next, activeId).map(id => next.players.find(p => p.id === id)!.name);
+    addLog(next, `${player.name} gave ${listNames(names)} ${TUNING.giveTimeSeconds} seconds.`);
   },
 
   /**

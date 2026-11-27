@@ -26,26 +26,63 @@ const GIVE_TIME_PHASES: readonly GameState['phase'][] = [
   'free-roads',
   'build',
   'special-build',
+  'santa',
+  'place-knight',
 ];
 
-/** Whether `giverId` may add time to the clock of the person moving now: never to a bot or themselves. */
-export function canGiveTime(
-  game: Pick<GameState, 'phase' | 'pausedAt' | 'turnDeadline' | 'turnHeldAt'> & {
-    players: readonly { id: string; bot?: unknown }[];
-  },
-  activeId: string | null,
-  giverId: string,
-): boolean {
-  const active = game.players.find(p => p.id === activeId);
+/** Phases where others choose cards on a short clock of their own while the turn clock holds. */
+export const CHOICE_CLOCKS = {
+  discard: 'discardDeadline',
+  gift: 'discardDeadline',
+  gold: 'goldDeadline',
+  candy: 'candyDeadline',
+} as const satisfies Partial<Record<GameState['phase'], keyof GameState>>;
+
+type ClockTable = Pick<
+  GameState,
+  | 'phase'
+  | 'pausedAt'
+  | 'turnDeadline'
+  | 'turnHeldAt'
+  | 'pendingDiscards'
+  | 'pendingGold'
+  | 'candyLoad'
+  | 'discardDeadline'
+  | 'goldDeadline'
+  | 'candyDeadline'
+> & { players: readonly { id: string; bot?: unknown }[]; ck?: { gifts: Record<string, number> } | null };
+
+const owing = (counts: Record<string, number> | undefined) =>
+  Object.keys(counts ?? {}).filter(id => (counts?.[id] ?? 0) > 0);
+
+/** Who more time would help now: the person moving, or those choosing discards, gold, gifts, or candy. */
+export function timedChoosers(game: ClockTable, activeId: string | null): string[] {
+  const choosers = (() => {
+    if (game.phase === 'discard') return owing(game.pendingDiscards);
+    if (game.phase === 'gold') return owing(game.pendingGold);
+    if (game.phase === 'gift') return owing(game.ck?.gifts);
+    if (game.phase === 'candy') return game.candyLoad?.picks[0] ? [game.candyLoad.picks[0].playerId] : [];
+    return GIVE_TIME_PHASES.includes(game.phase) && activeId ? [activeId] : [];
+  })();
+  return choosers.filter(id => game.players.some(p => p.id === id && !p.bot));
+}
+
+/** Whether the clock those choosers are on is running, so added time means something. */
+function clockRunning(game: ClockTable): boolean {
+  const choice = CHOICE_CLOCKS[game.phase as keyof typeof CHOICE_CLOCKS];
+  if (choice) return game[choice] !== null;
+  return game.turnDeadline !== null && game.turnHeldAt === null;
+}
+
+/** Whether `giverId` may add time for the people choosing now: never to bots or themselves. */
+export function canGiveTime(game: ClockTable, activeId: string | null, giverId: string): boolean {
+  const choosers = timedChoosers(game, activeId);
   return (
-    !!active &&
-    !active.bot &&
-    active.id !== giverId &&
+    choosers.length > 0 &&
+    !choosers.includes(giverId) &&
     game.players.some(p => p.id === giverId) &&
-    GIVE_TIME_PHASES.includes(game.phase) &&
     game.pausedAt === null &&
-    game.turnDeadline !== null &&
-    game.turnHeldAt === null
+    clockRunning(game)
   );
 }
 
