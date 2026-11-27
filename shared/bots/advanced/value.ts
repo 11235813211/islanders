@@ -252,6 +252,8 @@ export function cornerYield(econ: Economy, vertexId: string): { production: Reso
     if ((TILE_RESOURCES as readonly string[]).includes(hex.terrain)) production[hex.terrain as keyof ResourceBag] += p;
     else if (hex.terrain === 'gold' || (hex.terrain === 'volcano' && econ.view.settings.volcanoGold)) choice += p;
   }
+  // A candy train stop: a card of choice whenever the train's number comes up.
+  choice += econ.geo.train[econ.geo.indexOf.get(vertexId)!]!;
   return { production, choice };
 }
 

@@ -10,6 +10,12 @@ _Nothing running._
 
 ## Finished
 
+### Candy train stops counted as gold (Christmas Candy)
+
+- **Why:** Advanced ignored candy trains when placing and building. Train stops now count as gold-like pips (`trainSpot` share, less toward the end of the line; `bots/advanced/geometry.ts`). Measure the gain in candy games and pick the share.
+- **Setup:** `select` of trainSpot 0.6 / 0.85 / 1.1 vs 0 (trains ignored), 600 rotated seeds, `--settings '{"christmasCandy":true,"candyTrains":true}'`, field Intermediate. A 60-seed smoke run gave +35 ±4.7 pp for 0.85.
+- **Result (2026-11-27, 600 seeds × 4 arms, about 15 minutes):** 0.85 won **76.9%** vs 48.6% ignoring trains (**+26.78 ±1.43 pp** paired); 1.1 +27.42, 0.6 +21.89. Shipped at 0.85. [Write-up](analysis/2026-11-27-candy-train-stops.md). Standard `eval --games 2000` (no candy) after the change: 58.9% ±1.1% (×1.98), same as before.
+
 ### Check after making counter-offers rarer
 
 - **Why:** Advanced countered about 1.3 times per round in all-bot games, which crowds the table. Counters now need 0.4 more gain than a plain trade, only one counter goes to each offer, and a bot waits three rounds before countering anyone again (`bots/advanced/trade.ts`). Confirm Advanced still beats Intermediate.

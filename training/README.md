@@ -375,3 +375,6 @@ uncertainty, changed protocols, and limits on causal claims, read [EVIDENCE.md](
   fair 29.7% (×1.90), with 0.07 chart points per Advanced seat per game. See [RUNS.md](RUNS.md).
 - Robber blocks one number (2026-11-19, [analysis](analysis/2026-11-19-robber-top-number.md)): Advanced counts only the number the robber
   blocks on a charted tile; +1.12 ±0.52 pp on Cartographers maps vs the previous bot; ×1.92 against Intermediate.
+- Candy train stops (2026-11-27, [analysis](analysis/2026-11-27-candy-train-stops.md)): Advanced counts each stop as
+  gold pips on the train's number (`trainSpot` 0.85, less toward the end of the line); in Christmas Candy games
+  +26.78 ±1.43 pp vs ignoring trains (76.9% against a fair 27.0%, Intermediate field). Other games unchanged.

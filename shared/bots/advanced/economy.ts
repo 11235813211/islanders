@@ -76,7 +76,7 @@ export class Economy {
     readonly knobs: Knobs,
   ) {
     this.board = new Board(view);
-    this.geo = geometry(view);
+    this.geo = geometry(view, knobs.trainSpot);
     this.self = view.players.find(p => p.id === view.selfId)!;
     this.seat = view.players.indexOf(this.self);
     const { production, choice } = this.productionOf(view.selfId);
@@ -136,7 +136,7 @@ export class Economy {
    * Pips by resource for a player, and pips from gold and paying volcanoes (a free choice). Charted
    * numbers count; a split tile's pips go half to each of its resources; the robber blocks a tile's
    * most likely number for buildings, while relay stations earn one card per tile beside them, robber
-   * or not (as `produce` in engine/production.ts pays them).
+   * or not (as `produce` in engine/production.ts pays them). Candy train stops count as choice.
    */
   productionOf(playerId: string): { production: ResourceBag; choice: number } {
     const production = emptyBag();
@@ -150,8 +150,11 @@ export class Economy {
     };
     for (const [vertexId, b] of Object.entries(this.view.buildings)) {
       if (b.playerId !== playerId) continue;
+      const times = b.kind === 'city' ? 2 : 1;
       for (const hexId of index.vertex.get(vertexId)!.hexIds)
-        add(index.hex.get(hexId)!, b.kind === 'city' ? 2 : 1, hexId === this.view.robber);
+        add(index.hex.get(hexId)!, times, hexId === this.view.robber);
+      // Candy train stops: a card of choice per pick (the robber can't stop a train).
+      choice += this.geo.train[this.geo.indexOf.get(vertexId)!]! * times;
     }
     for (const edgeId of this.view.relays ?? [])
       if (this.view.roads[edgeId] === playerId) for (const hex of index.edgeHexes.get(edgeId)!) add(hex, 1);
