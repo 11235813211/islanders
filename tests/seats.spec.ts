@@ -63,6 +63,28 @@ test('the host moves a player to spectators, then seats them back in place of th
   expect(game.errors).toEqual([]);
 });
 
+test('the host gives a player double time from their name, and takes it back', async ({ page }) => {
+  const g = settled(3);
+  g.phase = 'build';
+  const game = await mountGame(page, g);
+  const name = g.players[1]!.name;
+  await page.getByRole('button', { name: `${name}: change who plays this seat` }).click();
+  const choose = page.getByRole('dialog', { name });
+  const toggle = choose.getByRole('button', { name: 'Double time' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(game.state().players[1]!.doubleTime).toBe(true);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectNoSpill(choose);
+  }
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  expect(game.state().players[1]!.doubleTime).toBeUndefined();
+  expect(game.errors).toEqual([]);
+});
+
 test('someone moved to the spectators takes their seat back from the top bar', async ({ page }) => {
   const g = settled(3);
   g.phase = 'build';

@@ -1,5 +1,6 @@
 import { Timer } from 'lucide-react';
 import type { CSSProperties } from 'react';
+import { timeFactor } from '../../../shared/rules';
 import type { GameView } from '../../../shared/types';
 import './decision-timer.css';
 
@@ -24,7 +25,7 @@ function decisionDeadline(view: GameView): { deadline: number; label: string } |
 export default function DecisionTimer({ view, now }: { view: GameView; now: number }) {
   const decision = decisionDeadline(view);
   if (!decision) return null;
-  const total = view.settings.decisionSeconds * 1000;
+  const total = view.settings.decisionSeconds * 1000 * timeFactor(view.players, [view.selfId]);
   const left = Math.max(0, decision.deadline - now);
   const seconds = Math.ceil(left / 1000);
   const share = Math.min(1, left / total);

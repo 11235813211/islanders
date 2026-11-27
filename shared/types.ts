@@ -154,6 +154,8 @@ export interface Player {
   discoveries: number;
   /** Set for bot seats, including humans who left mid-game (their seat is taken over). */
   bot?: BotLevel;
+  /** The host gave this person double time on every clock (see timeFactor in rules.ts). */
+  doubleTime?: true;
 }
 /** Where a player's cards came from (counts only, so a stolen card's kind stays hidden). */
 export const CARD_SOURCES = [
@@ -611,6 +613,7 @@ export interface PublicPlayer {
   peakPoints: number;
   longestRoad: number;
   bot: BotLevel | null;
+  doubleTime: boolean;
   stats: PlayerStats;
 }
 export interface LegalMoves {
@@ -777,6 +780,8 @@ export type GameAction =
   | { type: 'reclaim-seat' }
   | { type: 'add-bot'; level: BotLevel }
   | { type: 'set-bot-level'; playerId: string; level: BotLevel }
+  /** Host: give a person double time on every clock, or take it away. */
+  | { type: 'set-double-time'; playerId: string; on: boolean }
   | { type: 'play-again' }
   | { type: 'offer-trade'; give: TradeBag; want: TradeBag; to?: string[] }
   | { type: 'counter-trade'; offerId: string; give: TradeBag; want: TradeBag }

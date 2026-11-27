@@ -251,3 +251,29 @@ describe('changing your name', () => {
     expect(act(building(), 'p1', stored.action!).players[1]!.name).toBe(`s1 ${TEST_NOW}`);
   });
 });
+
+describe('double time', () => {
+  it('the host gives a person twice as long on their turn and short choices, and can take it back', () => {
+    const g = sevenComing();
+    expect(() => act(g, 'p1', { type: 'set-double-time', playerId: 'p0', on: true })).toThrow(/host/);
+    const doubled = act(g, g.hostId, { type: 'set-double-time', playerId: 'p1', on: true });
+    expect(doubled.players[1]!.doubleTime).toBe(true);
+    expect(getView(doubled, 'p2').players[1]!.doubleTime).toBe(true);
+    expect(doubled.log.at(-1)!.text).toBe('Player 1 has double time.');
+    // p1 discards on a doubled clock.
+    const rolled = rollSeven(doubled);
+    expect(rolled.discardDeadline).toBe(TEST_NOW + rolled.settings.decisionSeconds * 2000);
+    // p1's turn clock is doubled; p0's is not.
+    const own = building();
+    own.players[0]!.doubleTime = true;
+    const ended = act(building(), 'p0', { type: 'end-turn' });
+    const endedDoubled = act(own, 'p0', { type: 'end-turn' });
+    expect(endedDoubled.turnDeadline).toBe(ended.turnDeadline);
+    const p1Turn = structuredClone(building());
+    p1Turn.players[1]!.doubleTime = true;
+    const toP1 = act(p1Turn, 'p0', { type: 'end-turn' });
+    expect(toP1.turnDeadline! - TEST_NOW).toBe(2 * (ended.turnDeadline! - TEST_NOW));
+    const back = act(doubled, doubled.hostId, { type: 'set-double-time', playerId: 'p1', on: false });
+    expect(back.players[1]!.doubleTime).toBeUndefined();
+  });
+});

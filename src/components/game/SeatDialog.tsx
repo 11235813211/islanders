@@ -1,4 +1,4 @@
-import { Bot, Eye, UserRound } from 'lucide-react';
+import { Bot, Check, Eye, Hourglass, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import type { GameAction, GameView } from '../../../shared/types';
 import { GameDialog } from '../TradePanel';
@@ -35,7 +35,7 @@ function confirmText(choice: Choice, name: string, bot: boolean) {
 }
 
 /**
- * Host: change who plays a seat mid-game, for a player who has to leave or someone watching who
+ * Host: give a person double time on their clocks, or change who plays a seat mid-game, for a player who has to leave or someone watching who
  * wants in. A person's seat goes to an Advanced bot (they watch or leave) or to someone watching; a
  * bot's seat to someone watching. Two steps, so it can't happen by a stray tap.
  */
@@ -60,6 +60,20 @@ export default function SeatDialog({
     return (
       <GameDialog title={name} close={close}>
         <p>{player.bot ? 'Someone watching can take over this bot’s seat.' : 'Choose who plays this seat now.'}</p>
+        {!player.bot && (
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className={`button ${player.doubleTime ? 'primary' : 'secondary'}`}
+              aria-pressed={player.doubleTime}
+              disabled={busy}
+              onClick={() => send({ type: 'set-double-time', playerId, on: !player.doubleTime })}
+            >
+              {player.doubleTime ? <Check size={18} /> : <Hourglass size={18} />}
+              Double time
+            </button>
+          </div>
+        )}
         <div className="dialog-actions">
           {!player.bot && (
             <>

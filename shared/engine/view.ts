@@ -89,6 +89,7 @@ export function getView(state: GameState, selfId: string): GameView {
         name: candidate.name,
         color: candidate.color,
         bot: candidate.bot ?? null,
+        doubleTime: !!candidate.doubleTime,
         resourceCount: resourceCount(candidate.resources),
         publicPoints: victoryPoints(state, candidate.id, false),
         points: victoryPoints(state, candidate.id, candidate.id === selfId || finished),

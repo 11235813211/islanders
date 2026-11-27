@@ -86,6 +86,14 @@ export function canGiveTime(game: ClockTable, activeId: string | null, giverId: 
   );
 }
 
+/** How many times longer clocks run for these people: double when any of them has double time. */
+export function timeFactor(
+  players: readonly { id: string; bot?: unknown; doubleTime?: boolean }[],
+  ids: readonly (string | null | undefined)[],
+): number {
+  return players.some(p => ids.includes(p.id) && p.doubleTime && !p.bot) ? 2 : 1;
+}
+
 /** Development cards by island: 25 for 2–4 players, 34 for 5–6, 43 for 7–8. */
 const DECKS: Record<IslandSize, { knight: number; progress: number; points: number }> = {
   standard: { knight: 14, progress: 2, points: 5 },

@@ -2,7 +2,7 @@ import { parseAction } from '../actions';
 import { copyData } from '../copy';
 import { TUNING } from '../default-settings';
 import type { BoardDesign } from '../maps/types';
-import { updateAwards, victoryPoints } from '../rules';
+import { timedChoosers, timeFactor, updateAwards, victoryPoints } from '../rules';
 import type { GameAction, GameState } from '../types';
 import { candyHandlers } from './candy';
 import { cartographersHandlers } from './cartographers';
@@ -73,6 +73,7 @@ const OFF_TURN = new Set<GameAction['type']>([
   'request-special-build',
   'cancel-special-build',
   'give-time',
+  'set-double-time',
   'accept-trade',
   'decline-trade',
   'counter-trade',
@@ -83,7 +84,14 @@ const OFF_TURN = new Set<GameAction['type']>([
   'cancel-trade',
 ]);
 /** Allowed while paused or after the game ends. */
-const ALWAYS = new Set<GameAction['type']>(['leave', 'transfer-host', 'seat-to-bot', 'seat-spectator', 'play-again']);
+const ALWAYS = new Set<GameAction['type']>([
+  'leave',
+  'transfer-host',
+  'seat-to-bot',
+  'seat-spectator',
+  'set-double-time',
+  'play-again',
+]);
 /** Moves players can vote to undo. */
 const REVERSIBLE = new Set<GameAction['type']>([
   'place-settlement',
@@ -119,6 +127,7 @@ const PASSIVE = new Set<GameAction['type']>([
   'request-special-build',
   'cancel-special-build',
   'give-time',
+  'set-double-time',
   // Thinking about a card before rolling isn't a move either.
   'hold-roll',
   'leave',
@@ -257,13 +266,17 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
   reproposeDeferred(next, now);
 
   const playing = !['lobby', 'pick-board', 'finished'].includes(next.phase);
+  // People the host gave double time get twice as long on each clock they are on.
+  const mover = getActivePlayerId(next);
+  const moverFactor = timeFactor(next.players, [mover]);
+  const choosersFactor = timeFactor(next.players, timedChoosers(next, mover));
   // The dice and the volcano dice both roll themselves after the room's auto-roll wait.
   const rolling = (phase: GameState['phase']) => phase === 'roll' || phase === 'eruption';
   if (rolling(next.phase) && next.phase !== state.phase) {
-    next.rollDeadline = next.settings.autoRollSeconds ? now + next.settings.autoRollSeconds * 1000 : null;
+    next.rollDeadline = next.settings.autoRollSeconds ? now + next.settings.autoRollSeconds * 1000 * moverFactor : null;
   } else if (!rolling(next.phase)) next.rollDeadline = null;
   // Gold picks and the robber share the room's short-choice clock.
-  const decision = next.settings.decisionSeconds * 1000;
+  const decision = next.settings.decisionSeconds * 1000 * choosersFactor;
   if (next.phase === 'gold' && state.phase !== 'gold') next.goldDeadline = now + decision;
   else if (next.phase !== 'gold') next.goldDeadline = null;
   // Each candy pick gets the short-choice clock of its own.
@@ -290,14 +303,17 @@ function afterAction(state: GameState, next: GameState, playerId: string, action
       next.phase === 'special-build'
         ? Math.min(SPECIAL_BUILD_SECONDS, next.settings.turnSeconds)
         : next.settings.turnSeconds;
-    next.turnDeadline = now + seconds * 1000;
+    next.turnDeadline = now + seconds * 1000 * moverFactor;
     next.turnHeldAt = HELD_PHASES.includes(next.phase) ? now : null;
     next.turnExpired = false;
   } else if (playing && next.turnDeadline !== null && earnsTime(state, next, action)) {
     // Time other players gave can put the clock above a full turn; a bonus never takes it away.
     next.turnDeadline = Math.max(
       next.turnDeadline,
-      Math.min(next.turnDeadline + TUNING.actionBonusSeconds * 1000, now + next.settings.turnSeconds * 1000),
+      Math.min(
+        next.turnDeadline + TUNING.actionBonusSeconds * 1000,
+        now + next.settings.turnSeconds * 1000 * moverFactor,
+      ),
     );
   }
   if (!playing) {

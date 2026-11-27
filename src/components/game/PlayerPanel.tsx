@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronUp, Flag, Route, WifiOff } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, Flag, Hourglass, Route, WifiOff } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { playerVars } from '../../../shared/colors';
 import { activeStrength, type KnightsView, TRACK_INFO, TRACKS } from '../../../shared/knights';
@@ -195,6 +195,7 @@ function NameText({
     <>
       {offline && <WifiOff className="offline-mark" size={14} aria-label="Disconnected" />}
       {player.bot && <Bot size={13} aria-label="Bot" />}
+      {player.doubleTime && !player.bot && <Hourglass size={13} aria-label="Double time" />}
       {player.name}
       <RouteMark view={view} player={player} />
     </>

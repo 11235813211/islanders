@@ -82,7 +82,19 @@ export function passHost(state: GameState, id: string): GameState {
   return next;
 }
 
-export const seatHandlers: Pick<Handlers, 'seat-to-bot' | 'seat-spectator'> = {
+export const seatHandlers: Pick<Handlers, 'seat-to-bot' | 'seat-spectator' | 'set-double-time'> = {
+  /** Host: a person gets twice as long on every clock from the next one that starts, or back to normal. */
+  'set-double-time'({ next, playerId }, action) {
+    requireRule(next.phase !== 'finished', 'This game has finished.');
+    requireHost(next, playerId, 'give double time');
+    const seat = next.players.find(p => p.id === action.playerId);
+    requireRule(seat && !seat.bot, 'Choose a person at the table.');
+    if (!!seat.doubleTime === action.on) return;
+    if (action.on) seat.doubleTime = true;
+    else delete seat.doubleTime;
+    addLog(next, action.on ? `${seat.name} has double time.` : `${seat.name} has normal time.`);
+  },
+
   /**
    * Host: someone watching takes a seat. In the lobby that can be an open seat; otherwise (and at
    * any time during a game) they take over a player's or bot's seat as it stands, and a person they

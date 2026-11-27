@@ -86,6 +86,7 @@ const SPEC = {
   'seat-to-bot': { playerId: 'id', watch: 'bool' },
   'add-bot': { level: 'botLevel' },
   'set-bot-level': { playerId: 'id', level: 'botLevel' },
+  'set-double-time': { playerId: 'id', on: 'bool' },
   'offer-trade': { give: 'tradeBag', want: 'tradeBag', to: 'players?' },
   'counter-trade': { offerId: 'id', give: 'tradeBag', want: 'tradeBag' },
   'accept-counter': { offerId: 'id', counterId: 'id' },
