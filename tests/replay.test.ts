@@ -93,7 +93,7 @@ describe('game records', () => {
     expect(plain(replayRecord(record))).toEqual(final);
   });
 
-  it('replays a seat the host handed to a bot', () => {
+  it('replays a seat the host handed to a bot and its person took back', () => {
     const random = seeded(21);
     const lobby = makeLobby(3);
     lobby.players.forEach((p, i) => {
@@ -117,12 +117,18 @@ describe('game records', () => {
     expect(ids['p1.bot']).toBe('s1.bot');
     // The host sits out its turns (they time out); the bots play theirs.
     for (let i = 0; i < 400 && game.phase !== 'finished'; i++) {
+      // Partway through, the person takes the seat back (and then sits out like the host).
+      if (i === 60) {
+        expect(Object.values(game.buildings).some(b => b.playerId === 'p1.bot')).toBe(true);
+        run('p1', { type: 'reclaim-seat' });
+        expect(game.players.find(p => p.id === 'p1')?.bot).toBeUndefined();
+      }
       now = Math.max(now, nextDueAt(game) ?? now);
       const t = tape(random);
       game = advanceTime(game, now, t.random);
       steps.push(toStep(ids, { kind: 'time', now, random: t.draws })!);
     }
-    expect(Object.values(game.buildings).some(b => b.playerId === 'p1.bot')).toBe(true);
+    expect(Object.values(game.buildings).some(b => b.playerId === 'p1')).toBe(true);
     const record = buildRecord(initial, steps, game, ids, now);
     expect(plain(replayRecord(record))).toEqual(plain(renameIds(game, ids)));
   });

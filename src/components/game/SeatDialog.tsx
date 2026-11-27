@@ -27,7 +27,9 @@ function confirmText(choice: Choice, name: string, bot: boolean) {
   const watch = choice.kind === 'watch';
   return {
     title: watch ? `Move ${name} to spectators?` : `Replace ${name} with a bot?`,
-    text: `A bot takes their seat, cards and points. ${name} ${watch ? 'keeps watching' : 'leaves the room'} and can't take the seat back.`,
+    text: watch
+      ? `A bot takes their seat, cards and points. ${name} keeps watching and can take the seat back.`
+      : `A bot takes their seat, cards and points. ${name} leaves the room. If signed in, they get the seat back by rejoining.`,
     button: watch ? 'Move to spectators' : 'Replace with bot',
   };
 }

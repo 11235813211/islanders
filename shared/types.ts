@@ -773,6 +773,8 @@ export type GameAction =
   | { type: 'transfer-host'; playerId: string }
   /** Host, mid-game: an Advanced bot takes the seat; the person watches (`watch`) or leaves the room. */
   | { type: 'seat-to-bot'; playerId: string; watch: boolean }
+  /** The person a bot is playing for (after they left, or the host handed their seat over) takes it back. */
+  | { type: 'reclaim-seat' }
   | { type: 'add-bot'; level: BotLevel }
   | { type: 'set-bot-level'; playerId: string; level: BotLevel }
   | { type: 'play-again' }

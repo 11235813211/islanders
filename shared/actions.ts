@@ -75,6 +75,7 @@ const SPEC = {
   },
   leave: {},
   'switch-role': {},
+  'reclaim-seat': {},
   'play-again': {},
   configure: { settings: 'settings' },
   'choose-color': { color: 'color' },

@@ -25,7 +25,7 @@ import { progressHandlers } from './progress';
 import { mapProposalHandlers, pruneMapProposals } from './proposals';
 import { santaHandlers } from './santa';
 import { seaHandlers } from './sea';
-import { seatHandlers } from './seats';
+import { reclaimSeat, seatHandlers } from './seats';
 import { socialAction } from './social';
 import { pruneTradeOffers, reproposeDeferred, tradeHandlers } from './trade';
 import { afterRobber, turnHandlers } from './turn';
@@ -170,6 +170,7 @@ export function applyAction(
 
   // Spectators are not players, so the two actions they can take skip the player checks below.
   if (action.type === 'switch-role') return switchRole(state, playerId);
+  if (action.type === 'reclaim-seat') return reclaimSeat(state, playerId);
   if (action.type === 'leave' && state.spectators.some(s => s.id === playerId)) {
     const next = cloneState(state);
     next.spectators = next.spectators.filter(s => s.id !== playerId);

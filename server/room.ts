@@ -7,6 +7,7 @@ import {
   applyAction,
   awayHostSuccessor,
   type BotThinking,
+  botSeatFor,
   createGame,
   GameError,
   getActivePlayerId,
@@ -135,6 +136,7 @@ const SELF_ACTIONS = new Set<GameAction['type']>([
   'transfer-host',
   'seat-to-bot',
   'seat-spectator',
+  'reclaim-seat',
   'add-bot',
   'set-bot-level',
   'play-again',
@@ -264,6 +266,14 @@ export class GameRoom extends DurableObject<Env> {
   private async logStep(room: RoomRecord, step: RecordedStep): Promise<RoomRecord> {
     if (!room.recording) return room;
     return { ...room, recording: await appendStep(this.ctx.storage, room.recording, step) };
+  }
+  /** The person a bot is playing for rejoins and takes their seat back (logged like any move). */
+  private async takeBackSeat(room: RoomRecord, playerId: string): Promise<RoomRecord> {
+    const now = Date.now();
+    const action = { type: 'reclaim-seat' } as const;
+    const game = applyAction(room.game, playerId, action, secureRandom, now);
+    const step: RecordedStep = { kind: 'action', actor: playerId, action, now, random: [], online: this.online() };
+    return this.logStep({ ...room, game, lastActivity: now }, step);
   }
   /** When a recorded game has just ended, save it. A failure here never affects the game. */
   private async endRecording(room: RoomRecord): Promise<RoomRecord> {
@@ -409,10 +419,11 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   /** A person left or was removed: end their sessions, close their sockets, and forget the room on their account. */
-  private async dropMember(room: RoomRecord, playerId: string, reason: string): Promise<RoomRecord> {
+  private async dropMember(room: RoomRecord, playerId: string, reason: string, forget = true): Promise<RoomRecord> {
     const gone = room.sessions.filter(s => s.playerId === playerId);
     for (const socket of this.sockets())
       if (this.attachment(socket)?.playerId === playerId) socket.close(LEFT_ROOM, reason);
+    if (!forget) return { ...room, sessions: room.sessions.filter(s => s.playerId !== playerId) };
     await Promise.all(
       [...new Set(gone.flatMap(s => (s.account ? [s.account.username] : [])))].map(username =>
         accountStub(this.env, username).forget([room.game.roomId]),
@@ -462,14 +473,17 @@ export class GameRoom extends DurableObject<Env> {
       }
       const game = this.record.game;
       const seat = game.players.find(p => p.id === playerId);
-      if ((!seat || seat.bot) && !game.spectators.some(s => s.id === playerId)) return null;
+      // A seat a bot is playing for them stays listed, so they can come back and take it.
+      const member = (seat && !seat.bot) || game.spectators.some(s => s.id === playerId) || botSeatFor(game, playerId);
+      if (!member) return null;
       return {
         roomId: game.roomId,
         inviteCode: game.inviteCode,
         playerId,
         phase: game.phase,
         players: game.players.map(p => p.name),
-        yourTurn: getActivePlayerId(game) === playerId || (game.pendingDiscards[playerId] ?? 0) > 0,
+        yourTurn:
+          !!seat && !seat.bot && (getActivePlayerId(game) === playerId || (game.pendingDiscards[playerId] ?? 0) > 0),
         winner: game.players.find(p => p.id === game.winnerId)?.name ?? null,
       };
     });
@@ -548,6 +562,20 @@ export class GameRoom extends DurableObject<Env> {
             (identity &&
               [...room.game.players, ...room.game.spectators].find(player => player.id === identity.playerId)) ||
             (!identity && typed ? seatNamed(room, typed) : undefined);
+          // Signed in and a bot is playing their seat: coming back takes it over again.
+          if (
+            identity &&
+            !room.game.spectators.some(s => s.id === identity.playerId) &&
+            botSeatFor(room.game, identity.playerId)
+          ) {
+            const session = await this.issueSession(
+              await this.takeBackSeat(room, identity.playerId),
+              identity.playerId,
+              identity,
+            );
+            this.broadcast();
+            return json(session, 200);
+          }
           if (
             body.autoSpectate &&
             (room.game.testMode || room.game.phase !== 'lobby' || room.game.players.length >= MAX_PLAYERS)
@@ -740,14 +768,17 @@ export class GameRoom extends DurableObject<Env> {
         if (action.type === 'remove-player')
           next = await this.dropMember(next, action.playerId, 'The host removed you from the room.');
         // A newcomer at the table hasn't agreed to be recorded (and isn't in the recorded lobby).
-        if (action.type === 'seat-spectator' && next.recording && room.game.phase !== 'lobby') {
+        const takesBack =
+          action.type === 'seat-spectator' && botSeatFor(room.game, action.spectatorId)?.id === action.playerId;
+        if (action.type === 'seat-spectator' && !takesBack && next.recording && room.game.phase !== 'lobby') {
           await discardRecording(this.ctx.storage);
           next = { ...next, recording: undefined };
         }
         if (action.type === 'seat-to-bot') {
           if (next.recording)
             next.recording = { ...next.recording, ids: withBotSeat(next.recording.ids, room.game, next.game) };
-          if (!action.watch) next = await this.dropMember(next, action.playerId, 'The host gave your seat to a bot.');
+          if (!action.watch)
+            next = await this.dropMember(next, action.playerId, 'The host gave your seat to a bot.', false);
         }
         if (!next.game.players.some(p => !p.bot)) {
           await this.destroy('Everyone left, so the room closed.');

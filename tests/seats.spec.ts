@@ -62,3 +62,21 @@ test('the host moves a player to spectators, then seats them back in place of th
   expect(game.state().spectators).toEqual([]);
   expect(game.errors).toEqual([]);
 });
+
+test('someone moved to the spectators takes their seat back from the top bar', async ({ page }) => {
+  const g = settled(3);
+  g.phase = 'build';
+  const watched = applyAction(g, 'p0', { type: 'seat-to-bot', playerId: 'p1', watch: true }, seeded(), TEST_NOW);
+  const game = await mountGame(page, watched, 'p1');
+  const back = page.getByRole('button', { name: 'Take back your seat' });
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(back).toBeVisible();
+    await expectNoSpill(page.locator('.table-tools'));
+  }
+  await back.click();
+  await expect.poll(() => game.state().players[1]!.id).toBe('p1');
+  expect(game.state().players[1]!.bot).toBeUndefined();
+  await expect(back).toHaveCount(0);
+  expect(game.errors).toEqual([]);
+});

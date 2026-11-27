@@ -1,5 +1,5 @@
 import { renameId } from '../copy';
-import { DEFAULT_BOT_LEVEL, type GameState } from '../types';
+import { DEFAULT_BOT_LEVEL, type GameState, type Player } from '../types';
 import { addLog, cloneState, emptyStats, type Handlers, MAX_PLAYERS, requireRule } from './core';
 import { newSeat, requireHost } from './lobby';
 
@@ -15,6 +15,45 @@ export function botSeatId(state: GameState, personId: string): string {
   let id = `${personId}.bot`;
   while (taken.has(id)) id += '.bot';
   return id;
+}
+
+/**
+ * The bot seat playing for `personId`: their own seat after they left mid-game, or the one the host
+ * handed to a bot (`<person>.bot`, see botSeatId). Undefined when no bot is standing in for them.
+ */
+export function botSeatFor<P extends { id: string; bot?: Player['bot'] | null }>(
+  state: { players: readonly P[] },
+  personId: string,
+): P | undefined {
+  const standsIn = (id: string) =>
+    id === personId || (id.startsWith(personId) && /^(\.bot)+$/.test(id.slice(personId.length)));
+  return state.players.find(p => p.bot && standsIn(p.id));
+}
+
+/**
+ * The person a bot is playing for takes the seat back as it stands (cards, pieces, points), so
+ * handing a seat to a bot or leaving mid-game can always be undone by coming back.
+ */
+export function reclaimSeat(state: GameState, personId: string): GameState {
+  const next = cloneState(state);
+  takeBackSeat(next, personId);
+  next.version++;
+  return next;
+}
+
+/** reclaimSeat's change, made in place. */
+function takeBackSeat(next: GameState, personId: string): void {
+  const seat = botSeatFor(next, personId);
+  requireRule(seat, 'No bot is playing a seat of yours.');
+  requireRule(!next.players.some(p => p.id === personId && !p.bot), 'You already have a seat.');
+  const watcher = next.spectators.find(s => s.id === personId);
+  next.spectators = next.spectators.filter(s => s.id !== personId);
+  if (seat.id !== personId) renameSeat(next, seat.id, personId);
+  const taken = next.players.find(p => p.id === personId)!;
+  delete taken.bot;
+  if (watcher) taken.name = watcher.name;
+  if (next.proposal?.required.includes(personId)) next.proposal = null;
+  addLog(next, `${taken.name} took back their seat.`);
 }
 
 /** Swap one player id for another everywhere in the game (the board never holds player ids). */
@@ -67,6 +106,11 @@ export const seatHandlers: Pick<Handlers, 'seat-to-bot' | 'seat-spectator'> = {
     const seat = next.players.find(p => p.id === action.playerId);
     requireRule(seat, 'Choose a seat to take over.');
     requireRule(seat.id !== playerId, 'Move yourself to the spectators instead.');
+    if (botSeatFor(next, watcher.id) === seat) {
+      next.spectators.push(watcher);
+      takeBackSeat(next, watcher.id);
+      return;
+    }
     const replaced = { id: seat.id, name: seat.name, bot: seat.bot };
     renameSeat(next, replaced.id, watcher.id);
     const taken = next.players.find(p => p.id === watcher.id)!;

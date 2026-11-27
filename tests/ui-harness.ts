@@ -11,9 +11,9 @@ import { signIn } from './server-helpers';
  * Deterministic UI scenarios use the real rules engine, without production debug routes. A lobby
  * has no board, so it waits for the settings instead.
  */
-export async function mountGame(page: Page, initial: GameState) {
+export async function mountGame(page: Page, initial: GameState, viewer = initial.players[0].id) {
   let game = structuredClone(initial),
-    selfId = game.players[0].id;
+    selfId = viewer;
   const errors: string[] = [];
   /** Sends the latest view over the open socket (set once the page connects). */
   let push = () => {};

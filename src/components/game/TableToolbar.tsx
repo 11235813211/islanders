@@ -1,4 +1,5 @@
 import {
+  Armchair,
   Eye,
   FlaskConical,
   House,
@@ -14,6 +15,7 @@ import {
   Wifi,
 } from 'lucide-react';
 import { useState } from 'react';
+import { botSeatFor } from '../../../shared/engine';
 import type { GameAction, GameView } from '../../../shared/types';
 import type { Connection } from '../../hooks/useRoom';
 import { setSoundEnabled, soundEnabled } from '../../lib/sound';
@@ -157,6 +159,17 @@ export default function TableToolbar({
               {paused ? <Play size={18} /> : <Pause size={18} />}
             </button>
           </>
+        )}
+        {spectator && botSeatFor(view, view.selfId) && (
+          <button
+            className="icon-button"
+            aria-label="Take back your seat"
+            title="Take back your seat"
+            disabled={busy}
+            onClick={() => send({ type: 'reclaim-seat' })}
+          >
+            <Armchair size={18} />
+          </button>
         )}
         <button className="icon-button" aria-label="Leave game" title="Leave game" onClick={leave}>
           <LogOut size={18} />

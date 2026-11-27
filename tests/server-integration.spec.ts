@@ -355,14 +355,16 @@ test('mid-game: anyone peeks at drawn boards, a guest signs in and keeps the sea
     await a!.action({ type: 'start' });
 
     // Signing in mid-game claims the guest seat instead of joining as a spectator.
+    const accountHeaders = await registerAccount(request);
     const claimed = await request.post(`${server}/api/rooms/${host.roomId}/join`, {
-      headers: await registerAccount(request),
+      headers: accountHeaders,
       data: { autoSpectate: true, claim: late.token },
     });
     expect(claimed.status(), await claimed.text()).toBe(200);
     const account = (await claimed.json()) as Session;
     c!.dispose();
     const signedIn = new PlayerConnection(host.roomId);
+    let back: PlayerConnection | undefined;
     try {
       const view = await signedIn.authenticate(account);
       expect(view.role).toBe('player');
@@ -380,8 +382,22 @@ test('mid-game: anyone peeks at drawn boards, a guest signs in and keeps the sea
           .map(p => p.id)
           .sort(),
       ).toEqual([`${guest.playerId}.bot`, `${account.playerId}.bot`].sort());
+
+      // Both can be undone: the watcher takes the seat back, and the account by rejoining.
+      await b!.action({ type: 'reclaim-seat' });
+      await expect.poll(() => b!.state.role).toBe('player');
+      const rejoined = await request.post(`${server}/api/rooms/${host.roomId}/join`, {
+        headers: accountHeaders,
+        data: { autoSpectate: true },
+      });
+      expect(rejoined.status(), await rejoined.text()).toBe(200);
+      back = new PlayerConnection(host.roomId);
+      const returned = await back.authenticate((await rejoined.json()) as Session);
+      expect(returned.role).toBe('player');
+      expect(returned.players.filter(p => p.bot).map(p => p.id)).toEqual([]);
     } finally {
       signedIn.dispose();
+      back?.dispose();
     }
   } finally {
     for (const client of [a, b, c]) client!.dispose();

@@ -7,6 +7,7 @@ import {
   BOT_THINK_MS,
   boardPlayerCount,
   botDueAt,
+  botSeatFor,
   GameError,
   getActivePlayerId,
   getView,
@@ -84,6 +85,41 @@ describe('room membership', () => {
     expect(gone.players[2]).toMatchObject({ id: 'p2.bot', bot: 'advanced' });
     expect(() => getView(gone, 'p2')).toThrow(GameError);
     expect(() => act(makeLobby(3), 'p0', { type: 'seat-to-bot', playerId: 'p1', watch: true })).toThrow(GameError);
+  });
+
+  it('lets the person a bot is playing for take the seat back, however the bot got it', () => {
+    const g = settled(3);
+    grant(g, 'p1', { ore: 2 });
+    expect(() => act(g, 'p1', { type: 'reclaim-seat' })).toThrow(/No bot/);
+    // Moved to the spectators: they take it back themselves, or the host seats them in it again.
+    const watched = act(g, 'p0', { type: 'seat-to-bot', playerId: 'p1', watch: true });
+    expect(botSeatFor(watched, 'p1')?.id).toBe('p1.bot');
+    expect(botSeatFor(watched, 'p2')).toBeUndefined();
+    expect(() => act(watched, 'p2', { type: 'reclaim-seat' })).toThrow(/No bot/);
+    for (const back of [
+      act(watched, 'p1', { type: 'reclaim-seat' }),
+      act(watched, 'p0', { type: 'seat-spectator', spectatorId: 'p1', playerId: 'p1.bot' }),
+    ]) {
+      expect(back.players[1]).toMatchObject({ id: 'p1', resources: g.players[1]!.resources });
+      expect(back.players[1]!.bot).toBeUndefined();
+      expect(back.spectators).toEqual([]);
+      expect(Object.values(back.buildings).filter(b => b.playerId === 'p1')).toHaveLength(2);
+      expect(back.log.at(-1)!.text).toMatch(/took back their seat/);
+      expect(conserved(back)).toBe(true);
+    }
+    // Sent out of the room, or left on their own: coming back (not in the room at all) takes it.
+    const gone = act(g, 'p0', { type: 'seat-to-bot', playerId: 'p2', watch: false });
+    const rejoined = act(gone, 'p2', { type: 'reclaim-seat' }).players[2]!;
+    expect([rejoined.id, rejoined.bot]).toEqual(['p2', undefined]);
+    const left = act(g, 'p2', { type: 'leave' });
+    expect(act(left, 'p2', { type: 'reclaim-seat' }).players[2]!.bot).toBeUndefined();
+    // Someone else seated in the bot's place means there is nothing to take back.
+    const other = act(addSpectator(watched, { id: 'w', name: 'Watcher' }), 'p0', {
+      type: 'seat-spectator',
+      spectatorId: 'w',
+      playerId: 'p1.bot',
+    });
+    expect(() => act(other, 'p1', { type: 'reclaim-seat' })).toThrow(/No bot/);
   });
 
   it('removes a player who leaves the lobby and hands hosting to the next person', () => {
