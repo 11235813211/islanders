@@ -45,15 +45,25 @@ function moundAt(path: RailSample[], end: boolean): RailPoint {
   return { x: x + dx * MOUND.back, y: y + dy * MOUND.back };
 }
 
-/** The screen box a tunnel covers, mound and flag. */
-function tunnelBox(path: RailSample[], end: boolean): Box {
+/** Boxes a sign must stay off: the tunnel mouth with the rails the train comes out on, and the flag. */
+function keepClear(path: RailSample[], end: boolean): Box[] {
+  const { x, y, dx, dy } = railEnd(path, end);
   const m = moundAt(path, end);
-  return {
-    left: m.x - MOUND.radius,
-    right: Math.max(m.x + MOUND.radius, m.x + 2.6 + FLAG.long),
-    top: m.y - MOUND.rise - FLAG.pole,
-    bottom: m.y + MOUND.radius * 0.55,
-  };
+  const face = { x: x + dx * 2.4, y: y + dy * 2.4 };
+  const length = path.at(-1)!.distance;
+  const rails = path
+    .filter(p => (end ? length - p.distance : p.distance) < 30)
+    .map(p => ({ left: p.x - 7, right: p.x + 7, top: p.y - 14, bottom: p.y + 6 }));
+  return [
+    ...rails,
+    { left: face.x - ARCH.half, right: face.x + ARCH.half, top: face.y - ARCH.high, bottom: face.y + 4 },
+    {
+      left: m.x,
+      right: m.x + 2.6 + FLAG.long,
+      top: m.y - MOUND.rise - FLAG.pole - 1,
+      bottom: m.y - MOUND.rise - FLAG.pole + FLAG.deep + 1,
+    },
+  ];
 }
 
 const overlap = (a: Box, b: Box) =>
@@ -61,24 +71,28 @@ const overlap = (a: Box, b: Box) =>
   Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
 
 /**
- * Where a station's sign stands: beside the track near its tunnel, clear of the mound and flag.
- * It tries the tile's side of the rails (`side`, as railPath offsets them) first, stepping back
- * along the track, then the other side; failing all, the spot covering the least of the tunnel.
+ * Where a station's sign stands: as close to its tunnel as it can without covering the mouth, the
+ * rails the train comes out on, or the flag (the snowy mound may be covered). Ties go to the tile's
+ * side of the rails (`side`, as railPath offsets them); failing all, the spot covering the least.
  */
 function stationSpot(path: RailSample[], end: boolean, side: 1 | -1): RailPoint {
-  const length = path.at(-1)!.distance;
-  const tunnel = tunnelBox(path, end);
-  let best: RailPoint = { x: 0, y: 0 };
-  let least = Number.POSITIVE_INFINITY;
-  for (const s of [side, -side])
-    for (const back of [2, 10, 18, 26]) {
-      const p = onRail(path, end ? Math.max(0, length - back) : Math.min(length, back));
-      const spot = { x: p.x - Math.sin(p.angle) * s * 15, y: p.y + Math.cos(p.angle) * s * 15 };
+  const { x, y, dx, dy } = railEnd(path, end);
+  const m = moundAt(path, end);
+  const clear = keepClear(path, end);
+  // The tile's side of the rails, as a direction across the track.
+  const along = onRail(path, end ? path.at(-1)!.distance : 0).angle;
+  const tile = { x: -Math.sin(along) * side, y: Math.cos(along) * side };
+  let best: RailPoint = { x, y };
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let a = -28; a <= 16; a += 4)
+    for (let b = -24; b <= 24; b += 4) {
+      const spot = { x: x + dx * a - dy * b, y: y + dy * a + dx * b };
       const box = { left: spot.x - SIGN.half, right: spot.x + SIGN.half, top: spot.y - SIGN.rise, bottom: spot.y + 3 };
-      const covered = overlap(box, tunnel);
-      if (covered === 0) return spot;
-      if (covered < least) {
-        least = covered;
+      const covered = clear.reduce((sum, c) => sum + overlap(box, c), 0);
+      const away = (spot.x - x) * tile.x + (spot.y - y) * tile.y < 0 ? 6 : 0;
+      const score = covered * 100 + Math.hypot(spot.x - m.x, spot.y - m.y) + away;
+      if (score < bestScore) {
+        bestScore = score;
         best = spot;
       }
     }
