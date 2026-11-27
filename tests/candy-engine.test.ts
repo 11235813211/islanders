@@ -137,6 +137,37 @@ describe('numbers beside a candy train', () => {
     expect(cut / touched).toBeLessThan(1.9);
   });
 
+  it('cut poor numbers less, and leave no corner of the track a poor spot', () => {
+    const design = trainDesign();
+    for (let seed = 1; seed <= 60; seed++) {
+      const random = () => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      const start = seed;
+      const plain = buildBoard(design, random).board;
+      seed = start;
+      const candy = buildBoard(design, random, { trains: true }).board;
+      const dotsAt = (board: typeof candy, vertexId: string) => {
+        const tiles = board.vertices
+          .find(v => v.id === vertexId)!
+          .hexIds.map(id => board.hexes.find(h => h.id === id)!);
+        const numbered = tiles.filter(h => h.number !== null);
+        return { dots: numbered.reduce((sum, h) => sum + pips(h.number!), 0), count: numbered.length };
+      };
+      candy.hexes.forEach((hex, i) => {
+        // A 2 or 12 is already as poor as a number gets.
+        if (plain.hexes[i]!.number && pips(plain.hexes[i]!.number!) === 1)
+          expect(hex.number).toBe(plain.hexes[i]!.number);
+      });
+      for (const id of candy.trains![0]!.vertexIds) {
+        const now = dotsAt(candy, id);
+        const was = dotsAt(plain, id);
+        expect(now.dots).toBeGreaterThanOrEqual(Math.min(was.dots, 2 * now.count));
+      }
+    }
+  });
+
   it('draws the train’s number from the dots the editor set', () => {
     const drawn = new Set(
       Array.from(
