@@ -1,6 +1,6 @@
 // What stands along a candy railway: tunnel mouths at the ends of each leg, the start sign with
 // the train's number, the END sign, and level crossings where roads meet the rails.
-import type { RailPoint } from '../../../../shared/maps/candy-train';
+import { DEFAULT_TRAIN_DOTS, numbersWithDots, type RailPoint } from '../../../../shared/maps/candy-train';
 import { outlineTone } from '../solids';
 import { onRail, type RailSample } from './rail-geometry';
 
@@ -15,7 +15,7 @@ export interface RailRoad {
 export const TUNNEL_COLORS = ['#3d9a5b', '#cc3d56', '#3a6fc4', '#8a4fc0', '#d9a429'];
 export const END_TUNNEL = '#8d969e';
 /** How far the rails run on into a tunnel, under its mound. */
-export const INTO_TUNNEL = 12;
+export const INTO_TUNNEL = 14;
 
 /** A rail end and the direction into its tunnel: on along the track at the end, back at the start. */
 function railEnd(path: RailSample[], end: boolean) {
@@ -24,30 +24,90 @@ function railEnd(path: RailSample[], end: boolean) {
   return { x: p.x, y: p.y, dx: Math.cos(angle), dy: Math.sin(angle) };
 }
 
-/**
- * Where a station's sign stands: beside its tunnel on the tile's side of the rails (`side`, as
- * railPath offsets them), away from the corner where a building may stand.
- */
-function stationSpot(path: RailSample[], end: boolean, side: 1 | -1): RailPoint {
-  const p = onRail(path, end ? path.at(-1)!.distance : 0);
-  const back = end ? -2 : 2;
+/** Mound and arch sizes, in board units (the arch is the mouth's upright face). */
+const MOUND = { radius: 14.4, rise: 14.4, back: 13.2 };
+const ARCH = { half: 9.6, high: 12.6, inner: 0.72 };
+/** The tunnel's flag: pole height, and the pennant's length and depth. */
+const FLAG = { pole: 14, long: 20, deep: 13 };
+/** A sign's outline around its foot: half its width, and how far it rises. */
+const SIGN = { half: 12, rise: 34 };
+
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/** The middle of a tunnel's mound, set back from the rail end into the tunnel. */
+function moundAt(path: RailSample[], end: boolean): RailPoint {
+  const { x, y, dx, dy } = railEnd(path, end);
+  return { x: x + dx * MOUND.back, y: y + dy * MOUND.back };
+}
+
+/** The screen box a tunnel covers, mound and flag. */
+function tunnelBox(path: RailSample[], end: boolean): Box {
+  const m = moundAt(path, end);
   return {
-    x: p.x + Math.cos(p.angle) * back - Math.sin(p.angle) * side * 15,
-    y: p.y + Math.sin(p.angle) * back + Math.cos(p.angle) * side * 15,
+    left: m.x - MOUND.radius,
+    right: Math.max(m.x + MOUND.radius, m.x + 2.6 + FLAG.long),
+    top: m.y - MOUND.rise - FLAG.pole,
+    bottom: m.y + MOUND.radius * 0.55,
   };
 }
 
+const overlap = (a: Box, b: Box) =>
+  Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+  Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+
+/**
+ * Where a station's sign stands: beside the track near its tunnel, clear of the mound and flag.
+ * It tries the tile's side of the rails (`side`, as railPath offsets them) first, stepping back
+ * along the track, then the other side; failing all, the spot covering the least of the tunnel.
+ */
+function stationSpot(path: RailSample[], end: boolean, side: 1 | -1): RailPoint {
+  const length = path.at(-1)!.distance;
+  const tunnel = tunnelBox(path, end);
+  let best: RailPoint = { x: 0, y: 0 };
+  let least = Number.POSITIVE_INFINITY;
+  for (const s of [side, -side])
+    for (const back of [2, 10, 18, 26]) {
+      const p = onRail(path, end ? Math.max(0, length - back) : Math.min(length, back));
+      const spot = { x: p.x - Math.sin(p.angle) * s * 15, y: p.y + Math.cos(p.angle) * s * 15 };
+      const box = { left: spot.x - SIGN.half, right: spot.x + SIGN.half, top: spot.y - SIGN.rise, bottom: spot.y + 3 };
+      const covered = overlap(box, tunnel);
+      if (covered === 0) return spot;
+      if (covered < least) {
+        least = covered;
+        best = spot;
+      }
+    }
+  return best;
+}
+
 /** The dots under a number, as on the board's number tokens. */
-const dots = (n: number) => 6 - Math.abs(7 - n);
+const dotsOf = (n: number) => 6 - Math.abs(7 - n);
 
 /**
  * The start station: a striped post, like the END sign's, holding up the number that loads the
- * train (red for 6 and 8, as on the tiles). With no number set, "4/10": each game draws one of them.
+ * train (red for 6 and 8, as on the tiles). Before a game draws it (the editor), both rolls with
+ * the route's dots, as "4/10".
  */
-export function StartSign({ path, side, number }: { path: RailSample[]; side: 1 | -1; number?: number }) {
+export function StartSign({
+  path,
+  side,
+  number,
+  dots = DEFAULT_TRAIN_DOTS,
+}: {
+  path: RailSample[];
+  side: 1 | -1;
+  number?: number;
+  dots?: number;
+}) {
   const { x, y } = stationSpot(path, false, side);
-  const red = number === 6 || number === 8;
-  const count = number === undefined ? 0 : dots(number);
+  const count = number === undefined ? dots : dotsOf(number);
+  const red = count === 5;
+  const label = number ?? numbersWithDots(dots).join('/');
   return (
     <g className="candy-station candy-start" transform={`translate(${x} ${y})`} data-number={number ?? ''}>
       <path d="M0 3V-12" stroke="#fff8e4" strokeWidth="3" />
@@ -61,7 +121,7 @@ export function StartSign({ path, side, number }: { path: RailSample[]; side: 1 
         fontFamily="sans-serif"
         fontWeight="800"
       >
-        {number ?? '4/10'}
+        {label}
       </text>
       {Array.from({ length: count }, (_, i) => (
         <circle key={i} cx={(i - (count - 1) / 2) * 2.4} cy="-15.2" r=".85" fill={red ? '#c22a3a' : '#33282a'} />
@@ -85,10 +145,6 @@ export function EndSign({ path, side }: { path: RailSample[]; side: 1 | -1 }) {
   );
 }
 
-/** Mound and arch sizes, in board units (the arch is the mouth's upright face). */
-const MOUND = { radius: 12, rise: 12, back: 11 };
-const ARCH = { half: 8, high: 10.5, inner: 0.72 };
-
 /** An upright arch across the track at `at`, its face square to the rails (along `ux`, `uy`). */
 function archPath(at: RailPoint, ux: number, uy: number, half: number, high: number): string {
   const points = Array.from({ length: 13 }, (_, i) => {
@@ -106,8 +162,8 @@ function archPath(at: RailPoint, ux: number, uy: number, half: number, high: num
  */
 export function Tunnel({ path, end, color }: { path: RailSample[]; end: boolean; color: string }) {
   const { x, y, dx, dy } = railEnd(path, end);
-  const face = { x: x + dx * 2, y: y + dy * 2 };
-  const m = { x: x + dx * MOUND.back, y: y + dy * MOUND.back };
+  const face = { x: x + dx * 2.4, y: y + dy * 2.4 };
+  const m = moundAt(path, end);
   const { radius: r, rise: h } = MOUND;
   // Across the track, on the ground.
   const ux = -dy;
@@ -130,8 +186,13 @@ export function Tunnel({ path, end, color }: { path: RailSample[]; end: boolean;
         strokeWidth="2.6"
       />
       {/* A flag in the tunnel's color on top, so a pair reads even where the arch faces away. */}
-      <path d={`M${m.x + 2},${m.y - h}v-11`} stroke="#6b5a4a" strokeWidth="1.2" />
-      <path d={`M${m.x + 2.6},${m.y - h - 11}l8 2.6-8 2.6Z`} fill={color} stroke="#fff8e4" strokeWidth=".6" />
+      <path d={`M${m.x + 2},${m.y - h}v-${FLAG.pole}`} stroke="#6b5a4a" strokeWidth="1.4" />
+      <path
+        d={`M${m.x + 2.6},${m.y - h - FLAG.pole}l${FLAG.long} ${FLAG.deep / 2}-${FLAG.long} ${FLAG.deep / 2}Z`}
+        fill={color}
+        stroke="#fff8e4"
+        strokeWidth=".8"
+      />
       {dy < 0.15 && (
         <>
           <path

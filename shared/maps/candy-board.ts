@@ -5,7 +5,7 @@
 import type { Board, CandyTrain } from '../types';
 import { autoTrain } from './auto-train';
 import { pips } from './balance';
-import { defaultTrainNumber } from './candy-train';
+import { trainNumber } from './candy-train';
 import type { BoardDesign } from './types';
 import { tileKey } from './types';
 
@@ -42,7 +42,7 @@ function designTrains(design: Pick<BoardDesign, 'candyRoutes'>, board: Board, ra
       return id ? [id] : [];
     });
     if (vertexIds.length < 2) return [];
-    return [{ vertexIds, number: route.number ?? defaultTrainNumber(random), side: route.side }];
+    return [{ vertexIds, number: trainNumber(random, route.dots), side: route.side }];
   });
 }
 

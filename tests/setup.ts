@@ -16,7 +16,7 @@ Object.assign(DEFAULT_SETTINGS, {
   christmas: false,
   christmasCandy: false,
   candyTrains: true,
-  northPole: false,
+  northPole: 'never',
   tradeSeconds: 30,
   decisionSeconds: 30,
   showBank: 'auto',

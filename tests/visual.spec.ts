@@ -235,5 +235,12 @@ test('generated candy trains on the standard island and a sea map', async ({ pag
     game.board = { ...game.board, trains: autoTrain(game.board, seededRandom(4)) };
     await mountGame(page, game);
     await page.locator('.board-svg').screenshot({ path: `test-results/visual-candy-train-${name}.png` });
+    // Close up on each tunnel, to check the signs stand clear of them.
+    const tunnels = page.locator('.candy-tunnel');
+    for (let i = 0; i < (await tunnels.count()); i++) {
+      const box = (await tunnels.nth(i).boundingBox())!;
+      const clip = { x: box.x - 60, y: box.y - 60, width: box.width + 120, height: box.height + 120 };
+      await page.screenshot({ path: `test-results/visual-candy-tunnel-${name}-${i}.png`, clip });
+    }
   }
 });

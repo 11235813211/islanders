@@ -2,7 +2,14 @@ import { DEFAULT_SETTINGS, POINT_REWARDS } from './default-settings';
 import { GUEST_NAMES } from './guest-names';
 import { SPECIAL_LIMITS } from './maps/special';
 import type { PieceReward } from './maps/types';
-import { type BotLevel, type DiscoveryRule, type GameSettings, type Phase, PIECE_STYLES } from './types';
+import {
+  type BotLevel,
+  type DiscoveryRule,
+  type GameSettings,
+  type Phase,
+  PIECE_STYLES,
+  type PlayerCountSwitch,
+} from './types';
 
 /** The most seats at a table (and the most players a map can be made for). */
 export const MAX_PLAYERS = 8;
@@ -12,10 +19,17 @@ export { DEFAULT_SETTINGS };
 /** Automatic dice roll delays the lobby offers (0 is off). */
 export const AUTO_ROLL_SECONDS = [0, 5, 8, 10, 15, 30];
 
+/** Values of a setting that follows the table size. */
+export const PLAYER_COUNT_SWITCH: readonly PlayerCountSwitch[] = ['auto', 'always', 'never'];
+
+/** Whether a setting that follows the table size is on at a table of `players`. */
+export function onAt(setting: PlayerCountSwitch, players: number): boolean {
+  return setting === 'always' || (setting === 'auto' && players > 2);
+}
+
 /** Whether the bank's card counts are shown at a table of `players` (see BankDisplay). */
 export function bankShown(settings: Pick<GameSettings, 'showBank'>, players: number): boolean {
-  if (settings.showBank === 'always') return true;
-  return settings.showBank === 'auto' && players > 2;
+  return onAt(settings.showBank, players);
 }
 
 /** Trade offer lengths the lobby offers. */
@@ -125,10 +139,10 @@ export function validSettings(
     (s.christmas === undefined || typeof s.christmas === 'boolean') &&
     (s.christmasCandy === undefined || typeof s.christmasCandy === 'boolean') &&
     (s.candyTrains === undefined || typeof s.candyTrains === 'boolean') &&
-    (s.northPole === undefined || typeof s.northPole === 'boolean') &&
+    (s.northPole === undefined || PLAYER_COUNT_SWITCH.includes(s.northPole as never)) &&
     (s.tradeSeconds === undefined || TRADE_SECONDS.includes(s.tradeSeconds as never)) &&
     (s.decisionSeconds === undefined || DECISION_SECONDS.includes(s.decisionSeconds as never)) &&
-    (s.showBank === undefined || ['auto', 'always', 'never'].includes(s.showBank as string)) &&
+    (s.showBank === undefined || PLAYER_COUNT_SWITCH.includes(s.showBank as never)) &&
     (s.discoveries === undefined || Object.hasOwn(DISCOVERY_RULES, s.discoveries as string)) &&
     (s.volcanoGold === undefined || typeof s.volcanoGold === 'boolean') &&
     (s.seafarers === undefined || typeof s.seafarers === 'boolean') &&
@@ -160,7 +174,7 @@ export function linkChristmas(before: GameSettings, after: GameSettings): GameSe
       : after.pieceStyle === 'gingerbread'
         ? 'classic'
         : after.pieceStyle;
-  if (!changed('northPole')) next.northPole = next.christmas;
+  if (!changed('northPole')) next.northPole = next.christmas ? 'auto' : 'never';
   return next;
 }
 

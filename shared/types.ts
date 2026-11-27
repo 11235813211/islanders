@@ -303,7 +303,9 @@ export type PieceStyle = (typeof PIECE_STYLES)[number];
  * Whether everyone sees the bank's card counts. `auto` (the default) shows them except with two
  * players, where the counts would reveal the other player's hand by subtraction.
  */
-export type BankDisplay = 'auto' | 'always' | 'never';
+/** A setting that can follow the table size: 'auto' is on with three or more players. */
+export type PlayerCountSwitch = 'auto' | 'always' | 'never';
+export type BankDisplay = PlayerCountSwitch;
 /** Christmas: the tile where Santa lives, and the number that sends him out. */
 export interface NorthPole {
   hexId: string;
@@ -327,7 +329,7 @@ export interface GameSettings {
   /** Christmas Candy: play with the candy train (the map's routes, or a generated track without any). */
   candyTrains: boolean;
   /** Santa's North Pole on a desert, with its own number; nobody settles beside it (engine/santa.ts). */
-  northPole: boolean;
+  northPole: PlayerCountSwitch;
   /** Seconds a trade offer stays open. */
   tradeSeconds: number;
   /** Seconds for short choices (the robber or pirate, gold, volcano picks) before one is made for you. */

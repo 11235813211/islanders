@@ -4,6 +4,7 @@
 // Santa flies there with one card of a random standard resource from the bank.
 import { HEX_RADIUS, withLoneHex } from '../board';
 import { logName } from '../candy-names';
+import { onAt } from '../settings';
 import { type Board, CLASSIC_RESOURCES, type ClassicResource, type GameState, type NorthPole } from '../types';
 import { addLog, type Handlers, needPhase, requireRule, tally } from './core';
 
@@ -15,7 +16,7 @@ export const NORTH_POLE_NUMBERS = [4, 5, 9, 10] as const;
  * with its own number. Null when the room has no North Pole.
  */
 export function placeNorthPole(state: GameState, random: () => number): { board: Board; northPole: NorthPole } | null {
-  if (!state.settings.northPole) return null;
+  if (!onAt(state.settings.northPole, state.players.length)) return null;
   const { hexes } = state.board;
   const top = Math.min(...hexes.map(h => h.r));
   const r = top - 2;

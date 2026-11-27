@@ -10,7 +10,7 @@ const DECORATED = '.player-panel, .table-hand';
 function santaTurn(): GameState {
   const lobby = makeLobby(4);
   lobby.settings.christmas = true;
-  lobby.settings.northPole = true;
+  lobby.settings.northPole = 'auto';
   lobby.settings.pieceStyle = 'gingerbread';
   lobby.settings.diceMode = 'random';
   let g = settled(4, lobby);
@@ -94,14 +94,14 @@ test('Art style in the room settings: Christmas Candy brings Christmas and Santa
     .toMatchObject({
       christmas: true,
       christmasCandy: true,
-      northPole: true,
+      northPole: 'auto',
       pieceStyle: 'gingerbread',
     });
   await expect(look).toHaveValue('candy');
   await look.selectOption('christmas');
   await expect
     .poll(() => game.state().settings)
-    .toMatchObject({ christmas: true, christmasCandy: false, northPole: true });
+    .toMatchObject({ christmas: true, christmasCandy: false, northPole: 'auto' });
   await look.selectOption('candy');
   for (const width of [1600, 1280, 1024, 820, 390]) {
     await page.setViewportSize({ width, height: 900 });

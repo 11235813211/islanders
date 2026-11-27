@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateBoard, islandSize, seededRandom } from '../shared/board';
+import { TUNING } from '../shared/default-settings';
 import { candyPicks } from '../shared/engine/candy';
 import { boardFor } from '../shared/engine/lobby';
 import { BUILTIN_BOARDS } from '../shared/maps';
@@ -42,17 +43,29 @@ function expectSound(board: Board, train: CandyTrain) {
     }
 }
 
+/** Land tiles with a track corner on them. */
+function borderedTiles(board: Board, train: CandyTrain): number {
+  const vertices = new Map(board.vertices.map(v => [v.id, v]));
+  const land = new Set(board.hexes.filter(h => isLandTerrain(h.terrain)).map(h => h.id));
+  return new Set(trainCorners(train).flatMap(c => vertices.get(c)!.hexIds.filter(h => land.has(h)))).size;
+}
+
 describe('generated candy trains', () => {
-  it('lay one snaking track over about a seventh of the standard island’s corners', () => {
+  it('lay one snaking track past the tuned share of the standard island’s corners and tiles', () => {
+    let tiles = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const board = generateBoard(seededRandom(seed), 'random', islandSize(4), false);
       const [train, ...more] = autoTrain(board, seededRandom(seed * 7));
       expect(more).toEqual([]);
       expect(train!.legs).toBeUndefined();
-      expect(train!.vertexIds.length).toBeGreaterThanOrEqual(Math.round(board.vertices.length / 7) - 1);
+      const want = Math.round(board.vertices.length * TUNING.candyTrainCornerShare);
+      expect(train!.vertexIds.length).toBeGreaterThanOrEqual(want - 1);
+      expect(train!.vertexIds.length).toBeLessThanOrEqual(want);
+      tiles += borderedTiles(board, train!) / board.hexes.filter(h => isLandTerrain(h.terrain)).length;
       expect([4, 10]).toContain(train!.number);
       expectSound(board, train!);
     }
+    expect(Math.abs(tiles / 20 - TUNING.candyTrainTileShare)).toBeLessThan(0.05);
   });
 
   it('split into legs on different islands on a sea map, and picks run through every leg', () => {

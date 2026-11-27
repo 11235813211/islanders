@@ -32,6 +32,13 @@ import { type DiscoveryRule, type GameSettings, type GameView, PIECE_STYLES } fr
 import ArtStylesButton, { ART_STYLE_NAMES } from './ArtStyles';
 import RoomRewards from './RoomRewards';
 
+/** Choices for a setting that follows the table size (shared/settings.ts onAt). */
+const PLAYER_COUNT_OPTIONS = [
+  { value: 'auto', label: 'Except 2 players' },
+  { value: 'always', label: 'Always' },
+  { value: 'never', label: 'Never' },
+];
+
 /**
  * Lobby settings are data. To add a setting: add the field to GameSettings,
  * validate it in shared/settings.ts, then add one entry to a category below.
@@ -302,7 +309,7 @@ export const CATEGORIES: Category[] = [
         label: 'North Pole',
         hint: 'Santa lives on a desert with its own number, and nobody settles beside it. Roll the number and pick another player’s building: Santa brings them a random resource.',
         icon: <Snowflake size={20} />,
-        control: { kind: 'toggle' },
+        control: { kind: 'select', options: PLAYER_COUNT_OPTIONS },
       },
     ],
   },
@@ -382,11 +389,7 @@ export const CATEGORIES: Category[] = [
         icon: <Landmark size={20} />,
         control: {
           kind: 'select',
-          options: [
-            { value: 'auto', label: 'Except 2 players' },
-            { value: 'always', label: 'Always' },
-            { value: 'never', label: 'Never' },
-          ],
+          options: PLAYER_COUNT_OPTIONS,
         },
       },
     ],

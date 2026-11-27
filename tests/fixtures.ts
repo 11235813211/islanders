@@ -250,7 +250,12 @@ function trackBetween(game: GameState, from: string, to: string): string[] {
  */
 export function candyGame(northPole = false): GameState {
   const lobby = makeLobby(3);
-  Object.assign(lobby.settings, { christmas: true, christmasCandy: true, northPole, diceMode: 'random' });
+  Object.assign(lobby.settings, {
+    christmas: true,
+    christmasCandy: true,
+    northPole: northPole ? 'auto' : 'never',
+    diceMode: 'random',
+  });
   const g = settled(3, lobby);
   g.turnIndex = 0;
   g.phase = 'roll';

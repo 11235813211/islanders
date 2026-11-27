@@ -6,7 +6,7 @@ import { makeLobby, seeded, sequence, settled, TEST_NOW } from './fixtures';
 /** A settled Christmas game with the North Pole, p0 about to roll. */
 function christmas(count = 3): GameState {
   const lobby = makeLobby(count);
-  lobby.settings.northPole = true;
+  lobby.settings.northPole = 'auto';
   lobby.settings.diceMode = 'random';
   const g = settled(count, lobby);
   g.turnIndex = 0;
@@ -43,6 +43,25 @@ describe('the North Pole', () => {
     const look = makeLobby(3);
     look.settings.christmas = true;
     expect(settled(3, look).northPole).toBeNull();
+  });
+
+  it('stays off with two players unless set to always', () => {
+    const at = (players: number, northPole: GameState['settings']['northPole']) => {
+      const lobby = makeLobby(players);
+      lobby.settings.northPole = northPole;
+      return settled(players, lobby).northPole;
+    };
+    expect(at(2, 'auto')).toBeNull();
+    expect(at(2, 'always')).not.toBeNull();
+    expect(at(3, 'auto')).not.toBeNull();
+    expect(at(3, 'never')).toBeNull();
+  });
+
+  it('turns a stored on or off into auto or never', () => {
+    const g = christmas() as unknown as { settings: { northPole: unknown }; schemaVersion: number };
+    g.settings.northPole = true;
+    g.schemaVersion = 39;
+    expect(normalizeGame(g as unknown as GameState).settings.northPole).toBe('auto');
   });
 
   it('offers each rival network of buildings and roads as one pick, split where another building sits', () => {
@@ -151,7 +170,7 @@ describe('Christmas settings go together by default', () => {
       christmasCandy: true,
       christmas: true,
       pieceStyle: 'gingerbread',
-      northPole: true,
+      northPole: 'auto',
     });
     const plain = configure(candy, { christmasCandy: false });
     expect(plain.settings).toMatchObject({ christmasCandy: false, christmas: true, pieceStyle: 'gingerbread' });
@@ -160,18 +179,18 @@ describe('Christmas settings go together by default', () => {
 
   it('the look brings Christmas pieces and the North Pole, and off takes them away', () => {
     const on = configure(makeLobby(3), { christmas: true });
-    expect(on.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: true });
+    expect(on.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: 'auto' });
     const off = configure(on, { christmas: false });
-    expect(off.settings).toMatchObject({ christmas: false, pieceStyle: 'classic', northPole: false });
+    expect(off.settings).toMatchObject({ christmas: false, pieceStyle: 'classic', northPole: 'never' });
   });
 
   it('Christmas pieces bring the look; then pieces and look change on their own', () => {
     const pieces = configure(makeLobby(3), { pieceStyle: 'gingerbread' });
-    expect(pieces.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: true });
+    expect(pieces.settings).toMatchObject({ christmas: true, pieceStyle: 'gingerbread', northPole: 'auto' });
     const chalet = configure(pieces, { pieceStyle: 'chalet' });
     expect(chalet.settings).toMatchObject({ christmas: true, pieceStyle: 'chalet' });
-    const noPole = configure(chalet, { northPole: false });
-    expect(noPole.settings.northPole).toBe(false);
+    const noPole = configure(chalet, { northPole: 'never' });
+    expect(noPole.settings.northPole).toBe('never');
     // Set in the same change, a style is kept.
     const both = configure(makeLobby(3), { christmas: true, pieceStyle: 'korean' });
     expect(both.settings).toMatchObject({ christmas: true, pieceStyle: 'korean' });

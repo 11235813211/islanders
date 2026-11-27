@@ -1,13 +1,13 @@
 // A generated candy train for boards whose map has no routes (the standard island, or a design
-// drawn without any). One snaking track covering about 1/7 of the corners, its rails always on
-// the land side of each edge (railPath draws them to the leg's `side`). Sea maps split it into a few legs on different
+// drawn without any). One snaking track past TUNING.candyTrainCornerShare of the corners and
+// bordering about TUNING.candyTrainTileShare of the land tiles, its rails always on the land side
+// of each edge (railPath draws them to the leg's `side`). Sea maps split it into a few legs on different
 // islands (the train tunnels from one to the next), so more of the table can reach it.
+import { TUNING } from '../default-settings';
 import { isLandTerrain } from '../seafaring';
 import type { Board, CandyTrain } from '../types';
-import { defaultTrainNumber } from './candy-train';
+import { trainNumber } from './candy-train';
 
-/** Share of the board's corners the track runs past. */
-const COVER = 1 / 7;
 /** Walks tried per leg; the snakiest that reaches its length wins. */
 const TRIES = 60;
 /** Turns the same way in a row before the track must bend back (three would circle a tile). */
@@ -22,6 +22,8 @@ interface Graph {
   /** Corner → every corner one edge away (to keep the track from touching itself). */
   touching: Map<string, string[]>;
   at: Map<string, { x: number; y: number }>;
+  /** Corner → the land tiles it is a corner of. */
+  tiles: Map<string, string[]>;
 }
 
 const edgeKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
@@ -44,7 +46,8 @@ function landGraph(board: Board): Graph {
     next.set(a.id, [...(next.get(a.id) ?? []), b.id]);
     next.set(b.id, [...(next.get(b.id) ?? []), a.id]);
   }
-  return { next, land: beside, touching, at: vertices };
+  const tiles = new Map(board.vertices.map(v => [v.id, v.hexIds.filter(id => land.has(id))]));
+  return { next, land: beside, touching, at: vertices, tiles };
 }
 
 /** Whether going a → b, the rails on `side` (left of travel for 1, as railPath) are over land. */
@@ -115,20 +118,38 @@ function snakiness(graph: Graph, path: string[]): number {
   return score;
 }
 
+/** The land tiles a path borders: those with one of its corners (where its picks come from). */
+function bordered(graph: Graph, path: string[], into = new Set<string>()): Set<string> {
+  for (const c of path) for (const h of graph.tiles.get(c) ?? []) into.add(h);
+  return into;
+}
+
 interface Leg {
   vertexIds: string[];
   side: 1 | -1;
 }
 
-/** The best of TRIES walks of `length` corners among `corners` (either rail side), or the longest it found. */
-function bestLeg(graph: Graph, corners: string[], length: number, blocked: Set<string>, random: () => number): Leg {
+/**
+ * The best of TRIES walks of `length` corners among `corners` (either rail side): full length
+ * first, then bordering closest to `tiles` new land tiles (beyond those in `taken`), then snakiest.
+ */
+function bestLeg(
+  graph: Graph,
+  corners: string[],
+  length: number,
+  tiles: number,
+  taken: Set<string>,
+  blocked: Set<string>,
+  random: () => number,
+): Leg {
   const starts = corners.filter(c => !blocked.has(c) && graph.next.has(c));
   let best: Leg = { vertexIds: [], side: 1 };
   let bestScore = -1;
   for (let i = 0; i < TRIES && starts.length; i++) {
     const side = random() < 0.5 ? 1 : -1;
     const path = walk(graph, starts[Math.floor(random() * starts.length)]!, length, side, blocked, random);
-    const score = Math.min(path.length, length) * 10 + snakiness(graph, path);
+    const added = bordered(graph, path, new Set(taken)).size - taken.size;
+    const score = Math.min(path.length, length) * 1000 - Math.abs(added - tiles) * 20 + snakiness(graph, path);
     if (score > bestScore) {
       best = { vertexIds: path, side };
       bestScore = score;
@@ -178,7 +199,10 @@ function islands(board: Board): string[][] {
  */
 export function autoTrain(board: Board, random: () => number): CandyTrain[] {
   const graph = landGraph(board);
-  const target = Math.max(4, Math.round(board.vertices.length * COVER));
+  const target = Math.max(4, Math.round(board.vertices.length * TUNING.candyTrainCornerShare));
+  const landTiles = board.hexes.filter(h => isLandTerrain(h.terrain)).length;
+  const tileTarget = Math.round(landTiles * TUNING.candyTrainTileShare);
+  const taken = new Set<string>();
   const sea = board.hexes.some(h => !isLandTerrain(h.terrain));
   const groups = sea ? islands(board).filter(g => g.filter(c => graph.next.has(c)).length >= 3) : [];
   const legsWanted = sea ? Math.max(1, Math.min(SEA_LEGS, groups.length)) : 1;
@@ -187,17 +211,19 @@ export function autoTrain(board: Board, random: () => number): CandyTrain[] {
   let left = target;
   for (let i = 0; left >= 3 && i < SEA_LEGS + 2; i++) {
     const share = i < legsWanted ? Math.ceil(left / (legsWanted - i)) : left;
+    const tiles = Math.round(((tileTarget - taken.size) * share) / left);
     const corners = sea && i < groups.length ? groups[i]! : [...graph.next.keys()];
-    const leg = bestLeg(graph, corners, share, blocked, random);
+    const leg = bestLeg(graph, corners, share, tiles, taken, blocked, random);
     if (leg.vertexIds.length < 3) {
       if (i >= legsWanted) break;
       continue;
     }
     legs.push(leg);
+    bordered(graph, leg.vertexIds, taken);
     left -= leg.vertexIds.length;
     for (const c of leg.vertexIds) for (const n of [c, ...(graph.touching.get(c) ?? [])]) blocked.add(n);
   }
   if (!legs.length) return [];
   const [first, ...rest] = legs;
-  return [{ ...first!, number: defaultTrainNumber(random), ...(rest.length ? { legs: rest } : {}) }];
+  return [{ ...first!, number: trainNumber(random), ...(rest.length ? { legs: rest } : {}) }];
 }

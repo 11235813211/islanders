@@ -123,10 +123,12 @@ and phone: `christmas-ui.spec.ts`, `candy-game.spec.ts`, `phone.spec.ts`.
 
 **Candy trains** (our own rule). The board editor's Train tool draws up to four tracks per layout
 along land corners; the first corner is the start station. Rails run beside the edges on one side,
-always the land side (`railSideIsLand` in `maps/candy-train.ts`, `candy-train.test.ts`). Each track has a number (set in the
-editor, or a 4 or a 10 drawn each game). Room setting "Candy train" (`candyTrains`, on by default,
+always the land side (`railSideIsLand` in `maps/candy-train.ts`, `candy-train.test.ts`). Each track's number is drawn each game
+from the two rolls with the dots set in the editor (default three dots: a 4 or a 10; `trainNumber`
+in `maps/candy-train.ts`). Room setting "Candy train" (`candyTrains`, on by default,
 shown with Christmas Candy) plays with the train; on a map without tracks (the standard island
-included) each game lays one: a snaking track past about 1/7 of the corners, its rails on the land
+included) each game lays one: a snaking track past about 12% of the corners and bordering about 2/5 of the land tiles
+(`TUNING` in `shared/default-settings.ts`), its rails on the land
 side of every edge, split into legs on separate islands on a sea map (`maps/auto-train.ts`,
 `auto-train.test.ts`). The train comes out of a tunnel, always drives forward, and goes into a
 tunnel at the end of each leg, coming out of the same-colored tunnel at the next leg's start; picks
@@ -142,7 +144,9 @@ run through every leg in order.
 
 ## The North Pole (room setting, any look)
 
-Our own rule. Advanced setting "North Pole" (default off), with or without the Christmas look.
+Our own rule. Advanced setting "North Pole" (default Never), with or without the Christmas look.
+Either Christmas look sets it to "Except 2 players" (`auto`): a two-player game has no North Pole
+unless the host picks Always (`onAt` in `settings.ts`; `santa.test.ts` "stays off with two players").
 
 | Rule                                                                                                                                                                                                                                                                                              | Status                                                                                                                                                                                      | Where / test                                                                            |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |

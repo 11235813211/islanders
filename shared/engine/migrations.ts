@@ -285,6 +285,11 @@ const MIGRATIONS: Migration[] = [
   next => {
     next.settings.candyTrains ??= true;
   },
+  // 39 → 40: the North Pole follows the table size (off with two players unless set to always).
+  next => {
+    const pole = next.settings.northPole as unknown;
+    if (typeof pole === 'boolean') next.settings.northPole = pole ? 'auto' : 'never';
+  },
 ];
 
 /** Give every resource bag found under `value` a lodestone count of 0 (a bag has wood and ore counts). */

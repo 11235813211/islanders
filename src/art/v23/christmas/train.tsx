@@ -42,8 +42,10 @@ export interface RailLeg {
 /** One train's track to draw: its legs from the start tunnel, and what it carries. */
 export interface RailTrack {
   legs: RailLeg[];
-  /** The roll that loads it; absent shows 4/10 (drawn each game). */
+  /** The roll that loads it; absent shows both rolls with `dots` dots (drawn each game). */
   number?: number;
+  /** Editor and previews: the route's dots, when no number is drawn yet. */
+  dots?: number;
   /** Candy on the flatcars; absent fills them with one of each, as in the editor. */
   cargo?: ClassicResource[];
   /** Parked trains: the corner (counted through all legs) whose building the train is stopped at. */
@@ -292,7 +294,7 @@ function Railway({
           <Tunnel key={`${i}-${end}`} path={path} end={end} color={tunnelColor(paths.length, i, end)} />
         )),
       )}
-      <StartSign path={paths[0]!} side={track.legs[0]!.side} number={track.number} />
+      <StartSign path={paths[0]!} side={track.legs[0]!.side} number={track.number} dots={track.dots} />
       <EndSign path={paths[last]!} side={track.legs[last]!.side} />
     </g>
   );
@@ -311,7 +313,7 @@ export function designTracks(design: BoardDesign): RailTrack[] {
   const graph = candyGraph(design.tiles);
   return (design.candyRoutes ?? []).map((route: CandyRoute) => ({
     legs: [{ points: route.corners.flatMap(k => graph.get(k) ?? []), side: route.side }],
-    ...(route.number !== undefined ? { number: route.number } : {}),
+    ...(route.dots !== undefined ? { dots: route.dots } : {}),
   }));
 }
 

@@ -4,7 +4,7 @@ import { advanceTime, applyAction, getView } from '../shared/engine';
 import { CANDY_SPARE, candyPicks } from '../shared/engine/candy';
 import { buildBoard } from '../shared/maps';
 import { pips } from '../shared/maps/balance';
-import { candyGraph } from '../shared/maps/candy-train';
+import { candyGraph, parseCandyRoutes } from '../shared/maps/candy-train';
 import { baseGameDesign } from '../shared/maps/edit';
 import type { BoardDesign } from '../shared/maps/types';
 import { CLASSIC_RESOURCES, type GameState } from '../shared/types';
@@ -85,7 +85,7 @@ describe('the candy train', () => {
 });
 
 /** The base game with a train along the top of its middle tile, unset number. */
-function trainDesign(number?: number): BoardDesign {
+function trainDesign(dots?: number): BoardDesign {
   const base = baseGameDesign('test');
   const graph = candyGraph(base.tiles);
   const start = [...graph.values()].find(c => c.neighbors.size === 3)!;
@@ -96,7 +96,7 @@ function trainDesign(number?: number): BoardDesign {
     if (!step) break;
     corners.push(step);
   }
-  return { ...base, candyRoutes: [{ corners, side: 1, ...(number ? { number } : {}) }] };
+  return { ...base, candyRoutes: [{ corners, side: 1, ...(dots ? { dots } : {}) }] };
 }
 
 describe('numbers beside a candy train', () => {
@@ -137,7 +137,19 @@ describe('numbers beside a candy train', () => {
     expect(cut / touched).toBeLessThan(1.9);
   });
 
-  it('keeps a number the editor set for the train', () => {
-    expect(buildBoard(trainDesign(6), Math.random, { trains: true }).board.trains![0]!.number).toBe(6);
+  it('draws the train’s number from the dots the editor set', () => {
+    const drawn = new Set(
+      Array.from(
+        { length: 30 },
+        () => buildBoard(trainDesign(5), Math.random, { trains: true }).board.trains![0]!.number,
+      ),
+    );
+    expect([...drawn].sort()).toEqual([6, 8]);
+  });
+
+  it('reads a number saved before dots as its dots', () => {
+    const { corners } = trainDesign().candyRoutes![0]!;
+    const tiles = trainDesign().tiles;
+    expect(parseCandyRoutes([{ corners, side: 1, number: 9 }], tiles)[0]!.dots).toBe(4);
   });
 });

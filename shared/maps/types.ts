@@ -141,8 +141,9 @@ export interface CandyRoute {
   corners: CornerKey[];
   /** Which side of the directed route the rails sit on, leaving road edges clear. */
   side: 1 | -1;
-  /** The roll that loads the train; absent draws a 4 or a 10 each game. */
-  number?: number;
+  /** Dots (1–5) of the roll that loads the train, drawn each game from the two with that many;
+   * absent is 3 (a 4 or a 10). */
+  dots?: number;
 }
 
 /** What a board's version for some player counts replaces; everything else is shared. */

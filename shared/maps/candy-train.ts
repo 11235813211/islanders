@@ -1,14 +1,17 @@
 import { hexCenter, hexCorner } from '../board';
+import { pips } from './balance';
 import type { BoardDesign, CandyRoute, DesignTile } from './types';
 
 export const CANDY_LIMITS = { routes: 4, corners: 80 } as const;
-/** Numbers a train may be given in the editor (any roll but 7). */
-export const CANDY_NUMBERS: readonly number[] = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
-/** What an unset train number draws from each game. */
-export const CANDY_DEFAULT_NUMBERS = [4, 10] as const;
-/** A random default number for a train, one of CANDY_DEFAULT_NUMBERS. */
-export const defaultTrainNumber = (random: () => number): number =>
-  CANDY_DEFAULT_NUMBERS[Math.floor(random() * CANDY_DEFAULT_NUMBERS.length)]!;
+/** Dots a train's number may have, as on number tokens; the editor picks one per route. */
+export const TRAIN_DOTS = [1, 2, 3, 4, 5] as const;
+/** Dots of a route without its own (a 4 or a 10). */
+export const DEFAULT_TRAIN_DOTS = 3;
+/** The two rolls with `dots` dots: 1 → 2 and 12, 5 → 6 and 8. */
+export const numbersWithDots = (dots: number): [number, number] => [1 + dots, 13 - dots];
+/** A train's number for one game: either roll with the route's dots. */
+export const trainNumber = (random: () => number, dots: number = DEFAULT_TRAIN_DOTS): number =>
+  numbersWithDots(dots)[random() < 0.5 ? 0 : 1];
 export interface RailPoint {
   x: number;
   y: number;
@@ -191,8 +194,10 @@ export function parseCandyRoutes(value: unknown, tiles: DesignTile[]): CandyRout
       last = p;
       return p.key;
     });
-    if (v.number !== undefined && !CANDY_NUMBERS.includes(v.number)) throw new Error('Invalid candy train number.');
-    return keepDry(tiles, graph, { corners, side: v.side, ...(v.number !== undefined ? { number: v.number } : {}) });
+    // Boards saved before dots set a number; it keeps its dots.
+    const dots = v.dots ?? (Number.isInteger(v.number) && v.number !== 7 ? pips(v.number) : undefined);
+    if (dots !== undefined && !TRAIN_DOTS.includes(dots)) throw new Error('Invalid candy train dots.');
+    return keepDry(tiles, graph, { corners, side: v.side, ...(dots !== undefined ? { dots } : {}) });
   });
 }
 

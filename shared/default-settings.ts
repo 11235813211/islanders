@@ -38,8 +38,9 @@ export const DEFAULT_SETTINGS: GameSettings = {
   christmasCandy: false,
   // Christmas Candy rooms play with the candy train (a generated track on maps without routes).
   candyTrains: true,
-  // Santa's North Pole on a desert, with its own number (with or without the Christmas look): true or false.
-  northPole: false,
+  // Santa's North Pole on a desert, with its own number (with or without the Christmas look):
+  // 'auto' (three or more players), 'always', or 'never'. Either Christmas look sets 'auto'.
+  northPole: 'never',
   // Seafarers rules (ships, pirate): true or false.
   seafarers: false,
   // Where a road and a ship may join: 'anywhere' or 'settlement' (published rule).
@@ -92,4 +93,9 @@ export const TUNING = {
   // Seconds without a ping before a person counts as disconnected. Keep well above pingSeconds,
   // or background tabs flicker between connected and disconnected.
   disconnectSeconds: 10,
+  // Generated candy trains (maps without drawn routes): share of the board's corners the track
+  // runs past, and share of the land tiles it should border. The track length comes from the
+  // first; among walks of that length the generator picks the one bordering closest to the second.
+  candyTrainCornerShare: 0.12,
+  candyTrainTileShare: 0.4,
 } as const;
