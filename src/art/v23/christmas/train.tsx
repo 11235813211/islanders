@@ -118,36 +118,30 @@ function stationSpot(path: RailSample[], end: boolean): RailPoint {
 const dots = (n: number) => 6 - Math.abs(7 - n);
 
 /**
- * The start station: a little candy locomotive holding up the number that loads the train
- * (red for 6 and 8, as on the tiles). With no number set, "4/10": each game draws one of them.
+ * The start station: a striped post, like the END sign's, holding up the number that loads the
+ * train (red for 6 and 8, as on the tiles). With no number set, "4/10": each game draws one of them.
  */
 function StartSign({ path, number }: { path: RailSample[]; number?: number }) {
   const { x, y } = stationSpot(path, false);
   const red = number === 6 || number === 8;
   const count = number === undefined ? 0 : dots(number);
   return (
-    <g className="candy-station candy-start" transform={`translate(${x} ${y}) scale(1.3)`} data-number={number ?? ''}>
-      <ellipse cy="4" rx="14" ry="3.4" fill="#183b47" opacity=".22" />
-      <path d="M-12 2V-9H-2V-14H6V-9H12V2Z" fill="#256d55" stroke="#ffdda0" strokeWidth="1" />
-      <path d="M-12-9H-2V-14H6" fill="none" stroke="#9fe0c1" strokeWidth=".8" />
-      <rect x="8" y="-17" width="4" height="8" rx="1" fill="#9a3048" stroke="#ffdda0" strokeWidth=".7" />
-      {[-7, 1, 8].map(cx => (
-        <circle key={cx} cx={cx} cy="2.5" r="3" fill="#493441" stroke="#f5c45d" strokeWidth="1" />
-      ))}
-      <circle cx="-3" cy="-22" r="10" fill="#fff6dc" stroke="#9a3048" strokeWidth="1.6" />
+    <g className="candy-station candy-start" transform={`translate(${x} ${y})`} data-number={number ?? ''}>
+      <path d="M0 3V-12" stroke="#fff8e4" strokeWidth="3" />
+      <path d="M0 3V-12" stroke="#cc3d56" strokeWidth="3" strokeDasharray="2 3" />
+      <circle cy="-22" r="11" fill="#fff6dc" stroke="#cc3d56" strokeWidth="2" />
       <text
-        x="-3"
-        y={number === undefined ? -19.8 : -20.6}
+        y={number === undefined ? -19.8 : -20.4}
         textAnchor="middle"
         fill={red ? '#c22a3a' : '#33282a'}
-        fontSize={number === undefined ? 6.2 : 10}
+        fontSize={number === undefined ? 6.4 : 11}
         fontFamily="sans-serif"
         fontWeight="800"
       >
         {number ?? '4/10'}
       </text>
       {Array.from({ length: count }, (_, i) => (
-        <circle key={i} cx={-3 + (i - (count - 1) / 2) * 2.4} cy="-15.6" r=".85" fill={red ? '#c22a3a' : '#33282a'} />
+        <circle key={i} cx={(i - (count - 1) / 2) * 2.4} cy="-15.2" r=".85" fill={red ? '#c22a3a' : '#33282a'} />
       ))}
     </g>
   );

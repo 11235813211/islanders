@@ -78,3 +78,26 @@ test('reduced motion parks the candy train', async ({ page }) => {
   await page.getByRole('button', { name: 'Train corner 0,0,1', exact: true }).click();
   await expect(page.locator('[data-train-progress]')).toHaveAttribute('data-train-progress', '0.000');
 });
+
+test('a drag lays a route along the highlighted edges in one undo step', async ({ page }) => {
+  const board = await openCandyEditor(page);
+  await page.getByRole('button', { name: 'Train', exact: true }).click();
+  await page.getByRole('button', { name: 'New train route', exact: true }).click();
+  const graph = candyGraph(board.saved().tiles);
+  const keys = [0, 1, 2, 3].map(c => graph.get(`0,0,${c}`)!.key);
+  const centers = [];
+  for (const key of keys) {
+    const box = (await page.getByRole('button', { name: `Start train at ${key}`, exact: true }).boundingBox())!;
+    centers.push({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+  }
+  await page.mouse.move(centers[0]!.x, centers[0]!.y);
+  await page.mouse.down();
+  for (const p of centers.slice(1)) await page.mouse.move(p.x, p.y, { steps: 8 });
+  // Highlights show only the edges onward from the route's end.
+  await expect(page.locator('.candy-train-targets .board-road-target')).toHaveCount(2);
+  await page.mouse.up();
+  const tools = page.getByRole('region', { name: 'Candy train routes' });
+  await expect(tools).toContainText('3 edges');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(tools).toContainText('Tap a corner to start');
+});

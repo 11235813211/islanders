@@ -26,6 +26,7 @@ import { GroupGlow, type GroupPick, GroupTargets } from './game/GroupTargets';
 import { viewerZones } from './game/routeView';
 import ShipPieces from './game/ShipPieces';
 import { pieceEnds } from './game/sharedEdges';
+import { CornerMark, EdgeMark } from './game/TargetMarks';
 import TileTargets, { ChartTaps, type TilePicking } from './game/TileTargets';
 import { KnightPieces, KnightWalls, type SpotPicking, SpotTargets } from './knights/KnightPieces';
 import RouteZones from './RouteZones';
@@ -65,36 +66,6 @@ export interface BoardProps {
   spots?: SpotPicking | null;
   /** Cities & Knights: a tap on one of your knights that can act. */
   onKnight?: (vertexId: string) => void;
-}
-
-/**
- * One rhythm for every target. SMIL animations run on the SVG's own clock, so a target added
- * later joins in step, and nothing ever pauses them (hover shows a separate still circle).
- */
-const PULSE = {
-  dur: '2.2s',
-  keyTimes: '0;0.5;1',
-  calcMode: 'spline',
-  keySplines: '0.42 0 0.58 1;0.42 0 0.58 1',
-  repeatCount: 'indefinite',
-} as const;
-const stillMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/** An open corner for a new settlement: a breathing circle, swapped for a still one on hover or once picked. */
-function CornerMark() {
-  return (
-    <>
-      <circle className="board-target-mark board-pulse" r="10">
-        {!stillMotion() && (
-          <>
-            <animate attributeName="r" values="6.2;10.8;6.2" {...PULSE} />
-            <animate attributeName="opacity" values="0.75;1;0.75" {...PULSE} />
-          </>
-        )}
-      </circle>
-      <circle className="board-pulse-hover" r="10.8" />
-    </>
-  );
 }
 
 /** Phases where pieces can be bought: your turn, or your slot in the special build phase. */
@@ -339,8 +310,6 @@ export default function Board({
             })}
           {[...edgeTargets].map(edgeId => {
             const [a, b] = edgeEnds(edgeId);
-            const dx = (b.x - a.x) * ROAD_INSET;
-            const dy = (b.y - a.y) * ROAD_INSET;
             const seaOnly = !view.legal.roads.includes(edgeId) && mode !== 'road';
             return (
               <g
@@ -352,38 +321,7 @@ export default function Board({
                 onClick={() => onEdge(edgeId)}
                 onKeyDown={event => keyboardActivate(event, () => onEdge(edgeId))}
               >
-                <circle
-                  cx={(a.x + b.x) / 2}
-                  cy={(a.y + b.y) / 2}
-                  r="12"
-                  fill="transparent"
-                  className="board-hit-area"
-                />
-                <line
-                  className="board-hit-area"
-                  x1={a.x + dx}
-                  y1={a.y + dy}
-                  x2={b.x - dx}
-                  y2={b.y - dy}
-                  stroke="transparent"
-                  strokeWidth="22"
-                  strokeLinecap="round"
-                />
-                <line
-                  className="board-target-mark"
-                  x1={a.x + dx}
-                  y1={a.y + dy}
-                  x2={b.x - dx}
-                  y2={b.y - dy}
-                  stroke="#fff9df"
-                  strokeWidth="7"
-                  strokeDasharray={seaOnly ? '1 6' : '2 5'}
-                  strokeLinecap="round"
-                >
-                  {!stillMotion() && selected?.id !== edgeId && (
-                    <animate attributeName="opacity" values="0.45;1;0.45" {...PULSE} />
-                  )}
-                </line>
+                <EdgeMark a={a} b={b} dash={seaOnly ? '1 6' : '2 5'} still={selected?.id === edgeId} />
               </g>
             );
           })}

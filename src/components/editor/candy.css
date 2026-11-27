@@ -110,13 +110,12 @@
   height: 32px;
   box-sizing: border-box;
 }
-.candy-corner {
-  cursor: pointer;
-  outline: none;
-}
-.candy-corner:focus circle:last-child {
+.candy-trim:focus-visible circle {
   stroke-width: 4;
   stroke: #254cce;
+}
+.candy-head {
+  pointer-events: none;
 }
 @media (max-width: 650px) {
   /* Train authoring needs canvas height; the other tools restore terrain and board controls. */

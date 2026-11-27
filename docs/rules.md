@@ -121,7 +121,8 @@ Pole); turning Candy off returns to plain Christmas. Settings: `santa.test.ts`; 
 and phone: `christmas-ui.spec.ts`, `candy-game.spec.ts`, `phone.spec.ts`.
 
 **Candy trains** (our own rule). The board editor's Train tool draws up to four tracks per layout
-along land corners; the first corner is the start station. Each track has a number (set in the
+along land corners; the first corner is the start station. Rails run beside the edges on one side,
+always the land side (`railSideIsLand` in `maps/candy-train.ts`, `candy-train.test.ts`). Each track has a number (set in the
 editor, or a 4 or a 10 drawn each game). Only maps with tracks have trains; editing the base game
 gives rooms without a map one too.
 

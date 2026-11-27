@@ -1,5 +1,5 @@
 import type { BoardDesign } from '../../../shared/maps';
-import { CANDY_LIMITS, CANDY_NUMBERS, replaceCandyRoute } from '../../../shared/maps/candy-train';
+import { CANDY_LIMITS, CANDY_NUMBERS, canFlipRail, replaceCandyRoute } from '../../../shared/maps/candy-train';
 import './candy.css';
 
 export interface CandyTrainControls {
@@ -92,7 +92,11 @@ export default function CandyTrainTools({
         >
           Remove last
         </button>
-        <button type="button" disabled={!route} onClick={() => update(r => ({ ...r, side: r.side === 1 ? -1 : 1 }))}>
+        <button
+          type="button"
+          disabled={!canFlipRail(design, controls.route)}
+          onClick={() => update(r => ({ ...r, side: r.side === 1 ? -1 : 1 }))}
+        >
           Flip rail side
         </button>
         <button
@@ -110,8 +114,8 @@ export default function CandyTrainTools({
         {!route
           ? 'Add a route to begin.'
           : !route.corners.length
-            ? 'Tap a corner for Start, then follow the highlighted corners.'
-            : `Train ${controls.route + 1} · ${Math.max(0, route.corners.length - 1)} edges. Tap a highlighted corner to extend; an earlier corner to shorten.`}{' '}
+            ? 'Tap a corner to start, then tap or drag along the highlighted edges.'
+            : `Train ${controls.route + 1} · ${Math.max(0, route.corners.length - 1)} edges. Tap or drag along a highlighted edge to extend; tap an earlier corner to shorten.`}{' '}
         Picks go from the start station to the end. Played in Christmas Candy rooms.
       </p>
     </section>

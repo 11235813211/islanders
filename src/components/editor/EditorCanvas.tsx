@@ -2,7 +2,7 @@ import { Maximize, Minus, Plus } from 'lucide-react';
 import { type PointerEvent as ReactPointerEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { HEX_RADIUS, hexCenter } from '../../../shared/board';
 import { type BoardDesign, type DesignKind, tileKey } from '../../../shared/maps';
-import { candyCornerAt, extendCandyRoute } from '../../../shared/maps/candy-train';
+import { candyExtensions, candyStepAt, extendCandyRoute } from '../../../shared/maps/candy-train';
 import { cellAt, paint, sideAt, stepNumber, toggleHarbor, toggleNoStart, updateTile } from '../../../shared/maps/edit';
 import { inRouteZone, paintRoute, type RouteTarget } from '../../../shared/maps/special-edit';
 import { ArtDefs, SEA } from '../../art';
@@ -208,10 +208,6 @@ export default function EditorCanvas({
   function click(point: { x: number; y: number }, active: Tool) {
     const { q, r } = cellAt(point.x, point.y);
     const tile = design.tiles.find(t => t.q === q && t.r === r);
-    if (active === 'train') {
-      const key = candyCornerAt(design, point);
-      if (key) edit(d => extendCandyRoute(d, train.route, key));
-    }
     if (active === 'select') select(tile ? { kind: 'tile', q, r } : null);
     // Clicking a tile that already has this link takes it off again.
     if (active === 'link' && tile)
@@ -229,7 +225,7 @@ export default function EditorCanvas({
   }
 
   function down(event: ReactPointerEvent) {
-    if ((event.target as Element).closest('button, .editor-token, .editor-harbor, .candy-corner')) return;
+    if ((event.target as Element).closest('button, .editor-token, .editor-harbor')) return;
     if (event.pointerType === 'touch') {
       touches.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (touches.current.size > 1) {
@@ -251,6 +247,7 @@ export default function EditorCanvas({
       screen: { x: event.clientX, y: event.clientY },
       add: !inRouteZone(design, routeTarget, cellAt(point.x, point.y).q, cellAt(point.x, point.y).r),
     };
+    if (!pan && active === 'train') trainStep(point, press.current.group, true);
     // Link and route clicks toggle (see click), so only drags paint them.
     if (!pan && PAINTING.includes(active) && active !== 'link' && active !== 'route') strokeTo(point);
   }
@@ -288,17 +285,40 @@ export default function EditorCanvas({
       setView(v => ({ ...v, cx: v.cx - dx / v.scale, cy: v.cy - dy / v.scale }));
       return;
     }
+    if (current.tool === 'train') {
+      if (Math.hypot(event.clientX - current.screen.x, event.clientY - current.screen.y) > CLICK_SLOP)
+        current.moved = true;
+      trainStep(point, current.group, false);
+      return;
+    }
     const start = cellAt(current.start.x, current.start.y);
     if (!current.moved && cell.q === start.q && cell.r === start.r) return;
     current.moved = true;
     if (PAINTING.includes(current.tool)) strokeTo(point);
   }
 
+  /**
+   * The train tool acts on press, so a tap and the start of a drag are the same step; one press is
+   * one undo. A drag then extends past each highlighted edge's middle, or steps back one corner.
+   */
+  function trainStep(point: { x: number; y: number }, group: string, tap: boolean) {
+    const d = designRef.current;
+    const key = candyStepAt(d, train.route, point, tap ? 26 : 14);
+    if (!key) return;
+    const corners = d.candyRoutes?.[train.route]?.corners ?? [];
+    if (!tap && !candyExtensions(d, train.route).includes(key) && key !== corners.at(-2)) return;
+    const next = extendCandyRoute(d, train.route, key);
+    if (next === d || next.candyRoutes?.[train.route]?.corners.length === corners.length) return;
+    // Until the canvas re-renders, the next move must see this step.
+    designRef.current = next;
+    edit(latest => extendCandyRoute(latest, train.route, key), group);
+  }
+
   function up(event: ReactPointerEvent) {
     touches.current.delete(event.pointerId);
     const current = press.current;
     press.current = null;
-    if (!current || current.moved || event.button === 1 || event.button === 2) return;
+    if (!current || current.moved || current.tool === 'train' || event.button === 1 || event.button === 2) return;
     click(current.start, current.tool);
   }
 

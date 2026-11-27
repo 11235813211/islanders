@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { buildBoard } from '../shared/maps';
-import { candyGraph, extendCandyRoute, parseCandyRoutes } from '../shared/maps/candy-train';
+import {
+  candyExtensions,
+  candyGraph,
+  candyStepAt,
+  canFlipRail,
+  extendCandyRoute,
+  parseCandyRoutes,
+  railSideIsLand,
+} from '../shared/maps/candy-train';
 import { newDesign, paint } from '../shared/maps/edit';
 import { designFor } from '../shared/maps/types';
 import { parseDesign } from '../shared/maps/validate';
@@ -30,6 +38,39 @@ describe('candy railway editing', () => {
     expect(d.candyRoutes![0]!.corners).toHaveLength(3);
     d = extendCandyRoute(d, 0, '0,0,1');
     expect(d.candyRoutes![0]!.corners).toEqual(['0,0,0', '0,0,1']);
+  });
+
+  it('keeps the rails on land: the first edge picks its side, later edges and flips stay dry', () => {
+    let d = design();
+    const graph = candyGraph(d.tiles);
+    // Counterclockwise around tile 0,0 puts side 1 outside, over the sea.
+    d = extendCandyRoute(d, 0, '0,0,3');
+    d = extendCandyRoute(d, 0, '0,0,2');
+    expect(d.candyRoutes![0]).toMatchObject({ corners: ['0,0,3', '0,0,2'], side: -1 });
+    expect(railSideIsLand(d.tiles, graph.get('0,0,3')!, graph.get('0,0,2')!, 1)).toBe(false);
+    expect(canFlipRail(d, 0)).toBe(false);
+    // From corner 2 only the edge around tile 0,0 keeps land on the rail side.
+    expect(candyExtensions(d, 0)).toEqual([graph.get('0,0,1')!.key]);
+    // A route along the shared edge has land both ways and may flip.
+    const shared = extendCandyRoute(extendCandyRoute(design(), 0, '0,0,5'), 0, '0,0,0');
+    expect(canFlipRail(shared, 0)).toBe(true);
+    // A saved route over the sea switches to its dry side, or is cut at its first wet edge.
+    expect(parseCandyRoutes([{ corners: ['0,0,3', '0,0,2'], side: 1 }], d.tiles)[0]!.side).toBe(-1);
+    const wet = parseCandyRoutes([{ corners: ['0,0,4', '0,0,5', '0,0,0', '1,0,1'], side: 1 }], d.tiles)[0]!;
+    expect(wet).toEqual({ corners: ['0,0,4', '0,0,5', '0,0,0'], side: 1 });
+  });
+
+  it('reads a tap past an edge middle as that edge, and a tap on an earlier corner as a trim', () => {
+    let d = design();
+    const graph = candyGraph(d.tiles);
+    const at = (key: string) => graph.get(key)!;
+    expect(candyStepAt(d, 0, at('0,0,0'))).toBe('0,0,0');
+    d = extendCandyRoute(d, 0, '0,0,0');
+    const mid = { x: (at('0,0,0').x + at('0,0,1').x) / 2, y: (at('0,0,0').y + at('0,0,1').y) / 2 };
+    expect(candyStepAt(d, 0, mid)).toBe('0,0,1');
+    d = extendCandyRoute(extendCandyRoute(d, 0, '0,0,1'), 0, '0,0,2');
+    expect(candyStepAt(d, 0, at('0,0,0'))).toBe('0,0,0');
+    expect(candyStepAt(d, 0, { x: 9999, y: 0 })).toBeNull();
   });
 
   it('round-trips routes through server validation and keeps them out of game board rules', () => {
