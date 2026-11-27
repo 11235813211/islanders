@@ -57,8 +57,16 @@ export const CHRISTMAS = {
   /** The desert frozen through. */
   frozen: { ground: '#d5eaf4', drift: '#e6f3f9', pond: '#9fcde3', pondLight: '#c4e4f2', shard: '#bfe3f3' },
   polarBear: { fur: '#fbfbf8', shade: '#e3ecf1', line: '#a9bccb', ear: '#e8bcbc', scarf: '#2f8f4e' },
-  /** The Grinch, peeking from behind one mountain per board. */
-  grinch: { size: 0.68, fur: '#8cc63f', furDark: '#5e8f22', brow: '#2f4a12', eye: '#ffe14d', pupil: '#c62828' },
+  /** The Grinch, who is the robber (robber.tsx); `edge` is the robber's pale outline. */
+  grinch: {
+    fur: '#8cc63f',
+    furDark: '#5e8f22',
+    brow: '#2f4a12',
+    eye: '#ffe14d',
+    pupil: '#c62828',
+    hat: '#d7263d',
+    edge: '#f1e0b6',
+  },
   forest: { baubles: ['#e8323c', '#ffd23f', '#4db8ff'], star: '#ffd23f' },
   northPole: {
     pole: '#e2333b',

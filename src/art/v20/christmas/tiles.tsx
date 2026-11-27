@@ -1,6 +1,5 @@
 // Winter versions of the base tiles: snowy pines with baubles, reindeer on the pasture, wind and a
-// snowman in the fields, lights strung around the hills, snow falling on the mountains (one hides
-// the Grinch), and a frozen desert with a polar bear. Each keeps its tile's own color, so terrain still reads at a glance.
+// snowman in the fields, lights strung around the hills, snow falling on the mountains, and a frozen desert with a polar bear. Each keeps its tile's own color, so terrain still reads at a glance.
 import type { ReactElement } from 'react';
 import type { BaseTerrain } from '../../../../shared/types';
 import { TileFrame } from '../index';
@@ -325,49 +324,10 @@ function WinterHills() {
   );
 }
 
-/** The Grinch's head peeking over a ridge, at (x, y); his fingers are drawn on the ridge separately. */
-function GrinchHead({ x, y }: { x: number; y: number }) {
-  const g = CHRISTMAS.grinch;
-  return (
-    <g transform={`translate(${x} ${y}) rotate(14) scale(${g.size})`}>
-      <path d="M-6.4-1Q-7-6-4-7.6L-3.6-10-1.6-7.8 0-10.6 1.6-7.8 3.8-9.6 4-7.2Q7-5.6 6.4-1Z" fill={g.furDark} />
-      <ellipse rx="6.3" ry="6" fill={g.fur} />
-      <path d="M-4.6-2.6-1.2-1.6M4.6-3 1.2-1.6" stroke={g.brow} strokeWidth="1.3" strokeLinecap="round" />
-      <ellipse cx="-2.4" cy="-.4" rx="1.5" ry="1.05" fill={g.eye} />
-      <ellipse cx="2.4" cy="-.4" rx="1.5" ry="1.05" fill={g.eye} />
-      <circle cx="-2" cy="-.3" r=".55" fill={g.pupil} />
-      <circle cx="2.8" cy="-.3" r=".55" fill={g.pupil} />
-      <path d="M-4.2 2.4Q0 5.2 4.8 1.6" fill="none" stroke={g.brow} strokeWidth=".9" strokeLinecap="round" />
-      {/* A Santa hat, slipping. */}
-      <path d="M-5.6-5.2Q-2-12.6 5.4-11.6Q3.2-8.8 5-5.2Z" fill="#d7263d" />
-      <rect x="-6.4" y="-6.4" width="12" height="2.6" rx="1.3" fill="#fff" />
-      <circle cx="5.8" cy="-11.6" r="1.6" fill="#fff" />
-    </g>
-  );
-}
-/** Green fingers gripping the ridge at (x, y). */
-function GrinchFingers({ x, y, rotate }: { x: number; y: number; rotate: number }) {
-  return (
-    <g
-      transform={`translate(${x} ${y}) rotate(${rotate}) scale(${CHRISTMAS.grinch.size})`}
-      fill={CHRISTMAS.grinch.fur}
-      stroke={CHRISTMAS.grinch.furDark}
-      strokeWidth=".5"
-    >
-      <rect x="-2.6" y="-1.6" width="1.6" height="3.2" rx=".8" />
-      <rect x="-.8" y="-1.9" width="1.6" height="3.6" rx=".8" />
-      <rect x="1" y="-1.6" width="1.6" height="3.2" rx=".8" />
-    </g>
-  );
-}
-
-/** Mountains under heavy snow. `grinch` puts the Grinch behind the big peak's right shoulder. */
-function WinterMountains({ grinch = false }: { grinch?: boolean }) {
-  // The big back peak's right slope runs from (18, -39) down to (71, 33).
-  const ridge = (x: number) => -39 + ((x - 18) * 72) / 53;
+/** Mountains under heavy snow. */
+function WinterMountains() {
   return (
     <g>
-      {grinch && <GrinchHead x={31} y={-21.5} />}
       <path d="M-70 30-32-27-5 14 18-39 71 33V70H-70Z" fill="#5f7a86" />
       <path d="m-32-27 4 49L-5 14Zm50-12 4 62 49 10Z" fill="#7c929c" />
       <path d="M-32-27-46-6Q-40-9-37-4.5Q-33-10-28.6-4Q-24-9-19-6Z" fill={SNOW.light} />
@@ -377,12 +337,6 @@ function WinterMountains({ grinch = false }: { grinch?: boolean }) {
       <path d="m-22 2 4 51H6Zm52 4 2 47h35Z" fill="#82989a" />
       <path d="M-22 2-30.8 12Q-26 10-23 13.5Q-19 9.5-13.2 12Z" fill={SNOW.light} />
       <path d="M30 6 22.3 15Q26 13 29 16.4Q33 12 37 15Z" fill={SNOW.light} />
-      {grinch && (
-        <>
-          <GrinchFingers x={27.4} y={ridge(27.4) + 0.3} rotate={54} />
-          <GrinchFingers x={35.4} y={ridge(35.4) + 0.3} rotate={54} />
-        </>
-      )}
       <path d="M-67 53Q-40 40-22 46T6 44 34 46 67 53V70H-67Z" fill={SNOW.light} />
       <path d="M-67 60Q-30 50 0 55T67 58V70H-67Z" fill={SNOW.shade} />
     </g>
@@ -497,7 +451,7 @@ function WinterDesert() {
   );
 }
 
-const SCENES: Record<BaseTerrain, (props: { grinch?: boolean }) => ReactElement> = {
+const SCENES: Record<BaseTerrain, () => ReactElement> = {
   wood: WinterForest,
   sheep: WinterPasture,
   wheat: WinterFields,
@@ -511,14 +465,11 @@ export function WinterTile({
   uid,
   terrain,
   seed = 0,
-  grinch = false,
   paid,
 }: {
   uid: string;
   terrain: BaseTerrain;
   seed?: number;
-  /** The one mountain on the board the Grinch hides behind. */
-  grinch?: boolean;
   /** Set (to the roll's id) when this tile just paid out: it plays its motion for a few seconds. */
   paid?: number;
 }) {
@@ -527,7 +478,7 @@ export function WinterTile({
   return (
     <TileFrame uid={uid} terrain={terrain}>
       <g key={paid ?? 'still'} className={paid === undefined ? undefined : 'xmas-active'}>
-        <Scene grinch={grinch} />
+        <Scene />
         <StillFlakes count={CHRISTMAS.flakes.still[terrain]} seed={seed} />
         {terrain === 'ore' && paid !== undefined && <FallingFlakes seed={seed} />}
         {terrain === 'wheat' && <Wind seed={seed} />}

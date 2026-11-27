@@ -6,6 +6,7 @@ import { PLAYER_COLORS } from '../shared/colors';
 import type { BaseTerrain } from '../shared/types';
 import { art } from '../src/art/v20';
 import { NorthPoleRing, NorthPoleTile, Sleigh } from '../src/art/v20/christmas/northpole';
+import { GrinchRobber } from '../src/art/v20/christmas/robber';
 import { WinterTile } from '../src/art/v20/christmas/tiles';
 
 // Review the Christmas art: each tile as usual and in winter, with gingerbread pieces, and a
@@ -30,9 +31,7 @@ function row(uid: string, winter: boolean, paid?: number) {
         h(
           'g',
           { key: terrain, transform: `translate(${i * CELL + CELL / 2} 0)` },
-          winter
-            ? h(WinterTile, { uid, terrain, seed: i, grinch: terrain === 'ore', paid })
-            : h(art.HexTile, { uid, terrain }),
+          winter ? h(WinterTile, { uid, terrain, seed: i, paid }) : h(art.HexTile, { uid, terrain }),
           winter &&
             h(
               'g',
@@ -55,7 +54,7 @@ function row(uid: string, winter: boolean, paid?: number) {
   );
 }
 
-/** Close-ups at 3×: tiles with the most detail, the North Pole, and the reindeer. */
+/** Close-ups at 3×: tiles with the most detail (the Grinch robber on the mountains), the North Pole, and the reindeer. */
 function closeUps(terrains: BaseTerrain[], uid: string) {
   return renderToStaticMarkup(
     h(
@@ -70,7 +69,8 @@ function closeUps(terrains: BaseTerrain[], uid: string) {
         h(
           'g',
           { key: terrain, transform: `translate(${65 + i * 130} 0)` },
-          h(WinterTile, { uid, terrain, seed: i + 3, grinch: terrain === 'ore' }),
+          h(WinterTile, { uid, terrain, seed: i + 3 }),
+          terrain === 'ore' && h(GrinchRobber),
         ),
       ),
       h(

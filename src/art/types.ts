@@ -58,7 +58,6 @@ export interface ChristmasArt {
     uid: string;
     terrain: BaseTerrain;
     seed?: number;
-    grinch?: boolean;
     /** The roll's id when this tile just paid out: it plays its motion once. */
     paid?: number;
   }) => ReactElement;
@@ -74,6 +73,8 @@ export interface ChristmasArt {
   CardArt: (props: { resource: string }) => ReactElement | null;
   /** The logo's mark: a decorated pine with a star, centered at the origin (about ±15 by -32..12). */
   LogoTree: () => ReactElement;
+  /** The robber in a Christmas room: the Grinch, in the usual robber's footprint. */
+  Robber: () => ReactElement;
   /** Seconds to fly to a building, and to stay there before leaving. */
   sleigh: { flight: number; hold: number; scale: number };
 }

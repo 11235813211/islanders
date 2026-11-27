@@ -250,7 +250,6 @@ export const CATEGORIES: Category[] = [
       },
       {
         key: 'discardLimit',
-        advanced: true,
         label: 'Discard limit',
         hint: 'On a 7, anyone holding more than this discards half.',
         icon: <Shield size={20} />,

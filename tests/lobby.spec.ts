@@ -359,24 +359,29 @@ test('host and other players can view each art style in red and blue, at every w
 
 test('less used settings stay folded in their categories until anyone presses All settings', async ({ page }) => {
   const lobby = makeLobby(2);
-  lobby.settings.discardLimit = 9;
   // Seen by a guest: p1 hosts, the page plays p0.
   lobby.hostId = 'p1';
   await mountGame(page, lobby);
   await expect(page.getByText('Host controls')).toBeVisible();
   const rules = page.locator('.setting-group').filter({ hasText: 'Points to win' });
-  await expect(rules.getByText('Discard limit')).toBeHidden();
+  // The discard limit is always shown; the friendly robber and North Pole wait for All settings.
+  await expect(rules.getByText('Discard limit')).toBeVisible();
+  await expect(rules.getByText('Friendly robber')).toBeHidden();
   await expect(rules.getByText('North Pole', { exact: true })).toBeHidden();
   const all = page.getByRole('button', { name: /All settings/ });
-  // The discard limit (and the test lobby's unfriendly robber) differ from a new room's.
+  // The test lobby's unfriendly robber differs from a new room's.
   await expect(all).toContainText(/\d changed/);
   await all.click();
-  await expect(rules.getByText('Discard limit')).toBeVisible();
+  await expect(rules.getByText('Friendly robber')).toBeVisible();
   await expect(rules.getByText('North Pole', { exact: true })).toBeVisible();
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expectNoSpill(page.locator('.setup-settings .section-heading'));
   }
   await page.getByRole('button', { name: 'Fewer settings' }).click();
-  await expect(rules.getByText('Discard limit')).toBeHidden();
+  await expect(rules.getByText('Friendly robber')).toBeHidden();
+  for (const width of [1600, 1280, 1024, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectNoSpill(rules);
+  }
 });

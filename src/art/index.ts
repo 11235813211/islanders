@@ -15,7 +15,7 @@ import { christmas as fallbackChristmas } from './v20/christmas';
 export type { Frame, SeaTileKind } from './types';
 export const ART_VERSION = art.version;
 export const ROAD_INSET = art.roadInset ?? 0.19;
-export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, BuildingPiece, Robber, SeaDecorations } = art;
+export const { ArtDefs, SeaBackdrop, HexTile, NumberToken, Harbor, Road, BuildingPiece, SeaDecorations } = art;
 /** Cartographers art: the active version's, or v14's for versions made before it. */
 export const CARTOGRAPHERS: CartographersArt =
   (art as { cartographers?: CartographersArt }).cartographers ?? fallbackCartographers;
@@ -28,6 +28,10 @@ export const MegacityPiece = (art as { MegacityPiece?: typeof fallbackMegacity }
 export const CHRISTMAS: ChristmasArt = (art as { christmas?: ChristmasArt }).christmas ?? fallbackChristmas;
 /** True inside a room with the Christmas look: tiles and cards draw their winter versions. */
 export const ChristmasTheme = createContext(false);
+/** The robber: the Grinch in a room with the Christmas look, else the active version's. */
+export function Robber(): ReactElement {
+  return createElement(useContext(ChristmasTheme) ? CHRISTMAS.Robber : art.Robber);
+}
 /** Cities & Knights art: the active version's, or v18's for versions made before it. */
 export const KNIGHTS: KnightsArt = (art as { knights?: KnightsArt }).knights ?? fallbackKnights;
 export const CARD_COLORS: Record<Resource, CardColors> = {
@@ -78,14 +82,11 @@ export function Tile({
   uid,
   terrain,
   variant,
-  grinch,
   paid,
 }: {
   uid: string;
   terrain: Terrain | 'land';
   variant?: number;
-  /** Christmas: the one mountain the Grinch hides behind. */
-  grinch?: boolean;
   /** Christmas: the roll's id when this tile just paid out, to play its motion. */
   paid?: number;
 }): ReactElement {
@@ -96,7 +97,6 @@ export function Tile({
       uid,
       terrain: terrain as BaseTerrain,
       seed: variant ?? 0,
-      grinch,
       paid,
     });
   if (terrain === 'lodestone') return createElement(CARTOGRAPHERS.Tile, { uid });
